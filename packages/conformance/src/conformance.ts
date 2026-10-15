@@ -224,6 +224,7 @@ export async function runConformance(options: ConformanceOptions): Promise<Check
     if (!document?.paths?.['/qqq/v1/jobs']) throw new Skip('no jobs operation')
     const r = await call('GET', '/qqq/v1/jobs?scope=mine')
     if (r.status === 403) throw new Skip('no jobs permission')
+    if (r.status === 404) throw new Skip('jobs are not enabled on this server (no durable jobs tables)')
     expect(r.status === 200, `status ${r.status}`)
     validator?.response('get', '/qqq/v1/jobs', 200, r.json)
     return `${r.json?.jobs?.length ?? 0} jobs`
