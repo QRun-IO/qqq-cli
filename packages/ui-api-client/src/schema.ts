@@ -1647,6 +1647,934 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/qqq/v1/assistant/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether the assistant is available to this user, its persona and limits
+         * @description Whether the assistant is available to this user, its persona and limits
+         */
+        get: operations["getAssistantConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The user's own conversations
+         * @description The user's own conversations
+         */
+        get: operations["getAssistantConversations"];
+        put?: never;
+        /**
+         * Start a conversation
+         * @description Start a conversation
+         */
+        post: operations["postAssistantConversations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/conversations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A conversation and a page of its messages
+         * @description A conversation and a page of its messages
+         */
+        get: operations["getAssistantConversationsById"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a conversation
+         * @description Delete a conversation
+         */
+        delete: operations["deleteAssistantConversationsById"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename, pin or archive a conversation
+         * @description Rename, pin or archive a conversation
+         */
+        patch: operations["patchAssistantConversationsById"];
+        trace?: never;
+    };
+    "/qqq/v1/assistant/conversations/{id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask: start a turn and stream the reply as server-sent events
+         * @description Ask: start a turn and stream the reply as server-sent events
+         */
+        post: operations["postAssistantConversationsByIdTurns"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/turns/{turnId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resume a turn's events after a sequence number (replay, then the live tail)
+         * @description Resume a turn's events after a sequence number (replay, then the live tail)
+         */
+        get: operations["getAssistantTurnsByTurnIdEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/turns/{turnId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop a running turn
+         * @description Stop a running turn
+         */
+        post: operations["postAssistantTurnsByTurnIdCancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/turns/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find the user's active assistant runs
+         * @description Find the user's active assistant runs
+         */
+        get: operations["getAssistantTurnsActive"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/messages/{id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Thumbs up or down on an assistant message
+         * @description Thumbs up or down on an assistant message
+         */
+        post: operations["postAssistantMessagesByIdFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/actions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A write the assistant proposed, and its state
+         * @description A write the assistant proposed, and its state
+         */
+        get: operations["getAssistantActionsById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/actions/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a proposed write: it runs once, through the UI API, with this request's session
+         * @description Confirm a proposed write: it runs once, through the UI API, with this request's session
+         */
+        post: operations["postAssistantActionsByIdConfirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/actions/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a proposed write; nothing changes
+         * @description Cancel a proposed write; nothing changes
+         */
+        post: operations["postAssistantActionsByIdReject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Explain access: which UI API operations the assistant could call for this user, and why not
+         * @description Explain access: which UI API operations the assistant could call for this user, and why not
+         */
+        get: operations["getAssistantAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get presence snapshot
+         * @description Get presence snapshot. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationPresence"];
+        put?: never;
+        /**
+         * Renew presence
+         * @description Renew presence. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationPresence"];
+        /**
+         * Leave presence
+         * @description Leave presence. Uses the signed-in caller's permissions and record visibility.
+         */
+        delete: operations["deleteQbitCollaborationPresence"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/favorites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List personal favorites
+         * @description List personal favorites. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationFavorites"];
+        /**
+         * Star a target
+         * @description Star a target. Uses the signed-in caller's permissions and record visibility.
+         */
+        put: operations["putQbitCollaborationFavorites"];
+        post?: never;
+        /**
+         * Unstar a target
+         * @description Unstar a target. Uses the signed-in caller's permissions and record visibility.
+         */
+        delete: operations["deleteQbitCollaborationFavorites"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/recents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recent targets
+         * @description List recent targets. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationRecents"];
+        put?: never;
+        /**
+         * Record a recent view
+         * @description Record a recent view. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationRecents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/favorites/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Reorder personal favorites
+         * @description Reorder personal favorites. Uses the signed-in caller's permissions and record visibility.
+         */
+        patch: operations["patchQbitCollaborationFavoritesOrder"];
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List record attachments
+         * @description List record attachments. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationRecordsByTableByPkAttachments"];
+        put?: never;
+        /**
+         * Upload an attachment
+         * @description Upload an attachment. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationRecordsByTableByPkAttachments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/attachments/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a temporary download URL; clients follow url
+         * @description Get a temporary download URL; clients follow url. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationAttachmentsByIdDownload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/attachments/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a temporary preview URL; clients follow url
+         * @description Get a temporary preview URL; clients follow url. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationAttachmentsByIdPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/attachments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an attachment
+         * @description Delete an attachment. Uses the signed-in caller's permissions and record visibility.
+         */
+        delete: operations["deleteQbitCollaborationAttachmentsById"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename or describe an attachment
+         * @description Rename or describe an attachment. Uses the signed-in caller's permissions and record visibility.
+         */
+        patch: operations["patchQbitCollaborationAttachmentsById"];
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search table tag vocabulary
+         * @description Search table tag vocabulary. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationTags"];
+        put?: never;
+        /**
+         * Create or suggest a tag
+         * @description Create or suggest a tag. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationTags"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List applied record tags
+         * @description List applied record tags. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationRecordsByTableByPkTags"];
+        /**
+         * Add and remove record tags
+         * @description Add and remove record tags. Uses the signed-in caller's permissions and record visibility.
+         */
+        put: operations["putQbitCollaborationRecordsByTableByPkTags"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Page record comment threads
+         * @description Page record comment threads. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationRecordsByTableByPkComments"];
+        put?: never;
+        /**
+         * Post a comment or reply
+         * @description Post a comment or reply. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationRecordsByTableByPkComments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/comments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a comment thread
+         * @description Delete a comment thread. Uses the signed-in caller's permissions and record visibility.
+         */
+        delete: operations["deleteQbitCollaborationCommentsById"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit the caller's comment
+         * @description Edit the caller's comment. Uses the signed-in caller's permissions and record visibility.
+         */
+        patch: operations["patchQbitCollaborationCommentsById"];
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/comments/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve a comment thread
+         * @description Resolve a comment thread. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationCommentsByIdResolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/comments/{id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen a comment thread
+         * @description Reopen a comment thread. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationCommentsByIdReopen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/comments/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read comment edit history
+         * @description Read comment edit history. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationCommentsByIdHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/mentions/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find people to mention on a record
+         * @description Find people to mention on a record. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationMentionsCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/follow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the caller's follow state
+         * @description Get the caller's follow state. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationRecordsByTableByPkFollow"];
+        /**
+         * Follow a record and configure notifications
+         * @description Follow a record and configure notifications. Uses the signed-in caller's permissions and record visibility.
+         */
+        put: operations["putQbitCollaborationRecordsByTableByPkFollow"];
+        post?: never;
+        /**
+         * Unfollow a record
+         * @description Unfollow a record. Uses the signed-in caller's permissions and record visibility.
+         */
+        delete: operations["deleteQbitCollaborationRecordsByTableByPkFollow"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/followers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List record followers
+         * @description List record followers. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationRecordsByTableByPkFollowers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Page the merged record timeline
+         * @description Page the merged record timeline. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationRecordsByTableByPkTimeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search the active people directory
+         * @description Search the active people directory. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationPeople"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/people/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an active directory person
+         * @description Get an active directory person. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationPeopleByUserId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a record link
+         * @description Get a record link. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationRecordsByTableByPkLink"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/shares/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview share recipients
+         * @description Preview share recipients. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationRecordsByTableByPkSharesPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Share a record
+         * @description Share a record. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationRecordsByTableByPkShares"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/access-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request access to a record
+         * @description Request access to a record. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationAccessRequests"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/access-requests/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my access requests
+         * @description List my access requests. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationAccessRequestsMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List record tasks
+         * @description List record tasks. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationRecordsByTableByPkTasks"];
+        put?: never;
+        /**
+         * Create a task
+         * @description Create a task. Uses the signed-in caller's permissions and record visibility.
+         */
+        post: operations["postQbitCollaborationRecordsByTableByPkTasks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a task
+         * @description Update a task. Uses the signed-in caller's permissions and record visibility.
+         */
+        patch: operations["patchQbitCollaborationTasksById"];
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/tasks/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my tasks
+         * @description List my tasks. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationTasksMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/records/{table}/{pk}/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set record owner and assignee
+         * @description Set record owner and assignee. Uses the signed-in caller's permissions and record visibility.
+         */
+        put: operations["putQbitCollaborationRecordsByTableByPkAssignment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/collaboration/my-work": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get my work summary
+         * @description Get my work summary. Uses the signed-in caller's permissions and record visibility.
+         */
+        get: operations["getQbitCollaborationMyWork"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/qqq/v1/qbit/data-analysis/saved/{id}/run": {
         parameters: {
             query?: never;
@@ -2656,7 +3584,7 @@ export interface components {
         };
         AuditsCapabilityV1: {
             /** @description True when the table is audited and the user can read its audits one of the two ways. */
-            available?: boolean;
+            available?: boolean | null;
             /** @description The audit detail table (field changes), joined to tableName. */
             detailTableName?: string;
             /** @description The table's audit level: NONE, RECORD or FIELD. */
@@ -2719,7 +3647,7 @@ export interface components {
                 /** @description BaseUrl for OAuth2 provider */
                 baseUrl?: string;
                 /** @description True when the server accepts the provider's access tokens as Authorization: Bearer <JWT>. Since 1.6.0. */
-                bearerTokensAccepted?: boolean;
+                bearerTokensAccepted?: boolean | null;
                 /** @description ClientId for OAuth2 provider */
                 clientId?: string;
                 /** @description The issuer (OIDC discovery base URL) of nativeClientId, when it differs from baseUrl. Since 1.6.0. */
@@ -2816,7 +3744,7 @@ export interface components {
             /** @description Distinct non-blank values counted (capped at 1000). */
             distinctCount?: number;
             /** @description Whether more distinct values exist than were counted. */
-            distinctCountCapped?: boolean;
+            distinctCountCapped?: boolean | null;
             /** @description Header text (or Column A, Column B ... when the file has no header row). */
             header?: string;
             /** @description INTEGER, DECIMAL, BOOLEAN, DATE, DATE_TIME or STRING, from the profiled values. */
@@ -2832,7 +3760,7 @@ export interface components {
             /** @description Up to sampleCount distinct values, only when samplesAllowed; otherwise empty. */
             sampleValues?: string[];
             /** @description Whether sample values may be shown: an AI route of hipaa, or a mapped field that is unclassified or PUBLIC. Unmapped columns are treated as classified. */
-            samplesAllowed?: boolean;
+            samplesAllowed?: boolean | null;
         };
         BulkLoadColumnRef: {
             /** @description Zero-based column index in the file. */
@@ -2884,7 +3812,7 @@ export interface components {
             /** @description The uploaded file name. */
             fileName?: string;
             /** @description Whether row 1 looks like a header row (the suggester maps at least one of its values). */
-            hasHeaderRow?: boolean;
+            hasHeaderRow?: boolean | null;
             /** @description Data rows profiled (up to 1000). */
             rowsProfiled?: number;
             /** @description The upload ref. */
@@ -2938,13 +3866,14 @@ export interface components {
             summary?: string;
         };
         DeliveryTargetsRequestV1: {
+            /** @description Selections by delivery target step name; values are provider-defined target identifiers. */
             chosen?: {
                 [key: string]: unknown;
             };
         };
         ExposedJoin: {
             /** @description Whether or not this join is 'to many' in nature */
-            isMany?: boolean;
+            isMany?: boolean | null;
             /** @description A list of joins that travel from the base table to the exposed join table */
             joinPath?: {
                 joinOns?: unknown[];
@@ -3001,8 +3930,8 @@ export interface components {
                  * @description SIZE: display width of the field - one of xsmall, small, medium, medlarge, large, xlarge (semantic widths; each client maps them to its own columns or characters). FILE_UPLOAD: width of the upload control.
                  * @enum {string}
                  */
-                width?: "xsmall" | "small" | "medium" | "medlarge" | "large" | "xlarge";
-                /** @description FILE_UPLOAD: accepted file formats (e.g. .csv,.xlsx). */
+                width?: "xsmall" | "small" | "medium" | "medlarge" | "large" | "xlarge" | "full" | "half";
+                /** @description FILE_UPLOAD: control style (dragAndDrop or button). */
                 format?: string;
                 /** @description CODE_EDITOR: language of the code (e.g. javascript, sql, json, velocity) - for highlighting; a client without an editor shows it monospaced. */
                 languageMode?: string;
@@ -3032,6 +3961,8 @@ export interface components {
                 previewable?: boolean;
                 /** @description WIDGET: the widget that renders this field. */
                 widgetName?: string;
+            } & {
+                [key: string]: unknown;
             };
         };
         FieldMetaData: {
@@ -3092,15 +4023,15 @@ export interface components {
                 valueFormatIfNotFound?: string;
             };
             /** @description Indicate if user may edit the value in this field. */
-            isEditable?: boolean;
+            isEditable?: boolean | null;
             /** @description Indicator of 'heavy' fields, which are not loaded by default.  e.g., some blobs or long-texts */
-            isHeavy?: boolean;
+            isHeavy?: boolean | null;
             /** @description Indicate if this field should be hidden from users */
-            isHidden?: boolean;
+            isHidden?: boolean | null;
             /** @description Indicate if a value in this field is required. */
-            isRequired?: boolean;
+            isRequired?: boolean | null;
             /** @description False for restricted fields; omitted means sortable. */
-            isSortable?: boolean;
+            isSortable?: boolean | null;
             /** @description User-facing name for this field */
             label?: string;
             /** @description For String fields, the max length the field supports. */
@@ -3144,13 +4075,13 @@ export interface components {
         };
         FieldValidationV1: {
             /** @description Whether maxValue itself is accepted (false: the value must be less). */
-            maxInclusive?: boolean;
+            maxInclusive?: boolean | null;
             /** @description For string fields, the most characters the field stores.  What happens to a longer value is tooLongBehavior. */
             maxLength?: number;
             /** @description For number fields, the largest value accepted (plain digits, exact).  See maxInclusive. */
             maxValue?: string;
             /** @description Whether minValue itself is accepted (false: the value must be greater). */
-            minInclusive?: boolean;
+            minInclusive?: boolean | null;
             /** @description For number fields, the smallest value accepted (plain digits, exact).  See minInclusive. */
             minValue?: string;
             /** @description A regular expression a non-empty value must match as a whole (written to mean the same in Java and ECMAScript). */
@@ -3158,7 +4089,7 @@ export interface components {
             /** @description The message the server gives for a value that does not match pattern. */
             patternMessage?: string;
             /** @description True when a value is required. */
-            required?: boolean;
+            required?: boolean | null;
             /** @description With maxLength: ERROR (a longer value is refused), TRUNCATE or TRUNCATE_ELLIPSIS (it is trimmed on save), PASS_THROUGH (neither). */
             tooLongBehavior?: string;
         };
@@ -3211,7 +4142,10 @@ export interface components {
          * @description These are the known values that can appear in the values map under a FrontendComponent, to control
          *     how that component should be presented to the user.
          *
-         *     Note that additional properties may appear as well.
+         *     Additional application-defined properties may appear as well. BULK_EDIT_FORM, BULK_LOAD_FILE_MAPPING_FORM,
+         *     BULK_LOAD_VALUE_MAPPING_FORM, BULK_LOAD_PROFILE_FORM, VALIDATION_REVIEW_SCREEN, VIEW_FORM, DOWNLOAD_FORM,
+         *     RECORD_LIST, PROCESS_SUMMARY_RESULTS and GOOGLE_DRIVE_SELECT_FOLDER have no fixed component-local keys
+         *     supplied by the core producers; they consume process values and frontend-step metadata.
          *
          *     In addition, components are expected to use values from an active process's `values` map (e.g., as included in
          *     a `ProcessStepComplete` object), with the following contract between component-types and expected values:
@@ -3234,16 +4168,18 @@ export interface components {
              * @description Components of type=`WIDGET`, which do not reference a widget defined in the QQQ Instance, but instead,
              *     are defined as a list of blocks within a frontend step component, will have a this value set to true.
              */
-            isAdHocWidget?: boolean;
+            isAdHocWidget?: boolean | null;
+            /** @description HELP_TEXT: short text shown before expanding the full text. */
+            previewText?: string;
             /** @description Components of type=`EDIT_FORM` can specify a user-facing text label to show on screen. */
             sectionLabel?: string;
+            /** @description HELP_TEXT: text shown by the component. */
+            text?: string;
             /**
              * @description Components of type=`WIDGET`, which should render a widget defined in the QQQ instance, this value specifies
              *     the name of that widget.  Contrast with ad-hoc widgets.
              */
             widgetName?: string;
-        } & {
-            [key: string]: unknown;
         };
         FrontendStep: {
             /** @description Name of the step a user can go back to from this step (step with isStepBack=true), when there is one. */
@@ -3270,6 +4206,8 @@ export interface components {
             content?: string;
             /** @description Rendered Markdown (raw HTML escaped, unsafe links removed). Explicit HTML is unchanged and clients must sanitize it. */
             contentAsHtml?: string;
+            /** @description Plain-text help, preserving link text and line breaks. */
+            contentAsText?: string;
             /**
              * @description Format of the long help.
              * @enum {string}
@@ -3282,11 +4220,11 @@ export interface components {
         };
         HelpCoverageEntryV1: {
             /** @description Whether visible help has long content. */
-            hasContent?: boolean;
+            hasContent?: boolean | null;
             /** @description Whether visible help has an explicit summary. */
-            hasSummary?: boolean;
+            hasSummary?: boolean | null;
             /** @description Whether the target is hidden in metadata. */
-            hidden?: boolean;
+            hidden?: boolean | null;
             /** @description Canonical helpContent address. */
             key?: string;
             /** @description Help target kind. */
@@ -3316,6 +4254,8 @@ export interface components {
         HelpSearchResultV1: {
             /** @description Rendered Markdown (raw HTML escaped, unsafe links removed). Explicit HTML is unchanged and clients must sanitize it. */
             contentAsHtml?: string;
+            /** @description Plain-text help, preserving link text and line breaks. */
+            contentAsText?: string;
             /** @description Application-relative navigation link, when available. */
             href?: string;
             /** @description Canonical helpContent address. */
@@ -3338,10 +4278,12 @@ export interface components {
         Icon: {
             /** @description A color code to use for displaying the icon */
             color?: string;
-            /** @description A material UI icon name. */
+            /** @description Material UI icon name (web); prefer semanticName */
             name?: string;
             /** @description A path to an image file that can be requested from the server, to serve as the icon image instead of a material UI icon. */
             path?: string;
+            /** @description Client-neutral kebab-case icon token; null when unmapped. */
+            semanticName?: string;
         };
         JobActionResponseV1: {
             jobId?: number;
@@ -3445,7 +4387,7 @@ export interface components {
                 unitLabel?: string;
                 updatedAt?: string;
             };
-            terminal?: boolean;
+            terminal?: boolean | null;
         };
         JobProgressV1: {
             bytesDone?: number;
@@ -3507,11 +4449,9 @@ export interface components {
         };
         MaterialDashboardWeekdayCriteriaSettings: {
             /** @description Arguments for the WeekdayOfDateTime field function that a frontend sends with weekday criteria on date-time fields (for example timeZoneId or useSessionZoneId). */
-            dateTimeFieldFunctionArguments?: {
-                [key: string]: unknown;
-            };
+            dateTimeFieldFunctionArguments?: components["schemas"]["WeekdayCriteriaArguments"];
             /** @description Whether query screens offer the weekday criteria (day is any of, day is none of) on date and date-time fields. */
-            enabled?: boolean;
+            enabled?: boolean | null;
         };
         MetaDataResponseV1: {
             /** @description Tree of apps within the QQQ Instance, sorted and organized hierarchically, for presentation to a user. */
@@ -3560,13 +4500,15 @@ export interface components {
             reports?: {
                 [key: string]: {
                     /** @description Whether the user may run the report. */
-                    hasPermission?: Record<string, never>;
+                    hasPermission?: boolean;
                     /** @description Help entries by slot, filtered for the current session. */
                     helpContents?: {
                         [key: string]: components["schemas"]["HelpContentV1"][];
                     };
-                    /** @description Name of the report's icon. */
+                    /** @description Material UI icon name (web); prefer iconSemanticName */
                     iconName?: string;
+                    /** @description Client-neutral kebab-case icon token; null when unmapped. */
+                    iconSemanticName?: string;
                     /** @description User-facing name for this report. */
                     label?: string;
                     /** @description Unique name for this report within the QQQ Instance. */
@@ -3581,7 +4523,10 @@ export interface components {
                 assistant?: {
                     [key: string]: unknown;
                 };
-                /** @description Settings from the instance's `materialDashboard` supplemental meta-data, when the instance defines it. */
+                /**
+                 * @deprecated
+                 * @description Use uiSettings; kept for Next UI until it migrates
+                 */
                 materialDashboard?: {
                     /** @description Names of processes to offer on the query and record-view screens of every table, in their configured order.  Only processes that the user may see (i.e., that are in the meta-data's `processes` map) are listed, so the list may be empty. */
                     processNamesToAddToAllQueryAndViewScreens?: string[];
@@ -3590,16 +4535,35 @@ export interface components {
                     /** @description Weekday criteria settings for the query screens (day is any of, day is none of).  Omitted when the material dashboard meta-data does not define them. */
                     weekdayCriteriaSettings?: {
                         /** @description Arguments for the WeekdayOfDateTime field function that a frontend sends with weekday criteria on date-time fields (for example timeZoneId or useSessionZoneId). */
-                        dateTimeFieldFunctionArguments?: {
-                            [key: string]: unknown;
-                        };
+                        dateTimeFieldFunctionArguments?: components["schemas"]["WeekdayCriteriaArguments"];
                         /** @description Whether query screens offer the weekday criteria (day is any of, day is none of) on date and date-time fields. */
-                        enabled?: boolean;
+                        enabled?: boolean | null;
                     };
                 };
-                /** @description The application theme from the instance's MaterialDashboardThemeMetaData supplemental meta-data, when the instance defines it.  Keys are MaterialDashboardThemeMetaData property names (for example primaryColor, fontFamily, typographyH1FontSize, borderRadiusGlobal, density, customCss, brandedHeaderEnabled, sidebarBackgroundColor, tableHeaderBackgroundColor); values are strings, numbers or booleans.  An explicit allow-list of the theme's visual properties; properties without a value are omitted. */
+                /**
+                 * @deprecated
+                 * @description Use uiSettings; kept for Next UI until it migrates. The application theme from the instance's MaterialDashboardThemeMetaData supplemental meta-data, when the instance defines it.  Keys are MaterialDashboardThemeMetaData property names (for example primaryColor, fontFamily, typographyH1FontSize, borderRadiusGlobal, density, customCss, brandedHeaderEnabled, sidebarBackgroundColor, tableHeaderBackgroundColor); values are strings, numbers or booleans.  An explicit allow-list of the theme's visual properties; properties without a value are omitted.
+                 */
                 materialDashboardTheme?: {
                     [key: string]: unknown;
+                };
+                /** @description Client-neutral process, query, record-view and theme settings. */
+                uiSettings?: {
+                    /** @description Visible processes offered on every query and record-view screen. */
+                    processNamesToAddToAllQueryAndViewScreens?: string[];
+                    /** @description Placement of record-view actions. */
+                    recordViewActionsPlacement?: string;
+                    /** @description Configured colors and font families; no web layout or CSS settings. */
+                    theme?: {
+                        [key: string]: string;
+                    };
+                    /** @description Weekday query criteria configuration. */
+                    weekdayCriteriaSettings?: {
+                        /** @description Arguments for the WeekdayOfDateTime field function that a frontend sends with weekday criteria on date-time fields (for example timeZoneId or useSessionZoneId). */
+                        dateTimeFieldFunctionArguments?: components["schemas"]["WeekdayCriteriaArguments"];
+                        /** @description Whether query screens offer the weekday criteria (day is any of, day is none of) on date and date-time fields. */
+                        enabled?: boolean | null;
+                    };
                 };
             };
             /** @description Map of all tables within the QQQ Instance (that the user has permission to see that they exist). */
@@ -3617,10 +4581,12 @@ export interface components {
                     dropdowns?: unknown[];
                     /** @description HTML shown below the widget. */
                     footerHTML?: string;
+                    /** @description Plain-text footer, preserving link text and line breaks. */
+                    footerText?: string;
                     /** @description Number of grid columns (of 12) the widget spans. */
                     gridColumns?: number;
                     /** @description Whether the user may render the widget. */
-                    hasPermission?: Record<string, never>;
+                    hasPermission?: boolean;
                     /** @description Help content by slot. */
                     helpContent?: {
                         [key: string]: components["schemas"]["HelpContentV1"][];
@@ -3632,7 +4598,7 @@ export interface components {
                         [key: string]: unknown;
                     };
                     /** @description Whether the widget is drawn as a card. */
-                    isCard?: Record<string, never>;
+                    isCard?: boolean;
                     /** @description User-facing name for this widget */
                     label?: string;
                     /** @description Minimum height of the widget (a CSS length). */
@@ -3640,11 +4606,11 @@ export interface components {
                     /** @description Unique name for this widget within the QQQ Instance */
                     name?: string;
                     /** @description Whether the widget offers an export button. */
-                    showExportButton?: Record<string, never>;
+                    showExportButton?: boolean;
                     /** @description Whether the widget offers a reload button. */
-                    showReloadButton?: Record<string, never>;
+                    showReloadButton?: boolean;
                     /** @description Whether dropdown selections are remembered for the user. */
-                    storeDropdownSelections?: Record<string, never>;
+                    storeDropdownSelections?: boolean;
                     /** @description Tooltip text for the widget. */
                     tooltip?: string;
                     /** @description The type of this widget. */
@@ -3656,7 +4622,7 @@ export interface components {
             /** @description Field name that this order-by applies to */
             fieldName?: string;
             /** @description Whether this order-by is ascending or descending */
-            isAscending?: boolean;
+            isAscending?: boolean | null;
         };
         OutputRecord: {
             /** @description Records associated with this record, keyed by association name.  Each value is a list of records with the same shape as this one.  Only present when associations were requested or written. */
@@ -3688,7 +4654,7 @@ export interface components {
         };
         PossibleValuesResponseV1: {
             /** @description For a picker request: whether another page of options follows (the picker never counts) */
-            hasMore?: boolean;
+            hasMore?: boolean | null;
             /** @description List of possible value options matching the search request */
             options?: components["schemas"]["PossibleValueOption"][];
         };
@@ -3835,7 +4801,7 @@ export interface components {
         ProcessCancelResponseV1: Record<string, never>;
         ProcessCapabilityV1: {
             /** @description True when the process exists and the user may run it. */
-            available?: boolean;
+            available?: boolean | null;
             /** @description The process to run (present only when available). */
             processName?: string;
         };
@@ -3847,23 +4813,25 @@ export interface components {
         };
         ProcessMetaData: {
             /** @description True when the process always runs as a durable background job (too large to run while the user waits). */
-            durableJobAlways?: boolean;
+            durableJobAlways?: boolean | null;
             /** @description True when the process can run as a durable background job (POST /processes/{processName}/jobs): clients may offer "Run in background". */
-            durableJobEligible?: boolean;
+            durableJobEligible?: boolean | null;
             /** @description Frontend steps (aka, Screens) for this process. */
             frontendSteps?: components["schemas"]["FrontendStep"][];
             /** @description Boolean to indicate if the user has permission for the process. */
-            hasPermission?: boolean;
+            hasPermission?: boolean | null;
             /** @description Help entries by slot, filtered for the current session. */
             helpContents?: {
                 [key: string]: components["schemas"]["HelpContentV1"][];
             };
             /** @description Icon to display for the process. */
             icon?: components["schemas"]["Icon"];
-            /** @description Name of the process's icon. */
+            /** @description Material UI icon name (web); prefer iconSemanticName */
             iconName?: string;
+            /** @description Client-neutral kebab-case icon token; null when unmapped. */
+            iconSemanticName?: string;
             /** @description Boolean indicator of whether the process should be shown to users or not */
-            isHidden?: boolean;
+            isHidden?: boolean | null;
             /** @description User-facing name for this process */
             label?: string;
             /** @description Most input records the process runs with, when it has a maximum. */
@@ -3887,21 +4855,23 @@ export interface components {
         };
         ProcessMetaDataLight: {
             /** @description True when the process always runs as a durable background job (too large to run while the user waits). */
-            durableJobAlways?: boolean;
+            durableJobAlways?: boolean | null;
             /** @description True when the process can run as a durable background job (POST /processes/{processName}/jobs): clients may offer "Run in background". */
-            durableJobEligible?: boolean;
+            durableJobEligible?: boolean | null;
             /** @description Boolean to indicate if the user has permission for the process. */
-            hasPermission?: boolean;
+            hasPermission?: boolean | null;
             /** @description Help entries by slot, filtered for the current session. */
             helpContents?: {
                 [key: string]: components["schemas"]["HelpContentV1"][];
             };
             /** @description Icon to display for the process. */
             icon?: components["schemas"]["Icon"];
-            /** @description Name of the process's icon. */
+            /** @description Material UI icon name (web); prefer iconSemanticName */
             iconName?: string;
+            /** @description Client-neutral kebab-case icon token; null when unmapped. */
+            iconSemanticName?: string;
             /** @description Boolean indicator of whether the process should be shown to users or not */
-            isHidden?: boolean;
+            isHidden?: boolean | null;
             /** @description User-facing name for this process */
             label?: string;
             /** @description Most input records the process runs with, when it has a maximum. */
@@ -3917,13 +4887,13 @@ export interface components {
         };
         ProcessMetaDataResponseV1: {
             /** @description True when the process always runs as a durable background job (too large to run while the user waits). */
-            durableJobAlways?: boolean;
+            durableJobAlways?: boolean | null;
             /** @description True when the process can run as a durable background job (POST /processes/{processName}/jobs): clients may offer "Run in background". */
-            durableJobEligible?: boolean;
+            durableJobEligible?: boolean | null;
             /** @description Frontend steps (aka, Screens) for this process. */
             frontendSteps?: components["schemas"]["FrontendStep"][];
             /** @description Boolean to indicate if the user has permission for the process. */
-            hasPermission?: boolean;
+            hasPermission?: boolean | null;
             /** @description Help entries by slot, filtered for the current session. */
             helpContents?: {
                 [key: string]: components["schemas"]["HelpContentV1"][];
@@ -3932,15 +4902,19 @@ export interface components {
             icon?: {
                 /** @description A color code to use for displaying the icon */
                 color?: string;
-                /** @description A material UI icon name. */
+                /** @description Material UI icon name (web); prefer semanticName */
                 name?: string;
                 /** @description A path to an image file that can be requested from the server, to serve as the icon image instead of a material UI icon. */
                 path?: string;
+                /** @description Client-neutral kebab-case icon token; null when unmapped. */
+                semanticName?: string;
             };
-            /** @description Name of the process's icon. */
+            /** @description Material UI icon name (web); prefer iconSemanticName */
             iconName?: string;
+            /** @description Client-neutral kebab-case icon token; null when unmapped. */
+            iconSemanticName?: string;
             /** @description Boolean indicator of whether the process should be shown to users or not */
-            isHidden?: boolean;
+            isHidden?: boolean | null;
             /** @description User-facing name for this process */
             label?: string;
             /** @description Most input records the process runs with, when it has a maximum. */
@@ -4172,7 +5146,7 @@ export interface components {
             /** @description Table being joined into the query by this QueryJoin */
             joinTable?: string;
             /** @description Whether or not to select values from the join table */
-            select?: boolean;
+            select?: boolean | null;
             /**
              * @description Type of join being performed (SQL semantics)
              * @enum {string}
@@ -4184,8 +5158,33 @@ export interface components {
         };
         RealtimeEventV1: {
             channel?: string;
+            /** @description dataByType: hello -> RealtimeHelloEventV1; job.progress -> RealtimeJobProgressEventV1; record.changed -> RealtimeRecordChangedEventV1; record.deleted -> RealtimeRecordDeletedEventV1; table.changed -> RealtimeTableChangedEventV1; metadata.changed -> RealtimeMetaDataChangedEventV1; session-ended -> RealtimeSessionEndedEventV1; resync -> RealtimeResyncEventV1; channel-revoked -> RealtimeChannelRevokedEventV1. Selected by the envelope's event; data has no discriminator. All properties are optional; QBits may publish additional event-specific data. */
             data?: {
-                [key: string]: unknown;
+                bytesDone?: number;
+                bytesTotal?: number;
+                changedBy?: string;
+                channel?: string;
+                chunksDone?: number;
+                chunksTotal?: number;
+                connectionId?: string;
+                currentPhase?: string;
+                etaSeconds?: number;
+                fields?: string[];
+                generation?: number;
+                heartbeatSeconds?: number;
+                jobId?: number;
+                logSeq?: number;
+                message?: string;
+                metaDataGeneration?: number;
+                percent?: number;
+                pk?: (string | number | boolean) | null;
+                rowsDone?: number;
+                rowsFailed?: number;
+                rowsPerSecond?: number;
+                rowsTotal?: number;
+                status?: string;
+                table?: string;
+                version?: (string | number | boolean) | null;
             };
             event?: string;
         };
@@ -4422,7 +5421,7 @@ export interface components {
         };
         RecordSearchTableSummaryV1: {
             /** @description Whether the table has more matches past these results (request them with offset). */
-            hasMore?: boolean;
+            hasMore?: boolean | null;
             /** @description Number of results returned from the table. */
             resultCount?: number;
             /**
@@ -4441,11 +5440,11 @@ export interface components {
             /** @description The association whose rows the picker adds (MULTI_CHILD, LINK) */
             associationName?: string;
             /** @description Whether the user may add child or join rows (prepare and add routes) */
-            canAddChildren?: boolean;
+            canAddChildren?: boolean | null;
             /** @description Whether to offer quick-create of a target record (insert route of targetTableName) */
-            canCreateTarget?: boolean;
+            canCreateTarget?: boolean | null;
             /** @description Whether the user may unlink (remove route; LINK only) */
-            canRemoveChildren?: boolean;
+            canRemoveChildren?: boolean | null;
             /** @description The child or join table new rows go into (MULTI_CHILD, LINK) */
             childTableName?: string;
             /** @description The child table's field that holds the picked record's key (MULTI_CHILD, LINK) */
@@ -4489,7 +5488,7 @@ export interface components {
         };
         RelatedRecordPickerQueryResponseV1: {
             /** @description Whether more records follow (request the next page with skip); there is no count */
-            hasMore?: boolean;
+            hasMore?: boolean | null;
             /** @description Ids (as strings) of the returned records the parent already has a child or join row for (MULTI_CHILD, LINK with primaryKey) */
             linkedIds?: string[];
             /** @description One page of target records (values and display values), in order */
@@ -4517,13 +5516,15 @@ export interface components {
         };
         ReportMetaData: {
             /** @description Whether the user may run the report. */
-            hasPermission?: Record<string, never>;
+            hasPermission?: boolean;
             /** @description Help entries by slot, filtered for the current session. */
             helpContents?: {
                 [key: string]: components["schemas"]["HelpContentV1"][];
             };
-            /** @description Name of the report's icon. */
+            /** @description Material UI icon name (web); prefer iconSemanticName */
             iconName?: string;
+            /** @description Client-neutral kebab-case icon token; null when unmapped. */
+            iconSemanticName?: string;
             /** @description User-facing name for this report. */
             label?: string;
             /** @description Unique name for this report within the QQQ Instance. */
@@ -4533,7 +5534,7 @@ export interface components {
         };
         SavedViewsCapabilityV1: {
             /** @description True when the user may list saved views (queryProcessName can run). */
-            available?: boolean;
+            available?: boolean | null;
             /** @description Deletes a view; absent when the user may not delete views. */
             deleteProcessName?: string;
             /** @description Lists the views (input tableName; output savedViewList). */
@@ -4543,7 +5544,7 @@ export interface components {
         };
         SharingCapabilityV1: {
             /** @description True when the table is shareable and the user may list shares. */
-            available?: boolean;
+            available?: boolean | null;
             /** @description Removes a share. */
             deleteProcessName?: string;
             /** @description Changes a share's scope. */
@@ -4558,12 +5559,20 @@ export interface components {
             assistant?: {
                 [key: string]: unknown;
             };
-            /** @description Settings from the instance's `materialDashboard` supplemental meta-data, when the instance defines it. */
+            /**
+             * @deprecated
+             * @description Use uiSettings; kept for Next UI until it migrates
+             */
             materialDashboard?: components["schemas"]["MaterialDashboardInstanceSettings"];
-            /** @description The application theme from the instance's MaterialDashboardThemeMetaData supplemental meta-data, when the instance defines it.  Keys are MaterialDashboardThemeMetaData property names (for example primaryColor, fontFamily, typographyH1FontSize, borderRadiusGlobal, density, customCss, brandedHeaderEnabled, sidebarBackgroundColor, tableHeaderBackgroundColor); values are strings, numbers or booleans.  An explicit allow-list of the theme's visual properties; properties without a value are omitted. */
+            /**
+             * @deprecated
+             * @description Use uiSettings; kept for Next UI until it migrates. The application theme from the instance's MaterialDashboardThemeMetaData supplemental meta-data, when the instance defines it.  Keys are MaterialDashboardThemeMetaData property names (for example primaryColor, fontFamily, typographyH1FontSize, borderRadiusGlobal, density, customCss, brandedHeaderEnabled, sidebarBackgroundColor, tableHeaderBackgroundColor); values are strings, numbers or booleans.  An explicit allow-list of the theme's visual properties; properties without a value are omitted.
+             */
             materialDashboardTheme?: {
                 [key: string]: unknown;
             };
+            /** @description Client-neutral process, query, record-view and theme settings. */
+            uiSettings?: components["schemas"]["UiSettings"];
         };
         /** @description An OpenAPI 3 document (the application API's own format, not part of this API's schema). */
         TableApiDocumentV1: {
@@ -4690,7 +5699,10 @@ export interface components {
             label?: string;
             /** @description Item-type specific values: option for BUILT_IN, processName for RUN_PROCESS, fieldName for DOWNLOAD_FILE, and items (a list of menu items of this same shape) for SUB_MENU and SUB_LIST. */
             values?: {
-                [key: string]: unknown;
+                fieldName?: string;
+                items?: components["schemas"]["TableMenuItem"][];
+                option?: string;
+                processName?: string;
             };
         };
         TableMetaData: {
@@ -4703,9 +5715,9 @@ export interface components {
             /** @description What a client may offer on this table beyond plain CRUD - saved views, audits, sharing and the bulk processes - with the process or table to use for each, for the current user.  Clients use these instead of hard-coded process names.  Since 1.6.0. */
             clientCapabilities?: components["schemas"]["TableCapabilitiesV1"];
             /** @description Boolean to indicate if the user has delete permission for the table. */
-            deletePermission?: boolean;
+            deletePermission?: boolean | null;
             /** @description Boolean to indicate if the user has edit permission for the table. */
-            editPermission?: boolean;
+            editPermission?: boolean | null;
             /** @description Sections to organize fields on screens for this record */
             exposedJoins?: components["schemas"]["ExposedJoin"][];
             /** @description Fields in this table */
@@ -4713,7 +5725,7 @@ export interface components {
                 [key: string]: components["schemas"]["FieldMetaData"];
             };
             /** @description True when any field has REVEALABLE, MASKED, or HIDDEN access for the current session. */
-            hasRestrictedFields?: boolean;
+            hasRestrictedFields?: boolean | null;
             /** @description Help Contents for this table. */
             helpContents?: {
                 [key: string]: components["schemas"]["HelpContentV1"][];
@@ -4721,9 +5733,9 @@ export interface components {
             /** @description Icon to display for the table */
             icon?: components["schemas"]["Icon"];
             /** @description Boolean to indicate if the user has insert permission for the table. */
-            insertPermission?: boolean;
+            insertPermission?: boolean | null;
             /** @description Boolean indicator of whether the table should be shown to users or not */
-            isHidden?: boolean;
+            isHidden?: boolean | null;
             /** @description User-facing name for this table */
             label?: string;
             /** @description Menus the table defines for screen slots (for example the record view's VIEW_SCREEN_ACTIONS menu, which replaces the default actions menu, and VIEW_SCREEN_ADDITIONAL menus).  Omitted when the table defines none. */
@@ -4737,7 +5749,7 @@ export interface components {
             /** @description Name of the section whose editable fields a quick-create form shows (else the required, editable fields) */
             quickCreateSectionName?: string;
             /** @description Boolean to indicate if the user has read permission for the table. */
-            readPermission?: boolean;
+            readPermission?: boolean | null;
             /** @description Enabled record collaboration features, public settings, and this session's table capabilities. */
             recordFeatures?: components["schemas"]["RecordFeaturesV1"];
             /** @description Related-record pickers of this table whose target the user may read (docs/RELATED-RECORD-PICKER.md) */
@@ -4759,7 +5771,7 @@ export interface components {
             /** @description Additional meta data about the table, not necessarily known to QQQ. */
             supplementalMetaData?: Record<string, never>;
             /** @description Whether or not this table's backend uses variants. */
-            usesVariants?: boolean;
+            usesVariants?: boolean | null;
             /** @description If the table uses variants, this is the user-facing label for the table that supplies variants for this table. */
             variantTableLabel?: string;
             /** @description Virtual fields in this table */
@@ -4771,9 +5783,9 @@ export interface components {
             /** @description List of strings describing actions that are supported by the backend application for the table. */
             capabilities?: string[];
             /** @description Boolean to indicate if the user has delete permission for the table. */
-            deletePermission?: boolean;
+            deletePermission?: boolean | null;
             /** @description Boolean to indicate if the user has edit permission for the table. */
-            editPermission?: boolean;
+            editPermission?: boolean | null;
             /** @description Help Contents for this table. */
             helpContents?: {
                 [key: string]: components["schemas"]["HelpContentV1"][];
@@ -4781,9 +5793,9 @@ export interface components {
             /** @description Icon to display for the table */
             icon?: components["schemas"]["Icon"];
             /** @description Boolean to indicate if the user has insert permission for the table. */
-            insertPermission?: boolean;
+            insertPermission?: boolean | null;
             /** @description Boolean indicator of whether the table should be shown to users or not */
-            isHidden?: boolean;
+            isHidden?: boolean | null;
             /** @description User-facing name for this table */
             label?: string;
             /** @description Runtime metadata generation; refetch metadata when this changes. */
@@ -4791,7 +5803,7 @@ export interface components {
             /** @description Unique name for this table within the QQQ Instance */
             name?: string;
             /** @description Boolean to indicate if the user has read permission for the table. */
-            readPermission?: boolean;
+            readPermission?: boolean | null;
             /** @description Enabled record collaboration features, public settings, and this session's table capabilities. */
             recordFeatures?: components["schemas"]["RecordFeaturesV1"];
             /** @description Names of the fields that record search (POST /search) matches for this table. Only present when the table is searchable and the user has read permission for it. */
@@ -4814,7 +5826,7 @@ export interface components {
                 /** @description Audit history of this table's records. */
                 audits?: {
                     /** @description True when the table is audited and the user can read its audits one of the two ways. */
-                    available?: boolean;
+                    available?: boolean | null;
                     /** @description The audit detail table (field changes), joined to tableName. */
                     detailTableName?: string;
                     /** @description The table's audit level: NONE, RECORD or FIELD. */
@@ -4827,35 +5839,35 @@ export interface components {
                 /** @description Bulk delete of selected records. */
                 bulkDelete?: {
                     /** @description True when the process exists and the user may run it. */
-                    available?: boolean;
+                    available?: boolean | null;
                     /** @description The process to run (present only when available). */
                     processName?: string;
                 };
                 /** @description Bulk edit of selected records. */
                 bulkEdit?: {
                     /** @description True when the process exists and the user may run it. */
-                    available?: boolean;
+                    available?: boolean | null;
                     /** @description The process to run (present only when available). */
                     processName?: string;
                 };
                 /** @description Bulk edit from a file. */
                 bulkEditWithFile?: {
                     /** @description True when the process exists and the user may run it. */
-                    available?: boolean;
+                    available?: boolean | null;
                     /** @description The process to run (present only when available). */
                     processName?: string;
                 };
                 /** @description Bulk insert (load a file into the table). */
                 bulkInsert?: {
                     /** @description True when the process exists and the user may run it. */
-                    available?: boolean;
+                    available?: boolean | null;
                     /** @description The process to run (present only when available). */
                     processName?: string;
                 };
                 /** @description Saved views of this table. */
                 savedViews?: {
                     /** @description True when the user may list saved views (queryProcessName can run). */
-                    available?: boolean;
+                    available?: boolean | null;
                     /** @description Deletes a view; absent when the user may not delete views. */
                     deleteProcessName?: string;
                     /** @description Lists the views (input tableName; output savedViewList). */
@@ -4866,7 +5878,7 @@ export interface components {
                 /** @description Record sharing, for a shareable table. */
                 sharing?: {
                     /** @description True when the table is shareable and the user may list shares. */
-                    available?: boolean;
+                    available?: boolean | null;
                     /** @description Removes a share. */
                     deleteProcessName?: string;
                     /** @description Changes a share's scope. */
@@ -4878,9 +5890,9 @@ export interface components {
                 };
             };
             /** @description Boolean to indicate if the user has delete permission for the table. */
-            deletePermission?: boolean;
+            deletePermission?: boolean | null;
             /** @description Boolean to indicate if the user has edit permission for the table. */
-            editPermission?: boolean;
+            editPermission?: boolean | null;
             /** @description Sections to organize fields on screens for this record */
             exposedJoins?: components["schemas"]["ExposedJoin"][];
             /** @description Fields in this table */
@@ -4888,7 +5900,7 @@ export interface components {
                 [key: string]: components["schemas"]["FieldMetaData"];
             };
             /** @description True when any field has REVEALABLE, MASKED, or HIDDEN access for the current session. */
-            hasRestrictedFields?: boolean;
+            hasRestrictedFields?: boolean | null;
             /** @description Help Contents for this table. */
             helpContents?: {
                 [key: string]: components["schemas"]["HelpContentV1"][];
@@ -4897,15 +5909,17 @@ export interface components {
             icon?: {
                 /** @description A color code to use for displaying the icon */
                 color?: string;
-                /** @description A material UI icon name. */
+                /** @description Material UI icon name (web); prefer semanticName */
                 name?: string;
                 /** @description A path to an image file that can be requested from the server, to serve as the icon image instead of a material UI icon. */
                 path?: string;
+                /** @description Client-neutral kebab-case icon token; null when unmapped. */
+                semanticName?: string;
             };
             /** @description Boolean to indicate if the user has insert permission for the table. */
-            insertPermission?: boolean;
+            insertPermission?: boolean | null;
             /** @description Boolean indicator of whether the table should be shown to users or not */
-            isHidden?: boolean;
+            isHidden?: boolean | null;
             /** @description User-facing name for this table */
             label?: string;
             /** @description Menus the table defines for screen slots (for example the record view's VIEW_SCREEN_ACTIONS menu, which replaces the default actions menu, and VIEW_SCREEN_ADDITIONAL menus).  Omitted when the table defines none. */
@@ -4919,7 +5933,7 @@ export interface components {
             /** @description Name of the section whose editable fields a quick-create form shows (else the required, editable fields) */
             quickCreateSectionName?: string;
             /** @description Boolean to indicate if the user has read permission for the table. */
-            readPermission?: boolean;
+            readPermission?: boolean | null;
             recordFeatures?: components["schemas"]["RecordFeaturesV1"];
             /** @description Related-record pickers of this table whose target the user may read (docs/RELATED-RECORD-PICKER.md) */
             relatedRecordPickers?: components["schemas"]["RelatedRecordPicker"][];
@@ -4940,7 +5954,7 @@ export interface components {
             /** @description Additional meta data about the table, not necessarily known to QQQ. */
             supplementalMetaData?: Record<string, never>;
             /** @description Whether or not this table's backend uses variants. */
-            usesVariants?: boolean;
+            usesVariants?: boolean | null;
             /** @description If the table uses variants, this is the user-facing label for the table that supplies variants for this table. */
             variantTableLabel?: string;
             /** @description Virtual fields in this table */
@@ -4978,9 +5992,9 @@ export interface components {
         };
         TableSectionCollapsible: {
             /** @description Whether a collapsible section starts open, before the user has opened or closed it. */
-            initiallyOpen?: boolean;
+            initiallyOpen?: boolean | null;
             /** @description Whether screens that can collapse sections let the user collapse and expand this one. */
-            isCollapsible?: boolean;
+            isCollapsible?: boolean | null;
         };
         TableUpdateResponseV1: {
             /** @description The record that was updated */
@@ -5026,6 +6040,18 @@ export interface components {
             pathPrefix?: string;
             /** @description The extension semantic version (MAJOR.MINOR.PATCH). */
             version?: string;
+        };
+        UiSettings: {
+            /** @description Visible processes offered on every query and record-view screen. */
+            processNamesToAddToAllQueryAndViewScreens?: string[];
+            /** @description Placement of record-view actions. */
+            recordViewActionsPlacement?: string;
+            /** @description Configured colors and font families; no web layout or CSS settings. */
+            theme?: {
+                [key: string]: string;
+            };
+            /** @description Weekday query criteria configuration. */
+            weekdayCriteriaSettings?: components["schemas"]["MaterialDashboardWeekdayCriteriaSettings"];
         };
         UploadRefResponseV1: {
             /** @description The file's content type, as uploaded. */
@@ -5111,19 +6137,19 @@ export interface components {
                 valueFormatIfNotFound?: string;
             };
             /** @description Indicate if user may edit the value in this field. */
-            isEditable?: boolean;
+            isEditable?: boolean | null;
             /** @description Indicator of 'heavy' fields, which are not loaded by default.  e.g., some blobs or long-texts */
-            isHeavy?: boolean;
+            isHeavy?: boolean | null;
             /** @description Indicate if this field should be hidden from users */
-            isHidden?: boolean;
+            isHidden?: boolean | null;
             /** @description Indicator of whether or not this virtual field can be included as a query filter criteria */
-            isQueryCriteria?: boolean;
+            isQueryCriteria?: boolean | null;
             /** @description Indicator of whether or not this virtual field can be included in query outputs (e.g., if it can be selected, in the SQL sense) */
-            isQuerySelectable?: boolean;
+            isQuerySelectable?: boolean | null;
             /** @description Indicate if a value in this field is required. */
-            isRequired?: boolean;
+            isRequired?: boolean | null;
             /** @description False for restricted fields; omitted means sortable. */
-            isSortable?: boolean;
+            isSortable?: boolean | null;
             /** @description User-facing name for this field */
             label?: string;
             /** @description For String fields, the max length the field supports. */
@@ -5165,6 +6191,12 @@ export interface components {
             /** @description The field's validation rules, as the server enforces them on insert and update (required, maxLength and tooLongBehavior, min/max value, pattern).  Absent when the field has none.  Since 1.6.0. */
             validation?: components["schemas"]["FieldValidationV1"];
         };
+        WeekdayCriteriaArguments: {
+            timeZoneId?: string;
+            useSessionZoneId?: boolean;
+        } & {
+            [key: string]: string | number | boolean;
+        };
         WidgetBlock: {
             /** @description Unique identifier for this block within it widget.  Used as a key for helpContents. */
             blockId?: string;
@@ -5177,6 +6209,8 @@ export interface components {
             blockTypeName?: string;
             /** @description Optional field name (e.g,. from a process's set of fields) to act as a 'guard' for the block - e.g., only include it in the UI if the value for this field is true */
             conditional?: string;
+            /** @description Footer as plain text. */
+            footerText?: string;
             /**
              * @description For COMPOSITE type blocks, an indicator of how the sub-blocks should be laid out
              * @enum {string}
@@ -5187,6 +6221,10 @@ export interface components {
              * @enum {string}
              */
             modalMode?: "MODAL";
+            /** @description Composite overlay as HTML. */
+            overlayHtml?: string;
+            /** @description Composite overlay as plain text. */
+            overlayText?: string;
             /** @description Styles to apply to the block.  Different fields based on blockType. */
             styles?: components["schemas"]["WidgetBlockStyles"];
             /** @description For COMPOSITE type blocks, a list of sub-blocks. */
@@ -5197,11 +6235,11 @@ export interface components {
         /** @description Values used for an AUDIO type widget block */
         WidgetBlockAudioValues: {
             /** @description Control if the file should automatically play when the block is rendered */
-            autoPlay?: boolean;
+            autoPlay?: boolean | null;
             /** @description The path to the audio file on the server */
             path?: string;
             /** @description Control if on-screen controls should be shown to allow the user to control playback */
-            showControls?: boolean;
+            showControls?: boolean | null;
         };
         WidgetBlockBaseStyles: {
             /** @description A background color to use for the block */
@@ -5262,15 +6300,15 @@ export interface components {
         /** @description Values used for an INPUT_FIELD type widget block */
         WidgetBlockInputFieldValues: {
             /** @description Indicate whether this field should auto-focus when it is rendered */
-            autoFocus?: boolean;
+            autoFocus?: boolean | null;
             /** @description Metadata to define the field that this block controls */
             fieldMetaData?: components["schemas"]["FieldMetaData"];
             /** @description Indicate if the frontend uses a software/on-screen keyboard, if the application should try to hide it (e.g., upon auto-focus). */
-            hideSoftKeyboard?: boolean;
+            hideSoftKeyboard?: boolean | null;
             /** @description Optional placeholder text to display in the input box. */
             placeholder?: string;
             /** @description Indicate whether the form that this field is on should be submitted when Enter is pressed */
-            submitOnEnter?: boolean;
+            submitOnEnter?: boolean | null;
         };
         WidgetBlockStyles: Record<string, never>;
         WidgetBlockTextStyles: {
@@ -5297,8 +6335,8 @@ export interface components {
         WidgetData: components["schemas"]["WidgetDataAlert"] | components["schemas"]["WidgetDataChart"] | components["schemas"]["WidgetDataLineChart"] | components["schemas"]["WidgetDataPieChart"] | components["schemas"]["WidgetDataChildRecordList"] | components["schemas"]["WidgetDataComposite"] | components["schemas"]["WidgetDataCronUI"] | components["schemas"]["WidgetDataDivider"] | components["schemas"]["WidgetDataDynamicForm"] | components["schemas"]["WidgetDataFieldValueList"] | components["schemas"]["WidgetDataFilterAndColumnsSetup"] | components["schemas"]["WidgetDataLocation"] | components["schemas"]["WidgetDataMultiStatistics"] | components["schemas"]["WidgetDataMultiTable"] | components["schemas"]["WidgetDataParent"] | components["schemas"]["WidgetDataProcess"] | components["schemas"]["WidgetDataQuickSightChart"] | components["schemas"]["WidgetDataRawHTML"] | components["schemas"]["WidgetDataRowBuilder"] | components["schemas"]["WidgetDataStatistics"] | components["schemas"]["WidgetDataStepper"] | components["schemas"]["WidgetDataTable"] | components["schemas"]["WidgetDataUSMap"] | components["schemas"]["WidgetDataGeneric"];
         /** @description Data of alert widgets. */
         WidgetDataAlert: {
-            /** @enum {string} */
-            alertType?: "ERROR" | "SUCCESS" | "WARNING";
+            /** @enum {string|null} */
+            alertType?: "ERROR" | "SUCCESS" | "WARNING" | null;
             bulletList?: unknown[];
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
@@ -5316,14 +6354,18 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            hideWidget?: boolean;
-            html?: string;
+            hideWidget?: boolean | null;
+            html?: string | null;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
             /** @description Secondary title. */
             sublabel?: string;
+            /** @description Plain text equivalent of html, preserving link text and line breaks. */
+            text?: string;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
@@ -5333,14 +6375,36 @@ export interface components {
         /** @description Data of chart, barChart, horizontalBarChart, and stackedBarChart widgets. */
         WidgetDataChart: {
             chartData?: {
-                [key: string]: unknown;
+                datasets?: {
+                    backgroundColor?: string;
+                    /** @description Colors per data point. */
+                    backgroundColors?: string[];
+                    color?: string;
+                    data?: (number | null)[];
+                    label?: string;
+                    /** @description Links per data point. */
+                    urls?: string[];
+                }[];
+                /** @description Labels per data point. */
+                labels?: string[];
+                /** @description Labels of the lines. */
+                lineLabels?: string[];
+                /** @description Links per data point. */
+                urls?: string[];
             };
             chartSubheaderData?: {
-                [key: string]: unknown;
+                isGoodVsPrevious?: boolean | null;
+                isUpVsPrevious?: boolean | null;
+                mainNumber?: number;
+                mainNumberUrl?: string;
+                previousNumberUrl?: string;
+                vsDescription?: string;
+                vsPreviousNumber?: number;
+                vsPreviousPercent?: number;
             };
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
-            description?: string;
+            description?: string | null;
             /** @description Options of each dropdown filter: a list per dropdown of {id, label} objects. */
             dropdownDataList?: {
                 [key: string]: string;
@@ -5355,19 +6419,17 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            height?: {
-                [key: string]: unknown;
-            };
-            isCurrency?: {
-                [key: string]: unknown;
-            };
+            height?: number;
+            isCurrency?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
             /** @description Secondary title. */
             sublabel?: string;
-            title?: string;
+            title?: string | null;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
@@ -5376,25 +6438,18 @@ export interface components {
         };
         /** @description Data of childRecordList widgets. */
         WidgetDataChildRecordList: {
-            allowRecordDelete?: boolean;
-            allowRecordEdit?: boolean;
-            canAddChildRecord?: {
-                [key: string]: unknown;
-            };
-            childFrontendTableMetaData?: {
-                [key: string]: unknown;
-            };
-            childTableMetaData?: {
-                [key: string]: unknown;
-            };
+            allowRecordDelete?: boolean | null;
+            allowRecordEdit?: boolean | null;
+            canAddChildRecord?: boolean;
+            childFrontendTableMetaData?: components["schemas"]["TableMetaData"];
+            childTableMetaData?: components["schemas"]["TableMetaData"];
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
             defaultValuesForNewChildRecords?: Record<string, never>;
             defaultValuesForNewChildRecordsFromParentFields?: Record<string, never>;
-            disableRowClick?: boolean;
-            disabledFieldsForNewChildRecords?: {
-                [key: string]: unknown;
-            };
+            disableRowClick?: boolean | null;
+            /** @description Fields disabled when adding a child record. */
+            disabledFieldsForNewChildRecords?: string[];
             /** @description Options of each dropdown filter: a list per dropdown of {id, label} objects. */
             dropdownDataList?: {
                 [key: string]: string;
@@ -5409,35 +6464,37 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             includeExposedJoinTables?: unknown[];
-            isInProcess?: boolean;
+            isInProcess?: boolean | null;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
             omitFieldNames?: unknown[];
             onlyIncludeFieldNames?: unknown[];
             queryOutput?: {
-                [key: string]: unknown;
+                records?: components["schemas"]["OutputRecord"][];
             };
             /** @description Secondary title. */
             sublabel?: string;
-            tableName?: string;
-            tablePath?: string;
-            title?: string;
-            totalRows?: number;
+            tableName?: string | null;
+            tablePath?: string | null;
+            title?: string | null;
+            totalRows?: number | null;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
              */
             type: "childRecordList";
-            viewAllLink?: string;
+            viewAllLink?: string | null;
         };
         /** @description Data of composite widgets. */
         WidgetDataComposite: {
-            blockId?: string;
+            blockId?: string | null;
             blocks?: unknown[];
-            conditional?: string;
+            conditional?: string | null;
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
             /** @description Options of each dropdown filter: a list per dropdown of {id, label} objects. */
@@ -5454,28 +6511,50 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            /** @enum {string} */
-            layout?: "FLEX_COLUMN" | "FLEX_ROW" | "FLEX_ROW_WRAPPED" | "FLEX_ROW_SPACE_BETWEEN" | "FLEX_ROW_CENTER" | "TABLE_SUB_ROW_DETAILS" | "BADGES_WRAPPER";
+            /** @enum {string|null} */
+            layout?: "FLEX_COLUMN" | "FLEX_ROW" | "FLEX_ROW_WRAPPED" | "FLEX_ROW_SPACE_BETWEEN" | "FLEX_ROW_CENTER" | "TABLE_SUB_ROW_DETAILS" | "BADGES_WRAPPER" | null;
             link?: {
-                [key: string]: unknown;
+                href?: string;
             };
             linkMap?: Record<string, never>;
-            /** @enum {string} */
-            modalMode?: "MODAL";
-            overlayHtml?: string;
+            /** @enum {string|null} */
+            modalMode?: "MODAL" | null;
+            overlayHtml?: string | null;
             overlayStyleOverrides?: Record<string, never>;
+            /** @description Plain text equivalent of overlayHtml, preserving link text and line breaks. */
+            overlayText?: string;
             styleOverrides?: Record<string, never>;
             styles?: {
-                [key: string]: unknown;
+                backgroundColor?: string | null;
+                padding?: {
+                    bottom?: string | null;
+                    left?: string | null;
+                    right?: string | null;
+                    top?: string | null;
+                };
             };
             /** @description Secondary title. */
             sublabel?: string;
             tooltip?: {
-                [key: string]: unknown;
+                blockData?: {
+                    blocks?: unknown[];
+                    /** @enum {string} */
+                    layout?: "FLEX_COLUMN" | "FLEX_ROW" | "FLEX_ROW_WRAPPED" | "FLEX_ROW_SPACE_BETWEEN" | "FLEX_ROW_CENTER" | "TABLE_SUB_ROW_DETAILS" | "BADGES_WRAPPER";
+                    /** @enum {string} */
+                    modalMode?: "MODAL";
+                    overlayHtml?: string;
+                    overlayStyleOverrides?: Record<string, never>;
+                    styleOverrides?: Record<string, never>;
+                };
+                /** @enum {string} */
+                placement?: "BOTTOM" | "LEFT" | "RIGHT" | "TOP";
+                title?: string;
             };
             tooltipMap?: Record<string, never>;
             /**
@@ -5483,13 +6562,12 @@ export interface components {
              * @enum {string}
              */
             type: "composite";
-            values?: {
-                [key: string]: unknown;
-            };
+            /** @description Composite BaseValues has no predefined members. */
+            values?: Record<string, never>;
         };
         /** @description Data of cronUI widgets. */
         WidgetDataCronUI: {
-            cronDescription?: string;
+            cronDescription?: string | null;
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
             /** @description Options of each dropdown filter: a list per dropdown of {id, label} objects. */
@@ -5504,9 +6582,11 @@ export interface components {
             dropdownNameList?: string[];
             /** @description Message to show until every dropdown has a value. */
             dropdownNeedsSelectedText?: string;
-            error?: string;
+            error?: string | null;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
@@ -5537,6 +6617,8 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
@@ -5568,15 +6650,15 @@ export interface components {
             fieldList?: unknown[];
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            mergedDynamicFormValuesIntoFieldName?: string;
-            noFieldsMessage?: string;
-            recordOfFieldValues?: {
-                [key: string]: unknown;
-            };
+            mergedDynamicFormValuesIntoFieldName?: string | null;
+            noFieldsMessage?: string | null;
+            recordOfFieldValues?: components["schemas"]["OutputRecord"];
             /** @description Secondary title. */
             sublabel?: string;
             /**
@@ -5607,13 +6689,13 @@ export interface components {
             fields?: unknown[];
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            record?: {
-                [key: string]: unknown;
-            };
+            record?: components["schemas"]["OutputRecord"];
             /** @description Secondary title. */
             sublabel?: string;
             /**
@@ -5624,11 +6706,11 @@ export interface components {
         };
         /** @description Data of filterAndColumnsSetup widgets. */
         WidgetDataFilterAndColumnsSetup: {
-            allowVariables?: boolean;
-            apiName?: string;
-            apiPath?: string;
-            apiVersion?: string;
-            columnFieldName?: string;
+            allowVariables?: boolean | null;
+            apiName?: string | null;
+            apiPath?: string | null;
+            apiVersion?: string | null;
+            columnFieldName?: string | null;
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
             /** @description Options of each dropdown filter: a list per dropdown of {id, label} objects. */
@@ -5643,26 +6725,28 @@ export interface components {
             dropdownNameList?: string[];
             /** @description Message to show until every dropdown has a value. */
             dropdownNeedsSelectedText?: string;
-            editButtonLabel?: string;
+            editButtonLabel?: string | null;
             filterDefaultFieldNameSourceFieldNames?: Record<string, never>;
             filterDefaultFieldNames?: unknown[];
-            filterFieldName?: string;
+            filterFieldName?: string | null;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            hideColumns?: boolean;
-            hidePreview?: boolean;
-            hideSortBy?: boolean;
-            isApiVersioned?: boolean;
+            hideColumns?: boolean | null;
+            hidePreview?: boolean | null;
+            hideSortBy?: boolean | null;
+            isApiVersioned?: boolean | null;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            modalHeader?: string;
+            modalHeader?: string | null;
             omitExposedJoins?: unknown[];
-            overrideIsEditable?: boolean;
+            overrideIsEditable?: boolean | null;
             /** @description Secondary title. */
             sublabel?: string;
-            tableName?: string;
+            tableName?: string | null;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
@@ -5673,6 +6757,8 @@ export interface components {
         WidgetDataGeneric: {
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
+            /** @description Plain-text footer, preserving link text and line breaks. */
+            footerText?: string;
             /** @description Secondary title. */
             sublabel?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
@@ -5704,7 +6790,22 @@ export interface components {
         /** @description Data of lineChart and smallLineChart widgets. */
         WidgetDataLineChart: {
             chartData?: {
-                [key: string]: unknown;
+                datasets?: {
+                    backgroundColor?: string;
+                    /** @description Colors per data point. */
+                    backgroundColors?: string[];
+                    color?: string;
+                    data?: (number | null)[];
+                    label?: string;
+                    /** @description Links per data point. */
+                    urls?: string[];
+                }[];
+                /** @description Labels per data point. */
+                labels?: string[];
+                /** @description Labels of the lines. */
+                lineLabels?: string[];
+                /** @description Links per data point. */
+                urls?: string[];
             };
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
@@ -5722,16 +6823,16 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            isYAxisCurrency?: {
-                [key: string]: unknown;
-            };
+            isYAxisCurrency?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
             /** @description Secondary title. */
             sublabel?: string;
-            title?: string;
+            title?: string | null;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
@@ -5742,7 +6843,7 @@ export interface components {
         WidgetDataLocation: {
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
-            description?: string;
+            description?: string | null;
             /** @description Options of each dropdown filter: a list per dropdown of {id, label} objects. */
             dropdownDataList?: {
                 [key: string]: string;
@@ -5757,16 +6858,17 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
             footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            imageUrl?: string;
+            imageUrl?: string | null;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            location?: string;
+            location?: string | null;
             /** @description Secondary title. */
             sublabel?: string;
-            title?: string;
+            title?: string | null;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
@@ -5791,6 +6893,8 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
@@ -5798,7 +6902,7 @@ export interface components {
             statisticsGroupData?: unknown[];
             /** @description Secondary title. */
             sublabel?: string;
-            title?: string;
+            title?: string | null;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
@@ -5823,6 +6927,8 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
@@ -5855,15 +6961,15 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            isLabelPageTitle?: {
-                [key: string]: unknown;
-            };
+            isLabelPageTitle?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            /** @enum {string} */
-            layoutType?: "GRID" | "TABS";
+            /** @enum {string|null} */
+            layoutType?: "GRID" | "TABS" | null;
             /** @description Secondary title. */
             sublabel?: string;
             /**
@@ -5875,14 +6981,36 @@ export interface components {
         /** @description Data of pieChart widgets. */
         WidgetDataPieChart: {
             chartData?: {
-                [key: string]: unknown;
+                datasets?: {
+                    backgroundColor?: string;
+                    /** @description Colors per data point. */
+                    backgroundColors?: string[];
+                    color?: string;
+                    data?: (number | null)[];
+                    label?: string;
+                    /** @description Links per data point. */
+                    urls?: string[];
+                }[];
+                /** @description Labels per data point. */
+                labels?: string[];
+                /** @description Labels of the lines. */
+                lineLabels?: string[];
+                /** @description Links per data point. */
+                urls?: string[];
             };
             chartSubheaderData?: {
-                [key: string]: unknown;
+                isGoodVsPrevious?: boolean | null;
+                isUpVsPrevious?: boolean | null;
+                mainNumber?: number;
+                mainNumberUrl?: string;
+                previousNumberUrl?: string;
+                vsDescription?: string;
+                vsPreviousNumber?: number;
+                vsPreviousPercent?: number;
             };
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
-            description?: string;
+            description?: string | null;
             /** @description Options of each dropdown filter: a list per dropdown of {id, label} objects. */
             dropdownDataList?: {
                 [key: string]: string;
@@ -5897,19 +7025,17 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            height?: {
-                [key: string]: unknown;
-            };
-            isCurrency?: {
-                [key: string]: unknown;
-            };
+            height?: number;
+            isCurrency?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
             /** @description Secondary title. */
             sublabel?: string;
-            title?: string;
+            title?: string | null;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
@@ -5935,13 +7061,13 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            processMetaData?: {
-                [key: string]: unknown;
-            };
+            processMetaData?: components["schemas"]["ProcessMetaData"];
             /** @description Secondary title. */
             sublabel?: string;
             /**
@@ -5968,11 +7094,13 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            name?: string;
+            name?: string | null;
             /** @description Secondary title. */
             sublabel?: string;
             /**
@@ -5980,7 +7108,7 @@ export interface components {
              * @enum {string}
              */
             type: "quickSightChart";
-            url?: string;
+            url?: string | null;
         };
         /** @description Data of html widgets. */
         WidgetDataRawHTML: {
@@ -6000,14 +7128,18 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            html?: string;
+            html?: string | null;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
             /** @description Secondary title. */
             sublabel?: string;
-            title?: string;
+            /** @description Plain text equivalent of html, preserving link text and line breaks. */
+            text?: string;
+            title?: string | null;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
@@ -6033,6 +7165,8 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             hiddenValues?: Record<string, never>;
@@ -6049,12 +7183,11 @@ export interface components {
         };
         /** @description Data of statistics widgets. */
         WidgetDataStatistics: {
-            count?: {
-                [key: string]: unknown;
-            };
-            countContext?: string;
-            countFontSize?: string;
-            countURL?: string;
+            /** @description Numeric statistic displayed by this widget. */
+            count?: number | null;
+            countContext?: string | null;
+            countFontSize?: string | null;
+            countURL?: string | null;
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
             /** @description Options of each dropdown filter: a list per dropdown of {id, label} objects. */
@@ -6071,21 +7204,17 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            increaseIsGood?: {
-                [key: string]: unknown;
-            };
-            isCurrency?: {
-                [key: string]: unknown;
-            };
+            increaseIsGood?: boolean;
+            isCurrency?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            percentageAmount?: {
-                [key: string]: unknown;
-            };
-            percentageLabel?: string;
-            percentageURL?: string;
+            percentageAmount?: number | null;
+            percentageLabel?: string | null;
+            percentageURL?: string | null;
             /** @description Secondary title. */
             sublabel?: string;
             /**
@@ -6096,9 +7225,7 @@ export interface components {
         };
         /** @description Data of stepper widgets. */
         WidgetDataStepper: {
-            activeStep?: {
-                [key: string]: unknown;
-            };
+            activeStep?: number;
             /** @description Rows (each a list of cells) for exporting the widget as CSV. */
             csvData?: unknown[][];
             /** @description Options of each dropdown filter: a list per dropdown of {id, label} objects. */
@@ -6115,6 +7242,8 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
             /** @description Title of the widget (overrides the metadata label when present). */
@@ -6122,7 +7251,7 @@ export interface components {
             steps?: unknown[];
             /** @description Secondary title. */
             sublabel?: string;
-            title?: string;
+            title?: string | null;
             /**
              * @description The widget type this data is for. (enum property replaced by openapi-typescript)
              * @enum {string}
@@ -6146,20 +7275,22 @@ export interface components {
             dropdownNameList?: string[];
             /** @description Message to show until every dropdown has a value. */
             dropdownNeedsSelectedText?: string;
-            fixedHeight?: number;
-            fixedStickyLastRow?: boolean;
+            fixedHeight?: number | null;
+            fixedStickyLastRow?: boolean | null;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            hidePaginationDropdown?: boolean;
+            hidePaginationDropdown?: boolean | null;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
-            linkText?: string;
-            linkURL?: string;
-            noRowsFoundHTML?: string;
+            linkText?: string | null;
+            linkURL?: string | null;
+            noRowsFoundHTML?: string | null;
             rows?: unknown[];
-            rowsPerPage?: number;
+            rowsPerPage?: number | null;
             /** @description Secondary title. */
             sublabel?: string;
             /**
@@ -6186,9 +7317,11 @@ export interface components {
             dropdownNeedsSelectedText?: string;
             /** @description Footer, as HTML. Non-web clients render it as plain text. */
             footerHTML?: string;
+            /** @description Plain text equivalent of footerHTML, preserving link text and line breaks. */
+            footerText?: string;
             /** @description False when the user may not see this widget's data; show the label and a permission message only. */
             hasPermission?: boolean;
-            height?: string;
+            height?: string | null;
             /** @description Title of the widget (overrides the metadata label when present). */
             label?: string;
             mapMarkerList?: unknown[];
@@ -6496,7 +7629,7 @@ export interface components {
             operationId?: string;
             processName?: string;
         };
-        /** @description Framework error response. */
+        /** @description Deprecated since 1.2.0: errors use BasicErrorResponseV1. */
         AlertsErrorV1: {
             error?: string | null;
         };
@@ -6586,6 +7719,785 @@ export interface components {
             alertId?: number;
             id?: number;
             ids?: number[];
+        };
+        /** @description Explain access: per table, the user's UI permissions, the assistant's data access, and each tool's verdict. */
+        AssistantAccessResponseV1: {
+            tables?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** @description A write the assistant proposed and its state. */
+        AssistantActionV1: {
+            id?: number;
+            /** @description PENDING, RUNNING, EXECUTED, FAILED, REJECTED or EXPIRED. */
+            status?: string;
+            toolName?: string;
+            tableName?: string;
+            recordId?: string | null;
+            summary?: string;
+            /** @description The UI API status of the write. */
+            httpStatus?: number | null;
+            resultSummary?: string | null;
+            expiresAt?: string | null;
+            /** @description After a confirm: the tool outcome. */
+            outcome?: string | null;
+            /** @description After a confirm: what happened. */
+            message?: string | null;
+            /** @description After a confirm: the written record's /app link. */
+            href?: string | null;
+        };
+        /** @description The caller's active runs, newest first; stale leases are reaped. */
+        AssistantActiveTurnsResponseV1: {
+            turns?: {
+                turnId?: number;
+                conversationId?: number;
+                assistantMessageId?: number;
+                userMessageId?: number;
+                /** @description RUNNING or CANCELLING. */
+                status?: string;
+                phase?: string;
+                /** @description ISO-8601. */
+                startedAt?: string;
+                /** @description ISO-8601. */
+                heartbeatAt?: string;
+                elapsedMs?: number;
+                /** @description Running on this replica. */
+                live?: boolean;
+                /** @description SUPERSEDE or CONCURRENT. */
+                concurrencyMode?: string;
+            }[];
+        };
+        /** @description Whether the assistant is available to this user, and how. */
+        AssistantConfigResponseV1: {
+            /** @description Whether the panel may be used. */
+            enabled?: boolean;
+            /** @description Why not: DISABLED, NO_PERMISSION, NOT_CONFIGURED or KILL_SWITCH. */
+            reason?: string | null;
+            /** @description Keyboard shortcut, e.g. mod+j. */
+            shortcut?: string;
+            /** @description The model that answers. */
+            model?: string;
+            /** @description maxTurnSeconds and maxToolCallsPerTurn. */
+            limits?: {
+                [key: string]: unknown;
+            };
+            /** @description writes: some table allows writes; pendingActions: writes wait for confirmation. */
+            features?: {
+                [key: string]: unknown;
+            };
+            profile?: components["schemas"]["AssistantProfileV1"];
+        };
+        /** @description A conversation and a page of its messages, oldest first. */
+        AssistantConversationDetailResponseV1: {
+            conversation?: components["schemas"]["AssistantConversationV1"];
+            messages?: components["schemas"]["AssistantMessageV1"][];
+        };
+        /** @description The user's conversations, newest first. */
+        AssistantConversationListResponseV1: {
+            conversations?: components["schemas"]["AssistantConversationV1"][];
+        };
+        /** @description One of the user's own conversations. */
+        AssistantConversationV1: {
+            id?: number;
+            title?: string | null;
+            /** @description ACTIVE or ARCHIVED. */
+            status?: string;
+            pinned?: boolean;
+            /** @description ISO-8601 instant. */
+            lastMessageAt?: string | null;
+            unreadCount?: number;
+            /** @description ISO-8601 instant. */
+            createDate?: string | null;
+        };
+        /** @description Deprecated since 1.3.0: errors use BasicErrorResponseV1. */
+        AssistantErrorV1: {
+            /** @description A message for the user. */
+            error?: string;
+            /** @description BUDGET, RATE_LIMIT, NOT_CONFIGURED, KILL_SWITCH, DISABLED, NO_PERMISSION... */
+            code?: string | null;
+        };
+        /** @description A message: the user's text or the assistant's reply as parts (text, tool, record_refs, navigate, notice). */
+        AssistantMessageV1: {
+            id?: number;
+            /** @description USER or ASSISTANT. */
+            role?: string;
+            status?: string;
+            turnId?: number | null;
+            createDate?: string | null;
+            parts?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** @description How the assistant presents itself (admin-configured; text only, it never changes access). */
+        AssistantProfileV1: {
+            /** @description The assistant's name. */
+            displayName?: string;
+            /** @description A Material icon name. */
+            icon?: string;
+            /** @description Shown on a new conversation. */
+            greeting?: string | null;
+            /** @description Suggested first questions. */
+            starterPrompts?: string[];
+        };
+        /** @description An acknowledgement. */
+        AssistantStatusResponseV1: {
+            status?: string;
+        };
+        /** @description One server-sent event of a turn (event: <type>, id: <seq>, data: this object). Types: message.start, turn.phase, text.delta, tool.start, tool.result, ui.navigate, notice, usage, message.end, error, ping. */
+        AssistantTurnEventV1: {
+            /** @description Sequence number; resume with ?after=<seq>. */
+            seq?: number;
+            /** @description The event type (also the SSE event name). */
+            type?: string;
+            /** @description The event's fields, by type. message.start includes startedAt (ISO-8601). turn.phase includes phase (thinking, tool, writing), optional toolName and label. */
+            data?: {
+                [key: string]: unknown;
+            };
+        };
+        CollaborationAccessRequestCreateRequestV1: {
+            /** @description message. */
+            message?: string | null;
+            /** @description recordId. */
+            recordId?: string | null;
+            /** @description shareId. */
+            shareId?: number | null;
+            /** @description tableName. */
+            tableName?: string | null;
+        };
+        CollaborationAccessRequestListV1: {
+            /** @description items. */
+            items?: components["schemas"]["CollaborationAccessRequestV1"][] | null;
+            /** @description nextCursor. */
+            nextCursor?: string | null;
+        };
+        CollaborationAccessRequestV1: {
+            /**
+             * Format: date-time
+             * @description handledAt.
+             */
+            handledAt?: string | null;
+            /** @description Display name of the person who handled the request. */
+            handledByDisplayName?: string | null;
+            /** @description id. */
+            id?: number | null;
+            /** @description message. */
+            message?: string | null;
+            /** @description note. */
+            note?: string | null;
+            /** @description recordId. */
+            recordId?: string | null;
+            /** @description Requester display name. */
+            requesterDisplayName?: string | null;
+            /** @description requesterUserId. */
+            requesterUserId?: string | null;
+            /** @description status. */
+            status?: string | null;
+            /** @description tableName. */
+            tableName?: string | null;
+        };
+        CollaborationAssignmentRequestV1: {
+            /** @description assigneeUserId. */
+            assigneeUserId?: string | null;
+            /** @description ownerUserId. */
+            ownerUserId?: string | null;
+        };
+        CollaborationAssignmentV1: {
+            /** @description Assignee display name. */
+            assigneeDisplayName?: string | null;
+            /** @description assigneeUserId. */
+            assigneeUserId?: string | null;
+            /** @description id. */
+            id?: number | null;
+            /** @description Owner display name. */
+            ownerDisplayName?: string | null;
+            /** @description ownerUserId. */
+            ownerUserId?: string | null;
+            /** @description recordId. */
+            recordId?: string | null;
+            /** @description tableName. */
+            tableName?: string | null;
+        };
+        /** @description Attachments, newest first. */
+        CollaborationAttachmentListV1: {
+            /** @description Attachments, newest first. */
+            items?: components["schemas"]["CollaborationAttachmentV1"][] | null;
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
+        };
+        /** @description Change attachment display metadata. */
+        CollaborationAttachmentPatchRequestV1: {
+            /** @description Optional description; empty clears, null leaves unchanged. */
+            description?: string | null;
+            /** @description Optional new display filename; null leaves unchanged. */
+            fileName?: string | null;
+        };
+        /** @description Multipart upload with exactly one file part named file. */
+        CollaborationAttachmentUploadRequestV1: {
+            /** @description Optional description. */
+            description?: string | null;
+            /**
+             * Format: binary
+             * @description Required file content.
+             */
+            file?: string | null;
+        };
+        /** @description An attachment visible through its parent record; no storage coordinates are exposed. */
+        CollaborationAttachmentV1: {
+            /** @description Whether the caller may change or delete this attachment. */
+            canDelete?: boolean | null;
+            /** @description MIME content type. */
+            contentType?: string | null;
+            /**
+             * Format: date-time
+             * @description Upload time.
+             */
+            createDate?: string | null;
+            /** @description Uploader display name. */
+            createdByDisplayName?: string | null;
+            /** @description Uploader identity. */
+            createdByUserId?: string | null;
+            /** @description Optional description. */
+            description?: string | null;
+            /** @description Safe display filename. */
+            fileName?: string | null;
+            /** @description Attachment identifier. */
+            id?: number | null;
+            /** @description Canonical parent record key. */
+            recordId?: string | null;
+            /** @description SHA-256 content digest. */
+            sha256?: string | null;
+            /** @description Stored byte count. */
+            sizeBytes?: number | null;
+            /** @description Parent table metadata name. */
+            tableName?: string | null;
+        };
+        /** @description Replace the caller's comment body. */
+        CollaborationCommentEditRequestV1: {
+            /** @description Required replacement body, 1 to 20000 characters. */
+            body?: string | null;
+        };
+        /** @description Previous bodies in edit order. */
+        CollaborationCommentHistoryV1: {
+            /** @description Previous bodies in edit order. */
+            items?: components["schemas"]["CollaborationCommentRevisionV1"][] | null;
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
+        };
+        /** @description Root threads by latest activity, with replies. */
+        CollaborationCommentPageV1: {
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
+            /** @description Root threads by latest activity, with replies. */
+            threads?: components["schemas"]["CollaborationCommentV1"][] | null;
+        };
+        /** @description Post a root comment or one-level reply. */
+        CollaborationCommentPostRequestV1: {
+            /** @description Required body, 1 to 20000 characters; mentions use @[Name](user:id). */
+            body?: string | null;
+            /** @description Optional existing parent field name. */
+            fieldName?: string | null;
+            /** @description Optional comment to reply to. */
+            parentCommentId?: number | null;
+        };
+        /** @description A previous comment body. */
+        CollaborationCommentRevisionV1: {
+            /** @description Previous body text. */
+            body?: string | null;
+            /**
+             * Format: date-time
+             * @description Time the body was replaced.
+             */
+            editedAt?: string | null;
+            /** @description Editor display name. */
+            editedByDisplayName?: string | null;
+            /** @description Editor identity. */
+            editedByUserId?: string | null;
+            /** @description Revision identifier. */
+            id?: number | null;
+        };
+        /** @description A comment or reply; deleted comments retain their position without body text. */
+        CollaborationCommentV1: {
+            /** @description Author display name. */
+            authorDisplayName?: string | null;
+            /** @description Author identity. */
+            authorUserId?: string | null;
+            /** @description Plain text with mention tokens; null for deleted comments. */
+            body?: string | null;
+            /** @description Caller may delete this comment. */
+            canDelete?: boolean | null;
+            /** @description Caller may edit the body. */
+            canEdit?: boolean | null;
+            /**
+             * Format: date-time
+             * @description Creation time.
+             */
+            createdAt?: string | null;
+            /** @description Whether the comment is soft deleted. */
+            deleted?: boolean | null;
+            /**
+             * Format: date-time
+             * @description Last edit time, if edited.
+             */
+            editedAt?: string | null;
+            /** @description Optional field being discussed. */
+            fieldName?: string | null;
+            /** @description Comment identifier. */
+            id?: number | null;
+            /** @description Mention recipients. */
+            mentions?: components["schemas"]["CollaborationMentionV1"][] | null;
+            /** @description Root comment for a reply; null on roots. */
+            parentCommentId?: number | null;
+            /** @description Replies in oldest-first order; empty on replies. */
+            replies?: components["schemas"]["CollaborationCommentV1"][] | null;
+            /** @description Whether the thread is resolved. */
+            resolved?: boolean | null;
+            /** @description Root thread identifier; null on roots. */
+            threadId?: number | null;
+        };
+        /** @description Temporary access to file bytes. Clients follow url. */
+        CollaborationDownloadV1: {
+            /** @description Presigned URL, valid for five minutes. Clients follow url; never persist it. */
+            url?: string | null;
+        };
+        /** @description Deprecated since 1.1.0: errors use BasicErrorResponseV1. */
+        CollaborationErrorV1: {
+            /** @description Human-readable reason the operation failed. */
+            error?: string | null;
+        };
+        /** @description Ordered personal favorites. */
+        CollaborationFavoriteListV1: {
+            /** @description Ordered personal favorites. */
+            items?: components["schemas"]["CollaborationFavoriteV1"][] | null;
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
+        };
+        /** @description Move selected favorites first and optionally assign folders. */
+        CollaborationFavoriteOrderRequestV1: {
+            /** @description Optional map from favorite identifier to folder; null values clear folders. */
+            folders?: {
+                [key: string]: string | null;
+            } | null;
+            /** @description Required ordered favorite identifiers, with no duplicates. */
+            ids?: number[] | null;
+        };
+        /** @description A saved navigation target, with availability rechecked for the caller. */
+        CollaborationFavoriteV1: {
+            /** @description Whether the caller can currently open this target. */
+            available?: boolean | null;
+            /** @description Optional personal grouping. */
+            folder?: string | null;
+            /** @description Navigation link, absent for unavailable targets. */
+            href?: string | null;
+            /** @description Favorite identifier. */
+            id?: number | null;
+            /** @description Current display label; Unavailable when access is lost. */
+            label?: string | null;
+            /** @description Canonical record key; null for non-record targets. */
+            recordId?: string | null;
+            /** @description Position in the personal list. */
+            sortOrder?: number | null;
+            /** @description Metadata name of the table, app, process, report or saved view. */
+            targetName?: string | null;
+            /**
+             * @description Kind of navigation target.
+             * @enum {string|null}
+             */
+            targetType?: "TABLE" | "APP" | "RECORD" | "PROCESS" | "REPORT" | "SAVED_VIEW" | null;
+        };
+        /** @description Configure the caller's follow preferences. */
+        CollaborationFollowRequestV1: {
+            /** @description Optional change notifications preference; omission retains current setting. */
+            notifyOnChange?: boolean | null;
+            /** @description Optional comment notifications preference; omission retains current setting. */
+            notifyOnComment?: boolean | null;
+        };
+        /** @description The current caller's subscription state. */
+        CollaborationFollowStateV1: {
+            /** @description Subscription settings; null when not following. */
+            follow?: components["schemas"]["CollaborationFollowV1"];
+            /** @description Whether the caller follows the record. */
+            following?: boolean | null;
+        };
+        /** @description A subscription to record changes and comments. */
+        CollaborationFollowV1: {
+            /** @description Subscription identifier. */
+            id?: number | null;
+            /**
+             * Format: date-time
+             * @description Notifications muted until this time, if set.
+             */
+            mutedUntil?: string | null;
+            /** @description Receive record change digests. */
+            notifyOnChange?: boolean | null;
+            /** @description Receive new comment notifications. */
+            notifyOnComment?: boolean | null;
+            /**
+             * @description How following began.
+             * @enum {string|null}
+             */
+            reason?: "MANUAL" | "AUTHOR" | "COMMENTED" | "MENTIONED" | "ASSIGNED" | "SHARED" | null;
+            /** @description Follower display name. */
+            userDisplayName?: string | null;
+            /** @description Follower identity. */
+            userId?: string | null;
+        };
+        /** @description Subscriptions for this record. */
+        CollaborationFollowerListV1: {
+            /** @description Subscriptions for this record. */
+            items?: components["schemas"]["CollaborationFollowV1"][] | null;
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
+        };
+        CollaborationLinkV1: {
+            /** @description label. */
+            label?: string | null;
+            /** @description url. */
+            url?: string | null;
+        };
+        /** @description Candidates ranked with record participants first. */
+        CollaborationMentionCandidateListV1: {
+            /** @description Candidates ranked with record participants first. */
+            items?: components["schemas"]["CollaborationMentionCandidateV1"][] | null;
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
+        };
+        /** @description A matching person and their known parent access. */
+        CollaborationMentionCandidateV1: {
+            /**
+             * @description Recipient access: string true, false, or unknown when it cannot be established.
+             * @enum {string|null}
+             */
+            canRead?: "true" | "false" | "unknown" | null;
+            /** @description Directory identity. */
+            person?: components["schemas"]["CollaborationPersonV1"];
+        };
+        /** @description A mention embedded in a comment. */
+        CollaborationMentionV1: {
+            /** @description Mentioned user identity. */
+            userId?: string | null;
+            /** @description Whether recipient access was confirmed when mentioned. */
+            visible?: boolean | null;
+        };
+        /** @description Acknowledgement of a completed mutation. */
+        CollaborationMutationResultV1: {
+            /** @description True after the requested operation completes. */
+            success?: boolean | null;
+        };
+        CollaborationMyWorkV1: {
+            /** @description assignedRecordsByTable. */
+            assignedRecordsByTable?: {
+                [key: string]: number;
+            } | null;
+            /** @description openTaskCount. */
+            openTaskCount?: number | null;
+            /** @description tasks. */
+            tasks?: components["schemas"]["CollaborationTaskV1"][] | null;
+            /** @description unreadMentionCount. */
+            unreadMentionCount?: number | null;
+        };
+        /** @description Matching active directory entries. */
+        CollaborationPersonListV1: {
+            /** @description Matching active directory entries. */
+            items?: components["schemas"]["CollaborationPersonV1"][] | null;
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
+        };
+        /** @description An active directory entry. */
+        CollaborationPersonV1: {
+            /** @description Display name. */
+            displayName?: string | null;
+            /** @description Directory email, if known. */
+            email?: string | null;
+            /**
+             * Format: date-time
+             * @description Most recent directory refresh time.
+             */
+            lastSeenAt?: string | null;
+            /** @description Stable user identity. */
+            userId?: string | null;
+        };
+        /** @description Remove the caller's lease on this connection and target. */
+        CollaborationPresenceLeaveV1: {
+            /** @description Client connection identity. */
+            connectionId?: string;
+            /** @description Optional parent key. */
+            pk?: string | null;
+            /** @description Parent table name. */
+            table?: string;
+        };
+        /** @description Renew a 45-second presence lease; send every 20 seconds. */
+        CollaborationPresenceRequestV1: {
+            /** @description Client connection identity. */
+            connectionId?: string;
+            /** @description Optional focused field on a record. */
+            fieldName?: string | null;
+            /**
+             * @description VIEWING or EDITING.
+             * @enum {string}
+             */
+            mode?: "VIEWING" | "EDITING";
+            /** @description Optional parent key; omit for a table view. */
+            pk?: string | null;
+            /** @description Parent table name. */
+            table?: string;
+        };
+        /** @description Live viewers, merged across tabs; presence.changed uses this payload. */
+        CollaborationPresenceSnapshotV1: {
+            /** @description Record key; absent for table events. */
+            pk?: string | null;
+            /** @description Parent table name. */
+            table?: string;
+            viewers?: components["schemas"]["CollaborationPresenceViewerV1"][];
+        };
+        /** @description One user merged across live tabs; EDITING takes precedence. */
+        CollaborationPresenceViewerV1: {
+            /** @description Session display name. */
+            displayName?: string;
+            /** @description Focused field; null on table snapshots. */
+            fieldName?: string | null;
+            /**
+             * @description VIEWING or EDITING.
+             * @enum {string}
+             */
+            mode?: "VIEWING" | "EDITING";
+            /** @description Stable user identity. */
+            userId?: string;
+        };
+        /** @description Most recent visible targets, at most fifty. */
+        CollaborationRecentListV1: {
+            /** @description Most recent visible targets, at most fifty. */
+            items?: components["schemas"]["CollaborationFavoriteV1"][] | null;
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
+        };
+        CollaborationShareListV1: {
+            /** @description items. */
+            items?: components["schemas"]["CollaborationShareV1"][] | null;
+        };
+        CollaborationSharePreviewV1: {
+            /** @description recipients. */
+            recipients?: components["schemas"]["CollaborationShareRecipientV1"][] | null;
+        };
+        CollaborationShareRecipientV1: {
+            /** @description canRead. */
+            canRead?: boolean | null;
+            /** @description displayName. */
+            displayName?: string | null;
+            /** @description userId. */
+            userId?: string | null;
+        };
+        CollaborationShareRequestV1: {
+            /** @description message. */
+            message?: string | null;
+            /** @description toUserIds. */
+            toUserIds?: string[] | null;
+        };
+        CollaborationShareV1: {
+            /** @description Sender display name. */
+            fromDisplayName?: string | null;
+            /** @description fromUserId. */
+            fromUserId?: string | null;
+            /** @description id. */
+            id?: number | null;
+            /** @description message. */
+            message?: string | null;
+            /** @description recipientCouldRead. */
+            recipientCouldRead?: boolean | null;
+            /** @description recordId. */
+            recordId?: string | null;
+            /**
+             * Format: date-time
+             * @description sentAt.
+             */
+            sentAt?: string | null;
+            /** @description tableName. */
+            tableName?: string | null;
+            /** @description Recipient display name. */
+            toDisplayName?: string | null;
+            /** @description toUserId. */
+            toUserId?: string | null;
+        };
+        /** @description Add and remove tag associations in one request. */
+        CollaborationTagApplyRequestV1: {
+            /** @description Tag identifiers to add; omitted means none. */
+            add?: number[] | null;
+            /** @description Tag identifiers to remove; omitted means none. */
+            remove?: number[] | null;
+        };
+        /** @description Create a tag or suggest one under the table policy. */
+        CollaborationTagCreateRequestV1: {
+            /** @description Optional display color. */
+            color?: string | null;
+            /** @description Required display label, 1 to 60 characters. */
+            label?: string | null;
+            /** @description Required table metadata name. */
+            table?: string | null;
+        };
+        /** @description Available or applied tags. */
+        CollaborationTagListV1: {
+            /** @description Available or applied tags. */
+            items?: components["schemas"]["CollaborationTagV1"][] | null;
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
+        };
+        /** @description An approved tag or the caller's pending suggestion. */
+        CollaborationTagV1: {
+            /** @description Whether anyone may apply this tag. */
+            approved?: boolean | null;
+            /** @description Optional display color. */
+            color?: string | null;
+            /** @description Tag identifier. */
+            id?: number | null;
+            /** @description Display label. */
+            label?: string | null;
+            /** @description Normalized vocabulary name. */
+            name?: string | null;
+            /** @description Table scope; null means global. */
+            tableName?: string | null;
+            /** @description Number of record associations. */
+            usageCount?: number | null;
+        };
+        /** @description Target to star, unstar, or record as recently viewed. */
+        CollaborationTargetRequestV1: {
+            /** @description Required for RECORD; omitted otherwise. */
+            recordId?: string | null;
+            /** @description Required metadata name. */
+            targetName?: string | null;
+            /**
+             * @description Required target kind.
+             * @enum {string|null}
+             */
+            targetType?: "TABLE" | "APP" | "RECORD" | "PROCESS" | "REPORT" | "SAVED_VIEW" | null;
+        };
+        CollaborationTaskCreateRequestV1: {
+            /** @description assigneeUserId. */
+            assigneeUserId?: string | null;
+            /**
+             * Format: date-time
+             * @description dueAt.
+             */
+            dueAt?: string | null;
+            /** @description notes. */
+            notes?: string | null;
+            /**
+             * Format: date-time
+             * @description remindAt.
+             */
+            remindAt?: string | null;
+            /** @description title. */
+            title?: string | null;
+        };
+        CollaborationTaskListV1: {
+            /** @description items. */
+            items?: components["schemas"]["CollaborationTaskV1"][] | null;
+            /** @description nextCursor. */
+            nextCursor?: string | null;
+        };
+        CollaborationTaskPatchRequestV1: {
+            /** @description assigneeUserId. */
+            assigneeUserId?: string | null;
+            /**
+             * Format: date-time
+             * @description dueAt.
+             */
+            dueAt?: string | null;
+            /** @description notes. */
+            notes?: string | null;
+            /**
+             * Format: date-time
+             * @description remindAt.
+             */
+            remindAt?: string | null;
+            /** @description status. */
+            status?: string | null;
+            /** @description title. */
+            title?: string | null;
+        };
+        CollaborationTaskV1: {
+            /** @description Assignee display name. */
+            assigneeDisplayName?: string | null;
+            /** @description assigneeUserId. */
+            assigneeUserId?: string | null;
+            /**
+             * Format: date-time
+             * @description completedAt.
+             */
+            completedAt?: string | null;
+            /** @description Display name of the person who completed the task. */
+            completedByDisplayName?: string | null;
+            /** @description completedByUserId. */
+            completedByUserId?: string | null;
+            /** @description Creator display name. */
+            createdByDisplayName?: string | null;
+            /** @description createdByUserId. */
+            createdByUserId?: string | null;
+            /**
+             * Format: date-time
+             * @description dueAt.
+             */
+            dueAt?: string | null;
+            /** @description id. */
+            id?: number | null;
+            /** @description notes. */
+            notes?: string | null;
+            /** @description recordId. */
+            recordId?: string | null;
+            /**
+             * Format: date-time
+             * @description remindAt.
+             */
+            remindAt?: string | null;
+            /** @description status. */
+            status?: string | null;
+            /** @description tableName. */
+            tableName?: string | null;
+            /** @description title. */
+            title?: string | null;
+        };
+        /** @description A permitted field change from a core audit. */
+        CollaborationTimelineDetailV1: {
+            /** @description Changed field metadata name. */
+            fieldName?: string | null;
+            /** @description Optional audit message. */
+            message?: string | null;
+            /** @description New display value. */
+            newValue?: string | null;
+            /** @description Previous display value. */
+            oldValue?: string | null;
+        };
+        /** @description One visible event in the merged record timeline. */
+        CollaborationTimelineItemV1: {
+            /** @description Actor display name. */
+            actorName?: string | null;
+            /** @description Actor identity, when known. */
+            actorUserId?: string | null;
+            /**
+             * Format: date-time
+             * @description Event time.
+             */
+            at?: string | null;
+            /** @description Field details filtered by caller permissions. */
+            details?: components["schemas"]["CollaborationTimelineDetailV1"][] | null;
+            /** @description Identifier within the source. */
+            id?: number | null;
+            /**
+             * @description Event source.
+             * @enum {string|null}
+             */
+            kind?: "ACTIVITY" | "AUDIT" | null;
+            /** @description Related record key. */
+            refId?: string | null;
+            /** @description Related table metadata name. */
+            refTable?: string | null;
+            /** @description Human-readable event summary. */
+            summary?: string | null;
+        };
+        /** @description Merged events, newest first. */
+        CollaborationTimelinePageV1: {
+            /** @description Merged events, newest first. */
+            items?: components["schemas"]["CollaborationTimelineItemV1"][] | null;
+            /** @description Opaque continuation token; null when finished or the service has no continuation support. */
+            nextCursor?: string | null;
         };
         DataAnalysisAxisV1: {
             /** @description Field. */
@@ -7382,7 +9294,7 @@ export interface components {
             type?: string | null;
             usage?: string | null;
         };
-        /** @description Core middleware error body. */
+        /** @description Deprecated since 1.1.0: errors use BasicErrorResponseV1. */
         EdiErrorV1: {
             error?: string | null;
         };
@@ -7509,6 +9421,7 @@ export interface components {
         EdiValidationV1: {
             rules?: components["schemas"]["EdiRuleErrorsV1"][];
         };
+        /** @description Deprecated since 1.1.0: errors use BasicErrorResponseV1. */
         QuickSearchErrorV1: {
             /** @description Framework error message. */
             error?: string;
@@ -7622,6 +9535,7 @@ export interface components {
             scope?: string | null;
             ceiling?: string;
         };
+        /** @description Deprecated since 1.1.0: errors use BasicErrorResponseV1. */
         SecuredDataErrorV1: {
             error?: string;
         };
@@ -7715,6 +9629,7 @@ export interface components {
         /** @enum {string} */
         SqlWorkbenchDialectV1: "postgresql" | "mysql" | "sqlite" | "h2" | "sql";
         SqlWorkbenchEmptyRequestV1: Record<string, never>;
+        /** @description Deprecated since 1.1.0: errors use BasicErrorResponseV1. */
         SqlWorkbenchErrorV1: {
             error?: string;
         };
@@ -14340,7 +16255,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -14349,7 +16264,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -14358,7 +16273,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Not found */
@@ -14367,7 +16282,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14407,7 +16340,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -14416,7 +16349,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -14425,7 +16358,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Not found */
@@ -14434,7 +16367,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14467,7 +16418,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -14476,7 +16427,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -14485,7 +16436,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Not found */
@@ -14494,7 +16445,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14527,7 +16496,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -14536,7 +16505,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -14545,7 +16514,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Not found */
@@ -14554,7 +16523,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14587,7 +16574,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -14596,7 +16583,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -14605,7 +16592,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Not found */
@@ -14614,7 +16601,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14648,7 +16653,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -14657,7 +16662,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -14666,7 +16671,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Not found */
@@ -14675,7 +16680,4979 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlertsErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getAssistantConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConfigResponseV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getAssistantConversations: {
+        parameters: {
+            query?: {
+                /** @description ARCHIVED for archived conversations; active ones by default. */
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationListResponseV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postAssistantConversations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    title?: string;
+                    /** @description route, tableName, recordId, filter, selectedIds. */
+                    context?: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getAssistantConversationsById: {
+        parameters: {
+            query?: {
+                /** @description Only messages older than this message id. */
+                before?: number;
+                /** @description Page size (default 50, at most 200). */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The conversation id. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationDetailResponseV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    deleteAssistantConversationsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The conversation id. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done (no body) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    patchAssistantConversationsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The conversation id. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    title?: string;
+                    pinned?: boolean;
+                    /** @description ACTIVE or ARCHIVED. */
+                    status?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postAssistantConversationsByIdTurns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The conversation id. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The user's message. */
+                    text?: string;
+                    /** @description Where the user is in the app. */
+                    pageContext?: {
+                        [key: string]: unknown;
+                    };
+                    /** @description supersede or concurrent (case-insensitive); defaults to the host configuration. */
+                    concurrency?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The turn's events, until message.end */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["AssistantTurnEventV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getAssistantTurnsByTurnIdEvents: {
+        parameters: {
+            query?: {
+                /** @description The last sequence number already received (0 for all). */
+                after?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The turn id. */
+                turnId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The turn's events after `after`, until message.end */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["AssistantTurnEventV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postAssistantTurnsByTurnIdCancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The turn id. */
+                turnId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantStatusResponseV1"];
+                };
+            };
+            /** @description Legacy replica: cancellation accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantStatusResponseV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getAssistantTurnsActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantActiveTurnsResponseV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postAssistantMessagesByIdFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The assistant message id. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description 1 or -1. */
+                    rating?: number;
+                    reason?: string;
+                    comment?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Done (no body) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getAssistantActionsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The pending action id. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantActionV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postAssistantActionsByIdConfirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The pending action id. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantActionV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postAssistantActionsByIdReject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The pending action id. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantActionV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getAssistantAccess: {
+        parameters: {
+            query?: {
+                /** @description Only this table. */
+                table?: string;
+                /** @description Only the tables this text mentions. */
+                prompt?: string;
+                /** @description Attribute this request to an owned turn. */
+                turnId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantAccessResponseV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationPresence: {
+        parameters: {
+            query: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationPresenceSnapshotV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationPresence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationPresenceRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationPresenceSnapshotV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    deleteQbitCollaborationPresence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationPresenceLeaveV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMutationResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationFavorites: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationFavoriteListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    putQbitCollaborationFavorites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationTargetRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMutationResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    deleteQbitCollaborationFavorites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationTargetRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMutationResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationRecents: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationRecentListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationRecents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationTargetRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMutationResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    patchQbitCollaborationFavoritesOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationFavoriteOrderRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMutationResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationRecordsByTableByPkAttachments: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationAttachmentListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationRecordsByTableByPkAttachments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CollaborationAttachmentUploadRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Uploaded attachment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationAttachmentV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationAttachmentsByIdDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationDownloadV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationAttachmentsByIdPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationDownloadV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    deleteQbitCollaborationAttachmentsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMutationResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    patchQbitCollaborationAttachmentsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationAttachmentPatchRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationAttachmentV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationTags: {
+        parameters: {
+            query: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Text to search in display names or vocabulary. */
+                q?: string;
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationTagListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationTagCreateRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationTagV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationRecordsByTableByPkTags: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationTagListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    putQbitCollaborationRecordsByTableByPkTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationTagApplyRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationTagListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationRecordsByTableByPkComments: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationCommentPageV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationRecordsByTableByPkComments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationCommentPostRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationCommentV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    deleteQbitCollaborationCommentsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMutationResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    patchQbitCollaborationCommentsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationCommentEditRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationCommentV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationCommentsByIdResolve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMutationResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationCommentsByIdReopen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMutationResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationCommentsByIdHistory: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationCommentHistoryV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationMentionsCandidates: {
+        parameters: {
+            query: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+                /** @description Text to search in display names or vocabulary. */
+                q?: string;
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMentionCandidateListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationRecordsByTableByPkFollow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationFollowStateV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    putQbitCollaborationRecordsByTableByPkFollow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationFollowRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationFollowStateV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    deleteQbitCollaborationRecordsByTableByPkFollow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationFollowStateV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationRecordsByTableByPkFollowers: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationFollowerListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationRecordsByTableByPkTimeline: {
+        parameters: {
+            query?: {
+                /** @description Timeline continuation token; alias for cursor. Supply only one. */
+                before?: string;
+                /** @description Comma-separated AUDIT, ACTIVITY or activity type names (for example COMMENTED). */
+                types?: string;
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationTimelinePageV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationPeople: {
+        parameters: {
+            query?: {
+                /** @description Text to search in display names or vocabulary. */
+                q?: string;
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationPersonListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationPeopleByUserId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Stable directory user identity. */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationPersonV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationRecordsByTableByPkLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationLinkV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationRecordsByTableByPkSharesPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationShareRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationSharePreviewV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationRecordsByTableByPkShares: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationShareRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationShareListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationAccessRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationAccessRequestCreateRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationAccessRequestV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationAccessRequestsMine: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationAccessRequestListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationRecordsByTableByPkTasks: {
+        parameters: {
+            query?: {
+                /** @description Include completed and cancelled tasks; default false. */
+                includeDone?: boolean;
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationTaskListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postQbitCollaborationRecordsByTableByPkTasks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationTaskCreateRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationTaskV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    patchQbitCollaborationTasksById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collaboration object identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationTaskPatchRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationTaskV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationTasksMine: {
+        parameters: {
+            query?: {
+                /** @description Task status: OPEN (default), DONE or CANCELLED. */
+                status?: string;
+                /** @description Maximum items to return, from 1 to 100; default 20. */
+                limit?: number;
+                /** @description Opaque nextCursor returned by the previous page; omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationTaskListV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    putQbitCollaborationRecordsByTableByPkAssignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Parent table metadata name. */
+                table: string;
+                /** @description Parent record primary key. */
+                pk: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollaborationAssignmentRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationAssignmentV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getQbitCollaborationMyWork: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollaborationMyWorkV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (including invisible parents) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14701,6 +21678,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisSavedResultV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     getQbitDataAnalysisSaved: {
@@ -14719,6 +21750,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataAnalysisSavedListV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14744,6 +21829,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisStarV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     deleteQbitDataAnalysisSavedByIdStar: {
@@ -14765,6 +21904,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataAnalysisStarV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14794,6 +21987,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisSqlV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     postQbitDataAnalysisExport: {
@@ -14817,6 +22064,60 @@ export interface operations {
                 content: {
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": components["schemas"]["DataAnalysisFileV1"];
                     "text/csv": components["schemas"]["DataAnalysisFileV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14846,6 +22147,60 @@ export interface operations {
                     "text/csv": components["schemas"]["DataAnalysisFileV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     getQbitDataAnalysisTablesByTableCapabilities: {
@@ -14867,6 +22222,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataAnalysisCapabilitiesV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14896,6 +22305,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisColumnProfileV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     postQbitDataAnalysisTablesByTableDistinctValues: {
@@ -14921,6 +22384,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataAnalysisDistinctValuesPageV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -14950,6 +22467,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisCompareV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     postQbitDataAnalysisTablesByTableShift: {
@@ -14975,6 +22546,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataAnalysisShiftV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15004,6 +22629,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisCorrelationV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     postQbitDataAnalysisTablesByTableScatter: {
@@ -15029,6 +22708,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataAnalysisScatterV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15058,6 +22791,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisCrosstabV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     postQbitDataAnalysisWatchesByIdPreview: {
@@ -15079,6 +22866,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataAnalysisWatchPreviewV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15108,6 +22949,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisPivotV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     postQbitDataAnalysisTablesByTableTableProfile: {
@@ -15133,6 +23028,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataAnalysisTableProfileV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15162,6 +23111,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisDuplicatesResultV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     postQbitDataAnalysisRuns: {
@@ -15186,6 +23189,60 @@ export interface operations {
                     "application/json": components["schemas"]["DataAnalysisRunStartedV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     getQbitDataAnalysisRunsByRunId: {
@@ -15207,6 +23264,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataAnalysisRunStatusV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15238,7 +23349,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15247,7 +23358,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -15256,7 +23367,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible record */
@@ -15265,7 +23376,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Host HTTP request size limit exceeded */
@@ -15274,7 +23394,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15306,7 +23435,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15315,7 +23444,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -15324,7 +23453,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible record */
@@ -15333,7 +23462,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Host HTTP request size limit exceeded */
@@ -15342,7 +23480,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15375,7 +23522,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15384,7 +23531,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -15393,7 +23540,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible record */
@@ -15402,7 +23549,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Host HTTP request size limit exceeded */
@@ -15411,7 +23567,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15447,7 +23612,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15456,7 +23621,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -15465,7 +23630,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible record */
@@ -15474,7 +23639,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Host HTTP request size limit exceeded */
@@ -15483,7 +23657,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EdiErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15512,7 +23695,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QuickSearchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15521,7 +23704,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QuickSearchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Quick Search admin permission required */
@@ -15530,7 +23713,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QuickSearchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15568,7 +23778,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QuickSearchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15577,7 +23787,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QuickSearchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Session permission denied */
@@ -15586,7 +23796,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QuickSearchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15619,7 +23856,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SecuredDataErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Reveal denied */
@@ -15628,7 +23874,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SecuredDataErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Record not found or locked */
@@ -15637,7 +23883,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SecuredDataErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Daily reveal cap reached */
@@ -15646,7 +23901,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SecuredDataErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15672,6 +23927,60 @@ export interface operations {
                     "application/json": components["schemas"]["SecuredDataRevealOptionsResponseV1"];
                 };
             };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
         };
     };
     getQbitSecuredDataStatus: {
@@ -15690,6 +23999,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SecuredDataStatusResponseV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15718,7 +24081,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15727,7 +24090,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -15736,7 +24099,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -15745,7 +24108,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -15754,7 +24117,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15789,7 +24161,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15798,7 +24170,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -15807,7 +24179,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -15816,7 +24188,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -15825,7 +24197,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15858,7 +24239,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15867,7 +24248,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -15876,7 +24257,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -15885,7 +24266,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -15894,7 +24275,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -15927,7 +24317,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -15936,7 +24326,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -15945,7 +24335,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -15954,7 +24344,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -15963,7 +24353,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16004,7 +24403,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16013,7 +24412,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16022,7 +24421,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16031,7 +24430,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16040,7 +24439,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16076,7 +24484,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16085,7 +24493,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16094,7 +24502,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16103,7 +24511,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16112,7 +24520,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16146,7 +24563,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16155,7 +24572,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16164,7 +24581,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16173,7 +24590,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16182,7 +24599,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16214,7 +24640,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16223,7 +24649,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16232,7 +24658,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16241,7 +24667,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16250,7 +24676,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16283,7 +24718,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16292,7 +24727,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16301,7 +24736,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16310,7 +24745,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16319,7 +24754,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16351,7 +24795,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16360,7 +24804,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16369,7 +24813,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16378,7 +24822,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16387,7 +24831,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16423,7 +24876,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16432,7 +24885,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16441,7 +24894,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16450,7 +24903,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16459,7 +24912,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16491,7 +24953,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16500,7 +24962,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16509,7 +24971,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16518,7 +24980,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16527,7 +24989,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16563,7 +25034,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16572,7 +25043,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16581,7 +25052,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16590,7 +25061,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16599,7 +25070,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16635,7 +25115,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16644,7 +25124,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16653,7 +25133,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16662,7 +25142,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16671,7 +25151,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16703,7 +25192,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16712,7 +25201,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16721,7 +25210,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16730,7 +25219,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16739,7 +25228,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16773,7 +25271,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16782,7 +25280,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16791,7 +25289,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16800,7 +25298,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16809,7 +25307,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16847,7 +25354,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16856,7 +25363,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16865,7 +25372,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16874,7 +25381,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16883,7 +25390,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16915,7 +25431,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16924,7 +25440,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -16933,7 +25449,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -16942,7 +25458,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -16951,7 +25467,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -16987,7 +25512,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -16996,7 +25521,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -17005,7 +25530,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -17014,7 +25539,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -17023,7 +25548,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -17057,7 +25591,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -17066,7 +25600,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -17075,7 +25609,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -17084,7 +25618,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -17093,7 +25627,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
@@ -17130,7 +25673,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Sign in required */
@@ -17139,7 +25682,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Permission denied */
@@ -17148,7 +25691,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Missing or invisible resource */
@@ -17157,7 +25700,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
             /** @description Execution UUID already used */
@@ -17166,7 +25709,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SqlWorkbenchErrorV1"];
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
                 };
             };
         };
