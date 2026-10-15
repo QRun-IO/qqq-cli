@@ -1,0 +1,16 @@
+version: 2.1
+# Build and test on CircleCI (as the other QRun-IO repos); GitHub Actions also
+# runs .github/workflows/ci.yml and publishes on version tags.
+jobs:
+  build:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - checkout
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+workflows:
+  build:
+    jobs:
+      - build
