@@ -15,7 +15,7 @@ echo "@qrun-io:registry=https://npm.pkg.github.com" >> ~/.npmrc
 npm install -g @qrun-io/qqq-cli@rc
 ```
 
-Requires Node.js 20 or later and a QQQ server with UI API 1.6.0 or later (QQQ 4.1.0-RC.14 or later).
+Requires Node.js 20 or later and a QQQ server with UI API 1.6.0 or later (QQQ 4.1.0-RC.15 or later).
 
 ## The CLI
 
@@ -112,7 +112,7 @@ The suite only reads. It never writes. It checks that:
 ```sh
 npx qqq-dev-idp --port 9400 --client sample-app --client sample-cli --user you@example.com --groups admins --auto-approve
 
-# in a qqq checkout (QQQ 4.1.0-RC.14 or later)
+# in a qqq checkout (QQQ 4.1.0-RC.15 or later)
 export OAUTH2_BASE_URL=http://localhost:9400/application/o/sample-app/ OAUTH2_CLIENT_ID=sample-app OAUTH2_CLIENT_SECRET=dev \
        OAUTH2_SCOPES="openid profile email offline_access" \
        OAUTH2_NATIVE_CLIENT_ID=sample-cli OAUTH2_NATIVE_CLIENT_BASE_URL=http://localhost:9400/application/o/sample-cli/
