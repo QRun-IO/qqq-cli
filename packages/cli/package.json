@@ -1,0 +1,30 @@
+{
+  "name": "@qrun-io/qqq-cli",
+  "version": "0.1.0-rc.1",
+  "description": "Reference command-line client for QQQ applications, built only on the QQQ UI API (/qqq/v1).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "qqq": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/QRun-IO/qqq-cli.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test \"dist/test/*.test.js\""
+  },
+  "dependencies": {
+    "@qrun-io/qqq-ui-api-client": "1.6.0-rc.1",
+    "commander": "15.0.0"
+  }
+}

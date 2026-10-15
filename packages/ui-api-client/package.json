@@ -1,0 +1,40 @@
+{
+  "name": "@qrun-io/qqq-ui-api-client",
+  "version": "1.6.0-rc.1",
+  "description": "Typed TypeScript client for the QQQ UI API (/qqq/v1), generated from the merged OpenAPI document (core + extensions), with OAuth2 device-flow sign-in, token refresh and a realtime (SSE) reader.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./openapi/qqq-v1.json": "./openapi/qqq-v1.json"
+  },
+  "files": [
+    "dist",
+    "openapi",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/QRun-IO/qqq-cli.git",
+    "directory": "packages/ui-api-client"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "generate": "openapi-typescript openapi/qqq-v1.json --output src/schema.ts && node ../../scripts/fix-recursive-types.mjs src/schema.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test \"dist/test/*.test.js\""
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0"
+  }
+}

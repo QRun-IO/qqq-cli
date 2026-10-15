@@ -1,0 +1,28 @@
+{
+  "name": "qqq-cli-workspace",
+  "private": true,
+  "description": "Reference CLI, generated TypeScript client, mock server and conformance suite for the QQQ UI API (/qqq/v1).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/ui-api-client",
+    "packages/conformance",
+    "packages/cli"
+  ],
+  "scripts": {
+    "spec:merge": "node scripts/merge-spec.mjs --out packages/ui-api-client/openapi/qqq-v1.json",
+    "generate": "npm run generate -w @qrun-io/qqq-ui-api-client",
+    "build": "npm run build -w @qrun-io/qqq-ui-api-client && npm run build -w @qrun-io/qqq-ui-api-conformance && npm run build -w @qrun-io/qqq-cli",
+    "test": "npm test --workspaces --if-present",
+    "mock": "prism mock --dynamic --port 4010 packages/ui-api-client/openapi/qqq-v1.json"
+  },
+  "devDependencies": {
+    "@stoplight/prism-cli": "5.16.0",
+    "@types/node": "22.15.3",
+    "typescript": "5.8.3",
+    "yaml": "2.9.1"
+  }
+}
