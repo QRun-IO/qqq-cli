@@ -1,16 +1,14 @@
 version: 2.1
-# Build and test on CircleCI (as the other QRun-IO repos); GitHub Actions also
-# runs .github/workflows/ci.yml and publishes on version tags.
-jobs:
-  build:
-    docker:
-      - image: cimg/node:22.12
-    steps:
-      - checkout
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
+setup: true
+orbs:
+  qqq-orb: kingsrook/qqq-orb@0.7.4
 workflows:
-  build:
+  setup:
     jobs:
-      - build
+    - qqq-orb/generate_pipeline:
+        orb_version: 0.7.4
+        filters:
+          branches:
+            ignore: automation/qbit-rc-pending
+          tags:
+            only: /.*/
