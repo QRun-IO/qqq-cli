@@ -1,5 +1,5 @@
 profile: cli
-orb_version: 0.7.11
+orb_version: 0.7.12
 default_branch: main
 publish:
   release: true
