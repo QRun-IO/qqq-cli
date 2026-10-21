@@ -1,0 +1,6 @@
+profile: cli
+orb_version: 0.7.4
+default_branch: main
+publish:
+  release: true
+publish_context: qqq-maven-registry-credentials
