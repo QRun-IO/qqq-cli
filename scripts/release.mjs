@@ -75,7 +75,7 @@ step('lint', 'npm', ['run', 'lint'])
 step('TUI tests', 'npm', ['run', 'test:tui'])
 step('TUI type check', 'npm', ['run', 'typecheck:tui'])
 for (const dir of PUBLISHED) step(`pack ${versions[dir].name}`, 'npm', ['pack', '--dry-run', '--silent', '-w', versions[dir].name])
-if (!argv.has('--skip-binaries')) step('binaries', 'node', ['scripts/build-binaries.mjs', '--no-build'])
+if (!argv.has('--skip-binaries')) step('binaries', 'node', ['scripts/build-binaries.mjs', '--no-build', '--musl'])
 
 const registry = 'https://npm.pkg.github.com'
 console.log(`
