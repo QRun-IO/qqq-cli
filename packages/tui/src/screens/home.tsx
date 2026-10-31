@@ -368,11 +368,11 @@ export class HomeScreen implements Screen {
     const shown = lines.slice(this.scroll, this.scroll + view)
     while (shown.length < view) shown.push([{ text: '' }])
     return (
-      <box flexDirection="column" width={width} height={height} border borderColor={focused ? t.focusBorder : t.border} {...(g.border ? { customBorderChars: g.border } : {})} title={` ${brand} `}>
+      <box flexDirection="column" overflow="hidden" width={width} height={height} border borderColor={focused ? t.focusBorder : t.border} {...(g.border ? { customBorderChars: g.border } : {})} title={` ${brand} `}>
         {shown.map((segs, i) => {
           const used = segs.reduce((a, x) => a + x.text.length, 0)
           return (
-            <text key={i}>
+            <text flexShrink={0} wrapMode="none" key={i}>
               {segs.map((x, k) => <span key={k} fg={x.fg ?? t.fg} bg={x.bg}>{x.bold ? <strong>{x.text}</strong> : x.text}</span>)}
               <span>{' '.repeat(Math.max(0, inner - used))}</span>
             </text>

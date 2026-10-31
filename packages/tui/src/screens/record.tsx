@@ -454,7 +454,7 @@ export class RecordScreen implements Screen {
     return (
       <Panel title={`${this.meta?.label ?? this.tableName} › ${this.title()}`} width={width} height={height} focused={focused}>
         {this.list.view(width - 2, height - 3, focused)}
-        <text fg={t.dim}>{pad(` ${hint}`, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(` ${hint}`, width - 2)}</text>
       </Panel>
     )
   }

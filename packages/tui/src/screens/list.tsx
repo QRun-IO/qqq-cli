@@ -72,9 +72,9 @@ export class ListModel {
     const lines = shown.map((r, i) => {
       const sel = this.top + i === this.cursor && Boolean(r.action)
       const text = pad(r.text, width)
-      return <text key={i} fg={sel ? (focused ? t.selFg : t.fg) : r.fg ?? t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : r.bg}>{r.bold ? <strong>{text}</strong> : text}</text>
+      return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? (focused ? t.selFg : t.fg) : r.fg ?? t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : r.bg}>{r.bold ? <strong>{text}</strong> : text}</text>
     })
-    while (lines.length < height) lines.push(<text key={`pad${lines.length}`}>{pad('', width)}</text>)
+    while (lines.length < height) lines.push(<text flexShrink={0} wrapMode="none" key={`pad${lines.length}`}>{pad('', width)}</text>)
     return <>{lines}</>
   }
 }
@@ -82,7 +82,7 @@ export class ListModel {
 /** A bordered panel with a title, sized to the screen area. */
 export function Panel(props: { title: string; width: number; height: number; focused: boolean; children: ReactNode; bottomTitle?: string }) {
   return (
-    <box flexDirection="column" width={props.width} height={props.height} {...borderProps(props.focused)} title={` ${props.title} `} {...(props.bottomTitle ? { bottomTitle: ` ${props.bottomTitle} ` } : {})}>
+    <box flexDirection="column" overflow="hidden" width={props.width} height={props.height} {...borderProps(props.focused)} title={` ${props.title} `} {...(props.bottomTitle ? { bottomTitle: ` ${props.bottomTitle} ` } : {})}>
       {props.children}
     </box>
   )

@@ -28,8 +28,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode; resetKey: st
       const t = theme()
       return (
         <box flexDirection="column" border borderColor={t.err} width={this.props.width} title={` ${this.props.label} error `}>
-          <text fg={t.err}>{trunc(` ${this.state.error.message}`, this.props.width - 2)}</text>
-          <text fg={t.dim}>{trunc(' Esc goes back · F5 retries · this is a bug in the screen; please report the steps', this.props.width - 2)}</text>
+          <text flexShrink={0} wrapMode="none" fg={t.err}>{trunc(` ${this.state.error.message}`, this.props.width - 2)}</text>
+          <text flexShrink={0} wrapMode="none" fg={t.dim}>{trunc(' Esc goes back · F5 retries · this is a bug in the screen; please report the steps', this.props.width - 2)}</text>
         </box>
       )
     }
@@ -75,7 +75,7 @@ function TitleBar({ store, width }: { store: AppStore; width: number }) {
   const others = presenceText(presence)
   const right = [others, store.status.user, store.status.alerts ? `alerts ${store.status.alerts}` : '', store.status.jobs !== 'n/a' && store.status.jobs !== '0' ? `jobs ${store.status.jobs}` : ''].filter(Boolean).join('  ') + ' '
   const room = Math.max(0, width - right.length)
-  return <text fg={t.titleFg} bg={t.titleBg}>{pad(trunc(left, room), room) + trunc(right, width - room)}</text>
+  return <text flexShrink={0} wrapMode="none" fg={t.titleFg} bg={t.titleBg}>{pad(trunc(left, room), room) + trunc(right, width - room)}</text>
 }
 
 function StatusLine({ store, width }: { store: AppStore; width: number }) {
@@ -83,7 +83,7 @@ function StatusLine({ store, width }: { store: AppStore; width: number }) {
   const s = store.status
   const presence = usePresence(store.screen?.presenceScope?.())
   if (store.flashText) {
-    return <text fg={store.flashText.kind === 'error' ? t.err : t.acc2} bg={t.statusBg}>{pad(` ${store.flashText.text}`, width)}</text>
+    return <text flexShrink={0} wrapMode="none" fg={store.flashText.kind === 'error' ? t.err : t.acc2} bg={t.statusBg}>{pad(` ${store.flashText.text}`, width)}</text>
   }
   const ping = s.pingMs === null ? 'ping --' : `ping ${s.pingMs.toFixed(0)} ms`
   const streamColor = s.stream === 'connected' ? t.ok : s.stream === 'reconnecting' ? t.warn : t.statusFg
@@ -92,10 +92,10 @@ function StatusLine({ store, width }: { store: AppStore; width: number }) {
   const right = ` · jobs ${s.jobs}${presence.count ? ` · ${presence.count} viewing` : ''} · ${s.lastEvent} · ${s.build} · ${s.clock} `
   if (left.length + stream.length + right.length > width) {
     const short = ` ${s.profile} · ${ping} · ${stream} · jobs ${s.jobs} · ${s.clock} `
-    return <text fg={t.statusFg} bg={t.statusBg}>{pad(short, width)}</text>
+    return <text flexShrink={0} wrapMode="none" fg={t.statusFg} bg={t.statusBg}>{pad(short, width)}</text>
   }
   return (
-    <text bg={t.statusBg}>
+    <text flexShrink={0} wrapMode="none" bg={t.statusBg}>
       <span fg={t.statusFg} bg={t.statusBg}>{left}</span>
       <span fg={streamColor} bg={t.statusBg}>{stream}</span>
       <span fg={t.statusFg} bg={t.statusBg}>{pad(right, width - left.length - stream.length)}</span>
@@ -113,7 +113,7 @@ function FKeyBar({ store, width }: { store: AppStore; width: number }) {
   const narrow = width < 100
   let used = 0
   return (
-    <text>
+    <text flexShrink={0} wrapMode="none">
       {keys.map((k) => {
         const w = k.n === 10 ? Math.max(0, width - used) : cell
         used += w
@@ -150,15 +150,15 @@ export function App({ store }: { store: AppStore }) {
   const screen = store.screen
   const top = store.overlays[store.overlays.length - 1]
   return (
-    <box flexDirection="column" width={w} height={h}>
+    <box flexDirection="column" overflow="hidden" width={w} height={h}>
       <TitleBar store={store} width={w} />
-      <box flexDirection="row" width={w} height={bodyHeight}>
+      <box flexDirection="row" overflow="hidden" width={w} height={bodyHeight}>
         {sidebarWidth > 0 && store.sidebar && (
           <ErrorBoundary resetKey="sidebar" width={sidebarWidth} label="Apps">{store.sidebar.render(sidebarWidth, bodyHeight, store.focus === 'sidebar' && !top)}</ErrorBoundary>
         )}
         {screen
           ? <ErrorBoundary key={screen.id} resetKey={screen.id} width={contentWidth} label="Screen">{screen.render(contentWidth, bodyHeight, store.focus === 'content' && !top)}</ErrorBoundary>
-          : <box width={contentWidth} height={bodyHeight}><text fg={t.dim}>{' starting…'}</text></box>}
+          : <box width={contentWidth} height={bodyHeight}><text flexShrink={0} wrapMode="none" fg={t.dim}>{' starting…'}</text></box>}
       </box>
       <StatusLine store={store} width={w} />
       <FKeyBar store={store} width={w} />

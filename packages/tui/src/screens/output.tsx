@@ -77,13 +77,13 @@ export class OutputScreen implements Screen {
     const t = theme()
     this.height = height - 3
     const shown = this.lines.slice(this.top, this.top + this.height)
-    const rows = shown.map((l, i) => <text key={i} fg={l.err ? t.err : t.fg}>{pad(l.text, width - 2)}</text>)
-    while (rows.length < this.height) rows.push(<text key={`p${rows.length}`}>{pad('', width - 2)}</text>)
+    const rows = shown.map((l, i) => <text flexShrink={0} wrapMode="none" key={i} fg={l.err ? t.err : t.fg}>{pad(l.text, width - 2)}</text>)
+    while (rows.length < this.height) rows.push(<text flexShrink={0} wrapMode="none" key={`p${rows.length}`}>{pad('', width - 2)}</text>)
     const status = this.running ? 'running…' : `exit ${this.code}${this.code === 0 ? '' : ' (see the message above)'} · ${this.lines.length} lines · ↑↓ PgUp PgDn scroll · F5 again · Enter or Esc closes`
     return (
       <Panel title={`qqq ${this.command}`} width={width} height={height} focused={focused}>
         {rows}
-        <text fg={this.code ? t.err : t.dim}>{pad(` ${status}`, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={this.code ? t.err : t.dim}>{pad(` ${status}`, width - 2)}</text>
       </Panel>
     )
   }

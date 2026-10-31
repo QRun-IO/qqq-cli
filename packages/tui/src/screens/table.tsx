@@ -453,7 +453,7 @@ export class TableScreen implements Screen {
     }).join(' ')
     const lines: React.ReactNode[] = []
     lines.push(
-      <text key="h">
+      <text flexShrink={0} wrapMode="none" key="h">
         {shown.map((c, i) => {
           const hot = cols.findIndex((x) => x.name === c.name) === this.colCursor
           const mark = this.sort?.field === c.name ? (this.sort.asc ? g.up : g.down) : ''
@@ -463,7 +463,7 @@ export class TableScreen implements Screen {
         <span>{' '.repeat(Math.max(0, inner - header.length))}</span>
       </text>,
     )
-    if (headerRule) lines.push(<text key="r" fg={t.border}>{pad(g.rule.repeat(Math.min(inner, header.length)), inner)}</text>)
+    if (headerRule) lines.push(<text flexShrink={0} wrapMode="none" key="r" fg={t.border}>{pad(g.rule.repeat(Math.min(inner, header.length)), inner)}</text>)
     const pk = this.meta?.primaryKeyField ?? 'id'
     this.rows.forEach((r, i) => {
       const sel = i === this.rowIndex
@@ -471,22 +471,22 @@ export class TableScreen implements Screen {
       const marked = this.selection.has(key)
       const text = (marked ? g.mark + ' ' : '  ') + shown.map((c) => (c.numeric ? padLeft(fieldCell(r, c), c.width) : pad(fieldCell(r, c), c.width))).join(' ')
       const bg = sel ? (focused ? t.selBg : t.selInactiveBg) : zebra && i % 2 === 1 ? t.zebraBg : undefined
-      lines.push(<text key={`r${i}`} fg={sel ? (focused ? t.selFg : t.fg) : marked ? t.markFg : t.fg} bg={bg}>{pad(text, inner)}</text>)
-      if (comfortable) lines.push(<text key={`s${i}`}>{pad('', inner)}</text>)
+      lines.push(<text flexShrink={0} wrapMode="none" key={`r${i}`} fg={sel ? (focused ? t.selFg : t.fg) : marked ? t.markFg : t.fg} bg={bg}>{pad(text, inner)}</text>)
+      if (comfortable) lines.push(<text flexShrink={0} wrapMode="none" key={`s${i}`}>{pad('', inner)}</text>)
     })
     const used = lines.length - 1 - (headerRule ? 1 : 0)
     for (let i = used; i < bodyLines; i++) {
-      lines.push(<text key={`e${i}`} fg={this.error ? t.err : t.dim}>{pad(i === 0 && !this.rows.length ? (this.error ? ` ${this.error}` : this.loading || !this.meta ? ' loading…' : ' (no records match)') : '', inner)}</text>)
+      lines.push(<text flexShrink={0} wrapMode="none" key={`e${i}`} fg={this.error ? t.err : t.dim}>{pad(i === 0 && !this.rows.length ? (this.error ? ` ${this.error}` : this.loading || !this.meta ? ' loading…' : ' (no records match)') : '', inner)}</text>)
     }
     if (this.selection.size) {
-      lines.push(<text key="bulk" fg={t.selFg} bg={t.acc}>{pad(` ${this.selection.size} selected · b run a process on them · Ctrl+A select page · Space toggle · Esc clear`, inner)}</text>)
+      lines.push(<text flexShrink={0} wrapMode="none" key="bulk" fg={t.selFg} bg={t.acc}>{pad(` ${this.selection.size} selected · b run a process on them · Ctrl+A select page · Space toggle · Esc clear`, inner)}</text>)
     }
     const c = this.cursor
     const filterText = printFilter(this.filter) || 'no filter'
-    lines.push(<text key="f" fg={t.dim}>{pad(` ${filterText}`, inner)}</text>)
+    lines.push(<text flexShrink={0} wrapMode="none" key="f" fg={t.dim}>{pad(` ${filterText}`, inner)}</text>)
     const status = c ? `${c.total === undefined ? '…' : num(c.total)} records · row ${num(c.index + 1)} · page ${this.rowsPage + 1}/${c.pageCount}${this.sort ? ` · sort ${this.sort.field} ${this.sort.asc ? 'asc' : 'desc'}` : ''} · col ${this.colCursor + 1}/${cols.length}${this.fetchMs !== undefined ? ` · ${this.fetchMs.toFixed(0)} ms` : ''}${this.loading ? ' · loading' : ''}` : 'loading…'
     const hint = this.store.singleKeys ? ' · a actions · s sort · f filter · v view · x export · Space select' : ''
-    lines.push(<text key="s" fg={t.dim}>{pad(` ${status}${hint}`, inner)}</text>)
+    lines.push(<text flexShrink={0} wrapMode="none" key="s" fg={t.dim}>{pad(` ${status}${hint}`, inner)}</text>)
     return <Panel title={this.title()} width={width} height={height} focused={focused}>{lines}</Panel>
   }
 }

@@ -120,7 +120,7 @@ export class GridViewSettingsOverlay implements Overlay {
         {items.slice(top, top + rows).map((it) => {
           const sel = it.idx === this.row
           const isOpt = it.idx >= this.order.length
-          return <text key={it.idx} fg={sel ? t.selFg : isOpt ? t.acc : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${it.text}`, inner)}</text>
+          return <text flexShrink={0} wrapMode="none" key={it.idx} fg={sel ? t.selFg : isOpt ? t.acc : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${it.text}`, inner)}</text>
         })}
         <Line text="" width={inner} />
         <Line text=" Space on/off · Shift+↑↓ or +/- move · ←→ width · w type width · a auto width" width={inner} fg={t.dim} />

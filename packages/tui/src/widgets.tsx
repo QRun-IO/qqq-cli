@@ -132,11 +132,11 @@ export function blockLines(blocks: RenderBlock[], width: number): StyledLine[] {
   return out
 }
 
-/** Draws lines as <text> rows, padded to the width. */
+/** Draws lines as <text flexShrink={0} wrapMode="none"> rows, padded to the width. */
 export function Lines({ lines, width }: { lines: StyledLine[]; width: number }) {
   return (
     <>
-      {lines.map((l, i) => <text key={i} fg={l.fg ?? theme().fg} bg={l.bg}>{l.bold ? <strong>{pad(l.text, width)}</strong> : pad(l.text, width)}</text>)}
+      {lines.map((l, i) => <text flexShrink={0} wrapMode="none" key={i} fg={l.fg ?? theme().fg} bg={l.bg}>{l.bold ? <strong>{pad(l.text, width)}</strong> : pad(l.text, width)}</text>)}
     </>
   )
 }

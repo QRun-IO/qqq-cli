@@ -122,9 +122,9 @@ export class Sidebar implements SidebarLike {
       const rows = list.slice(this.top, this.top + inner).map((e, i) => {
         const sel = this.top + i === this.cursor
         const mark = e.kind === 'process' ? g.process + ' ' : e.kind === 'report' ? g.report + ' ' : e.kind === 'app' ? g.app + ' ' : ''
-        return <text key={`${e.kind}:${e.name}`} fg={sel && focused ? t.selFg : t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{pad(` ${mark}${e.label}${e.path.length ? `  ${e.path[e.path.length - 1]}` : ''}`, width - 2)}</text>
+        return <text flexShrink={0} wrapMode="none" key={`${e.kind}:${e.name}`} fg={sel && focused ? t.selFg : t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{pad(` ${mark}${e.label}${e.path.length ? `  ${e.path[e.path.length - 1]}` : ''}`, width - 2)}</text>
       })
-      while (rows.length < inner) rows.push(<text key={`p${rows.length}`} fg={t.dim}>{pad(rows.length === 0 && !list.length ? ' (no match)' : '', width - 2)}</text>)
+      while (rows.length < inner) rows.push(<text flexShrink={0} wrapMode="none" key={`p${rows.length}`} fg={t.dim}>{pad(rows.length === 0 && !list.length ? ' (no match)' : '', width - 2)}</text>)
       return (
         <Panel title={`Apps · ${list.length} match${list.length === 1 ? '' : 'es'}`} width={width} height={height} focused={focused}>
           <EditorLine editor={this.filter} width={width - 2} focused={focused} />
@@ -144,9 +144,9 @@ export class Sidebar implements SidebarLike {
       const marker = f.node.type === 'PROCESS' ? g.process + ' ' : f.node.type === 'REPORT' ? g.report + ' ' : ''
       const text = pad(' '.repeat(f.depth) + glyph + marker + f.node.label, width - 3) + (f.node.name === here ? '◂' : ' ')
       const sel = idx === this.cursor
-      return <text key={f.path} fg={sel && focused ? t.selFg : f.node.type === 'APP' ? t.fg : t.dim} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{text}</text>
+      return <text flexShrink={0} wrapMode="none" key={f.path} fg={sel && focused ? t.selFg : f.node.type === 'APP' ? t.fg : t.dim} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{text}</text>
     })
-    while (lines.length < inner) lines.push(<text key={`p${lines.length}`}>{pad('', width - 2)}</text>)
+    while (lines.length < inner) lines.push(<text flexShrink={0} wrapMode="none" key={`p${lines.length}`}>{pad('', width - 2)}</text>)
     return <Panel title={focused ? 'Apps · type to find' : 'Apps (Tab)'} width={width} height={height} focused={focused}>{lines}</Panel>
   }
 }

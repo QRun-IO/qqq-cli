@@ -342,22 +342,22 @@ export class ProcessScreen implements Screen {
       lines.push({ text: 'Cancelled', fg: t.warn, bold: true })
       lines.push({ text: 'Esc closes · F5 or r runs it again', fg: t.dim })
     }
-    body.push(<text key="stepper" fg={t.dim}>{pad(` ${trunc(stepper, inner - 1)}`, inner)}</text>)
-    body.push(<text key="sp">{pad('', inner)}</text>)
-    for (const h of help) for (const l of wrap(h, inner - 2)) body.push(<text key={`h${body.length}`} fg={t.dim}>{pad(` ${l}`, inner)}</text>)
+    body.push(<text flexShrink={0} wrapMode="none" key="stepper" fg={t.dim}>{pad(` ${trunc(stepper, inner - 1)}`, inner)}</text>)
+    body.push(<text flexShrink={0} wrapMode="none" key="sp">{pad('', inner)}</text>)
+    for (const h of help) for (const l of wrap(h, inner - 2)) body.push(<text flexShrink={0} wrapMode="none" key={`h${body.length}`} fg={t.dim}>{pad(` ${l}`, inner)}</text>)
     let used = body.length
     if (this.phase === 'form' && this.editor) {
-      body.push(<text key="title" fg={t.acc}><strong>{pad(` ${this.step?.label ?? this.step?.name ?? ''}${this.editor.options.bulkEdit ? '  (Ctrl+T marks a field to apply)' : ''}`, inner)}</strong></text>)
+      body.push(<text flexShrink={0} wrapMode="none" key="title" fg={t.acc}><strong>{pad(` ${this.step?.label ?? this.step?.name ?? ''}${this.editor.options.bulkEdit ? '  (Ctrl+T marks a field to apply)' : ''}`, inner)}</strong></text>)
       used++
       const formHeight = Math.max(3, height - 2 - used - 1)
       body.push(<box key="form" flexDirection="column" height={formHeight}>{this.editor.render(inner, formHeight, focused)}</box>)
-      body.push(<text key="ft" fg={t.dim}>{pad(this.editor.saving ? ' sending…' : ' Ctrl+S continues · Esc cancels · Tab ↓ next · Enter or typing opens a picker', inner)}</text>)
+      body.push(<text flexShrink={0} wrapMode="none" key="ft" fg={t.dim}>{pad(this.editor.saving ? ' sending…' : ' Ctrl+S continues · Esc cancels · Tab ↓ next · Enter or typing opens a picker', inner)}</text>)
     } else {
-      for (const l of lines.slice(0, Math.max(0, height - 2 - used - 4))) body.push(<text key={`l${body.length}`} fg={l.fg ?? t.fg}>{l.bold ? <strong>{pad(` ${l.text}`, inner)}</strong> : pad(` ${l.text}`, inner)}</text>)
+      for (const l of lines.slice(0, Math.max(0, height - 2 - used - 4))) body.push(<text flexShrink={0} wrapMode="none" key={`l${body.length}`} fg={l.fg ?? t.fg}>{l.bold ? <strong>{pad(` ${l.text}`, inner)}</strong> : pad(` ${l.text}`, inner)}</text>)
       const logRows = Math.max(0, Math.min(this.log.length, height - 2 - body.length - 1))
       const pad2 = height - 2 - body.length - logRows
-      for (let i = 0; i < pad2; i++) body.push(<text key={`p${i}`}>{pad('', inner)}</text>)
-      for (const l of this.log.slice(-logRows)) body.push(<text key={`g${body.length}`} fg={t.dim}>{pad(` ${l}`, inner)}</text>)
+      for (let i = 0; i < pad2; i++) body.push(<text flexShrink={0} wrapMode="none" key={`p${i}`}>{pad('', inner)}</text>)
+      for (const l of this.log.slice(-logRows)) body.push(<text flexShrink={0} wrapMode="none" key={`g${body.length}`} fg={t.dim}>{pad(` ${l}`, inner)}</text>)
     }
     return <Panel title={this.title()} width={width} height={height} focused={focused}>{body}</Panel>
   }

@@ -430,7 +430,7 @@ export class FilterOverlay implements Overlay {
     const inner = width - 2
     const height = Math.min(sh - 2, 30)
     const lines: React.ReactNode[] = []
-    const tabs = <text key="tabs"><span fg={this.mode === 'guided' ? t.selFg : t.fg} bg={this.mode === 'guided' ? t.selBg : undefined}>{' Guided '}</span><span fg={t.dim}>{' │ '}</span><span fg={this.mode === 'advanced' ? t.selFg : t.fg} bg={this.mode === 'advanced' ? t.selBg : undefined}>{' Advanced '}</span><span fg={t.dim}>{pad('   Tab switches', inner - 23)}</span></text>
+    const tabs = <text flexShrink={0} wrapMode="none" key="tabs"><span fg={this.mode === 'guided' ? t.selFg : t.fg} bg={this.mode === 'guided' ? t.selBg : undefined}>{' Guided '}</span><span fg={t.dim}>{' │ '}</span><span fg={this.mode === 'advanced' ? t.selFg : t.fg} bg={this.mode === 'advanced' ? t.selBg : undefined}>{' Advanced '}</span><span fg={t.dim}>{pad('   Tab switches', inner - 23)}</span></text>
     lines.push(tabs)
     lines.push(<Line key="sp" text="" width={inner} />)
     let grammar = ''
@@ -463,17 +463,17 @@ export class FilterOverlay implements Overlay {
           text = `    sort: ${this.sort ? `${this.field(this.sort.field)?.label ?? this.sort.field} ${this.sort.asc ? 'ascending' : 'descending'}` : 'default order'}`
           fg = t.dim
         }
-        lines.push(<text key={`r${i}`} fg={sel ? t.selFg : fg} bg={sel ? t.selBg : undefined}>{pad(`${sel ? g.pointer : ' '}${text}`, inner)}</text>)
+        lines.push(<text flexShrink={0} wrapMode="none" key={`r${i}`} fg={sel ? t.selFg : fg} bg={sel ? t.selBg : undefined}>{pad(`${sel ? g.pointer : ' '}${text}`, inner)}</text>)
       })
       for (let i = lines.length; i < body + 2; i++) lines.push(<Line key={`p${i}`} text="" width={inner} />)
       grammar = printFilter(this.normalized())
       lines.push(<Line key="help" text=" a add · e edit · d remove · o AND/OR · g group · s sort · c clear · Enter applies · Esc cancels" width={inner} fg={t.dim} />)
     } else {
       lines.push(<box key="ed" paddingLeft={1}><EditorLine editor={this.text} width={inner - 2} placeholder="lastName STARTS_WITH S AND (birthDate > now(-40y) OR email IS_BLANK)" /></box>)
-      if (this.historySearch) lines.push(<text key="hs" fg={t.acc2}>{pad(` history search: ${this.historySearch.value}_  → ${this.store.filterHistory.search(this.historySearch.value)[0] ?? '(no match)'}`, inner)}</text>)
+      if (this.historySearch) lines.push(<text flexShrink={0} wrapMode="none" key="hs" fg={t.acc2}>{pad(` history search: ${this.historySearch.value}_  → ${this.store.filterHistory.search(this.historySearch.value)[0] ?? '(no match)'}`, inner)}</text>)
       else if (this.parseError) {
         const at = this.parseError.at
-        lines.push(<text key="caret" fg={t.err}>{pad(at !== undefined ? ' ' + ' '.repeat(at) + '^' : '', inner)}</text>)
+        lines.push(<text flexShrink={0} wrapMode="none" key="caret" fg={t.err}>{pad(at !== undefined ? ' ' + ' '.repeat(at) + '^' : '', inner)}</text>)
       } else lines.push(<Line key="caret" text="" width={inner} />)
       const cands = this.completion?.candidates ?? []
       const body = height - 11
@@ -481,17 +481,17 @@ export class FilterOverlay implements Overlay {
       lines.push(<Line key="ex" text={` expecting ${this.completion?.expecting ?? 'field'}${this.completion?.field ? ` (${this.completion.field})` : ''} · Tab accepts · ↑↓ choose`} width={inner} fg={t.dim} />)
       cands.slice(ctop, ctop + body).forEach((c, i) => {
         const sel = ctop + i === this.candidate
-        lines.push(<text key={`c${i}`} fg={sel ? t.selFg : c.kind === 'keyword' ? t.acc2 : t.fg} bg={sel ? t.selBg : undefined}>{pad(`  ${pad(c.label, 28)} ${c.detail ?? ''}`, inner)}</text>)
+        lines.push(<text flexShrink={0} wrapMode="none" key={`c${i}`} fg={sel ? t.selFg : c.kind === 'keyword' ? t.acc2 : t.fg} bg={sel ? t.selBg : undefined}>{pad(`  ${pad(c.label, 28)} ${c.detail ?? ''}`, inner)}</text>)
       })
       for (let i = Math.min(body, cands.length - ctop); i < body; i++) lines.push(<Line key={`q${i}`} text="" width={inner} />)
       const parsed = this.parseError ? undefined : this.parse()
       grammar = this.text.value.trim()
-      lines.push(<text key="pv" fg={this.parseError ? t.err : t.ok}>{pad(this.parseError ? ` ${trunc(this.parseError.message, inner - 2)}` : ` ${parsed ? describeFilter(parsed) : ''}`, inner)}</text>)
+      lines.push(<text flexShrink={0} wrapMode="none" key="pv" fg={this.parseError ? t.err : t.ok}>{pad(this.parseError ? ` ${trunc(this.parseError.message, inner - 2)}` : ` ${parsed ? describeFilter(parsed) : ''}`, inner)}</text>)
       lines.push(<Line key="help" text=" Enter applies · Shift+Tab or Ctrl+G guided · Ctrl+R history · ↑↓ history when empty · Esc cancels" width={inner} fg={t.dim} />)
     }
     cli = `qqq table query ${this.meta.name}${grammar ? ` -g ${shellQuote(grammar)}` : ''}${this.sort ? ` -o ${this.sort.asc ? '' : '-'}${this.sort.field}` : ''}`
-    lines.push(<text key="gram" fg={t.acc}>{pad(` ${trunc(grammar || '(no criteria: every record)', inner - 2)}`, inner)}</text>)
-    lines.push(<text key="cli" fg={t.dim}>{pad(` ${trunc(cli, inner - 2)}`, inner)}</text>)
+    lines.push(<text flexShrink={0} wrapMode="none" key="gram" fg={t.acc}>{pad(` ${trunc(grammar || '(no criteria: every record)', inner - 2)}`, inner)}</text>)
+    lines.push(<text flexShrink={0} wrapMode="none" key="cli" fg={t.dim}>{pad(` ${trunc(cli, inner - 2)}`, inner)}</text>)
     return <Frame title={`Filter ${this.meta.label}`} width={width} height={lines.length + 2} screenWidth={sw} screenHeight={sh} top={1}>{lines}</Frame>
   }
 }

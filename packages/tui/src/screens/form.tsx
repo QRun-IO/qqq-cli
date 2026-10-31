@@ -236,22 +236,22 @@ export class FormEditor {
         else if (this.session.hasChoices(name)) shown = isMissingValue(this.session.values[name]) ? (state.disabledBecause ? '' : '(choose…)') : `${this.session.displayValues[name] ?? textOf(this.session.values[name])}`
         else shown = ed ? ed.value : textOf(this.session.values[name])
         const pickGlyph = this.session.hasChoices(name) && !disabled ? ' ▾' : ''
-        editor = <text fg={disabled ? t.dim : sel ? t.selFg : t.inputFg} bg={disabled ? undefined : sel ? t.selBg : t.inputBg}>{pad(trunc(shown, editorWidth - pickGlyph.length) + pickGlyph, editorWidth)}</text>
+        editor = <text flexShrink={0} wrapMode="none" fg={disabled ? t.dim : sel ? t.selFg : t.inputFg} bg={disabled ? undefined : sel ? t.selBg : t.inputBg}>{pad(trunc(shown, editorWidth - pickGlyph.length) + pickGlyph, editorWidth)}</text>
       }
       const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : idx === this.index ? (this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : hintFor(f)) : ''
       return (
         <box key={name} flexDirection="row" height={1}>
-          <text fg={sel ? t.acc2 : disabled ? t.dim : t.fg}>{`${sel ? g.pointer : ' '}${bulk}${pad(f.label, labelWidth - 1)}${required} `}</text>
+          <text flexShrink={0} wrapMode="none" fg={sel ? t.acc2 : disabled ? t.dim : t.fg}>{`${sel ? g.pointer : ' '}${bulk}${pad(f.label, labelWidth - 1)}${required} `}</text>
           {editor}
-          <text fg={error ? t.err : t.dim}>{pad(msgWidth > 2 ? ' ' + trunc(msg, msgWidth - 1) : '', msgWidth + 1)}</text>
+          <text flexShrink={0} wrapMode="none" fg={error ? t.err : t.dim}>{pad(msgWidth > 2 ? ' ' + trunc(msg, msgWidth - 1) : '', msgWidth + 1)}</text>
         </box>
       )
     })
     return (
       <>
         {lines}
-        {Array.from({ length: Math.max(0, rows - lines.length) }, (_, i) => <text key={`e${i}`}>{pad('', width)}</text>)}
-        {this.formError ? <text fg={t.err}>{pad(` ${this.formError}`, width)}</text> : null}
+        {Array.from({ length: Math.max(0, rows - lines.length) }, (_, i) => <text flexShrink={0} wrapMode="none" key={`e${i}`}>{pad('', width)}</text>)}
+        {this.formError ? <text flexShrink={0} wrapMode="none" fg={t.err}>{pad(` ${this.formError}`, width)}</text> : null}
       </>
     )
   }
@@ -404,9 +404,9 @@ export class FormScreen implements Screen {
     const footer = this.editor?.saving ? ' saving…' : ' Ctrl+S save · Esc cancel · Tab ↓ next · ↑ previous · Enter or typing opens a picker · * required'
     return (
       <Panel title={this.title()} width={width} height={height} focused={focused}>
-        {this.error ? <text fg={t.err}>{pad(` ${this.error}`, width - 2)}</text> : this.editor ? this.editor.render(width - 2, height - 3, focused) : <text fg={t.dim}>{pad(' loading…', width - 2)}</text>}
-        {this.error || !this.editor ? Array.from({ length: Math.max(0, height - 4) }, (_, i) => <text key={i}>{''}</text>) : null}
-        <text fg={t.dim}>{pad(footer, width - 2)}</text>
+        {this.error ? <text flexShrink={0} wrapMode="none" fg={t.err}>{pad(` ${this.error}`, width - 2)}</text> : this.editor ? this.editor.render(width - 2, height - 3, focused) : <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(' loading…', width - 2)}</text>}
+        {this.error || !this.editor ? Array.from({ length: Math.max(0, height - 4) }, (_, i) => <text flexShrink={0} wrapMode="none" key={i}>{''}</text>) : null}
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(footer, width - 2)}</text>
       </Panel>
     )
   }

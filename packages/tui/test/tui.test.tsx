@@ -154,8 +154,8 @@ test('Home: panels, Tab between them, Enter on an application card opens its app
   h = await startTui(130, 40)
   const f = await waitFor(h, (x) => x.includes('Quick actions') && x.includes('Applications (1)'))
   expect(f).toContain('Recently viewed')
-  const apps = (h.store.screen as unknown as { panels(): Array<{ id: string; items: Array<{ card?: string[] }> }> }).panels().find((p) => p.id === 'apps')!
-  expect(apps.items[0]!.card).toEqual(['◆ People', '', '2 tables · 1 processes', ''])
+  // this line went missing when an overlong row wrapped and the layout shrank other rows to zero height
+  expect(f).toContain('2 tables · 1 processes')
   await press(h, () => h!.setup.mockInput.pressTab())
   await press(h, () => h!.setup.mockInput.pressTab())
   await press(h, () => h!.setup.mockInput.pressEnter())
