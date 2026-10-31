@@ -51,6 +51,7 @@ Keys (the function-key bar is the truth; F1 or `?` lists them; every action is a
 | F8 `d` | delete, asks | Ctrl+S | save a form or continue a process step |
 | F9 | menu: every command, searchable | `:` | command line, history and completion |
 | F10 | Quit, Reset to home, or Cancel (`:reset`) | Ctrl+C | quit now |
+| `a` | actions for the record or rows | `A` `D` `t` | audits, developer, tags (record) |
 
 Things to try: `:table query person`, Enter on a row, PgDn through records, Esc (same row); F6, add a
 condition, Tab to the grammar and type `AND (fi` then Tab; `:table create placeAddress` (country, state, city

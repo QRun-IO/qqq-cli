@@ -35,11 +35,19 @@ bun run packages/tui/src/main.tsx --profile sample        # the same without the
 | F10, `:quit` | Quit, Reset (home screen, metadata refreshed, session kept) or Cancel; `:reset` and `:home` reset | `x`, `g`, `v` | export, go to by key, view settings |
 | `:` | command line (history ↑↓, Ctrl+R, Tab completes) | Ctrl+S | save a form, continue a process step |
 | Ctrl+C | quit at once (the terminal is restored) | `c` | copy a record |
+| `a` | actions here (the F9 Context entries) | `A`, `D` | audits, developer (record); `D` on a grid: table APIs |
+| `t` | tags of a record (collaboration extension) | Esc then 1..0, Ctrl+1..0 | F1..F10 when the terminal takes the F-keys |
 
 Single-key shortcuts follow the server preference `keyboard.singleKeyShortcuts` and can be switched in F9
 Settings; every F-key action is also in the F9 menu and on the `:` line.
 
 ## Screens
+
+Home is the landing page (and the target of F10 › Reset): greeting and connection, counts, recently viewed
+records, quick actions (runnable processes, new records, favorites with collaboration), application cards,
+work (jobs, alerts, my work, release notes, extensions) when present, and the instance home app's widgets
+when the metadata declares `homeAppName`. Tab moves between panels; `v` orders them.
+
 
 Sign-in (profiles; MOCK and FULLY_ANONYMOUS get a server session, OAUTH2 and AUTH_0 the device flow with the
 code on screen; the sign-in is shared with the CLI), home (apps with counts, recently viewed), app home
@@ -58,6 +66,14 @@ TUI commands: `home`, `back`, `quit`, `help`, `menu`, `goto`, `view`, `theme <na
 `export <format>`, `jobs`, `profile [name]`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
 `app <name>`, `record <table> <key>`. `table query|get|create|update|delete` and `process run` open screens;
 any other CLI command runs in-process (`runCli` from `@qrun-io/qqq-cli/program`) and shows its output.
+
+## Large instances
+
+Palettes, F9 and the Apps-pane filter search a kernel index built once per metadata document
+(`MetaDataIndex`): nothing lists every table. App dashboards load widgets only as they come into view, four
+requests at a time, cancelled when the screen is left. `bun run packages/tui/scripts/fake-big-server.ts`
+serves a generated 1000-table, 500-process, 3000-widget instance on port 8099 to try it
+(`qqq ui --server http://localhost:8099`).
 
 ## Settings kept locally
 

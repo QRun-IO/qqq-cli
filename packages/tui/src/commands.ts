@@ -38,7 +38,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
 
 /** Global keys for the help overlay. */
 export const GLOBAL_KEYS: Array<[string, string]> = [
@@ -237,6 +237,12 @@ export class Commands implements CommandsLike {
           if (screen?.kind === 'record') return screen.openDeveloper?.()
           if (screen?.kind === 'table' && screen.tableName) return s.push(new TableApisScreen(s, screen.tableName))
           return fail(':dev works on a record (scripts, panels) or a table (APIs)')
+        }
+        case 'tags': {
+          if (!s.extensions.has('collaboration')) return fail(s.extensions.missing('collaboration'))
+          const screen = s.screen as { kind?: string; openTags?: () => void } | undefined
+          if (screen?.kind === 'record') return screen.openTags?.()
+          return fail(':tags works on a record (qqq collab tags list <table> shows a vocabulary)')
         }
         case 'actions': {
           if (s.screen) return actionsOverlay(s, s.screen)

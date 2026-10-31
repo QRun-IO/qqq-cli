@@ -3,9 +3,10 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { ResultCursor, associationGroups, childFilter, childListFields, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { ResultCursor, associationGroups, childFilter, childListFields, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
+import { TagOverlay, collaborationOf } from '../overlays/tags'
 import { AuditScreen } from './audits'
 import { DeveloperScreen } from './developer'
 import type { FieldMetaData, TableMetaData } from '../client'
@@ -93,6 +94,7 @@ export class RecordScreen implements Screen {
       this.label = record.recordLabel
       this.store.remember({ kind: 'record', table: this.tableName, key: this.primaryKey, label: record.recordLabel ?? String(this.primaryKey) })
       this.loadWidgets()
+      this.loadTags()
       this.build()
       this.store.bump()
     }).catch((e) => {
@@ -160,6 +162,7 @@ export class RecordScreen implements Screen {
     const view = this.view()
     const labelWidth = view.labelWidth ?? Math.min(28, Math.max(8, ...Object.values(meta.fields).map((f) => f.label.length + 1)))
     rows.push({ text: `${rec.recordLabel ?? this.primaryKey}${this.cursor ? `   (${this.cursor.describe()})` : ''}`, fg: t.fg, bold: true })
+    if (this.tags) rows.push({ text: `Tags: ${this.tags.length ? this.tags.map((x) => x.label ?? x.name).join(' · ') : '(none)'}   t edits`, fg: t.acc2, key: 'tags', action: () => this.openTags() })
     for (const s of orderedSections(meta)) {
       if (s.widgetName) {
         rows.push({ text: '' })
@@ -317,6 +320,22 @@ export class RecordScreen implements Screen {
     })
   }
 
+  /** The record's tags (collaboration extension), shown under the header. */
+  tags?: TagEntry[]
+
+  loadTags(): void {
+    const collab = collaborationOf(this.store)
+    if (!collab || this.primaryKey === undefined) return
+    collab.recordTags(this.tableName, this.primaryKey).then((t) => { this.tags = t; this.build(); this.store.bump() }).catch(() => undefined)
+  }
+
+  openTags(): void {
+    const collab = collaborationOf(this.store)
+    if (!collab) return this.store.flash(this.store.extensions.missing('collaboration'), 'error')
+    if (this.primaryKey === undefined) return
+    this.store.open(new TagOverlay(this.store, collab, this.tableName, this.primaryKey, (t) => { this.tags = t; this.build() }))
+  }
+
   openAudits(): void {
     if (this.primaryKey !== undefined) this.store.push(new AuditScreen(this.store, this.tableName, this.primaryKey, this.record?.recordLabel))
   }
@@ -366,6 +385,7 @@ export class RecordScreen implements Screen {
       case 'r': this.refresh(); return true
       case 'l': this.list.current?.action?.(); return true
       case 'A': this.openAudits(); return true
+      case 't': if (collaborationOf(this.store)) { this.openTags(); return true } return false
       case 'D': this.openDeveloper(); return true
       case 'a': actionsOverlay(this.store, this); return true
       default: return false
@@ -397,6 +417,7 @@ export class RecordScreen implements Screen {
       if (v.masked) out.push({ section: 'Context', label: `Reveal ${f.label}`, run: () => this.follow([f]) })
     }
     for (const p of this.recordProcesses()) out.push({ section: 'Context', label: `Run ${p.label} on this record`, run: () => openProcess(this.store, p.name, { recordIds: [String(this.primaryKey)] }) })
+    if (this.store.extensions.has('collaboration')) out.push({ section: 'Context', label: 'Tags…', key: 't', command: 'tags', detail: this.tags?.map((x) => x.label).join(', '), run: () => this.openTags() })
     out.push({ section: 'Context', label: 'Audit history', key: 'A', command: 'audits', run: () => this.openAudits() })
     out.push({ section: 'Context', label: 'Developer: panels and associated scripts', key: 'D', command: 'dev', run: () => this.openDeveloper() })
     return out

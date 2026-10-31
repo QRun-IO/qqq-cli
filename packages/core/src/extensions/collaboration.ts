@@ -30,6 +30,17 @@ export interface CollaborationTransport {
   openStream?(signal: AbortSignal): AsyncIterable<RealtimeMessage>
 }
 
+/** A tag of the vocabulary, or the caller's pending suggestion (CollaborationTagV1). */
+export interface TagEntry {
+  id?: number
+  name?: string
+  label?: string
+  color?: string | null
+  tableName?: string | null
+  approved?: boolean
+  usageCount?: number
+}
+
 /** A navigation target (favorites and recents). */
 export interface CollaborationTarget {
   targetType: 'TABLE' | 'APP' | 'RECORD' | 'PROCESS' | 'REPORT' | 'SAVED_VIEW'
@@ -183,6 +194,26 @@ export class Collaboration {
   private async data<T>(id: string, input: CallInput = {}): Promise<T> {
     this.registry.require(COLLABORATION)
     return (await this.transport.call(id, input)).data as T
+  }
+
+  /** The tag vocabulary for a table (global and table tags), optionally searched. */
+  async tags(table: string, q?: string, limit = 50): Promise<TagEntry[]> {
+    return (await this.data<{ items?: TagEntry[] }>('getQbitCollaborationTags', { query: { table, q: q || undefined, limit: String(limit) } })).items ?? []
+  }
+
+  /** Creates a tag for a table, or a suggestion when the table only takes approved tags. */
+  async createTag(table: string, label: string, color?: string): Promise<TagEntry> {
+    return this.data<TagEntry>('postQbitCollaborationTags', { json: { table, label, ...(color ? { color } : {}) } })
+  }
+
+  /** The tags on a record. */
+  async recordTags(table: string, pk: string): Promise<TagEntry[]> {
+    return (await this.data<{ items?: TagEntry[] }>('getQbitCollaborationRecordsByTableByPkTags', { path: { table, pk } })).items ?? []
+  }
+
+  /** Adds and removes tags on a record in one request; returns the record's tags. */
+  async applyTags(table: string, pk: string, change: { add?: number[]; remove?: number[] }): Promise<TagEntry[]> {
+    return (await this.data<{ items?: TagEntry[] }>('putQbitCollaborationRecordsByTableByPkTags', { path: { table, pk }, json: { ...(change.add?.length ? { add: change.add } : {}), ...(change.remove?.length ? { remove: change.remove } : {}) } })).items ?? []
   }
 
   /** The signed-in user's favorites, in their order. */

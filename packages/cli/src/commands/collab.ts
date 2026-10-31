@@ -5,12 +5,12 @@
 
 /**
  * First-class commands of `qqq collab` (the collaboration extension): presence, comments,
- * favorites, recents, follow, my work and people. The kernel's Collaboration module does the
+ * favorites, tags, recents, follow, my work and people. The kernel's Collaboration module does the
  * calls; every command requires the extension first (exit 5 with the installed list).
  */
 
 import type { Command } from 'commander'
-import { COLLABORATION, type CollaborationTarget, type CommentEntry, type FavoriteEntry, type PresenceState } from '@qrun-io/qqq-core'
+import { COLLABORATION, type TagEntry, type CollaborationTarget, type CommentEntry, type FavoriteEntry, type PresenceState } from '@qrun-io/qqq-core'
 import type { Context } from '../context.js'
 import { UsageError } from '../context.js'
 import { countFooter, instantText, positiveInt, type Json } from './shared.js'
@@ -153,6 +153,49 @@ export function registerCollab(noun: Command, ctx: () => Context): void {
       const target = targetOf(name, recordId, options.type)
       await (await collab(c)).removeFavorite(target)
       c.print({ data: { unstarred: target }, rows: [{ unstarred: `${target.targetType} ${name}${target.recordId ? ` ${target.recordId}` : ''}` }], columns: ['unstarred'] })
+    })
+
+  const tags = noun.command('tags').description('Tags: the vocabulary of a table, and the tags on a record (add, remove, create).')
+  const tagRows = (items: TagEntry[]) => items.map((t) => ({ id: t.id ?? '', label: t.label ?? t.name ?? '', color: t.color ?? '', scope: t.tableName ?? 'global', approved: t.approved === false ? 'pending' : 'yes', used: t.usageCount ?? '' }))
+  /** Tag ids from ids or labels (resolved against the table's vocabulary). */
+  const tagIds = async (c: Context, table: string, given: string[]): Promise<number[]> => {
+    const vocabulary = await (await collab(c)).tags(table, undefined, 100)
+    return given.map((g) => {
+      if (/^\d+$/.test(g)) return Number(g)
+      const hit = vocabulary.find((t) => (t.label ?? t.name ?? '').toLowerCase() === g.toLowerCase())
+      if (!hit?.id) throw new UsageError(`No tag "${g}" for ${table}; \`qqq collab tags list ${table}\` lists them, \`create\` makes one.`)
+      return hit.id
+    })
+  }
+  tags.command('list <table> [pk]')
+    .description('The tag vocabulary of a table (search with -q), or the tags on one record.')
+    .option('-q, --query <text>', 'search the vocabulary')
+    .action(async (table: string, pk: string | undefined, options: { query?: string }) => {
+      const c = ctx()
+      const items = pk !== undefined ? await (await collab(c)).recordTags(table, pk) : await (await collab(c)).tags(table, options.query)
+      c.print({ data: items, rows: tagRows(items), columns: ['id', 'label', 'color', 'scope', 'approved', 'used'] })
+    })
+  tags.command('add <table> <pk> <tags...>')
+    .description('Put tags on a record (ids or labels).')
+    .action(async (table: string, pk: string, given: string[]) => {
+      const c = ctx()
+      const items = await (await collab(c)).applyTags(table, pk, { add: await tagIds(c, table, given) })
+      c.print({ data: items, rows: tagRows(items), columns: ['id', 'label', 'color'] })
+    })
+  tags.command('remove <table> <pk> <tags...>')
+    .description('Take tags off a record (ids or labels).')
+    .action(async (table: string, pk: string, given: string[]) => {
+      const c = ctx()
+      const items = await (await collab(c)).applyTags(table, pk, { remove: await tagIds(c, table, given) })
+      c.print({ data: items, rows: tagRows(items), columns: ['id', 'label', 'color'] })
+    })
+  tags.command('create <table> <label>')
+    .description('Create a tag for a table (a suggestion when the table takes approved tags only and you may not manage them).')
+    .option('--color <color>', 'display color')
+    .action(async (table: string, label: string, options: { color?: string }) => {
+      const c = ctx()
+      const tag = await (await collab(c)).createTag(table, label, options.color)
+      c.print({ data: tag, rows: tagRows([tag]), columns: ['id', 'label', 'color', 'scope', 'approved'] })
     })
 
   noun.command('recents')
