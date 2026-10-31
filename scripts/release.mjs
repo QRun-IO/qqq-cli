@@ -11,9 +11,10 @@
  *   1. the working tree is clean (no staged, unstaged or untracked changes) and the tags are free
  *   2. npm ci, then the steps the qqq-orb `cli` profile runs: npm run generate with no drift in
  *      packages/ui-api-client/src/schema.ts or packages/core/src/api/operations.ts, build, test;
- *      plus npm run lint (versions, headers)
+ *      plus npm run lint (versions, headers) and the TUI's Bun tests and type check (npm run test:tui,
+ *      typecheck:tui; the TUI is not published or bundled yet, but a release must not break it)
  *   3. npm pack --dry-run for each published package
- *   4. the single-file binaries (scripts/build-binaries.mjs) and dist/SHA256SUMS
+ *   4. the single-file binaries of the CLI only (scripts/build-binaries.mjs) and dist/SHA256SUMS
  *   5. prints the tag, GitHub release and npm publish commands
  *
  * Usage: node scripts/release.mjs [--allow-dirty] [--skip-binaries] [--skip-install]
@@ -71,6 +72,8 @@ if (drift) fail(`generated sources drifted from the OpenAPI document (commit the
 step('build', 'npm', ['run', 'build'])
 step('test', 'npm', ['test'])
 step('lint', 'npm', ['run', 'lint'])
+step('TUI tests', 'npm', ['run', 'test:tui'])
+step('TUI type check', 'npm', ['run', 'typecheck:tui'])
 for (const dir of PUBLISHED) step(`pack ${versions[dir].name}`, 'npm', ['pack', '--dry-run', '--silent', '-w', versions[dir].name])
 if (!argv.has('--skip-binaries')) step('binaries', 'node', ['scripts/build-binaries.mjs', '--no-build'])
 
