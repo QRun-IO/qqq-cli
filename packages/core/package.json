@@ -1,0 +1,26 @@
+{
+  "name": "@qrun-io/qqq-core",
+  "version": "0.1.0-dev",
+  "description": "Client kernel for QQQ terminal clients: sessions, metadata, filter grammar, records, processes, jobs, render model and output formats. No terminal code.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test \"dist/test/*.test.js\""
+  },
+  "dependencies": {
+    "@qrun-io/qqq-ui-api-client": "1.8.0-rc.1",
+    "jmespath": "0.16.0",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/jmespath": "0.15.2"
+  }
+}
