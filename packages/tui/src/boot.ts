@@ -19,11 +19,12 @@ export interface CliArgs {
   ascii: boolean
   linear: boolean
   mouse: boolean
+  check: 'startup' | 'full' | 'off'
   route: string[]
 }
 
 export function parseArgs(argv: string[], env: NodeJS.ProcessEnv = process.env): CliArgs {
-  const out: CliArgs = { ascii: env.QQQ_UI_ASCII === '1', linear: env.QQQ_UI_LINEAR === '1', mouse: false, route: [] }
+  const out: CliArgs = { ascii: env.QQQ_UI_ASCII === '1', linear: env.QQQ_UI_LINEAR === '1', mouse: false, check: 'startup', route: [] }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!
     if (a === '--') {
@@ -36,6 +37,8 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv = process.env):
     else if (a === '--ascii') out.ascii = true
     else if (a === '--linear') out.linear = true
     else if (a === '--mouse') out.mouse = true
+    else if (a === '--check') out.check = 'full'
+    else if (a === '--no-check') out.check = 'off'
     else out.route.push(a)
   }
   return out

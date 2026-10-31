@@ -11,7 +11,7 @@
 
 import { runCli } from '@qrun-io/qqq-cli/program'
 import { THEMES } from './theme'
-import { buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
+import { applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
 import type { AppTreeNode } from './client'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
@@ -221,6 +221,7 @@ export class Commands implements CommandsLike {
           return screen.exportAs?.(rest[0] ?? 'csv')
         }
         case 'jobs': return this.jobs()
+        case 'doctor': case 'check': return this.doctor()
         case 'profile': return rest[0] ? this.switchProfile(rest[0]) : this.chooseProfile()
         case 'server': return rest[0] ? this.switchServer(rest[0]) : fail('server <url>')
         case 'signout': return this.signOut()
@@ -473,9 +474,24 @@ export class Commands implements CommandsLike {
     // Help
     out.push({ section: 'Help', label: 'Keyboard reference and help', key: 'F1 ?', command: 'help', run: () => this.help() })
     out.push({ section: 'Help', label: 'Search help…', run: () => this.help() })
+    out.push({ section: 'Help', label: 'Check my terminal', command: 'doctor', run: () => this.doctor() })
     out.push({ section: 'Help', label: 'About', run: () => s.message(`qqq ui ${s.status.build}\nOpenTUI 0.8.1 (React) on Bun ${typeof Bun !== 'undefined' ? Bun.version : '?'}\nUI API ${s.status.apiVersion} at ${s.status.server}`, 'info', 'About') })
     out.push({ section: 'Help', label: 'Quit', key: 'F10', command: 'quit', run: () => s.requestQuit() })
     return out
+  }
+
+  /** The terminal check in a dialog; live tmux fixes asked one by one. */
+  doctor(): void {
+    const s = this.store
+    const report = checkEnvironment({ columns: s.width, rows: s.height })
+    s.message(formatReport(report), 'info', 'Terminal check')
+    const fixes = report.findings.filter((f) => f.live)
+    const next = (i: number) => {
+      const f = fixes[i]
+      if (!f) return
+      s.confirm(`${f.message} Fix for this tmux server now?`, () => { applyLiveFix(f); s.flash('fixed for this tmux server'); next(i + 1) }, () => next(i + 1))
+    }
+    next(0)
   }
 
   prefs(): void {

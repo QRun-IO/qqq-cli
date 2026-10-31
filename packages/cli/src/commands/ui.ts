@@ -23,8 +23,10 @@ export function registerUi(program: Command, _ctx: () => Context): void {
     .option('--ascii', 'ASCII glyphs instead of box drawing and block characters')
     .option('--linear', 'one region at a time, no side pane (as QQQ_UI_LINEAR=1)')
     .option('--mouse', 'enable the mouse (off by default)')
+    .option('--check', 'check the terminal and tmux setup, offer fixes, and exit')
+    .option('--no-check', 'skip the quick terminal check at startup')
     .allowUnknownOption(true)
-    .action((route: string[], options: { theme?: string; ascii?: boolean; linear?: boolean; mouse?: boolean }) => {
+    .action((route: string[], options: { theme?: string; ascii?: boolean; linear?: boolean; mouse?: boolean; check?: boolean }) => {
       const entry = tuiEntry()
       if (!existsSync(entry)) throw new UsageError(`The TUI is not in this installation (looked for ${entry}).`)
       const globals = program.opts<{ profile?: string; server?: string }>()
@@ -35,6 +37,8 @@ export function registerUi(program: Command, _ctx: () => Context): void {
       if (options.ascii) args.push('--ascii')
       if (options.linear) args.push('--linear')
       if (options.mouse) args.push('--mouse')
+      if (options.check === true) args.push('--check')
+      if (options.check === false) args.push('--no-check')
       if (route.length) args.push('--', ...route)
       const result = spawnSync(process.env.QQQ_BUN ?? 'bun', args, { stdio: 'inherit' })
       if (result.error) throw new UsageError(`Cannot start Bun (${result.error.message}); install it (https://bun.sh) or set QQQ_BUN.`)

@@ -29,7 +29,7 @@ expect() { # name text...
   done
   echo "FAIL $name (wanted: $*)"; fails=$((fails + 1))
 }
-tmux new-session -d -s "$s" -x "$w" -y "$h" "cd '$pkg' && bun run src/main.tsx --profile '$profile'; sleep 5"
+tmux new-session -d -s "$s" -x "$w" -y "$h" "cd '$pkg' && bun run src/main.tsx --no-check --profile '$profile'; sleep 5"
 expect 01-home 'Apps' 'UI API'
 keys T:: 'T:table query person' Enter
 expect 02-grid 'records ·' 'First Name'

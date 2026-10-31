@@ -16,11 +16,21 @@ import { createCliRenderer } from '@opentui/core'
 import { createRoot } from '@opentui/react'
 import { App } from './app'
 import { boot, parseArgs } from './boot'
+import { runDoctor } from './doctor'
 
 const args = parseArgs(process.argv.slice(2))
+if (args.check === 'full') {
+  await runDoctor({ full: true })
+  process.exit(0)
+}
 if (!process.stdout.isTTY || process.env.TERM === 'dumb') {
   process.stderr.write('qqq ui needs a terminal with an alternate screen (TERM is dumb or stdout is not a terminal); use the qqq CLI instead.\n')
   process.exit(2)
+}
+if (args.check === 'startup') {
+  const { report } = await runDoctor({ full: false })
+  // no UTF-8 locale: plain glyphs rather than boxes of question marks
+  if (report.findings.some((f) => f.id === 'unicode') && !args.ascii) args.ascii = true
 }
 
 const renderer = await createCliRenderer({
