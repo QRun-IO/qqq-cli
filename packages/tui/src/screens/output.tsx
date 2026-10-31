@@ -50,7 +50,8 @@ export class OutputScreen implements Screen {
     void this.store.commands().run(this.command)
   }
 
-  onKey(key: Key): boolean {
+  onKey(raw: Key): boolean {
+    const key: Key = raw.name === 'space' ? { name: raw.shift ? 'pageup' : 'pagedown', sequence: '' } : raw
     const max = Math.max(0, this.lines.length - this.height)
     switch (key.name) {
       case 'down': this.top = Math.min(max, this.top + 1); return true

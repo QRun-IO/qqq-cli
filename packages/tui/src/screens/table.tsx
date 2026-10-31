@@ -4,7 +4,6 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { ResultCursor, findRecordByKey, gotoKeys, printFilter, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
@@ -12,6 +11,7 @@ import { charOf } from '../keys'
 import { openForm, openProcess, openRecord } from '../nav'
 import { ChoiceOverlay, PromptOverlay } from '../overlays/basic'
 import { FilterOverlay } from '../overlays/filter'
+import { saveFile } from '../overlays/files-helpers'
 import { GridViewSettingsOverlay } from '../overlays/view-settings'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
@@ -266,16 +266,7 @@ export class TableScreen implements Screen {
 
   exportDialog(): void {
     const formats = ['csv', 'xlsx', 'json', 'tsv']
-    this.store.open(new ChoiceOverlay(this.store, 'Export to a file', formats.map((f) => ({ label: f, value: f, detail: f === 'xlsx' ? 'Excel' : undefined })), (format) => {
-      this.store.open(new PromptOverlay(this.store, `Export ${this.title()} as ${format}`, `File path (relative to ${process.cwd()}). The current filter and sort apply; the visible columns are exported.`, (path) => {
-        if (!path.trim()) return
-        const out = resolve(path.trim())
-        this.store.run(this.store.client!.export(this.tableName, format, this.fullFilter(), this.fields().map((f) => f.name)), ({ bytes }) => {
-          writeFileSync(out, bytes)
-          this.store.message(`Wrote ${out} (${num(bytes.length)} bytes).`)
-        })
-      }, `${this.tableName}.${format}`))
-    }))
+    this.store.open(new ChoiceOverlay(this.store, 'Export to a file', formats.map((f) => ({ label: f, value: f, detail: f === 'xlsx' ? 'Excel' : undefined })), (format) => this.exportAs(format)))
   }
 
   /** Go to a record by its primary key or a configured unique key (kernel gotoKeys / findRecordByKey). */
@@ -401,15 +392,15 @@ export class TableScreen implements Screen {
     return out
   }
 
+  /** Exports with the current filter, sort and visible columns, to a file chosen in the file dialog (or silently to the download directory). */
   exportAs(format: string): void {
-    this.store.open(new PromptOverlay(this.store, `Export ${this.title()} as ${format}`, 'File path; the current filter, sort and visible columns apply.', (path) => {
-      if (!path.trim()) return
-      const out = resolve(path.trim())
+    const write = (out: string) => {
       this.store.run(this.store.client!.export(this.tableName, format, this.fullFilter(), this.fields().map((f) => f.name)), ({ bytes }) => {
         writeFileSync(out, bytes)
         this.store.message(`Wrote ${out} (${num(bytes.length)} bytes).`)
       })
-    }, `${this.tableName}.${format}`))
+    }
+    saveFile(this.store, `Export ${this.title()} as ${format}`, `${this.tableName}.${format}`, write)
   }
 
   render(width: number, height: number, focused: boolean) {
@@ -435,7 +426,12 @@ export class TableScreen implements Screen {
     this.colCursor = Math.min(this.colCursor, Math.max(0, cols.length - 1))
     if (this.colCursor < this.leftCol) this.leftCol = this.colCursor
     while (this.leftCol < this.colCursor && !visibleFrom(cols, this.leftCol, inner - 2).some((c) => c.name === cols[this.colCursor]!.name)) this.leftCol++
-    const shown = visibleFrom(cols, this.leftCol, inner - 2)
+    const shown = visibleFrom(cols, this.leftCol, inner - 2).map((c) => ({ ...c }))
+    if (this.view.fit === 'fill' && shown.length) {
+      // fill: spread what is left of the width over the visible columns
+      const spare = inner - 2 - shown.reduce((a, c) => a + c.width + 1, 0)
+      if (spare > 0) shown.forEach((c, i) => { c.width += Math.floor(spare / shown.length) + (i < spare % shown.length ? 1 : 0) })
+    }
     const zebra = this.view.zebra ?? t.zebraByDefault
     const header = '  ' + shown.map((c) => {
       const mark = this.sort?.field === c.name ? (this.sort.asc ? g.up : g.down) : ''
@@ -446,7 +442,7 @@ export class TableScreen implements Screen {
     lines.push(
       <text key="h">
         {shown.map((c, i) => {
-          const hot = cols.indexOf(c) === this.colCursor
+          const hot = cols.findIndex((x) => x.name === c.name) === this.colCursor
           const mark = this.sort?.field === c.name ? (this.sort.asc ? g.up : g.down) : ''
           const label = trunc(c.label, c.width - mark.length) + mark
           return <span key={c.name} fg={hot && focused ? t.acc2 : t.acc}>{(i === 0 ? '  ' : ' ') + (c.numeric ? padLeft(label, c.width) : pad(label, c.width))}</span>

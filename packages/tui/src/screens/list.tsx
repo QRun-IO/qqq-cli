@@ -44,8 +44,10 @@ export class ListModel {
   }
 
   /** Arrow, page and enter keys; returns whether handled. */
-  onKey(key: Key): boolean {
+  onKey(raw: Key): boolean {
     const page = Math.max(1, this.height - 1)
+    // Space and Shift+Space page too (PgUp/PgDn may be taken by the terminal or tmux)
+    const key: Key = raw.name === 'space' ? { name: raw.shift ? 'pageup' : 'pagedown', sequence: '' } : raw
     switch (key.name) {
       case 'down': this.cursor = this.firstSelectable(this.cursor + 1, 1) ?? this.cursor; break
       case 'up': this.cursor = this.firstSelectable(this.cursor - 1, -1) ?? this.cursor; break

@@ -3,9 +3,8 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { ResultCursor, associationGroups, childFilter, childListFields, readViewSettings, relatedRecordTarget, safeFileName, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
-import { resolve } from 'node:path'
-import { PromptOverlay } from '../overlays/basic'
+import { ResultCursor, associationGroups, childFilter, childListFields, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { saveFile } from '../overlays/files-helpers'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
@@ -258,14 +257,13 @@ export class RecordScreen implements Screen {
     if (!file) return
     if (!file.route) return this.store.message(`This file is outside the server: ${file.url ?? ''}`, 'info', 'Download')
     const route = file.route
-    this.store.open(new PromptOverlay(this.store, `Save ${file.fileName}`, `Path (relative to ${process.cwd()}); an existing file is not overwritten unless you name it.`, (path) => {
-      const explicit = path.trim() !== safeFileName(file.fileName)
+    saveFile(this.store, `Save ${file.fileName}`, file.fileName, (out) => {
       this.store.run(this.store.client!.call('downloadRecordFieldFile', { path: { tableName: route.tableName, primaryKey: route.primaryKey, fieldName: route.fieldName, filename: route.filename } }), (r) => {
         const bytes = r.bytes ?? new TextEncoder().encode(typeof r.data === 'string' ? r.data : JSON.stringify(r.data))
-        const out = saveDownload(resolve(path.trim()), bytes, { explicit })
-        this.store.message(`Saved ${out} (${bytes.length} bytes).`)
+        const saved = saveDownload(out, bytes, { explicit: true })
+        this.store.message(`Saved ${saved} (${bytes.length} bytes).`)
       })
-    }, safeFileName(file.fileName)))
+    })
   }
 
   follow(fields: FieldMetaData[]): void {

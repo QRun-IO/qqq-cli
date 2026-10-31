@@ -232,8 +232,10 @@ export class AppStore {
 
   // ---- keys ----
 
-  handleKey(key: Key): void {
+  handleKey(raw: Key): void {
     this.lastInput = Date.now()
+    // Ctrl+F / Ctrl+B page forward and back everywhere: no terminal or tmux intercepts them
+    const key: Key = raw.ctrl && (raw.name === 'f' || raw.name === 'b') ? { name: raw.name === 'f' ? 'pagedown' : 'pageup', sequence: '' } : raw
     try {
       this.dispatch(key)
     } catch (e) {

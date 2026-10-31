@@ -11,11 +11,12 @@
 
 import { runCli } from '@qrun-io/qqq-cli/program'
 import { THEMES } from './theme'
-import { buildFilter, hasPin, readConfig, readRecents, removePin, setPin, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
+import { buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
 import type { AppTreeNode } from './client'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
 import { CommandLineOverlay, HelpOverlay, LockOverlay, MenuOverlay, PaletteOverlay, type PaletteItem } from './overlays/center'
+import { chooseFolder } from './overlays/files-helpers'
 import { OutputScreen } from './screens/output'
 import { SignInScreen } from './screens/signin'
 import type { AppStore, CommandsLike } from './store'
@@ -41,8 +42,8 @@ const TUI_COMMANDS = ['quit', 'home', 'back', 'help', 'menu', 'goto', 'view', 't
 export const GLOBAL_KEYS: Array<[string, string]> = [
   ['F1  ?', 'help (this)'], ['F2  /  .', 'go to anything'], ['F3  Enter', 'view / open'], ['F4  e', 'edit'], ['F5  r', 'refresh'],
   ['F6  f', 'filter (grid)'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['F10', 'quit (asks)'],
-  ['Esc', 'back, cancel'], ['Tab', 'Apps tree / content'], ['↑↓ PgUp PgDn', 'move, page'], ['Home End', 'first, last'], ['← →', 'columns, tree'],
-  ['s', 'sort by column'], ['Space', 'select row'], ['b', 'run a process on selection'], ['x', 'export'], ['g', 'go to by key'], ['v', 'view settings'],
+  ['Esc', 'back, cancel'], ['Tab', 'Apps tree / content'], ['↑↓ PgUp PgDn', 'move, page'], ['Ctrl+F Ctrl+B', 'page (always works)'], ['Space S+Space', 'page lists'], ['Home End', 'first, last'], ['← →', 'columns, tree'],
+  ['s', 'sort by column'], ['Space (grid)', 'select row'], ['b', 'run a process on selection'], ['x', 'export'], ['g', 'go to by key'], ['v', 'view settings'],
   [']  [', 'next / previous record'], ['Ctrl+S', 'save a form'], [':', 'command line'], ['Ctrl+K', 'palette'], ['Ctrl+C', 'quit now'],
 ]
 
@@ -464,6 +465,10 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Settings', label: `Idle timeout: ${idle ? `${idle} min` : 'off'}`, command: 'idle <minutes>', run: () => s.open(new PromptOverlay(s, 'Screen saver after idle minutes', '0 turns it off.', (v) => void this.run(`idle ${v}`), String(idle))) })
     out.push({ section: 'Settings', label: hasPin() ? 'Change PIN' : 'Set PIN', command: 'pin', run: () => this.setPin() })
     if (hasPin()) out.push({ section: 'Settings', label: 'Remove PIN', command: 'pin remove', run: () => this.removePin() })
+    const fp = readFilePreferences()
+    out.push({ section: 'Settings', label: `Download folder: ${fp.downloadDir ?? '(last used, else ~/Downloads)'}`, run: () => chooseFolder(s, 'Default download folder', startDirForSave(fp), (dir) => { writeFilePreferences({ downloadDir: dir }); s.flash(`downloads go to ${dir}`) }) })
+    out.push({ section: 'Settings', label: `Downloads: ${fp.downloadMode === 'silent' ? 'save silently to the download folder' : 'ask every time'}`, run: () => { writeFilePreferences({ downloadMode: fp.downloadMode === 'silent' ? 'ask' : 'silent' }); s.flash('download mode changed') } })
+    out.push({ section: 'Settings', label: `Upload folder: ${fp.uploadDir ?? '(last used, else the current folder)'}`, run: () => chooseFolder(s, 'Default upload folder', startDirForUpload(fp), (dir) => { writeFilePreferences({ uploadDir: dir }); s.flash(`uploads start in ${dir}`) }) })
     out.push({ section: 'Settings', label: 'Server preferences…', disabled: (s.version?.features ?? []).includes('preferences') ? undefined : 'the server has no preferences', run: () => this.prefs() })
     // Help
     out.push({ section: 'Help', label: 'Keyboard reference and help', key: 'F1 ?', command: 'help', run: () => this.help() })
