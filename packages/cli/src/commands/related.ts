@@ -180,7 +180,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
 
   table.command('download <table> <primaryKey> <field>')
     .description('Save a file stored in a record field (FILE_DOWNLOAD through GET /table/{t}/{pk}/{field}/{file}, or a BLOB value).')
-    .option('-o, --out <file>', 'where to write (default: the file name, never overwriting; - for stdout)')
+    .option('-o, --out <file>', 'where to write, replacing an existing file (default: the file name, name-1.ext when taken; - for stdout)')
     .action(async (name: string, primaryKey: string, fieldName: string, options: { out?: string }) => {
       const c = ctx()
       const meta = await c.tableMeta<TableMetaLike>(name)
@@ -209,7 +209,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
         process.stdout.write(bytes)
         return
       }
-      saveDownload(out, bytes, { explicit: options.out !== undefined })
-      c.note(`wrote ${out} (${bytes.length} bytes)`)
+      const written = saveDownload(out, bytes, { explicit: options.out !== undefined })
+      c.note(`wrote ${written} (${bytes.length} bytes)`)
     })
 }

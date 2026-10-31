@@ -61,14 +61,14 @@ export function registerWidget(program: Command, ctx: () => Context): void {
   report.command('run <report>')
     .description('Run a report and save its output (csv, xlsx, json, pdf as the report allows).')
     .option('--format <fmt>', 'output format', 'csv')
-    .option('-o, --out <file>', 'output file (default: <report>.<format>, never overwriting)')
+    .option('-o, --out <file>', 'output file, replaced if it exists (default: <report>.<format>; name-1.<format> when taken)')
     .action(async (name: string, options: { format: string; out?: string }) => {
       const c = ctx()
       const result = await c.call('runReport', { path: { reportName: name }, query: { format: options.format } })
       const out = options.out ?? safeFileName(`${name}.${options.format}`)
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
-      saveDownload(out, bytes, { explicit: options.out !== undefined })
-      c.note(`wrote ${out} (${bytes.length} bytes, ${result.contentType})`)
+      const written = saveDownload(out, bytes, { explicit: options.out !== undefined })
+      c.note(`wrote ${written} (${bytes.length} bytes, ${result.contentType})`)
     })
 
   const prefs = program.command('prefs').description('Your preferences: list, get, set, action.')

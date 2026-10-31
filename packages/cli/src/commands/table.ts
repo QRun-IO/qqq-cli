@@ -374,7 +374,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--format <fmt>', 'csv, xlsx, json or tsv (default: from the --out extension, else csv)')
     .option('-f, --fields <names>', 'comma-separated fields to include, in column order (default: the server\'s)')
     .option('-l, --limit <n>', 'most records')
-    .option('--out <file>', 'output file, or - for stdout (default: <table>.<format>, never overwriting)')
+    .option('--out <file>', 'output file, or - for stdout (default: <table>.<format>; name-1.<format> when taken)')
     .option('--no-header', 'leave out the header row (csv, tsv, xlsx)')
     .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
     .action(async (name: string, options: QueryOptions & { format?: string; out?: string; header: boolean }) => {
@@ -395,8 +395,8 @@ export function registerTable(program: Command, ctx: () => Context): void {
         process.stdout.write(bytes)
         return
       }
-      saveDownload(out, bytes, { explicit: options.out !== undefined })
-      c.note(`wrote ${out} (${bytes.length} bytes, ${result.contentType})`)
+      const written = saveDownload(out, bytes, { explicit: options.out !== undefined })
+      c.note(`wrote ${written} (${bytes.length} bytes, ${result.contentType})`)
     })
 
   // flat aliases, kept from 0.1

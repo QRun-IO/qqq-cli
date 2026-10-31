@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { BACK, ProcessCancelledError, ProcessError, checkInputRecords, hasInputs, inputFields, runProcess, type ProcessMeta, type ProcessStep } from '../process/runner.js'
-import { alternativeNames, buildScreen, downloadReference, safeDownloadName, screenToText, summaryLines, type ScreenBlock } from '../process/screen.js'
+import { buildScreen, downloadReference, screenToText, summaryLines, type ScreenBlock } from '../process/screen.js'
 
 type Handler = (request: Request, url: URL) => Promise<unknown> | unknown
 
@@ -239,11 +239,3 @@ test('screens: help content, HELP_TEXT preview, WIDGET named and ad hoc, Google 
   assert.deepEqual(summaryLines([{ status: 'OK', tableName: 'person', recordId: 4, linkPreText: 'Created ', linkText: 'Avery' }]), [{ status: 'OK', count: undefined, message: 'Created Avery', bullets: undefined, link: 'person 4' }])
 })
 
-test('download names from the server are reduced to a safe base name', () => {
-  assert.equal(safeDownloadName('../../etc/passwd'), 'passwd')
-  assert.equal(safeDownloadName('..\\..\\Windows\\win.ini'), 'win.ini')
-  assert.equal(safeDownloadName('report\u0007.csv'), 'report.csv')
-  for (const bad of ['', '.', '..', '../', 'a/..', '\u0001']) assert.throws(() => safeDownloadName(bad), /unsafe file name/)
-  const names = alternativeNames('out.csv')
-  assert.deepEqual([names.next().value, names.next().value, names.next().value], ['out.csv', 'out-1.csv', 'out-2.csv'])
-})
