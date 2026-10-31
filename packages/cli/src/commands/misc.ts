@@ -5,20 +5,45 @@
 
 import type { Command } from 'commander'
 import { openRealtimeStream, unwrap } from '@qrun-io/qqq-ui-api-client'
-import type { Context } from '../context.js'
-import { CLIENT_CHANNEL, currentToken, sessionCookieFor } from '../session.js'
+import { appHome, callOperation } from '@qrun-io/qqq-core'
+import { UsageError, type Context } from '../context.js'
+import { CLIENT_CHANNEL, authenticatedFetch, currentToken, sessionCookieFor } from '../session.js'
 import type { Json } from './shared.js'
 
 export function registerMisc(program: Command, ctx: () => Context): void {
-  program.command('apps')
-    .description('List the apps you may use.')
-    .action(async () => {
+  const listApps = async () => {
+    const c = ctx()
+    const metaData = await c.metaData() as unknown as Json
+    const apps = Object.values((metaData.apps ?? {}) as Record<string, Json>)
+      .map((a) => ({ name: a.name, label: a.label, items: (a.children as unknown[] | undefined)?.length ?? 0, widgets: (a.widgets as unknown[] | undefined)?.length ?? 0 }))
+      .sort((a, b) => String(a.label).localeCompare(String(b.label)))
+    c.print({ data: apps, columns: ['name', 'label', 'items', 'widgets'] })
+  }
+  const apps = program.command('apps').description('Apps: list (the default), show.').action(listApps)
+  apps.command('list').description('List the apps you may use.').action(listApps)
+  apps.command('show <app>')
+    .description("An app's home: its sections of actions (processes), reports and data (tables, with record counts), and its widgets.")
+    .option('--no-counts', 'skip the record count of each table')
+    .action(async (name: string, options: { counts: boolean }) => {
       const c = ctx()
       const metaData = await c.metaData() as unknown as Json
-      const apps = Object.values((metaData.apps ?? {}) as Record<string, Json>)
-        .map((a) => ({ name: a.name, label: a.label, items: (a.children as unknown[] | undefined)?.length ?? 0 }))
-        .sort((a, b) => String(a.label).localeCompare(String(b.label)))
-      c.print({ data: apps, columns: ['name', 'label', 'items'] })
+      const home = appHome(metaData, name)
+      if (!home) throw new UsageError(`No app named ${name} (see \`qqq apps\`)`)
+      const tables = (metaData.tables ?? {}) as Record<string, Json>
+      const fetchImpl = authenticatedFetch(c.target)
+      const rows = await Promise.all(home.sections.flatMap((section) => section.items.map(async (item) => {
+        let count: unknown = ''
+        if (item.type === 'TABLE' && options.counts && ((tables[item.name]?.capabilities ?? []) as string[]).includes('TABLE_COUNT')) {
+          try {
+            count = ((await callOperation(c.server, 'countTable', { path: { tableName: item.name }, json: { filter: { criteria: [], booleanOperator: 'AND' } } }, fetchImpl)).data as Json).count ?? ''
+          } catch {
+            count = '?'
+          }
+        }
+        return { section: section.label, type: item.type.toLowerCase(), name: item.name, label: item.label, records: count }
+      })))
+      const widgets = home.widgets.map((w) => ({ section: 'Widgets', type: 'widget', name: w, label: String(((metaData.widgets ?? {}) as Record<string, Json>)[w]?.label ?? w), records: '' }))
+      c.print({ data: { ...home, items: [...rows, ...widgets] }, rows: [...rows, ...widgets], columns: ['section', 'type', 'name', 'label', 'records'], footer: home.label })
     })
 
   program.command('search <text>')

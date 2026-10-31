@@ -9,18 +9,18 @@ The TUI column fills in during M3.
 
 | Family | rows | pass | todo | partial | n/a |
 |---|---|---|---|---|---|
-| HLP | 6 | 1 | 4 | 0 | 1 |
+| HLP | 6 | 1 | 0 | 4 | 1 |
 | INT | 14 | 5 | 0 | 0 | 9 |
-| NAV | 40 | 6 | 7 | 0 | 27 |
+| NAV | 40 | 9 | 3 | 1 | 27 |
 | PRC | 60 | 34 | 12 | 2 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
-| QRY | 70 | 25 | 22 | 0 | 23 |
-| REC | 65 | 27 | 26 | 0 | 12 |
+| QRY | 70 | 27 | 20 | 0 | 23 |
+| REC | 65 | 28 | 25 | 0 | 12 |
 | REL | 9 | 4 | 5 | 0 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 17 | 14 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 153 | 137 | 2 | 109 |
+| **all** | 401 | 159 | 126 | 7 | 109 |
 
 ## Rows
 
@@ -33,8 +33,8 @@ The TUI column fills in during M3.
 | NAV-005 | Declared icons (QIcon name, color, path) render on navigation surfaces | n/a | n/a | browser shell |
 | NAV-006 | Hidden tables and processes never appear in navigation; direct links to hidden objects the user may not access | pass | todo | hidden tables and processes are not listed; direct use is refused by the server |
 | NAV-007 | A hidden table the user may access opens by direct link (hidden is not denied) | pass | todo | qqq table get on a hidden table the user may read |
-| NAV-008 | App home sections list processes (Actions), reports (Reports) and tables (Data) by label with icons, and each  | todo | todo | app home: table list --app exists; processes and reports per app todo |
-| NAV-009 | App home table entries show the backend record count | todo | todo | counts per table on app listing |
+| NAV-008 | App home sections list processes (Actions), reports (Reports) and tables (Data) by label with icons, and each  | pass | todo | qqq apps show <app>: sections of processes, reports, tables and child apps, then widgets |
+| NAV-009 | App home table entries show the backend record count | pass | todo | qqq apps show counts each table with TABLE_COUNT (--no-counts skips) |
 | NAV-010 | App homes of apps with child apps, only processes, or nothing render without errors | n/a | todo | app home rendering |
 | NAV-011 | A dashboard app (widgets only) opens from navigation and shows one labelled container per permitted declared w | todo | todo | widgets per app |
 | NAV-012 | Branding: sidebar logo (Material parity), app name, favicon from the icon, accent color, and partial branding  | n/a | n/a | browser shell |
@@ -48,12 +48,12 @@ The TUI column fills in during M3.
 | NAV-020 | Browser back and forward traverse navigation history with the right content | n/a | n/a | browser shell |
 | NAV-021 | An unknown /app/{name} shows an in-shell not-found state with a link to the dashboard | n/a | n/a | browser shell |
 | NAV-022 | Unknown deeper or top-level paths return the 404 page with a working home link | n/a | n/a | browser shell |
-| NAV-023 | Record lookup by key: /app/{table}/key?{field}={value} opens the single matching record | todo | todo | table get --key field=value |
+| NAV-023 | Record lookup by key: /app/{table}/key?{field}={value} opens the single matching record | pass | todo | qqq table get <t> --key field=value: one match shows the record, none exits 5, several exit 2 |
 | NAV-024 | Command palette (Ctrl+K and '.') lists navigable apps, tables and processes by label with type and app context | todo | todo | shell completion covers names; a palette is the TUI |
 | NAV-025 | Header search, '/' search dialog and search page jump to navigation targets and recently viewed records by lab | pass | todo | qqq search |
 | NAV-026 | Mobile navigation drawer opens from the header, navigates and closes | n/a | n/a | browser shell |
 | NAV-027 | Developer page reports the backend metadata counts and the running framework versions | pass | todo | qqq whoami: apiVersion, features, counts |
-| NAV-028 | Reports in the app tree are listed under their app (sidebar and app home Reports group) and open the report pa | todo | todo | report list |
+| NAV-028 | Reports in the app tree are listed under their app (sidebar and app home Reports group) and open the report pa | partial | todo | qqq report list (reports with their app); the sample app has no reports to verify |
 | NAV-029 | A user who may access no apps sees the Dashboard entry and the no-apps message (Material NoApps parity) | n/a | n/a | browser shell |
 | NAV-030 | Global search (header box, '/' dialog, search page) lists the records a backend record search (POST /qqq/v1/se | pass | todo | qqq search over POST /search |
 | NAV-031 | Record search respects table read permissions and record security locks, in the UI and the API | pass | todo | server-enforced; refusals shown |
@@ -154,7 +154,7 @@ The TUI column fills in during M3.
 | QRY-016 | AND/OR and nested groups combine as declared | pass | todo | --group with parentheses |
 | QRY-017 | Filters live in the URL: reload, back/forward and Material-style JSON links | pass | todo | --print-filter gives the JSON the web links accept |
 | QRY-018 | Backend-only operators from links render and filter correctly | pass | todo | any operator in --where |
-| QRY-019 | Quick search combines with the advanced filter | todo | todo | quick search |
+| QRY-019 | Quick search combines with the advanced filter | pass | todo | --search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter |
 | QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | todo | todo | joins |
 | QRY-021 | Many-side exposed join repeats rows and reports the distinct count | todo | todo | joins |
 | QRY-022 | Column statistics aggregate the filtered rows | todo | todo | column statistics |
@@ -165,8 +165,8 @@ The TUI column fills in during M3.
 | QRY-033 | First-N selection under a filter launches with that limit | pass | todo | process run --filter-json with limit |
 | QRY-034 | Actions menu offers bulk load, bulk processes and table processes | todo | todo | process list --table |
 | QRY-035 | Viewers get no create, bulk or process actions and the backend refuses them | pass | todo | server refuses; exit 3 |
-| QRY-040 | CSV export has visible columns in order and exactly the filtered, sorted rows | pass | todo | table export --format csv --fields |
-| QRY-041 | XLSX and JSON exports carry the same rows | pass | todo | xlsx, json, tsv |
+| QRY-040 | CSV export has visible columns in order and exactly the filtered, sorted rows | pass | todo | table export: filtered (--where, --group, --search), sorted (--order), --fields in column order, --limit, --out - |
+| QRY-041 | XLSX and JSON exports carry the same rows | pass | todo | csv, xlsx, json, tsv; format from --out extension; --no-header; bad format or field exit 2 before the request |
 | QRY-042 | Nothing to export disables the formats | n/a | todo | nothing to disable |
 | QRY-043 | Backend refuses exports of unreadable tables | pass | todo | server refuses |
 | QRY-050 | Your saved views are listed and open on their own route | todo | todo | saved views |
@@ -181,7 +181,7 @@ The TUI column fills in during M3.
 | QRY-064 | Backend refuses count and export for a table without those capabilities | pass | todo |  |
 | QRY-065 | Export streams from the v1 export route | pass | todo | POST /table/{t}/export |
 | QRY-066 | Variant options come from the v1 variants route | todo | todo | variants route |
-| QRY-067 | Go To opens a record by its primary key or a configured unique key (Material gotoFieldNames) | todo | todo | table get --key |
+| QRY-067 | Go To opens a record by its primary key or a configured unique key (Material gotoFieldNames) | pass | todo | table get --key; the primary key and Material gotoFieldNames are the declared keys, other fields looked up with a note |
 | QRY-068 | Default grid columns follow the table sections (section order, each field once), not the metadata field order  | pass | todo | default columns follow sections by tier |
 | QRY-069 | Pagination numbers are locale formatted in the shown range and the total | n/a | todo | locale formatting |
 | QRY-070 | Query screen keyboard shortcuts n (new record), r (refresh the query), f (open the filter builder) | n/a | todo | shortcuts |
@@ -222,7 +222,7 @@ The TUI column fills in during M3.
 | REC-010 | Edit shows non-editable fields read-only and never submits them | pass | todo | non-editable fields excluded |
 | REC-011 | Edit of a missing record shows the load failure instead of a form | pass | todo |  |
 | REC-012 | Delete asks for confirmation, removes the record and returns to the list without errors | pass | todo | confirm unless --yes |
-| REC-013 | Copy prefills a new record from the source and saves it as a separate record | todo | todo | table copy |
+| REC-013 | Copy prefills a new record from the source and saves it as a separate record | pass | todo | qqq table copy <t> <pk> [--set f=v] [-i] [--dry-run]: primary key, non-editable and file fields dropped |
 | REC-014 | STRING and TEXT editors round-trip single and multi-line text | pass | todo |  |
 | REC-015 | INTEGER, LONG and DECIMAL editors keep exact values | pass | todo |  |
 | REC-016 | BOOLEAN editor applies the metadata default and saves true/false | pass | todo | defaults applied |
@@ -421,9 +421,9 @@ The TUI column fills in during M3.
 | RPT-020 | Report files download from the v1 download and report routes | todo | todo |  |
 | WID-074 | Standalone composite scalar controls and metadata editors | todo | todo | developer and editor widgets |
 | WID-075 | Standalone DATE_TIME blocks localize seeded instants without losing seconds | todo | todo | developer and editor widgets |
-| HLP-001 | App and widget help | todo | todo | help content display |
-| HLP-002 | Table, field and section help | todo | todo |  |
-| HLP-003 | Query columns and table action help | todo | todo |  |
-| HLP-004 | Process, step and record action help | todo | todo |  |
+| HLP-001 | App and widget help | partial | todo | qqq help show app/widget/instance; the sample carries no help content |
+| HLP-002 | Table, field and section help | partial | todo | qqq help show table <t> [field]: table, section and field help; no sample content |
+| HLP-003 | Query columns and table action help | partial | todo | field help is the column help; table action help slots print with their slot name; no sample content |
+| HLP-004 | Process, step and record action help | partial | todo | qqq help show process <p>: process, step, HELP_TEXT and step field help; no sample content |
 | HLP-005 | Help search | pass | todo | qqq help-search |
 | HLP-006 | Help author affordance | n/a | todo | author affordance |

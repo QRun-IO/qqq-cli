@@ -5,26 +5,48 @@
 
 import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { FormInputError, FormSession, buildFilter, printFilter, type FieldMeta, type QueryFilter } from '@qrun-io/qqq-core'
+import { FormInputError, FormSession, buildFilter, combineWithQuickSearch, copyRecordValues, findRecordByKey, gotoKeys, isGotoKey, printFilter, quickSearchFields, quickSearchFilter, type FieldMeta, type QueryFilter } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
 import { UsageError, type Context } from '../context.js'
 import { defaultFields, labelsFor, parsePairs, readJson, valueText, type Json } from './shared.js'
 
-interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean }
+interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string }
+
+/** The formats the export route writes. */
+const EXPORT_FORMATS = ['csv', 'xlsx', 'json', 'tsv']
+
+/** A field of the table, or `joinTable.field` of one of its exposed joins. */
+function isKnownField(meta: Json, name: string): boolean {
+  if ((meta.fields as Json | undefined)?.[name]) return true
+  const at = name.indexOf('.')
+  if (at < 1) return false
+  const joinTable = name.slice(0, at)
+  return ((meta.exposedJoins ?? []) as Json[]).some((j) => (j.joinTable as Json | undefined)?.name === joinTable && Boolean(((j.joinTable as Json).fields as Json | undefined)?.[name.slice(at + 1)]))
+}
 
 async function tableMeta(c: Context, table: string): Promise<Json> {
   return c.tableMeta<Json>(table)
 }
 
-function filterFrom(options: QueryOptions, meta: Json): QueryFilter {
-  if (options.filterJson) return readJson(options.filterJson, '--filter-json') as QueryFilter
-  return buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields: Object.keys((meta.fields ?? {}) as Json) })
+function filterFrom(options: QueryOptions, meta: Json, columns?: string[]): QueryFilter {
+  const filter = options.filterJson ? readJson(options.filterJson, '--filter-json') as QueryFilter
+    : buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields: Object.keys((meta.fields ?? {}) as Json) })
+  if (options.search === undefined) return filter
+  // quick search as the web UI does it: CONTAINS on each shown string field, ORed, ANDed onto the filter
+  const fields = quickSearchFields(meta, columns)
+  if (!fields.length) throw new UsageError(`--search: ${meta.label} has no text fields to search${columns ? ' among --fields' : ''}`)
+  return combineWithQuickSearch(filter, quickSearchFilter(options.search, fields))
+}
+
+/** --fields of the command (or the global one), as a list. */
+function columnsFrom(c: Context, options: { fields?: string }): string[] | undefined {
+  return c.fields ?? (options.fields ? options.fields.split(',').map((f) => f.trim()).filter(Boolean) : undefined)
 }
 
 export function registerTable(program: Command, ctx: () => Context): void {
-  const table = program.command('table').description('Tables: list, describe, query, count, get, create, update, delete, export.')
+  const table = program.command('table').description('Tables: list, describe, query, count, get, create, copy, update, delete, export.')
 
   table.command('list')
     .description('List the tables you may read (optionally of one app).')
@@ -78,10 +100,11 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON, instead of --where/--group/--order')
     .option('--print-filter', 'print the QueryFilter JSON the options produced and stop')
     .option('--count', 'print only the count of matching records')
+    .option('-S, --search <text>', 'quick search: records whose text fields contain this, ANDed with the filter (as the web UI search box)')
     .action(async (name: string, options: QueryOptions) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
-      const filter = filterFrom(options, meta)
+      const filter = filterFrom(options, meta, columnsFrom(c, options))
       if (options.printFilter) {
         c.print({ data: filter })
         return
@@ -102,9 +125,9 @@ export function registerTable(program: Command, ctx: () => Context): void {
         if (!options.all || page.length < limit) break
         skip += limit
       }
-      const fields = c.fields ?? (options.fields ? options.fields.split(',') : defaultFields(meta))
+      const fields = columnsFrom(c, options) ?? defaultFields(meta)
       const rows = records.map((r) => Object.fromEntries(fields.map((f) => [f, valueText(r, f)])))
-      c.print({ data: records, rows, columns: fields, headers: labelsFor(meta, fields), footer: `(${records.length} record${records.length === 1 ? '' : 's'}${filter.criteria.length || filter.subFilters?.length ? `; filter: ${printFilter(filter)}` : ''}${!options.all && records.length === limit ? '; more may exist: --limit, --skip or --all' : ''})` })
+      c.print({ data: records, rows, columns: fields, headers: labelsFor(meta, fields), footer: `(${records.length} record${records.length === 1 ? '' : 's'}${filter.criteria?.length || filter.subFilters?.length ? `; filter: ${printFilter(filter)}` : ''}${!options.all && records.length === limit ? '; more may exist: --limit, --skip or --all' : ''})` })
     })
 
   table.command('count <table>')
@@ -113,6 +136,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
     .option('--or', 'OR the --where criteria')
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON')
+    .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
     .action(async (name: string, options: QueryOptions) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
@@ -121,12 +145,25 @@ export function registerTable(program: Command, ctx: () => Context): void {
       c.print({ data: result, rows: [{ count: result.count }], columns: ['count'] })
     })
 
-  table.command('get <table> <primaryKey>')
-    .description('View one record, with field labels and display values.')
+  table.command('get <table> [primaryKey]')
+    .description('View one record, with field labels and display values: by primary key, or by a unique key with --key field=value (the web UI\'s Go To).')
     .option('--associations', 'include associated records')
-    .action(async (name: string, primaryKey: string, options: { associations?: boolean }) => {
+    .option('-k, --key <field=value...>', 'find the record by key fields instead of the primary key (one match required)')
+    .action(async (name: string, primaryKeyArg: string | undefined, options: { associations?: boolean; key?: string[] }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      let primaryKey = primaryKeyArg
+      if (options.key?.length) {
+        if (primaryKey !== undefined) throw new UsageError('Give a primary key or --key, not both.')
+        const values = parsePairs(options.key, '--key')
+        for (const field of Object.keys(values)) if (!(meta.fields as Json)[field]) throw new UsageError(`No field "${field}" in ${name}`)
+        if (!isGotoKey(meta, Object.keys(values))) c.note(`note: ${Object.keys(values).join('+')} is not a declared key of ${meta.label} (keys: ${gotoKeys(meta).map((k) => k.join('+')).join(', ')}); looking it up anyway`)
+        const found = await findRecordByKey(c.server, authenticatedFetch(c.target), meta, values)
+        if (found.found === 'none') throw new UiApiError(404, { code: 'NOT_FOUND', message: 'Record not found.' })
+        if (found.found === 'many') throw new UsageError(`More than 1 record was found for ${Object.entries(values).map(([k, v]) => `${k}=${v}`).join(', ')}; it is not a unique key (use table query).`)
+        primaryKey = found.primaryKey
+      }
+      if (primaryKey === undefined) throw new UsageError('Give a primary key, or --key field=value.')
       const result = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { includeAssociations: options.associations ? true : undefined } as never } })) as Json
       const record = (result.record ?? result) as Json
       const fieldMeta = (meta.fields ?? {}) as Record<string, Json>
@@ -135,10 +172,10 @@ export function registerTable(program: Command, ctx: () => Context): void {
     })
 
   /** Fills a form session from --set / --input-json, then prompts when asked or when required values are missing on a terminal. */
-  async function fillForm(c: Context, meta: Json, name: string, given: Json, options: { interactive?: boolean }, initial?: Json): Promise<FormSession> {
+  async function fillForm(c: Context, meta: Json, name: string, given: Json, options: { interactive?: boolean }, initial?: Json, exclude?: string[]): Promise<FormSession> {
     const fields = Object.values((meta.fields ?? {}) as Record<string, FieldMeta>)
     for (const k of Object.keys(given)) if (!(meta.fields as Json)[k]) throw new UsageError(`No field "${k}" in ${name}; fields: ${Object.keys(meta.fields as Json).join(', ')}`)
-    const session = new FormSession({ baseUrl: c.server, fetch: authenticatedFetch(c.target), scope: { table: name }, fields, initialValues: initial, tableMeta: meta as never, exclude: initial ? [] : [String(meta.primaryKeyField)] })
+    const session = new FormSession({ baseUrl: c.server, fetch: authenticatedFetch(c.target), scope: { table: name }, fields, initialValues: initial, tableMeta: meta as never, exclude: exclude ?? (initial ? [] : [String(meta.primaryKeyField)]) })
     await session.load()
     for (const k of session.promptOrder(Object.keys(given))) {
       try {
@@ -181,6 +218,35 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const record = (result.record ?? result) as Json
       const pk = (record.values as Json | undefined)?.[String(meta.primaryKeyField)] ?? record[String(meta.primaryKeyField)] ?? ''
       c.print({ data: result, rows: [{ created: `${meta.label} ${pk}`, label: record.recordLabel ?? '' }], columns: ['created', 'label'] })
+    })
+
+  table.command('copy <table> <primaryKey>')
+    .description('Copy a record: its values prefill a new record (primary key, non-editable and file fields dropped), --set changes some, and it is inserted as a separate record.')
+    .option('-s, --set <name=value...>', 'values to change in the copy')
+    .option('-i, --interactive', 'prompt for every editable field, the copied values shown')
+    .option('--dry-run', 'print the values the copy would insert and stop')
+    .action(async (name: string, primaryKey: string, options: { set?: string[]; interactive?: boolean; dryRun?: boolean }) => {
+      const c = ctx()
+      const meta = await tableMeta(c, name)
+      if (meta.insertPermission === false) throw new UiApiError(403, { code: 'PERMISSION_DENIED', message: `You may not create ${meta.label} records` })
+      const source = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: {} as never } })) as Json
+      const sourceRecord = (source.record ?? source) as Json
+      const copied = copyRecordValues(meta, sourceRecord)
+      const given = parsePairs(options.set, '--set')
+      const session = await fillForm(c, meta, name, given, { interactive: false }, copied, [String(meta.primaryKeyField)])
+      for (const [field, label] of Object.entries((sourceRecord.displayValues ?? {}) as Json)) if (copied[field] !== undefined && given[field] === undefined && session.values[field] === copied[field]) session.displayValues[field] = String(label)
+      if (options.interactive) await promptForm(session, { skipSet: false })
+      const problems = session.validate()
+      if (Object.keys(problems).length) validationError(session, problems)
+      const values = session.submission()
+      if (options.dryRun) {
+        c.print({ data: values, rows: Object.entries(values).map(([field, value]) => ({ field, value: session.displayValues[field] ?? value ?? '' })), columns: ['field', 'value'] })
+        return
+      }
+      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}', { params: { path: { tableName: name } }, body: values as never })) as Json
+      const record = (result.record ?? result) as Json
+      const pk = (record.values as Json | undefined)?.[String(meta.primaryKeyField)] ?? ''
+      c.print({ data: result, rows: [{ created: `${meta.label} ${pk}`, label: record.recordLabel ?? '', from: `${meta.label} ${primaryKey}` }], columns: ['created', 'label', 'from'] })
     })
 
   table.command('update <table> <primaryKey>')
@@ -234,17 +300,30 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--or', 'OR the --where criteria')
     .option('-o, --order <field...>', 'order by fields; prefix - for descending')
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON')
-    .option('--format <fmt>', 'csv, xlsx, json or tsv', 'csv')
-    .option('-f, --fields <names>', 'comma-separated fields to include')
+    .option('--format <fmt>', 'csv, xlsx, json or tsv (default: from the --out extension, else csv)')
+    .option('-f, --fields <names>', 'comma-separated fields to include, in column order (default: the server\'s)')
     .option('-l, --limit <n>', 'most records')
-    .option('--out <file>', 'output file (default: <table>.<format>)')
-    .action(async (name: string, options: QueryOptions & { format: string; out?: string }) => {
+    .option('--out <file>', 'output file, or - for stdout (default: <table>.<format>)')
+    .option('--no-header', 'leave out the header row (csv, tsv, xlsx)')
+    .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
+    .action(async (name: string, options: QueryOptions & { format?: string; out?: string; header: boolean }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
-      const filter = filterFrom(options, meta)
-      const out = options.out ?? `${name}.${options.format}`
-      const result = await c.call('exportTable', { path: { tableName: name }, json: { format: options.format, filter, fieldNames: options.fields ? options.fields.split(',') : undefined, limit: options.limit ? Number(options.limit) : undefined } })
+      const fromOut = options.out && options.out !== '-' && /\.([a-z]+)$/i.exec(options.out)?.[1]?.toLowerCase()
+      const format = (options.format ?? (fromOut && EXPORT_FORMATS.includes(fromOut) ? fromOut : 'csv')).toLowerCase()
+      if (!EXPORT_FORMATS.includes(format)) throw new UsageError(`--format must be one of ${EXPORT_FORMATS.join(', ')}`)
+      const columns = columnsFrom(c, options)
+      const unknown = (columns ?? []).filter((f) => !isKnownField(meta, f))
+      if (unknown.length) throw new UsageError(`No field ${unknown.join(', ')} in ${name}; fields: ${Object.keys((meta.fields ?? {}) as Json).join(', ')}`)
+      if (options.limit !== undefined && !(Number(options.limit) > 0)) throw new UsageError('--limit must be a positive number')
+      const filter = filterFrom(options, meta, columns)
+      const out = options.out ?? `${name}.${format}`
+      const result = await c.call('exportTable', { path: { tableName: name }, json: { format, filter, fieldNames: columns, limit: options.limit ? Number(options.limit) : undefined, ...(options.header === false ? { includeHeaderRow: false } : {}) } })
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
+      if (out === '-') {
+        process.stdout.write(bytes)
+        return
+      }
       writeFileSync(out, bytes)
       c.note(`wrote ${out} (${bytes.length} bytes, ${result.contentType})`)
     })

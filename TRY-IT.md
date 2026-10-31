@@ -98,6 +98,13 @@ qqq table create pet --set name=Pixel --set personId=2 --set speciesId=2
 qqq table update pet 7 --set name=Pixel2
 qqq table delete pet 7            # asks; --yes skips
 qqq table export person --format xlsx --out people.xlsx
+qqq table export person -w "id <= 5" -o -id --fields id,firstName,email --format tsv --out -   # stdout; format also from --out
+qqq table query person --search lair            # quick search: CONTAINS over the text fields, ANDed with -w/-g
+qqq table get country --key name=Canada         # Go To by a unique key (exit 5 none, exit 2 several)
+qqq table copy pet 1 --set name=Copycat         # copy a record (--dry-run shows the values first)
+qqq apps show greetingsApp                      # an app's home: actions, reports, tables with record counts, widgets
+qqq report list                                 # the sample app has no reports
+qqq help show table person [field] ; qqq help show process greet   # help content from the metadata (none in the sample)
 qqq process list ; qqq process describe sleepInteractive
 qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
 qqq process run clonePeople -r 1,2                       # records by primary key
@@ -173,7 +180,7 @@ Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `las
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
 the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views,
-column statistics, joins, variants, audits, record copy, jobs on a durable-jobs server,
+column statistics, joins, variants, audits, jobs on a durable-jobs server,
 TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
 
 ## Reporting what you find
