@@ -110,6 +110,7 @@ qqq table query person --fields id,firstName,pet.name -w "pet.name STARTS_WITH C
 qqq table count person --join pet                     # many-side join: count and distinctCount
 qqq table get person 1 --join pet
 qqq table variants person                             # none in the sample; --variant <id|name|type:id> on table commands and process run
+qqq table stats person annualSalary --local -l 3     # column statistics; the sample has no columnStats process, --local computes them
 qqq process list ; qqq process describe sleepInteractive
 qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
 qqq process run clonePeople -r 1,2                       # records by primary key
@@ -166,7 +167,7 @@ Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `las
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
 the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views,
-column statistics, audits, a variant-backed table to verify variants against (the sample has none), jobs on a durable-jobs server,
+server-side column statistics (no columnStats process in the sample), audits, a variant-backed table to verify variants against (the sample has none), jobs on a durable-jobs server,
 TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
 
 ## Reporting what you find

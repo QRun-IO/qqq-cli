@@ -14,13 +14,13 @@ The TUI column fills in during M3.
 | NAV | 40 | 9 | 3 | 1 | 27 |
 | PRC | 60 | 24 | 24 | 0 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
-| QRY | 70 | 28 | 14 | 5 | 23 |
+| QRY | 70 | 29 | 12 | 6 | 23 |
 | REC | 65 | 28 | 23 | 2 | 12 |
 | REL | 9 | 4 | 5 | 0 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 17 | 14 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 150 | 130 | 12 | 109 |
+| **all** | 401 | 151 | 128 | 13 | 109 |
 
 ## Rows
 
@@ -157,8 +157,8 @@ The TUI column fills in during M3.
 | QRY-019 | Quick search combines with the advanced filter | pass | todo | --search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter |
 | QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | partial | todo | --join and table.field in --fields/--where/--order, labelled "Join: Field"; the sample exposes no joins, verified through an association join (person to pet) |
 | QRY-021 | Many-side exposed join repeats rows and reports the distinct count | pass | todo | a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct) |
-| QRY-022 | Column statistics aggregate the filtered rows | todo | todo | column statistics |
-| QRY-023 | Tables without QUERY_STATS offer no column statistics | todo | todo |  |
+| QRY-022 | Column statistics aggregate the filtered rows | partial | todo | qqq table stats <t> <field> [-w …] through the columnStats process; the sample has neither QUERY_STATS nor the process, so --local (same figures from the matching rows) is what was verified |
+| QRY-023 | Tables without QUERY_STATS offer no column statistics | pass | todo | without QUERY_STATS (or the process) table stats exits 2 with the reason; --local is an explicit opt-in |
 | QRY-030 | Selection menu: this page, full query result, first N, clear | pass | todo | -r ids, --filter-json, --limit |
 | QRY-031 | Bulk Edit launches with the checked record ids | todo | todo | bulk edit |
 | QRY-032 | Bulk Delete of the full query result sends the whole filter | todo | todo | bulk delete |
