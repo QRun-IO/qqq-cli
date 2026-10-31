@@ -270,7 +270,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
         return
       }
       c.print({ data: stats, rows: stats.fields.map((f) => ({ statistic: f.label, value: stats.stats.displayValues[f.name] ?? stats.stats.values[f.name] ?? '' })), columns: ['statistic', 'value'], footer: `${meta.label}: ${label}${resolved.field.type === 'DATE_TIME' ? ' (grouped by hour)' : ''}${availability.available ? '' : ' (computed locally)'}` })
-      c.print({ data: stats.valueCounts, rows: distribution, columns: ['value', 'count'], headers: [label, 'Count'], footer: countFooter(distribution.length, 'value', [stats.valueCounts.length > limit && `of ${stats.valueCounts.length}; --limit for more`]) })
+      c.print({ data: stats.valueCounts, rows: distribution, columns: ['value', 'count'], headers: [label, 'Count'], footer: countFooter(distribution.length, 'value', [stats.valueCounts.length > limit && `${stats.valueCounts.length} in all; --limit for more`]) })
     })
 
   table.command('count <table>')
