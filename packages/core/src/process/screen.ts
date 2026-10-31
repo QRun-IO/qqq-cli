@@ -16,6 +16,7 @@ import { callOperation } from '../api/call.js'
 import type { Row } from '../render/output.js'
 import type { FieldMeta, FieldValues } from '../forms/fields.js'
 import { htmlToText, widgetToBlocks, type RenderBlock } from '../widgets/render-model.js'
+import { helpContentText } from '../help/help-content.js'
 
 /** One line of PROCESS_SUMMARY_RESULTS or of a validation summary. */
 export interface SummaryLine {
@@ -149,7 +150,7 @@ export async function downloadProcessFile(baseUrl: string, fetchImpl: typeof fet
 
 /** Help entries as text (contentAsText, else content with tags stripped). */
 export function helpText(entries: ScreenStep['helpContents'] | undefined): string[] {
-  return (entries ?? []).map((h) => h.contentAsText ?? (h.format === 'HTML' ? htmlToText(String(h.content ?? '')) : String(h.content ?? h.summary ?? ''))).map((t) => t.trim()).filter(Boolean)
+  return (entries ?? []).map((h) => helpContentText(h as Record<string, unknown>) || String(h.summary ?? '')).map((t) => t.trim()).filter(Boolean)
 }
 
 /** Process-level help (`helpContents` by slot) as text, in slot order. */

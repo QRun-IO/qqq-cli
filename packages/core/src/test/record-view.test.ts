@@ -97,3 +97,34 @@ test('DATE_TIME values show in the viewer\'s zone, or as the UTC instant with ut
   assert.equal(valueText(f, r, { dateTime: { utc: true } }).text, '2026-10-31T22:33:01Z')
   assert.equal(valueText(f, rec({ when: null }), { empty: '--' }).text, '--')
 })
+
+test('cell mode keeps the adornment rules without link targets, hints or tooltips', async () => {
+  const { valueText } = await import('../records/record-view.js')
+  const record = { values: { secret: 'hunter2', owner: 3, file: 'QUJD', when: '2026-10-31T19:30:00Z' }, displayValues: { owner: 'Avery' } }
+  const secret = { name: 'secret', label: 'Secret', type: 'STRING', adornments: [{ type: 'REVEAL' }, { type: 'TOOLTIP', values: { staticText: 'shh' } }] }
+  assert.equal(valueText(secret, record, { cell: true }).text, '••••••••')
+  assert.equal(valueText(secret, record, { cell: true, reveal: true }).text, 'hunter2')
+  const owner = { name: 'owner', label: 'Owner', type: 'INTEGER', possibleValueSourceName: 'person' }
+  assert.equal(valueText(owner, record).text, 'Avery → person 3')
+  assert.equal(valueText(owner, record, { cell: true }).text, 'Avery')
+  assert.equal(valueText({ name: 'file', label: 'File', type: 'BLOB' }, record, { cell: true, tableName: 't', primaryKey: '1' }).text, '<file, 3 bytes>')
+  assert.equal(valueText({ name: 'when', label: 'When', type: 'DATE_TIME' }, record, { cell: true, dateTime: { timeZone: 'America/Chicago' } }).text, '2026-10-31 14:30:00 CDT')
+})
+
+test('one help text rule: help show, the record view and process screens agree', async () => {
+  const { helpContentText } = await import('../help/help-content.js')
+  const { helpEntryText } = await import('../records/record-view.js')
+  const { helpText } = await import('../process/screen.js')
+  const entries = [
+    { content: '<p>Use <b>this</b></p>', format: 'HTML' },
+    { content: '**md**', format: 'MARKDOWN', contentAsHtml: '<p><strong>md</strong></p>' },
+    { content: 'plain', format: 'TEXT' },
+    { content: 'x', contentAsText: 'from server' },
+  ]
+  for (const entry of entries) {
+    const text = helpContentText(entry)
+    assert.equal(helpEntryText(entry), text)
+    assert.deepEqual(helpText([entry]), [text])
+  }
+  assert.deepEqual(entries.map((e) => helpContentText(e)), ['Use this', 'md', 'plain', 'from server'])
+})
