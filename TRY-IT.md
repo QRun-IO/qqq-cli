@@ -10,6 +10,15 @@ Updated with every milestone. Each entry says what exists today and the one comm
 - Launchers: `scripts/dev/sample-server.sh` and `scripts/dev/tui-spike.sh` are linked as
   `~/.local/bin/qqq-sample-server` and `~/.local/bin/qqq-tui-spike`.
 
+## Staying on the latest build
+
+There is no install step. `qqq-tui-spike` runs the source checked out in this repo with Bun, so after
+any commit the next launch is the latest; quit with F10 and start it again. The launcher prints the
+branch and commit it is running (`spike/m0-opentui@6d68084`, with `+local` when there are uncommitted
+changes) and the status line shows the same build id. I keep this checkout on the branch being built
+and say when a new build is ready. After a reboot, `qqq-sample-server start` again; after pulling qqq
+`develop`, `qqq-sample-server build` then `restart`.
+
 ## Sample server (UI API 1.8.0, mock auth, in-memory data)
 
 ```sh

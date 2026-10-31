@@ -53,7 +53,7 @@ export function Shell()
    const [sideCursor, setSideCursor] = useState(0);
    const [refreshToken, setRefreshToken] = useState(0);
    const cursorPk = useRef<{ pk: string | number | null; label: string }>({ pk: null, label: "" });
-   const [status, setStatus] = useState<StatusInfo>({ server: BASE.replace("/qqq/v1", ""), apiVersion: "…", auth: "…", sessionShort: "", pingMs: null, stream: "connecting", lastEvent: "no events yet", jobs: "n/a", clock: "" });
+   const [status, setStatus] = useState<StatusInfo>({ server: BASE.replace("/qqq/v1", ""), apiVersion: "…", auth: "…", sessionShort: "", pingMs: null, stream: "connecting", lastEvent: "no events yet", jobs: "n/a", clock: "", build: process.env.QQQ_SPIKE_BUILD ?? "dev" });
    const [bootError, setBootError] = useState<string | null>(null);
 
    const route = routes[routes.length - 1]!;

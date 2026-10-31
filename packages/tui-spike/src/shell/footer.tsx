@@ -12,6 +12,7 @@ export interface StatusInfo
    lastEvent: string;
    jobs: string;
    clock: string;
+   build: string;
 }
 
 export function StatusLine({ width, info }: { width: number; info: StatusInfo })
@@ -19,7 +20,7 @@ export function StatusLine({ width, info }: { width: number; info: StatusInfo })
    const ping = info.pingMs === null ? "ping --" : `ping ${info.pingMs.toFixed(0)} ms`;
    const streamColor = info.stream === "connected" ? T.ok : info.stream === "reconnecting" ? T.warn : T.dim;
    const left = ` ${info.server} · ${info.auth} ${info.sessionShort} · UI API ${info.apiVersion} · ${ping} · `;
-   const right = ` · jobs ${info.jobs} · ${info.lastEvent} · ${info.clock} `;
+   const right = ` · jobs ${info.jobs} · ${info.lastEvent} · ${info.build} · ${info.clock} `;
    const streamText = `stream ${info.stream}`;
    const fill = Math.max(0, width - left.length - streamText.length - right.length);
    return (

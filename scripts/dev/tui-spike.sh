@@ -11,7 +11,11 @@ export QQQ_SERVER="${QQQ_SERVER:-http://localhost:${QQQ_SAMPLE_PORT:-8077}}"
 export QQQ_SPIKE_REPORT="${QQQ_SPIKE_REPORT:-${XDG_STATE_HOME:-$HOME/.local/state}/qqq-dev/spike-perf.json}"
 mkdir -p "$(dirname "$QQQ_SPIKE_REPORT")"
 cd "$pkg"
-[[ -d node_modules ]] || bun install
+bun install --silent 2>/dev/null || bun install
+build="$(git -C "$pkg" rev-parse --abbrev-ref HEAD 2>/dev/null)@$(git -C "$pkg" rev-parse --short HEAD 2>/dev/null)"
+[[ -n "$(git -C "$pkg" status --porcelain -- . 2>/dev/null)" ]] && build="$build+local"
+export QQQ_SPIKE_BUILD="$build"
+echo "qqq-tui-spike: $build ($(git -C "$pkg" log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M' 2>/dev/null)) · server $QQQ_SERVER"
 case "${1:-run}" in
    run) exec bun run src/main.tsx ;;
    binary) [[ -x dist/qqq-tui-spike-darwin-arm64 ]] || bun run build.ts darwin; exec ./dist/qqq-tui-spike-darwin-arm64 ;;
