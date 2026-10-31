@@ -14,13 +14,13 @@ The TUI column fills in during M3.
 | NAV | 40 | 9 | 3 | 1 | 27 |
 | PRC | 60 | 24 | 24 | 0 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
-| QRY | 70 | 27 | 20 | 0 | 23 |
-| REC | 65 | 28 | 25 | 0 | 12 |
+| QRY | 70 | 28 | 14 | 5 | 23 |
+| REC | 65 | 28 | 23 | 2 | 12 |
 | REL | 9 | 4 | 5 | 0 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 17 | 14 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 149 | 138 | 5 | 109 |
+| **all** | 401 | 150 | 130 | 12 | 109 |
 
 ## Rows
 
@@ -155,8 +155,8 @@ The TUI column fills in during M3.
 | QRY-017 | Filters live in the URL: reload, back/forward and Material-style JSON links | pass | todo | --print-filter gives the JSON the web links accept |
 | QRY-018 | Backend-only operators from links render and filter correctly | pass | todo | any operator in --where |
 | QRY-019 | Quick search combines with the advanced filter | pass | todo | --search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter |
-| QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | todo | todo | joins |
-| QRY-021 | Many-side exposed join repeats rows and reports the distinct count | todo | todo | joins |
+| QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | partial | todo | --join and table.field in --fields/--where/--order, labelled "Join: Field"; the sample exposes no joins, verified through an association join (person to pet) |
+| QRY-021 | Many-side exposed join repeats rows and reports the distinct count | pass | todo | a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct) |
 | QRY-022 | Column statistics aggregate the filtered rows | todo | todo | column statistics |
 | QRY-023 | Tables without QUERY_STATS offer no column statistics | todo | todo |  |
 | QRY-030 | Selection menu: this page, full query result, first N, clear | pass | todo | -r ids, --filter-json, --limit |
@@ -174,18 +174,18 @@ The TUI column fills in during M3.
 | QRY-052 | Update, rename and delete your view | todo | todo |  |
 | QRY-053 | Duplicate names and unknown views are reported without changes | todo | todo |  |
 | QRY-054 | A view shared with you opens read-only and the backend refuses changes | todo | todo |  |
-| QRY-060 | Variant table asks for a variant, queries with it and remembers it | todo | todo | table variants |
-| QRY-061 | Dismissing the variant prompt queries nothing; backend requires a variant | todo | todo |  |
+| QRY-060 | Variant table asks for a variant, queries with it and remembers it | partial | todo | table variants; --variant on query, count, get, copy, export, writes and process run; a terminal asks; not remembered between commands; no variant table in the sample |
+| QRY-061 | Dismissing the variant prompt queries nothing; backend requires a variant | partial | todo | no --variant and no terminal (or no answer): exit 2, nothing queried; no variant table in the sample |
 | QRY-062 | A table without count, export or write capabilities offers none of them | pass | todo | describe shows capabilities; server refuses |
 | QRY-063 | Enum-backed Pet Species table is read-only | pass | todo | server refuses writes |
 | QRY-064 | Backend refuses count and export for a table without those capabilities | pass | todo |  |
 | QRY-065 | Export streams from the v1 export route | pass | todo | POST /table/{t}/export |
-| QRY-066 | Variant options come from the v1 variants route | todo | todo | variants route |
+| QRY-066 | Variant options come from the v1 variants route | partial | todo | GET /table/{t}/variants (called live; the sample lists none) |
 | QRY-067 | Go To opens a record by its primary key or a configured unique key (Material gotoFieldNames) | pass | todo | table get --key; the primary key and Material gotoFieldNames are the declared keys, other fields looked up with a note |
 | QRY-068 | Default grid columns follow the table sections (section order, each field once), not the metadata field order  | pass | todo | default columns follow sections by tier |
 | QRY-069 | Pagination numbers are locale formatted in the shown range and the total | n/a | todo | locale formatting |
 | QRY-070 | Query screen keyboard shortcuts n (new record), r (refresh the query), f (open the filter builder) | n/a | todo | shortcuts |
-| QRY-071 | Processes launched from a variant table run with the chosen variant (tableVariant on init and every step) and  | todo | todo | tableVariant on processes |
+| QRY-071 | Processes launched from a variant table run with the chosen variant (tableVariant on init and every step) and  | partial | todo | process run --variant: tableVariant on init, every step and status; sent live, no variant table to observe |
 | QRY-080 | Basic mode displays default quick filters from table metadata and applies their criteria | n/a | todo | quick filters UI |
 | QRY-081 | Add quick filter accepts metadata fields and remembers a chosen field | n/a | todo |  |
 | QRY-082 | Basic mode cannot simplify repeated or nested advanced conditions and explains why | n/a | todo |  |
@@ -272,8 +272,8 @@ The TUI column fills in during M3.
 | REC-061 | An editable dynamicForm widget on a record form validates its fields and persists them in the declared JSON re | todo | todo |  |
 | REC-062 | Inline enum possible values filter by label prefix without a lookup request; CHIP adornments style options and | pass | todo | inline enums |
 | REC-060 | Material table and field form adjusters and field rules operate against the real QQQ sample server | todo | todo | adjusters wired, no sample to test |
-| REC-064 | Record sections render qualified fields from readable exposed joins | todo | todo | joins |
-| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | todo | todo | variants |
+| REC-064 | Record sections render qualified fields from readable exposed joins | partial | todo | table get --join adds joined fields (queryJoins); verified with an association join |
+| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | todo | get, copy and update -i read with --variant; v1 writes ignore it (server finding #13) |
 | REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | todo | todo |  |
 | SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | todo |  |
 | SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | todo | disabled tables listed with a reason |
