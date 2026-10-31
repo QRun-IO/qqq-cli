@@ -39,13 +39,25 @@ function openInterface(out: NodeJS.WritableStream, input: NodeJS.ReadableStream 
   return rl
 }
 
-/** Ctrl-D (end of input) at a question is a usage error; an abort the caller asked for stays an abort. */
+/**
+ * Ctrl-D (end of input) at a question is a usage error; an abort the caller asked for stays an abort.
+ * The interface closing is watched too: some Node versions (22.12) leave the pending question
+ * unsettled when Ctrl-D closes the interface, which would otherwise hang the command.
+ */
 async function question(rl: Interface, text: string, signal?: AbortSignal): Promise<string> {
+  let onClose = () => {}
+  const closed = new Promise<never>((_, reject) => {
+    onClose = () => reject(signal?.aborted ? signal.reason : Object.assign(new Error('The interface was closed.'), { code: 'ABORT_ERR' }))
+    rl.once('close', onClose)
+  })
+  closed.catch(() => {})
   try {
-    return await rl.question(text, { signal })
+    return await Promise.race([rl.question(text, { signal }), closed])
   } catch (error) {
     if (!signal?.aborted && (error as { code?: string }).code === 'ABORT_ERR') throw new UsageError('No answer (end of input).')
     throw error
+  } finally {
+    rl.off('close', onClose)
   }
 }
 
