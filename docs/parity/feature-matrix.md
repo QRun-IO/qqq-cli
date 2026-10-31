@@ -14,13 +14,13 @@ The TUI column fills in during M3.
 | NAV | 40 | 9 | 3 | 1 | 27 |
 | PRC | 60 | 24 | 24 | 0 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
-| QRY | 70 | 29 | 12 | 6 | 23 |
+| QRY | 70 | 29 | 7 | 13 | 21 |
 | REC | 65 | 28 | 23 | 2 | 12 |
 | REL | 9 | 4 | 5 | 0 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 17 | 14 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 151 | 128 | 13 | 109 |
+| **all** | 401 | 151 | 123 | 20 | 107 |
 
 ## Rows
 
@@ -134,10 +134,10 @@ The TUI column fills in during M3.
 | QRY-090 | Column menu sorts, pins, opens a field filter and hides a column | n/a | todo | saved views and column UI |
 | QRY-091 | Column menu copies page or full query values in backend sort order | n/a | todo | saved views and column UI |
 | QRY-092 | Column chooser searches, groups, counts and marks changed layouts | n/a | todo | saved views and column UI |
-| QRY-093 | Last saved view and unsaved edits survive reopening and reload | n/a | todo | saved views and column UI |
-| QRY-094 | Counted quick views render and open their saved-view route | n/a | todo | saved views and column UI |
+| QRY-093 | Last saved view and unsaved edits survive reopening and reload | n/a | todo | no screen state to keep: views are opened by name |
+| QRY-094 | Counted quick views render and open their saved-view route | partial | todo | saved-view list counts quick views with doCount (--counts counts all) |
 | QRY-095 | A new query defaults to fifty rows per page | n/a | todo | saved views and column UI |
-| QRY-096 | A saved view reconciles removed fields and warns the user | n/a | todo | saved views and column UI |
+| QRY-096 | A saved view reconciles removed fields and warns the user | partial | todo | opening a view drops removed fields with Material's warnings on stderr |
 | QRY-001 | Record list renders metadata labels and all records in the default primary-key-descending order | pass | todo | default order by primary key |
 | QRY-002 | Pagination with Material page sizes and URL state | pass | todo | --limit, --skip, --all |
 | QRY-003 | Column header sort cycles ascending, descending and default; sort kept in the URL | pass | todo | --order, -field for descending |
@@ -169,11 +169,11 @@ The TUI column fills in during M3.
 | QRY-041 | XLSX and JSON exports carry the same rows | pass | todo | csv, xlsx, json, tsv; format from --out extension; --no-header; bad format or field exit 2 before the request |
 | QRY-042 | Nothing to export disables the formats | n/a | todo | nothing to disable |
 | QRY-043 | Backend refuses exports of unreadable tables | pass | todo | server refuses |
-| QRY-050 | Your saved views are listed and open on their own route | todo | todo | saved views |
-| QRY-051 | Saving a new view stores filter, sort, columns and page size | todo | todo |  |
-| QRY-052 | Update, rename and delete your view | todo | todo |  |
-| QRY-053 | Duplicate names and unknown views are reported without changes | todo | todo |  |
-| QRY-054 | A view shared with you opens read-only and the backend refuses changes | todo | todo |  |
+| QRY-050 | Your saved views are listed and open on their own route | partial | todo | qqq saved-view list <t>, open <t> <view>, table query --view; the sample has no saved views; verified with node tests and a local stub server |
+| QRY-051 | Saving a new view stores filter, sort, columns and page size | partial | todo | saved-view save --name: filter, sort, columns and page size as the Material RecordQueryView |
+| QRY-052 | Update, rename and delete your view | partial | todo | saved-view save --replace, rename, delete (asks; --yes) |
+| QRY-053 | Duplicate names and unknown views are reported without changes | partial | todo | a name in use is refused before any change; an unknown view exits 2 with the list |
+| QRY-054 | A view shared with you opens read-only and the backend refuses changes | partial | todo | views shared with you are listed as shared by their owner; changes to them are the server's to refuse, its message shown |
 | QRY-060 | Variant table asks for a variant, queries with it and remembers it | partial | todo | table variants; --variant on query, count, get, copy, export, writes and process run; a terminal asks; not remembered between commands; no variant table in the sample |
 | QRY-061 | Dismissing the variant prompt queries nothing; backend requires a variant | partial | todo | no --variant and no terminal (or no answer): exit 2, nothing queried; no variant table in the sample |
 | QRY-062 | A table without count, export or write capabilities offers none of them | pass | todo | describe shows capabilities; server refuses |

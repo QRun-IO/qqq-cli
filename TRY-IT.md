@@ -111,6 +111,8 @@ qqq table count person --join pet                     # many-side join: count an
 qqq table get person 1 --join pet
 qqq table variants person                             # none in the sample; --variant <id|name|type:id> on table commands and process run
 qqq table stats person annualSalary --local -l 3     # column statistics; the sample has no columnStats process, --local computes them
+qqq saved-view list person ; qqq saved-view open person <view> ; qqq table query person --view <view> -w …   # saved views (none in the sample)
+qqq saved-view save person --name Mine -w "lastName = Sample" -o -id --fields id,firstName -l 50 ; saved-view rename|delete person Mine …
 qqq process list ; qqq process describe sleepInteractive
 qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
 qqq process run clonePeople -r 1,2                       # records by primary key
@@ -166,7 +168,7 @@ Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `las
 `startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
-the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views,
+the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views on a server that has them,
 server-side column statistics (no columnStats process in the sample), audits, a variant-backed table to verify variants against (the sample has none), jobs on a durable-jobs server,
 TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
 
