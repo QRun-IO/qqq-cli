@@ -34,3 +34,8 @@ test('tables drop hidden columns and strip html cells; composites nest', () => {
   assert.equal(blocksToText(c), 'Open: 123 orders\n\nhi')
   assert.equal(blocksToText(widgetToBlocks({ type: 'statistics', hasPermission: false, label: 'Secret' })), 'Secret\n[WARNING] You do not have permission to view this data.')
 })
+
+test('multiStatistics reads statisticList (the sample server spelling) as well as statisticsList', () => {
+  const blocks = widgetToBlocks({ type: 'multiStatistics', statisticsGroupData: [{ header: 'This Week', statisticList: [{ label: 'Red', value: 15 }] }] })
+  assert.deepEqual(blocks.filter((b) => b.kind === 'stat'), [{ kind: 'stat', label: 'Red', value: '15', context: undefined }])
+})

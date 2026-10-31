@@ -86,6 +86,45 @@ STATUS = {
  'QRY-093': (X, 'no screen state to keep: views are opened by name'), 'QRY-094': (N, 'saved-view list counts quick views with doCount (--counts counts all)'), 'QRY-096': (N, 'opening a view drops removed fields with Material\'s warnings on stderr'), 'HLP-006': (X, 'author affordance'),
 }
 
+# TUI column (M3, qqq ui): rows verified in tmux against the sample server or by the in-memory tests in
+# packages/tui/test. Rows not listed fall back to n/a for browser-only rows and todo for the rest.
+TUI = {
+ 'NAV-001': (P, 'qqq ui table query <t>; :table query <t>'), 'NAV-002': (P, 'Apps tree, backend order'), 'NAV-003': (P, 'nested apps in the tree'),
+ 'NAV-004': (P, 'Enter opens; current entry marked; arrows expand and collapse'), 'NAV-005': (N, 'markers for processes and reports; icons not drawn'),
+ 'NAV-006': (P, 'hidden tables and processes are not listed'), 'NAV-007': (P, ':table query and :record open hidden tables the user may read'),
+ 'NAV-008': (P, 'app home: sections with tables, processes, reports'), 'NAV-009': (P, 'record counts beside tables'), 'NAV-010': (P, ''),
+ 'NAV-011': (P, 'dashboard apps draw their widgets'), 'NAV-012': (N, 'app name in the title bar'), 'NAV-014': (P, 'title-bar path: apps, table, record or form'),
+ 'NAV-017': (N, 'home: counts and app list; no quick actions'), 'NAV-018': (P, 'qqq ui <route in the CLI grammar>'), 'NAV-023': (P, 'g: primary key or a configured unique key (kernel gotoKeys)'),
+ 'NAV-024': (P, 'F2, /, ., Ctrl+K palette with type and app context'), 'NAV-025': (N, 'palette lists recents; no search page'), 'NAV-027': (N, 'F9 Connection: versions, features, extensions, metadata generation'),
+ 'NAV-028': (N, 'reports listed; run through :report run'), 'NAV-030': (N, 'palette calls POST /search; the sample has no provider'), 'NAV-035': (P, 'Esc returns to the record or query, cursor kept'),
+ 'PRF-002': (P, 'server-paged grid, page = visible rows'), 'PRF-003': (P, 'server sort and filter'), 'PRF-005': (P, 'progress N/M, elapsed, 250 ms polling'),
+ 'PRC-001': (P, 'grid selection or record, ids sent'), 'PRC-002': (P, 'without a selection: the grid filter'), 'PRC-004': (P, ''), 'PRC-005': (P, 'Space selects, b runs a table process'),
+ 'PRC-007': (N, 'EDIT_FORM, BULK_EDIT_FORM, VIEW_FORM, HELP_TEXT, VALIDATION_REVIEW_SCREEN, PROCESS_SUMMARY_RESULTS'), 'PRC-008': (N, 'HELP_TEXT shown above the form'),
+ 'PRC-009': (P, 'includeFieldNames via the kernel runner'), 'PRC-010': (P, 'required checked by field before submit'), 'PRC-011': (P, 'picker'), 'PRC-012': (P, 'summary shows view fields'),
+ 'PRC-017': (P, 'kernel runner'), 'PRC-018': (P, 'kernel runner'), 'PRC-019': (P, 'bar, N/M, message, elapsed'), 'PRC-020': (N, 'Esc asks, then POST cancel; the sample keeps the run'),
+ 'PRC-021': (P, 'failure message shown; F5 re-runs'), 'PRC-022': (P, 'F5 or r runs again with the same records'), 'PRC-024': (P, 'step list with marks'),
+ 'PRC-026': (P, 'validate or skip, then run'), 'PRC-027': (P, 'summary lines colored by status'), 'PRC-028': (P, ''), 'PRC-029': (P, 'Ctrl+T marks fields; bulkEditEnabledFields'),
+ 'PRC-031': (X, 'bulk load parked for the TUI'), 'PRC-032': (X, 'bulk load parked for the TUI'), 'PRC-033': (X, 'bulk load parked for the TUI'), 'PRC-047': (P, ''), 'PRC-048': (P, ''), 'PRC-051': (P, 'contingent picker narrows'),
+ 'QRY-001': (P, ''), 'QRY-002': (P, 'PgUp/PgDn, Ctrl+F/B, Home/End across pages'), 'QRY-003': (P, 's cycles asc, desc, default'), 'QRY-004': (P, 'v: columns on/off and order, kept per table in the config file'),
+ 'QRY-005': (P, 'v: widths, fit or fill, zebra, density'), 'QRY-006': (P, 'Esc lands on the row last viewed, filter and page kept'), 'QRY-007': (P, 'error shown in the grid; F5 retries'),
+ 'QRY-010': (P, 'operators by field type in the filter dialog'), 'QRY-011': (P, ''), 'QRY-012': (P, 'date presets: now(-7d), thisPeriod(month) …'), 'QRY-015': (P, 'labels in the picker, ids sent; typed labels resolved'),
+ 'QRY-016': (P, 'AND/OR and groups, guided and advanced'), 'QRY-017': (N, 'the grammar and the CLI command are shown; no URL'), 'QRY-030': (N, 'Space and Ctrl+A (page)'), 'QRY-031': (P, ''), 'QRY-034': (N, 'F9 lists table processes; bulk load parked'),
+ 'QRY-040': (P, 'x: visible columns, filter and sort, file dialog'), 'QRY-041': (P, ''), 'QRY-050': (N, 'F9 runs saved-view list in a pane'), 'QRY-062': (P, 'F-keys hidden without permission'),
+ 'QRY-065': (P, ''), 'QRY-067': (P, 'g'), 'QRY-068': (P, ''), 'QRY-070': (P, 'n r f s and the F-keys; off with keyboard.singleKeyShortcuts'), 'QRY-083': (P, 'guided builder edits and removes conditions'), 'QRY-084': (P, 'sort in the builder; c clears'), 'QRY-086': (P, ''),
+ 'REC-001': (P, 'sections by tier, two columns when they fit'), 'REC-003': (P, 'error shown in the record pane'), 'REC-005': (P, 'local validation by field'), 'REC-006': (P, 'new record replaces the form'),
+ 'REC-008': (P, 'Esc asks when there are unsaved changes; F10 warns too'), 'REC-009': (P, 'only changed fields sent'), 'REC-010': (P, 'non-editable fields read-only'), 'REC-012': (P, 'F8 asks; the grid moves on to the next record'),
+ 'REC-013': (P, 'c: copyRecordValues'), 'REC-014': (N, 'TEXT single line with $EDITOR on Ctrl+E'), 'REC-015': (P, ''), 'REC-016': (P, 'Space toggles'), 'REC-017': (P, ''), 'REC-018': (P, 'local zone in and out (kernel datetime)'),
+ 'REC-021': (P, 'masked'), 'REC-028': (P, 'links marked, Enter follows (kernel record-view)'), 'REC-033': (N, 'masked; Enter reveals'), 'REC-034': (N, 'Enter saves through the file dialog; no sample field'),
+ 'REC-042': (N, 'F9 runs audit list in a pane'), 'REC-044': (P, ''), 'REC-045': (P, 'picker by keyboard'), 'REC-048': (P, 'fieldErrors by field'), 'REC-050': (P, ''), 'REC-051': (P, ''), 'REC-052': (P, 'contingent fields wait and narrow'), 'REC-055': (P, 'n e c d; F-keys'),
+ 'REL-001': (N, 'labels with links in the record view'), 'REL-002': (P, 'child lists; F9 Query all opens the filtered list'), 'REL-003': (P, 'F7 on a child list prefills the parent'), 'REL-004': (N, 'one level shown; open a child for its own'),
+ 'REL-005': (P, 'the parent reloads on return'), 'REL-006': (P, 'unavailable panel (kernel associationGroups)'),
+ 'SEC-003': (P, 'F7 hidden without insert permission'), 'SEC-004': (P, ''), 'SEC-005': (P, ''), 'SEC-020': (P, 'MOCK session, shared with the CLI keyring'), 'SEC-021': (P, 'F9 Sign out'), 'SEC-025': (N, 'device flow screen; not tried against a provider'), 'SEC-031': (P, ''), 'SEC-032': (P, 'unknown type refused with a message'),
+ 'INT-001': (P, 'keyboard only by design'), 'INT-002': (P, ''), 'INT-003': (P, 'modal dialogs, Esc closes'), 'INT-004': (P, ''), 'INT-007': (P, ''), 'INT-009': (P, 'loading lines'), 'INT-010': (P, 'F5 retries'), 'INT-012': (P, 'F5 and on return'), 'INT-013': (N, 'no records message; F7 offered'), 'INT-014': (P, 'sign-in screen shows the failure'),
+ 'WID-001': (P, ''), 'WID-002': (P, 'bars in block characters'), 'WID-004': (P, ''), 'WID-009': (P, 'sparkline and table'), 'WID-012': (P, ''), 'WID-014': (P, 'percentage bars'), 'WID-016': (P, ''), 'WID-017': (P, 'segments per dataset'),
+ 'WID-018': (P, ''), 'WID-019': (P, ''), 'WID-023': (P, 'big numbers, up/down'), 'WID-040': (N, 'declared order, v reorders; one column'), 'WID-051': (P, 'error contained to the widget'), 'WID-053': (P, ''), 'WID-060': (N, 'record section widgets get the id'),
+ 'HLP-002': (N, 'F1 shows table and field help; the sample has none'), 'HLP-005': (P, 'type in F1'),
+}
+
 rows = []
 for line in open(SRC, encoding='utf-8', errors='replace'):
     m = re.match(r'^\|\s*([A-Z]{3}-\d{3})\s*\|\s*(.*?)\s*\|', line)
@@ -93,19 +132,25 @@ for line in open(SRC, encoding='utf-8', errors='replace'):
         rows.append((m.group(1), m.group(2)))
 
 fam_counts = collections.defaultdict(collections.Counter)
+tui_counts = collections.defaultdict(collections.Counter)
 out = ['# Terminal clients parity matrix', '',
        'Generated by `scripts/parity-matrix.py` from the Next UI acceptance matrix (`qqq-frontend-next/docs/acceptance/feature-matrix.md`,',
        f'{len(rows)} rows). Same ids; two columns added. **pass** = verified against the local sample server in this repo\'s',
        'development; **partial** = works with the noted gap; **todo** = planned; **n/a** = browser-only, with the reason.',
-       'The TUI column fills in during M3.', '']
+       'The TUI column is `qqq ui` (M3); its notes start with "TUI:".', '']
 lines = []
 for rid, feature in rows:
     fam = rid[:3]
     cli, note = STATUS.get(rid, (T, ''))
     # the TUI column: browser-only rows stay n/a; everything else is M3 work
     tui = X if cli == X and (fam in ('INT', 'SEC') or 'phone' in note or 'browser' in note or 'chrome' in note or 'theme' in note or 'Google' in note or 'web-only' in note) else T
+    tnote = ''
+    if rid in TUI:
+        tui, tnote = TUI[rid]
     fam_counts[fam][cli] += 1
-    lines.append(f'| {rid} | {feature[:110].replace("|", "/")} | {cli} | {tui} | {note.replace("|", "/")} |')
+    tui_counts[fam][tui] += 1
+    both = note if not tnote else (f'{note}; TUI: {tnote}' if note else f'TUI: {tnote}')
+    lines.append(f'| {rid} | {feature[:110].replace("|", "/")} | {cli} | {tui} | {both.replace("|", "/")} |')
 out.append('## Summary (CLI column)'); out.append('')
 out.append('| Family | rows | pass | todo | partial | n/a |'); out.append('|---|---|---|---|---|---|')
 total = collections.Counter()
@@ -113,7 +158,14 @@ for fam in sorted(fam_counts):
     c = fam_counts[fam]; total.update(c)
     out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[X]} |')
 out.append(f'| **all** | {sum(total.values())} | {total[P]} | {total[T]} | {total[N]} | {total[X]} |'); out.append('')
+out.append('## Summary (TUI column)'); out.append('')
+out.append('| Family | rows | pass | todo | partial | n/a |'); out.append('|---|---|---|---|---|---|')
+ttotal = collections.Counter()
+for fam in sorted(tui_counts):
+    c = tui_counts[fam]; ttotal.update(c)
+    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[X]} |')
+out.append(f'| **all** | {sum(ttotal.values())} | {ttotal[P]} | {ttotal[T]} | {ttotal[N]} | {ttotal[X]} |'); out.append('')
 out.append('## Rows'); out.append(''); out.append('| ID | Feature | CLI | TUI | Note |'); out.append('|---|---|---|---|---|')
 out.extend(lines); out.append('')
 open(OUT, 'w', encoding='utf-8').write('\n'.join(out))
-print(f'{len(rows)} rows -> {OUT}; CLI: ' + ', '.join(f'{k} {v}' for k, v in sorted(total.items())))
+print(f'{len(rows)} rows -> {OUT}; CLI: ' + ', '.join(f'{k} {v}' for k, v in sorted(total.items())) + '; TUI: ' + ', '.join(f'{k} {v}' for k, v in sorted(ttotal.items())))

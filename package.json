@@ -21,7 +21,9 @@
     "test": "npm test --workspaces --if-present",
     "mock": "prism mock --dynamic --port 4010 packages/ui-api-client/openapi/qqq-v1.json",
     "prepublishOnly": "npm run build",
-    "lint": "node scripts/lint.mjs"
+    "lint": "node scripts/lint.mjs",
+    "test:tui": "cd packages/tui && bun install --frozen-lockfile && bun test",
+    "typecheck:tui": "cd packages/tui && bun install --frozen-lockfile && npx tsc -p tsconfig.json"
   },
   "devDependencies": {
     "@stoplight/prism-cli": "5.16.0",

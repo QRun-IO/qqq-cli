@@ -5,7 +5,7 @@
 
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { displayDateTime, readUiSettings, saveDownload, valueText as recordValueText, type DisplayOptions, type FieldMeta, type RecordLike } from '@qrun-io/qqq-core'
+import { displayDateTime, readFilePreferences, saveDownload, valueText as recordValueText, type DisplayOptions, type FieldMeta, type RecordLike } from '@qrun-io/qqq-core'
 import { UsageError } from '../context.js'
 
 export type Json = Record<string, unknown>
@@ -63,11 +63,12 @@ export function readFileArg(path: string | number, flag: string): Uint8Array {
 }
 
 /**
- * Where a download goes when no --out / --out-dir names a place: the `download-dir` setting
- * (`qqq config set download-dir`), created when missing, else the current directory.
+ * Where a download goes when no --out / --out-dir names a place: the download directory of the
+ * file preferences the TUI shares (`qqq config set download-dir`), created when missing, else the
+ * current directory.
  */
 export function downloadDir(): string {
-  const dir = readUiSettings().defaultDownloadDir
+  const dir = readFilePreferences().downloadDir
   if (!dir) return '.'
   mkdirSync(dir, { recursive: true })
   return dir

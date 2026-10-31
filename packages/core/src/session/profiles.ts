@@ -18,26 +18,43 @@ export interface Profile {
   server: string
   note?: string
   createdAt?: string
+  /** Display settings of the terminal UI for this profile only (override the global `ui`). */
+  ui?: Pick<UiSettings, 'theme'>
+}
+
+/** Local display settings of the terminal UI (not server preferences): theme and per-screen view settings. */
+export interface UiSettings {
+  theme?: string
+  /** Keyed by screen, e.g. `table:person`, `record:person`, `app:peopleApp`. */
+  views?: Record<string, ViewSettings>
+}
+
+/** How one screen is shown: grid columns and widths, stripes, density; record columns; widget order. */
+export interface ViewSettings {
+  /** Visible grid columns, in order. */
+  columns?: string[]
+  /** Column widths in cells, by field name. */
+  widths?: Record<string, number>
+  /** How free width is used: fit columns to content, or fill the terminal width. */
+  fit?: 'content' | 'fill'
+  zebra?: boolean
+  headerRule?: boolean
+  density?: 'compact' | 'comfortable'
+  /** Record view: one or two columns of fields, and the label width. */
+  recordColumns?: 1 | 2
+  labelWidth?: number
+  /** App home: widget names in display order. */
+  widgetOrder?: string[]
+  [key: string]: unknown
 }
 
 export interface Config {
   defaultProfile?: string
   profiles: Record<string, Profile>
-  /** Local client settings shared by the CLI and the TUI (download and upload directories, …). */
+  /** Local client settings shared by the CLI and the TUI: theme, views, files (files/navigator.ts). */
   ui?: UiSettings
   /** Sections this version does not know are kept as they are. */
   [section: string]: unknown
-}
-
-/** The `ui` section of config.json. */
-export interface UiSettings {
-  /** Where downloaded files go when no --out / --out-dir is given (created when missing). */
-  defaultDownloadDir?: string
-  /** Where file pickers for uploads start. */
-  defaultUploadDir?: string
-  /** Whether a head asks before writing a download. */
-  downloadPrompt?: boolean
-  [key: string]: unknown
 }
 
 /** config.json is not valid JSON: refused, so a write never replaces the profiles with nothing. */
@@ -58,25 +75,6 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new ConfigFileError(`${file} is not a JSON object; fix or remove it (nothing was changed)`)
   return { ...parsed, profiles: parsed.profiles ?? {} }
-}
-
-/** The local client settings (`ui` section). */
-export function readUiSettings(env: NodeJS.ProcessEnv = process.env): UiSettings {
-  const ui = readConfig(env).ui
-  return ui && typeof ui === 'object' ? { ...ui } : {}
-}
-
-/** Merges settings into the `ui` section; an undefined value removes the key. */
-export function writeUiSettings(settings: Partial<UiSettings>, env: NodeJS.ProcessEnv = process.env): UiSettings {
-  const config = readConfig(env)
-  const ui: UiSettings = { ...(config.ui ?? {}) }
-  for (const [key, value] of Object.entries(settings)) {
-    if (value === undefined) delete ui[key]
-    else ui[key] = value
-  }
-  config.ui = ui
-  writeConfig(config, env)
-  return ui
 }
 
 export function writeConfig(config: Config, env: NodeJS.ProcessEnv = process.env): void {
@@ -140,4 +138,36 @@ export function removeProfile(name: string, env: NodeJS.ProcessEnv = process.env
   if (config.defaultProfile === name) config.defaultProfile = Object.keys(config.profiles)[0]
   writeConfig(config, env)
   return had
+}
+
+/** The terminal UI theme in effect: the profile's, else the global one, else undefined (the UI's default). */
+export function readTheme(profile?: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const config = readConfig(env)
+  return (profile ? config.profiles[profile]?.ui?.theme : undefined) ?? config.ui?.theme
+}
+
+/** Saves the theme globally, or for one profile when `profile` is given. */
+export function writeTheme(theme: string | undefined, options: { profile?: string } = {}, env: NodeJS.ProcessEnv = process.env): void {
+  const config = readConfig(env)
+  if (options.profile && config.profiles[options.profile]) {
+    config.profiles[options.profile]!.ui = { ...config.profiles[options.profile]!.ui, theme }
+  } else {
+    config.ui = { ...config.ui, theme }
+  }
+  writeConfig(config, env)
+}
+
+/** The saved view settings of one screen (`table:person`), or an empty object. */
+export function readViewSettings(key: string, env: NodeJS.ProcessEnv = process.env): ViewSettings {
+  return { ...(readConfig(env).ui?.views?.[key] ?? {}) }
+}
+
+/** Saves the view settings of one screen, replacing what was saved; undefined removes them. */
+export function writeViewSettings(key: string, view: ViewSettings | undefined, env: NodeJS.ProcessEnv = process.env): void {
+  const config = readConfig(env)
+  const views = { ...(config.ui?.views ?? {}) }
+  if (view === undefined) delete views[key]
+  else views[key] = view
+  config.ui = { ...config.ui, views }
+  writeConfig(config, env)
 }

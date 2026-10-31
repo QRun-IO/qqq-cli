@@ -9,7 +9,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { FileStore, SecretFileError, defaultSecretStore } from '../session/keyring.js'
-import { ConfigFileError, profileNameForServer, readConfig, readUiSettings, removeProfile, resolveProfile, upsertProfile, writeUiSettings } from '../session/profiles.js'
+import { readFilePreferences, writeFilePreferences } from '../files/navigator.js'
+import { ConfigFileError, profileNameForServer, readConfig, readTheme, removeProfile, resolveProfile, upsertProfile, writeTheme } from '../session/profiles.js'
 
 test('profiles resolve from --profile, QQQ_PROFILE, --server, then the default', () => {
   const dir = mkdtempSync(join(tmpdir(), 'qqq-cfg-'))
@@ -64,17 +65,20 @@ test('a corrupt config.json is refused, never overwritten with an empty profile 
   }
 })
 
-test('the ui section keeps local settings and survives profile writes', () => {
+test('the ui section (files, theme) survives profile writes, and unknown sections are kept', () => {
   const dir = mkdtempSync(join(tmpdir(), 'qqq-cfg-'))
   const env = { QQQ_CONFIG_DIR: dir }
   try {
-    assert.deepEqual(readUiSettings(env), {})
-    writeUiSettings({ defaultDownloadDir: '/tmp/dl' }, env)
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ profiles: {}, future: { keep: true } }))
+    writeFilePreferences({ downloadDir: '/tmp/dl' }, env)
+    writeTheme('midnight', {}, env)
     upsertProfile('sample', { server: 'http://localhost:8077' }, {}, env)
-    assert.deepEqual(readUiSettings(env), { defaultDownloadDir: '/tmp/dl' })
-    writeUiSettings({ defaultDownloadDir: undefined, defaultUploadDir: '/tmp/up' }, env)
-    assert.deepEqual(readUiSettings(env), { defaultUploadDir: '/tmp/up' })
+    assert.deepEqual(readFilePreferences(env), { downloadDir: '/tmp/dl' })
+    assert.equal(readTheme('sample', env), 'midnight')
+    writeFilePreferences({ downloadDir: undefined, uploadDir: '/tmp/up' }, env)
+    assert.deepEqual(readFilePreferences(env), { uploadDir: '/tmp/up' })
     assert.equal(readConfig(env).defaultProfile, 'sample')
+    assert.deepEqual(readConfig(env).future, { keep: true })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

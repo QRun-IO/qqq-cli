@@ -7,14 +7,14 @@
  * `qqq doctor`: is this client ready to use? The connectivity side (profile, server reachable, UI
  * API version within the supported range, authentication type, sign-in accepted, extensions,
  * keyring, metadata cache age, and with --conformance the read-only conformance checks) and the
- * terminal side (the kernel's checkTerminalEnvironment: tmux key bindings, alternate screen,
- * colour, unicode, size). Exit 0 when every check passes, 1 with the failing ones listed.
+ * terminal side (the kernel's checkEnvironment: tmux key bindings, alternate screen, colour,
+ * unicode, size; --fix applies its live tmux fixes and, after an explicit y, appends them to
+ * ~/.tmux.conf). Exit 0 when every check passes, 1 with the failing ones listed.
  */
 
 import type { Command } from 'commander'
 import { UI_API_VERSION, getAuthenticationMetaData } from '@qrun-io/qqq-ui-api-client'
-import * as core from '@qrun-io/qqq-core'
-import { callOperation, readCachedMetaData, type ServerVersion } from '@qrun-io/qqq-core'
+import { appendTmuxConf, applyLiveFix, callOperation, checkEnvironment, formatReport, readCachedMetaData, type Finding, type Report, type ServerVersion } from '@qrun-io/qqq-core'
 import { EXIT, type Context } from '../context.js'
 import { CLI_VERSION, authenticatedFetch, currentToken, getLogin, secretStoreKind } from '../session.js'
 import type { Json } from './shared.js'
@@ -109,17 +109,40 @@ export async function connectivityChecks(c: Context, options: { conformance?: bo
   return out
 }
 
-/** The terminal report of the kernel, when the kernel has it (the TUI branch adds it). */
-interface TerminalReport { checks: Array<{ check: string; status: CheckStatus; detail: string; fix?: unknown }>; applyFixes?: (options: { permanent?: boolean }) => Promise<string[]> }
+/** The terminal side: the kernel's checkEnvironment (tmux bindings, alternate screen, colour, unicode, size). */
+function terminalChecks(): { checks: DoctorCheck[]; report: Report } {
+  const report = checkEnvironment({ columns: process.stdout.columns, rows: process.stdout.rows })
+  const checks = report.findings.map((f): DoctorCheck => ({ area: 'terminal', check: f.id, status: f.level === 'warn' ? 'warn' : 'ok', detail: `${f.message}${f.advice ? ` (${f.advice})` : ''}${f.live ? ' [--fix]' : ''}` }))
+  if (!checks.length) checks.push({ area: 'terminal', check: report.terminal || 'terminal', status: 'ok', detail: `nothing to report${report.inTmux ? ' (in tmux)' : ''}` })
+  return { checks, report }
+}
 
-async function terminalChecks(): Promise<{ checks: DoctorCheck[]; report?: TerminalReport }> {
-  // TODO(merge with the TUI branch): checkTerminalEnvironment() is the kernel's terminal check
-  // (tmux root bindings that take PageUp/PageDown/F-keys, alternate screen, truecolor, unicode,
-  // size, terminal notes, tmux fixes). Looked up by name so this compiles before it lands.
-  const check = (core as Record<string, unknown>).checkTerminalEnvironment as undefined | (() => Promise<TerminalReport> | TerminalReport)
-  if (!check) return { checks: [{ area: 'terminal', check: 'environment', status: 'skip', detail: 'this build has no terminal checks yet (the kernel\'s checkTerminalEnvironment)' }] }
-  const report = await check()
-  return { report, checks: report.checks.map((x) => ({ area: 'terminal', check: x.check, status: x.status, detail: x.detail })) }
+/**
+ * --fix: each live tmux fix after its own question (--yes answers them), then the ~/.tmux.conf
+ * append only after an explicit y typed at the terminal (--yes does not answer that one).
+ */
+async function applyFixes(c: Context, report: Report): Promise<void> {
+  const fixable = report.findings.filter((f) => f.live?.length)
+  if (!fixable.length) {
+    c.note('No terminal fixes to apply.')
+    return
+  }
+  const applied: Finding[] = []
+  for (const finding of fixable) {
+    if (!await c.confirm(`${finding.message} Fix it for this tmux server now?`)) continue
+    applyLiveFix(finding)
+    applied.push(finding)
+    c.note(`  fixed for this tmux server: ${finding.id}`)
+  }
+  const permanent = applied.filter((f) => f.permanent)
+  if (!permanent.length) return
+  if (!process.stdin.isTTY) {
+    c.note('Not made permanent: that needs an explicit y at a terminal (run qqq doctor --fix there).')
+    return
+  }
+  const { ask } = await import('../prompt.js')
+  const answer = await ask(`Make ${permanent.length === 1 ? 'it' : 'them'} permanent (append to ~/.tmux.conf)? [y/N] `)
+  if (/^y(es)?$/i.test(answer)) c.note(`  appended to ${appendTmuxConf(permanent)}`)
 }
 
 export function registerDoctor(program: Command, ctx: () => Context): void {
@@ -129,7 +152,7 @@ export function registerDoctor(program: Command, ctx: () => Context): void {
     .option('--fix', 'apply the terminal fixes the report offers (asks first)')
     .action(async (options: { conformance?: boolean; fix?: boolean }) => {
       const c = ctx()
-      const terminal = await terminalChecks()
+      const terminal = terminalChecks()
       const checks = [...await connectivityChecks(c, options), ...terminal.checks]
       const failed = checks.filter((x) => x.status === 'fail')
       c.print({
@@ -138,13 +161,8 @@ export function registerDoctor(program: Command, ctx: () => Context): void {
         columns: ['area', 'check', 'status', 'detail'],
         footer: failed.length ? `(${failed.length} of ${checks.length} checks failed: ${failed.map((x) => x.check).join(', ')})` : `(all ${checks.length} checks passed${checks.some((x) => x.status === 'warn') ? '; see the warnings' : ''})`,
       })
-      if (options.fix) {
-        if (!terminal.report?.applyFixes) c.note('No terminal fixes to apply.')
-        else if (await c.confirm('Apply the terminal fixes now (this tmux session)?')) {
-          for (const line of await terminal.report.applyFixes({})) c.note(line)
-          if (await c.confirm('Make them permanent (append to ~/.tmux.conf)?')) for (const line of await terminal.report.applyFixes({ permanent: true })) c.note(line)
-        }
-      }
+      if (c.format === 'table' && terminal.report.findings.length) c.note(`\n${formatReport(terminal.report)}`)
+      if (options.fix) await applyFixes(c, terminal.report)
       if (failed.length) process.exitCode = EXIT.error
     })
 }

@@ -1,0 +1,23 @@
+{
+  "name": "@qrun-io/qqq-tui",
+  "version": "0.1.0-dev",
+  "private": true,
+  "description": "The QQQ terminal UI (qqq ui): OpenTUI (React) on Bun, built on the client kernel (@qrun-io/qqq-core).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/main.tsx",
+    "test": "bun test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@opentui/core": "0.8.1",
+    "@opentui/react": "0.8.1",
+    "react": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "@types/react": "19.3.0",
+    "typescript": "5.8.3"
+  }
+}

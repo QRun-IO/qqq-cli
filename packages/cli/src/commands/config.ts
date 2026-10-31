@@ -6,7 +6,7 @@
 import type { Command } from 'commander'
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
-import { configDir, readConfig, readUiSettings, removeProfile, upsertProfile, writeUiSettings, type UiSettings } from '@qrun-io/qqq-core'
+import { configDir, readConfig, readFilePreferences, readTheme, removeProfile, upsertProfile, writeFilePreferences, writeTheme } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { getLogin, removeLogin, secretStoreKind } from '../session.js'
 
@@ -21,12 +21,32 @@ export function registerConfig(program: Command, ctx: () => Context): void {
     c.print({ data: { configDir: configDir(), secretStore: secretStoreKind(), profile: t.name, chosenBy: t.source, server: t.server, signedIn: login ? (login.kind === 'session' ? `${login.authType.toLowerCase()} session` : 'oauth2') : 'no', defaultProfile: cfg.defaultProfile ?? '', profiles: Object.keys(cfg.profiles).length } })
   })
 
-  /** Local settings: the CLI name and the key in the `ui` section the TUI shares. */
-  const SETTINGS: Record<string, { key: keyof UiSettings & string; kind: 'dir' | 'boolean'; help: string }> = {
-    'download-dir': { key: 'defaultDownloadDir', kind: 'dir', help: 'where downloads go without --out / --out-dir (created when missing)' },
-    'upload-dir': { key: 'defaultUploadDir', kind: 'dir', help: 'where file pickers for uploads start' },
-    'download-prompt': { key: 'downloadPrompt', kind: 'boolean', help: 'whether the TUI asks before saving a download' },
+  /**
+   * Local settings, kept in the `ui` section of config.json through the kernel helpers the TUI
+   * uses: the file preferences (files/navigator.ts) and the theme (session/profiles.ts).
+   */
+  const SETTINGS: Record<string, { help: string; get: () => unknown; set: (value: string | undefined, profile?: string) => unknown }> = {
+    'download-dir': { help: 'where downloads go without --out / --out-dir (created when missing)', get: () => readFilePreferences().downloadDir, set: (v) => writeFilePreferences({ downloadDir: v === undefined ? undefined : absolute(v) }).downloadDir },
+    'upload-dir': { help: 'where the TUI\'s upload chooser starts', get: () => readFilePreferences().uploadDir, set: (v) => writeFilePreferences({ uploadDir: v === undefined ? undefined : absolute(v) }).uploadDir },
+    'download-mode': {
+      help: 'the TUI: ask (a save dialog each time) or silent (straight to the download directory)',
+      get: () => readFilePreferences().downloadMode,
+      set: (v) => {
+        if (v !== undefined && v !== 'ask' && v !== 'silent') throw new UsageError('download-mode takes ask or silent')
+        return writeFilePreferences({ downloadMode: v }).downloadMode
+      },
+    },
+    theme: {
+      help: 'the TUI theme (--profile to set it for one profile; qqq ui lists the themes)',
+      get: () => readTheme(selectedProfile()),
+      set: (v, profile) => {
+        writeTheme(v, { profile })
+        return v
+      },
+    },
   }
+  const absolute = (path: string) => resolve(path.replace(/^~(?=$|[\\/])/, homedir()))
+  const selectedProfile = () => (program.opts() as { profile?: string }).profile ?? process.env.QQQ_PROFILE
   const setting = (name: string) => {
     const s = SETTINGS[name]
     if (!s) throw new UsageError(`No setting "${name}"; settings: ${Object.keys(SETTINGS).join(', ')}`)
@@ -37,27 +57,20 @@ export function registerConfig(program: Command, ctx: () => Context): void {
     .description(`A local setting (${Object.keys(SETTINGS).join(', ')}), or all of them.`)
     .action((name: string | undefined) => {
       const c = ctx()
-      const ui = readUiSettings()
       if (name) {
-        const value = ui[setting(name).key]
+        const value = setting(name).get()
         c.print({ data: value ?? null, rows: [{ setting: name, value: value ?? '' }], columns: ['setting', 'value'] })
         return
       }
-      c.print({ data: ui, rows: Object.entries(SETTINGS).map(([n, s]) => ({ setting: n, value: ui[s.key] ?? '', meaning: s.help })), columns: ['setting', 'value', 'meaning'] })
+      const all = Object.fromEntries(Object.entries(SETTINGS).map(([n, s]) => [n, s.get() ?? null]))
+      c.print({ data: all, rows: Object.entries(SETTINGS).map(([n, s]) => ({ setting: n, value: s.get() ?? '', meaning: s.help })), columns: ['setting', 'value', 'meaning'] })
     })
 
   config.command('set <setting> <value>')
-    .description('Change a local setting (kept in the ui section of config.json, shared with the TUI); an empty value removes it.')
+    .description('Change a local setting (the ui section of config.json, shared with the TUI); an empty value removes it.')
     .action((name: string, raw: string) => {
       const c = ctx()
-      const s = setting(name)
-      let value: string | boolean | undefined
-      if (raw === '') value = undefined
-      else if (s.kind === 'boolean') {
-        if (!/^(true|false|on|off|yes|no)$/i.test(raw)) throw new UsageError(`${name} takes true or false`)
-        value = /^(true|on|yes)$/i.test(raw)
-      } else value = resolve(raw.replace(/^~(?=$|[\\/])/, homedir()))
-      writeUiSettings({ [s.key]: value })
+      const value = setting(name).set(raw === '' ? undefined : raw, name === 'theme' ? (program.opts() as { profile?: string }).profile : undefined)
       c.note(value === undefined ? `Removed ${name}.` : `${name}: ${String(value)}`)
     })
 

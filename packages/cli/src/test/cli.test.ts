@@ -10,6 +10,7 @@
  */
 
 import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, before, describe, test } from 'node:test'
@@ -188,6 +189,53 @@ describe('doctor', () => {
     assert.equal(versionSupport('1.5.2', [1]).status, 'fail')
     assert.equal(versionSupport('1.9.0', [1]).status, 'warn')
     assert.equal(versionSupport('2.0.0', [2]).status, 'fail')
+  })
+})
+
+describe('merged with the TUI stream', () => {
+  test('config set|get theme and download-mode use the TUI\'s ui helpers', async () => {
+    const local = sandbox()
+    try {
+      assert.equal((await runCli(['config', 'set', 'theme', 'classic'], local.env)).code, 0)
+      assert.equal(JSON.parse((await runCli(['config', 'get', 'theme', '-O', 'json'], local.env)).stdout), 'classic')
+      assert.equal((await runCli(['config', 'set', 'download-mode', 'loud'], local.env)).code, 2)
+      assert.equal((await runCli(['config', 'set', 'download-mode', 'silent'], local.env)).code, 0)
+      assert.equal((await runCli(['config', 'set', 'download-dir', join(local.env.HOME!, 'dl')], local.env)).code, 0)
+      const ui = (JSON.parse(readFileSync(join(local.env.QQQ_CONFIG_DIR!, 'config.json'), 'utf8')) as { ui: unknown }).ui
+      assert.deepEqual(ui, { theme: 'classic', files: { downloadMode: 'silent', downloadDir: join(local.env.HOME!, 'dl') } })
+    } finally {
+      local.dispose()
+    }
+  })
+  test('doctor reports the terminal through the kernel check', async () => {
+    const result = await qqq(['doctor', '-O', 'json'])
+    const checks = (JSON.parse(result.stdout) as { checks: Array<{ area: string; status: string }> }).checks.filter((x) => x.area === 'terminal')
+    assert.ok(checks.length > 0)
+    assert.ok(checks.every((x) => x.status !== 'skip'))
+  })
+  test('runCli captures what commands write straight to stdout (export --out -) for the TUI pane', async () => {
+    // in a child process: capturing process.stdout inside the test runner would eat its own reports
+    const script = `
+      import { runCli } from ${JSON.stringify(new URL('../program.js', import.meta.url).href)}
+      let out = '', err = ''
+      const io = { stdout: (t) => (out += t), stderr: (t) => (err += t) }
+      const exported = await runCli(['--server', process.argv[1], 'table', 'export', 'person', '--out', '-'], io)
+      const exportOut = out
+      out = ''
+      const refused = await runCli(['--server', process.argv[1], 'table', 'delete', 'pet', '7'], io)
+      process.stdout.write(JSON.stringify({ exported, exportOut, refused, err }))`
+    const result = await new Promise<string>((resolve, reject) => {
+      const child = spawn(process.execPath, ['--input-type=module', '-e', script, server.url], { env: { ...process.env, ...box.env, QQQ_TOKEN: 'test-token' } })
+      let text = ''
+      child.stdout.on('data', (d: Buffer) => (text += d.toString('utf8')))
+      child.on('error', reject)
+      child.on('close', () => resolve(text))
+    })
+    const r = JSON.parse(result) as { exported: number; exportOut: string; refused: number; err: string }
+    assert.equal(r.exported, 0, r.err)
+    assert.equal(r.exportOut, 'id,firstName\n1,Avery\n2,Blair\n')
+    assert.equal(r.refused, 2)
+    assert.match(r.err, /Pass --yes/)
   })
 })
 
