@@ -40,6 +40,7 @@ test('the line editor applies a burst of keys in order, from its own state', () 
 test('command lines split like a shell and options collect repeated values', () => {
   expect(shellSplit('table query person -w "lastName = O\'Neil" -o -id')).toEqual(['table', 'query', 'person', '-w', "lastName = O'Neil", '-o', '-id'])
   expect(parseOptions(['-w', 'a = 1', '-w', 'b = 2', '--or', '-o', 'x'])).toEqual({ w: ['a = 1', 'b = 2'], or: ['true'], o: ['x'] })
+  expect(parseOptions(['-w', 'lastName = Sample', '-o', '-id', 'firstName'])).toEqual({ w: ['lastName = Sample'], o: ['-id', 'firstName'] })
 })
 
 test('every theme defines every token, and high-contrast has no dark grey text', () => {

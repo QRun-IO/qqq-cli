@@ -506,13 +506,18 @@ export class Commands implements CommandsLike {
 export function parseOptions(args: string[]): Record<string, string[] | undefined> {
   const out: Record<string, string[]> = {}
   const flags = new Set(['or', 'print-filter', 'count', 'all', 'json', 'yes', 'y'])
+  const takesValue = new Set(['o', 'order', 'l', 'limit', 'skip', 'fields', 'f', 'r', 'records', 'output', 'O'])
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!
     const m = /^--?([A-Za-z][\w-]*)(?:=(.*))?$/.exec(a)
     if (!m) continue
     const name = m[1]!
     if (m[2] !== undefined) (out[name] ??= []).push(m[2])
-    else if (flags.has(name) || i + 1 >= args.length || /^-/.test(args[i + 1]!)) (out[name] ??= []).push('true')
+    else if (takesValue.has(name) && i + 1 < args.length) {
+      // -o -id: a sort value may itself start with a dash; repeated values follow while they are not options
+      ;(out[name] ??= []).push(args[++i]!)
+      while (name.startsWith('o') && i + 1 < args.length && /^-?[A-Za-z_][\w.]*$/.test(args[i + 1]!) && !/^-[a-zA-Z]$/.test(args[i + 1]!) && !/^--/.test(args[i + 1]!)) out[name]!.push(args[++i]!)
+    } else if (flags.has(name) || i + 1 >= args.length || /^-/.test(args[i + 1]!)) (out[name] ??= []).push('true')
     else {
       // multi-value options (-w a b) take every following non-option argument
       const values: string[] = []

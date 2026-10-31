@@ -8,7 +8,7 @@ import { Component, useEffect, useReducer, type ReactNode } from 'react'
 import type { AppTreeNode } from './client'
 import { presenceText, usePresence } from './presence'
 import type { AppStore } from './store'
-import { theme } from './theme'
+import { glyphs, theme } from './theme'
 import { pad, trunc } from './util/text'
 
 /** Catches a failing screen or overlay so it shows its error in place; the rest of the TUI keeps working. */
@@ -69,7 +69,8 @@ function TitleBar({ store, width }: { store: AppStore; width: number }) {
   const brand = (store.meta?.branding as { appName?: string } | undefined)?.appName ?? 'QQQ'
   const crumbs = breadcrumbs(store)
   const shown = crumbs.length > 5 ? ['…', ...crumbs.slice(-5)] : crumbs
-  const left = ` ${brand} ─ ${shown.join(' › ')}`
+  const ascii = glyphs().border !== undefined
+  const left = ` ${brand} ${ascii ? '-' : '─'} ${shown.join(ascii ? ' > ' : ' › ')}`
   // collaboration presence slot: "N others viewing" (empty without the collaboration extension)
   const others = presenceText(presence)
   const right = [others, store.status.user, store.status.alerts ? `alerts ${store.status.alerts}` : '', store.status.jobs !== 'n/a' && store.status.jobs !== '0' ? `jobs ${store.status.jobs}` : ''].filter(Boolean).join('  ') + ' '
@@ -113,10 +114,11 @@ function FKeyBar({ store, width }: { store: AppStore; width: number }) {
         const w = k.n === 10 ? Math.max(0, width - used) : cell
         used += w
         const num = String(k.n).padStart(2)
+        const label = k.label && k.label.length > w - 2 ? ({ Refresh: 'Reload', NewChild: 'Child', 'Re-run': 'Again' } as Record<string, string>)[k.label] ?? k.label : k.label
         return (
           <span key={k.n}>
             <span fg={t.keyNum}>{num}</span>
-            <span fg={t.keyLabelFg} bg={k.label === null ? undefined : t.keyLabelBg}>{pad(k.label ?? '', Math.max(0, w - 2))}</span>
+            <span fg={t.keyLabelFg} bg={k.label === null ? undefined : t.keyLabelBg}>{pad(label ?? '', Math.max(0, w - 2))}</span>
           </span>
         )
       })}

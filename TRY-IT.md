@@ -28,51 +28,37 @@ qqq-sample-server status | log | restart | stop
 
 Data resets on every restart. Mock auth means no sign-in; `POST /qqq/v1/manageSession` gives a session.
 
-## M0 shell (2026-10-31): classic TUI against the sample server
+## TUI (`qqq ui`, M3)
 
 ```sh
-qqq-tui-spike            # the shell: app tree, tables, records, processes, live footer
-qqq-tui-spike test       # in-memory renderer tests
+qqq ui                         # default profile; qqq --profile sample ui
+qqq ui table query person -w "lastName STARTS_WITH S"     # straight to a screen
+qqq ui --check                 # terminal and tmux check with fixes (also runs quickly at startup)
+npm run test:tui               # in-memory renderer tests; packages/tui/scripts/smoke.sh drives it in tmux
 ```
 
-Keys (the function-key bar at the bottom is the truth):
+Keys (the function-key bar is the truth; F1 or `?` lists them; every action is also in F9 and on `:`):
 
 | Key | Does | Key | Does |
 |---|---|---|---|
-| F1 | help | Esc | back a screen, or back to the Apps tree |
-| F2 | go to any table or process by name | Tab | switch between the Apps tree and the content |
-| F3 | view the record under the cursor | Enter | open (tree item, table row) |
-| F4 | edit (M3) | ↑ ↓ PgUp PgDn Home End | move and page, server-side paging on tables |
-| F5 | refresh | ← → | scroll columns; expand or collapse tree nodes |
-| F6 | filter a table: `field OPERATOR value[,value]` | `s` | sort by the bracketed column |
-| F7 | new record (M3) | `:` | command line: `table person lastName STARTS_WITH S`, `record pet 3`, `process sleepInteractive`, `home`, `quit` |
-| F8 | delete the record under the cursor, with confirm | F9 | menu |
-| F10 | quit | Ctrl+C | quit immediately |
+| F1 `?` | help, what you can do here, help search | Esc | back; the grid keeps its row, filter and page |
+| F2 `/` `.` Ctrl+K | go to anything (apps, tables, processes, recents, commands) | Tab | Apps pane / content |
+| F3 Enter | view / open | PgUp PgDn, Ctrl+F Ctrl+B | page (Ctrl+F/B work even when tmux takes PgUp) |
+| F4 `e` | edit | `]` `[` (PgDn PgUp in a record) | next / previous record of the list |
+| F5 `r` | refresh | `s` | sort by the column under the cursor |
+| F6 `f` | filter: guided builder or the grammar with completion | Space / `b` | select rows / run a process on them |
+| F7 `n` | new (a child on a child list) | `x` `g` `v` | export, go to by key, view settings |
+| F8 `d` | delete, asks | Ctrl+S | save a form or continue a process step |
+| F9 | menu: every command, searchable | `:` | command line, history and completion |
+| F10 | quit, asks | Ctrl+C | quit now |
 
-Footer status line, live: server, auth and session, UI API version, ping (every 5 s), realtime stream state
-(reconnects on its own), job count (`n/a` when the server has no `/jobs`), last stream event, clock.
+Things to try: `:table query person`, Enter on a row, PgDn through records, Esc (same row); F6, add a
+condition, Tab to the grammar and type `AND (fi` then Tab; `:table create placeAddress` (country, state, city
+narrow); Space on two people, `b`, Person Bulk Edit; `:app SampleWidgetsDashboard`; F9 Settings for themes,
+download folder, PIN and the screen lock; `:theme light`. See `packages/tui/README.md` for settings and for the
+keys your terminal or tmux may take (`qqq ui --check` finds them).
 
-Things to try: open Person, PgDn through Pets or Cities, F6 with `birthDate GREATER_THAN 1990-01-01`,
-delete a pet with F8 and watch the count, restart the server with `qqq-sample-server restart` and watch
-the footer go to `reconnecting` and back.
-
-## M0 legacy screens: generated grid and form
-
-```sh
-QQQ_SPIKE_SCREEN=legacy qqq-tui-spike    # Ctrl+G grid, Ctrl+F form, Ctrl+P process, Ctrl+Q quit
-qqq-tui-spike binary                      # the compiled macOS binary (legacy screens)
-```
-
-What to look at:
-- Grid: 10,000 generated rows x 40 columns. Arrows, PageUp/Down, Home/End, Left/Right scroll columns,
-  `s` sorts the cursor column. The status line shows key-to-frame latency. Resize the window.
-- Form: Tab between every field type, type into the Home State field to filter the picker, Enter to
-  pick, Ctrl+S validates and shows errors beside fields.
-- Process: runs the sample's Sleep Interactive process on the server with an async job and polling.
-  Change the milliseconds, press Enter. Watch the log lines at the bottom.
-
-Known: typing in the same instant as Tab (paste, automation) lands in the previous field; a human does
-not hit this. Windows binary is cross-compiled and unverified.
+The M0 spike (`qqq-tui-spike`, `packages/tui-spike`) stays in the repo for reference.
 
 ## CLI (`qqq`, M1 in progress)
 
