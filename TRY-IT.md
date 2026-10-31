@@ -102,6 +102,10 @@ qqq process list ; qqq process describe sleepInteractive
 qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
 qqq process run clonePeople -r 1,2                       # records by primary key
 qqq api --list ; qqq api getTableMetaData --path tableName=person -Q 'fields.*.label'
+qqq widget list ; qqq widget get SampleLineChartWidget         # bars in the terminal; --csv for the numbers
+qqq widget get SampleStackedBarChartWidget --output json      # the raw payload
+qqq prefs list ; qqq prefs get regional ; qqq prefs set regional --set weekStartsOn=MONDAY
+qqq help-search person ; qqq report run <name> --format xlsx
 qqq search Avery ; qqq tail
 ```
 

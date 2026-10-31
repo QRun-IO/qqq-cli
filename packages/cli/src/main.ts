@@ -7,7 +7,7 @@
 /**
  * qqq - the command-line client for QQQ applications. Every call is an operation of the QQQ UI API
  * (/qqq/v1); nothing is hard-coded about an application: apps, tables, fields and processes all
- * come from metadata. Grammar: `qqq <noun> <verb>` (table, process, job, api), plus the flat
+ * come from metadata. Grammar: `qqq <noun> <verb>` (table, process, job, widget, report, prefs, api), plus the flat
  * commands of 0.1 (apps, tables, query, get, run, jobs, tail) as aliases.
  */
 
@@ -21,6 +21,7 @@ import { registerJob } from './commands/job.js'
 import { registerMisc } from './commands/misc.js'
 import { registerProcess } from './commands/process.js'
 import { registerTable } from './commands/table.js'
+import { registerWidget } from './commands/widget.js'
 
 const program = new Command()
 program
@@ -45,6 +46,7 @@ registerMisc(program, ctx)
 registerTable(program, ctx)
 registerProcess(program, ctx)
 registerJob(program, ctx)
+registerWidget(program, ctx)
 registerApi(program, ctx)
 
 /** Flat aliases from 0.1: forward to the noun-verb commands with the same options. */
