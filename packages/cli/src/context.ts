@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { FilterSyntaxError, OUTPUT_FORMATS, applyQuery, callOperation, defaultFormat, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { FilterSyntaxError, OUTPUT_FORMATS, ProcessError, applyQuery, callOperation, defaultFormat, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { authenticatedFetch, clientFor, selectTarget, target, type Target } from './session.js'
 
 /** Exit codes, as in the design doc (KofTwentyTwo ADR-0031 shape). */
@@ -135,6 +135,7 @@ export function describeError(error: unknown, trace = false): { code: number; te
             : error.status >= 500 ? EXIT.unexpected : EXIT.error
     return { code, text: lines.join('\n') }
   }
+  if (error instanceof ProcessError) return { code: error.isInputError ? EXIT.validation : EXIT.error, text: `Error: ${error.message}` }
   if (error instanceof TypeError && /fetch failed|ECONNREFUSED|ENOTFOUND|network/i.test(String((error as Error & { cause?: unknown }).cause ?? error.message))) {
     return { code: EXIT.transient, text: `Error: cannot reach the server (${String((error as Error & { cause?: { message?: string } }).cause?.message ?? error.message)})` }
   }
