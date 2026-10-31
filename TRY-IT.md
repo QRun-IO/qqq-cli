@@ -113,6 +113,7 @@ qqq table variants person                             # none in the sample; --va
 qqq table stats person annualSalary --local -l 3     # column statistics; the sample has no columnStats process, --local computes them
 qqq saved-view list person ; qqq saved-view open person <view> ; qqq table query person --view <view> -w …   # saved views (none in the sample)
 qqq saved-view save person --name Mine -w "lastName = Sample" -o -id --fields id,firstName -l 50 ; saved-view rename|delete person Mine …
+qqq audit list person 1                               # audit history (the sample audits nothing: exit 2 with the reason)
 qqq process list ; qqq process describe sleepInteractive
 qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
 qqq process run clonePeople -r 1,2                       # records by primary key
@@ -169,7 +170,7 @@ Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `las
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
 the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views on a server that has them,
-server-side column statistics (no columnStats process in the sample), audits, a variant-backed table to verify variants against (the sample has none), jobs on a durable-jobs server,
+server-side column statistics (no columnStats process in the sample), audits on an audited table (none in the sample), a variant-backed table to verify variants against (the sample has none), jobs on a durable-jobs server,
 TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
 
 ## Reporting what you find

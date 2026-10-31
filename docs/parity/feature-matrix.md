@@ -15,12 +15,12 @@ The TUI column fills in during M3.
 | PRC | 60 | 24 | 24 | 0 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
 | QRY | 70 | 29 | 7 | 13 | 21 |
-| REC | 65 | 28 | 23 | 2 | 12 |
+| REC | 65 | 28 | 21 | 4 | 12 |
 | REL | 9 | 4 | 5 | 0 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 17 | 14 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 151 | 123 | 20 | 107 |
+| **all** | 401 | 151 | 121 | 22 | 107 |
 
 ## Rows
 
@@ -251,8 +251,8 @@ The TUI column fills in during M3.
 | REC-039 | Field help content follows screen roles and formats | todo | todo | help |
 | REC-040 | Section help content on the record view | todo | todo |  |
 | REC-041 | Table help content slots are delivered in table metadata | todo | todo |  |
-| REC-042 | Audit history lists who changed what, newest first | todo | todo | audits |
-| REC-043 | Audit history without process permission reads the audit table | todo | todo |  |
+| REC-042 | Audit history lists who changed what, newest first | partial | todo | qqq audit list <t> <pk> [--asc]: entries newest first with field changes; the sample audits no table, verified with node tests and a local stub server |
+| REC-043 | Audit history without process permission reads the audit table | partial | todo | without the audit process the audit table is queried with its auditTable and auditDetail joins (node tests) |
 | REC-044 | Record label format is used for the record's title and dialogs | pass | todo | recordLabel |
 | REC-045 | Possible-value editor shows stored labels, looks up defaults and selects by keyboard | pass | todo | labels resolved, defaults looked up |
 | REC-046 | Read-only persona sees no write actions and the backend refuses writes | pass | todo | server |
