@@ -16,7 +16,7 @@ import { existsSync, readFileSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import {
-  createUiApiClient, getNativeSignInConfig, isExpiring, refreshTokens,
+  UiApiError, createUiApiClient, getNativeSignInConfig, isExpiring, keepIdToken, refreshTokens,
   type NativeSignInConfig, type TokenSet, type UiApiClient,
 } from '@qrun-io/qqq-ui-api-client'
 import { defaultSecretStore, readConfig, resolveProfile, upsertProfile, type ResolvedProfile, type SecretStore } from '@qrun-io/qqq-core'
@@ -98,7 +98,14 @@ export async function currentToken(t: Target, force = false): Promise<string | u
   if (!login) return undefined
   if (login.kind === 'session') return login.sessionUUID
   if ((force || isExpiring(login.tokens)) && login.tokens.refreshToken) {
-    const tokens = await refreshTokens(login.config, login.tokens.refreshToken)
+    let refreshed: TokenSet
+    try {
+      refreshed = await refreshTokens(login.config, login.tokens.refreshToken)
+    } catch (error) {
+      // a refresh token the provider no longer honours (revoked, expired, provider reset) means signing in again
+      throw new UiApiError(401, { code: 'UNAUTHENTICATED', message: `The sign-in for ${t.server} has expired or was revoked at the provider (${error instanceof Error ? error.message : String(error)})` })
+    }
+    const tokens = keepIdToken(refreshed, login.tokens)
     await saveLogin(t, { kind: 'oauth', config: login.config, tokens })
     return tokens.accessToken
   }

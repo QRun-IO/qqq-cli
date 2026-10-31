@@ -18,9 +18,9 @@ The TUI column fills in during M3.
 | REC | 65 | 30 | 23 | 0 | 12 |
 | REL | 9 | 4 | 5 | 0 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
-| SEC | 43 | 17 | 14 | 0 | 12 |
+| SEC | 43 | 21 | 10 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 163 | 122 | 7 | 109 |
+| **all** | 401 | 167 | 118 | 7 | 109 |
 
 ## Rows
 
@@ -295,10 +295,10 @@ The TUI column fills in during M3.
 | SEC-022 | Session expiry: 401 redirects to login with returnTo and re-authenticates back to the page (initial load and m | pass | todo | exit 3 with the sign-in hint |
 | SEC-023 | Denied sign-in: a 401 from manageSession keeps the user out with an explanation (no silent anonymous fallback) | pass | todo |  |
 | SEC-024 | Post-login returnTo is limited to in-app paths (open-redirect guard) | n/a | n/a |  |
-| SEC-025 | OAUTH2 authorization code + PKCE sign-in with an owned OIDC provider (discovery, authorize, callback, backend  | todo | todo | device flow exists (untested here); PKCE loopback todo |
-| SEC-026 | OAUTH2 sign-in failures: provider denial, tampered state and failed code exchange are reported and create no s | todo | todo |  |
-| SEC-027 | OAUTH2 logout: backend session deleted, provider end-session called, next visit requires provider sign-in | todo | todo | provider end-session |
-| SEC-028 | OAUTH2 session revoked server-side mid-use: 401 sends the user through the provider and back to the page | todo | todo |  |
+| SEC-025 | OAUTH2 authorization code + PKCE sign-in with an owned OIDC provider (discovery, authorize, callback, backend  | pass | todo | device flow and --browser (code + PKCE, loopback) verified against a sample on OAUTH2 with qqq-dev-idp |
+| SEC-026 | OAUTH2 sign-in failures: provider denial, tampered state and failed code exchange are reported and create no s | pass | todo | denial, forged state and a refused code exchange exit 3 and save nothing; the token is checked against the server first |
+| SEC-027 | OAUTH2 logout: backend session deleted, provider end-session called, next visit requires provider sign-in | pass | todo | logout --provider-logout: refresh token revoked (RFC 7009), end-session URL opened; bearer sign-ins have no server session |
+| SEC-028 | OAUTH2 session revoked server-side mid-use: 401 sends the user through the provider and back to the page | pass | todo | a refresh the provider refuses exits 3 with sign in again; refresh before expiry verified |
 | SEC-029 | AUTH_0 authorization code + PKCE with an owned Auth0-compatible provider (browser token exchange, backend JWT  | todo | todo |  |
 | SEC-030 | AUTH_0 against a real Auth0 tenant | todo | todo |  |
 | SEC-031 | FULLY_ANONYMOUS authentication: session without an identity provider, anonymous identity, logout and sign-in a | pass | todo |  |

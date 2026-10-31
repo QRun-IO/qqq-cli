@@ -125,6 +125,31 @@ qqq config profile list ; qqq config profile use sample ; qqq config show
 qqq --profile sample table count person ; QQQ_PROFILE=sample qqq whoami
 ```
 
+OAuth2 sign-in (an OAUTH2 server with a native client): the device flow is the default, `--browser` signs in with the
+authorization code and PKCE on a loopback redirect (`http://127.0.0.1:{port}/callback`; `--port`, `--redirect-host
+localhost` and `--no-open` when the provider needs an exact registered URI or there is no browser). Tokens are
+refreshed at the provider before they expire; a refresh the provider refuses (revoked, expired) exits 3 with "sign in
+again". `qqq logout --provider-logout` also revokes the refresh token (RFC 7009) and opens the provider's end-session
+URL. Try it with a second sample instance and the dev provider (leave the 8077 instance alone):
+
+```sh
+node packages/conformance/dist/dev-idp.js --port 9400 --client sample-app --client sample-cli --user you@example.com --groups admins
+# in ../.worktrees/qqq-develop/qqq-sample-project:
+OAUTH2_BASE_URL=http://localhost:9400/application/o/sample-app/ OAUTH2_CLIENT_ID=sample-app OAUTH2_CLIENT_SECRET=dev \
+OAUTH2_SCOPES="openid profile email offline_access" OAUTH2_NATIVE_CLIENT_ID=sample-cli \
+OAUTH2_NATIVE_CLIENT_BASE_URL=http://localhost:9400/application/o/sample-cli/ \
+mvn -q -DskipTests -Dcheckstyle.skip=true compile exec:java -Dexec.mainClass=com.kingsrook.sampleapp.SampleJavalinServer \
+  -Dqqq.sample.port=8078 -Dqqq.sample.esb.port=61617
+
+qqq login --server http://localhost:8078 --profile oauth            # device flow: open the printed URL, it approves
+qqq login --server http://localhost:8078 --profile oauth --browser  # browser: Approve or Deny on the provider page
+qqq -p oauth whoami ; qqq -p oauth process run sleepInteractive -v sleepMillis=500
+qqq -p oauth logout --provider-logout                              # revoke, then the end-session page
+```
+
+A denied request, a redirect whose `state` does not match, and a code the provider will not exchange each exit 3 and
+save nothing; the new token is also checked against the server before the sign-in is kept.
+
 Shell completion (nouns, verbs, options, and table, process, widget, field and operation names from the local
 metadata cache):
 
