@@ -78,7 +78,7 @@ export function registerAuth(program: Command, ctx: () => Context): void {
         tokenExpires: login && login.kind !== 'session' ? new Date(login.tokens.expiresAt).toISOString() : '',
         apiVersion: version.apiVersion,
         features: ((version.features ?? []) as string[]).join(', '),
-        extensions: ((version.extensions ?? []) as Json[]).map((e) => `${e.name} ${e.version}`).join(', '),
+        extensions: (await c.extensions({ refresh: true })).describe(),
         apps: Object.keys((metaData.apps ?? {}) as Json).length,
         tables: Object.keys((metaData.tables ?? {}) as Json).length,
         processes: Object.keys((metaData.processes ?? {}) as Json).length,

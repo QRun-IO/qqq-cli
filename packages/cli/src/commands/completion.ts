@@ -108,7 +108,7 @@ export function registerCompletion(program: Command, ctx: () => Context): void {
           return undefined
         }
       }
-      const tableInWords = () => rest.find((w) => !w.startsWith('-')) ?? before.find((w, i) => i > 0 && !w.startsWith('-') && (before[i - 1] === 'query' || before[i - 1] === 'get' || before[i - 1] === 'create' || before[i - 1] === 'update' || before[i - 1] === 'count' || before[i - 1] === 'describe' || before[i - 1] === 'delete' || before[i - 1] === 'export'))
+      const tableInWords = () => rest.find((w) => !w.startsWith('-')) ?? before.find((w, i) => i > 0 && !w.startsWith('-') && (before[i - 1] === 'query' || before[i - 1] === 'get' || before[i - 1] === 'create' || before[i - 1] === 'update' || before[i - 1] === 'count' || before[i - 1] === 'describe' || before[i - 1] === 'delete' || before[i - 1] === 'export' || before[i - 1] === 'children' || before[i - 1] === 'download'))
       if (current.startsWith('-')) {
         add(command.options.flatMap((o) => [o.long, o.short].filter(Boolean) as string[]))
         add(program.options.flatMap((o) => [o.long].filter(Boolean) as string[]))
@@ -135,6 +135,8 @@ export function registerCompletion(program: Command, ctx: () => Context): void {
         else if (parent === 'process' || verb === 'run') add(Object.keys(m?.processes ?? {}))
         else if (parent === 'widget') add(Object.keys(m?.widgets ?? {}))
         else if (parent === 'report') add(Object.keys(m?.reports ?? {}))
+        else if (parent === 'apps') add(Object.keys(m?.apps ?? {}))
+        else if (parent === 'help' && verb === 'show') add(rest.length === 0 ? ['table', 'process', 'app', 'widget', 'instance'] : Object.keys((rest[0] === 'table' ? m?.tables : rest[0] === 'process' ? m?.processes : rest[0] === 'app' ? m?.apps : rest[0] === 'widget' ? m?.widgets : {}) ?? {}))
         else if (verb === 'tables' && previous === '--app') add(Object.keys(m?.apps ?? {}))
         else if (verb === 'completion') add(['bash', 'zsh', 'fish', 'pwsh'])
       }

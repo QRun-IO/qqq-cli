@@ -5,7 +5,7 @@
 
 import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { blocksToText, formatCsv, widgetRows, widgetToBlocks } from '@qrun-io/qqq-core'
+import { blocksToText, formatCsv, listReports, safeFileName, saveDownload, widgetRows, widgetToBlocks } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { parsePairs, type Json } from './shared.js'
 
@@ -50,17 +50,25 @@ export function registerWidget(program: Command, ctx: () => Context): void {
       process.stdout.write(blocksToText(blocks, { width: process.stdout.columns ?? 100, ascii: options.ascii }) + '\n')
     })
 
-  program.command('report').description('Reports: run.').command('run <report>')
+  const report = program.command('report').description('Reports: list, run.')
+  report.command('list')
+    .description('The reports you may run, with their table and app.')
+    .action(async () => {
+      const c = ctx()
+      const rows = listReports(await c.metaData() as unknown as Json)
+      c.print({ data: rows, columns: ['name', 'label', 'table', 'app'], footer: rows.length ? '' : '(no reports in this application)' })
+    })
+  report.command('run <report>')
     .description('Run a report and save its output (csv, xlsx, json, pdf as the report allows).')
     .option('--format <fmt>', 'output format', 'csv')
-    .option('-o, --out <file>', 'output file (default: <report>.<format>)')
+    .option('-o, --out <file>', 'output file, replaced if it exists (default: <report>.<format>; name-1.<format> when taken)')
     .action(async (name: string, options: { format: string; out?: string }) => {
       const c = ctx()
       const result = await c.call('runReport', { path: { reportName: name }, query: { format: options.format } })
-      const out = options.out ?? `${name}.${options.format}`
+      const out = options.out ?? safeFileName(`${name}.${options.format}`)
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
-      writeFileSync(out, bytes)
-      c.note(`wrote ${out} (${bytes.length} bytes, ${result.contentType})`)
+      const written = saveDownload(out, bytes, { explicit: options.out !== undefined })
+      c.note(`wrote ${written} (${bytes.length} bytes, ${result.contentType})`)
     })
 
   const prefs = program.command('prefs').description('Your preferences: list, get, set, action.')

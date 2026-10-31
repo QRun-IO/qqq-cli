@@ -15,12 +15,17 @@ import { UI_API_VERSION } from '@qrun-io/qqq-ui-api-client'
 import { Context, EXIT, describeError, io } from './context.js'
 import { CLI_VERSION } from './session.js'
 import { registerApi } from './commands/api.js'
+import { registerAudit } from './commands/audit.js'
 import { registerAuth } from './commands/auth.js'
 import { registerCompletion } from './commands/completion.js'
 import { registerConfig } from './commands/config.js'
+import { registerExtensions } from './commands/extensions.js'
+import { registerHelp } from './commands/help.js'
 import { registerJob } from './commands/job.js'
 import { registerMisc } from './commands/misc.js'
 import { registerProcess } from './commands/process.js'
+import { registerSavedView } from './commands/saved-view.js'
+import { registerRelated } from './commands/related.js'
 import { registerTable } from './commands/table.js'
 import { registerUi } from './commands/ui.js'
 import { registerWidget } from './commands/widget.js'
@@ -39,6 +44,7 @@ export function createProgram(): Command {
     .option('-Q, --query <jmespath>', 'reshape the output with a JMESPath expression, as `aws --query`')
     .option('--fields <names>', 'comma-separated columns to show in table, text and csv output')
     .option('-y, --yes', 'answer yes to confirmations (delete, cancel)')
+    .option('--utc', 'show DATE_TIME values as raw UTC instants instead of in the local zone (TZ)')
     .option('--trace', 'print stack traces for unexpected errors')
     .exitOverride()
     .configureOutput({ writeOut: (text) => io.out(text), writeErr: (text) => io.err(text) })
@@ -49,12 +55,17 @@ export function createProgram(): Command {
   registerAuth(program, ctx)
   registerMisc(program, ctx)
   registerTable(program, ctx)
+  registerAudit(program, ctx)
+  registerRelated(program, ctx)
   registerProcess(program, ctx)
+  registerSavedView(program, ctx)
   registerJob(program, ctx)
   registerWidget(program, ctx)
   registerApi(program, ctx)
+  registerExtensions(program, ctx)
   registerCompletion(program, ctx)
   registerConfig(program, ctx)
+  registerHelp(program, ctx)
   registerUi(program, ctx)
 
   /** Flat aliases from 0.1: forward to the noun-verb commands with the same options. */

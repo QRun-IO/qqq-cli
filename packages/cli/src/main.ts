@@ -7,7 +7,8 @@
 /**
  * qqq - the command-line client for QQQ applications. Every call is an operation of the QQQ UI API
  * (/qqq/v1); nothing is hard-coded about an application: apps, tables, fields and processes all
- * come from metadata. Grammar: `qqq <noun> <verb>` (table, process, job, widget, report, prefs, api), plus the flat
+ * come from metadata. Grammar: `qqq <noun> <verb>` (table, process, job, widget, report, prefs, api, and one noun per
+ * extension: esb, collab, sql-workbench, ...), plus the flat
  * commands of 0.1 (apps, tables, query, get, run, jobs, tail) as aliases.
  */
 
