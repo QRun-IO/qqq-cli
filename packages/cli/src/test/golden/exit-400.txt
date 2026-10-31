@@ -1,0 +1,4 @@
+--- stderr ---
+Error: fake 400 (BAD_REQUEST, HTTP 400, trace trace-400)
+  name: is required
+--- exit 6

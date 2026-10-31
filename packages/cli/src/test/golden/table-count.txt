@@ -1,0 +1,5 @@
+count
+-----
+3
+--- stderr ---
+--- exit 0
