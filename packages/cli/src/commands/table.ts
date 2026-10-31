@@ -5,7 +5,7 @@
 
 import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { FormInputError, FormSession, JoinError, buildFilter, combineWithQuickSearch, copyRecordValues, associationJoin, defaultJoinColumns, exposedJoins, fieldLabel, findRecordByKey, gotoKeys, isGotoKey, joinFieldNames, planJoins, printFilter, quickSearchFields, quickSearchFilter, resolveField, listTableVariants, variantBody, variantParam, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin } from '@qrun-io/qqq-core'
+import { FormInputError, FormSession, JoinError, buildFilter, combineWithQuickSearch, copyRecordValues, associationJoin, columnStatsAvailability, computeColumnStats, runColumnStats, defaultJoinColumns, exposedJoins, fieldLabel, findRecordByKey, gotoKeys, isGotoKey, joinFieldNames, planJoins, printFilter, quickSearchFields, quickSearchFilter, resolveField, listTableVariants, variantBody, variantParam, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -76,7 +76,7 @@ function columnsFrom(c: Context, options: { fields?: string }): string[] | undef
 }
 
 export function registerTable(program: Command, ctx: () => Context): void {
-  const table = program.command('table').description('Tables: list, describe, variants, query, count, get, create, copy, update, delete, export.')
+  const table = program.command('table').description('Tables: list, describe, variants, query, count, stats, get, create, copy, update, delete, export.')
 
   table.command('list')
     .description('List the tables you may read (optionally of one app).')
@@ -176,6 +176,60 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const joinsShown = used.map((j) => j.table)
       const rows = records.map((r) => Object.fromEntries(fields.map((f) => [f, valueText(r, f)])))
       c.print({ data: records, rows, columns: fields, headers: fields.map((f) => fieldLabel(meta, used, f)), footer: `(${records.length} record${records.length === 1 ? '' : 's'}${joinsShown.length ? `; joined: ${joinsShown.join(', ')}${includeDistinct ? ' (many-side: rows may repeat a record; --count gives the distinct count)' : ''}` : ''}${variant ? `; variant ${variant.name ?? `${variant.type}:${variant.id}`}` : ''}${filter.criteria?.length || filter.subFilters?.length ? `; filter: ${printFilter(filter)}` : ''}${!options.all && records.length === limit ? '; more may exist: --limit, --skip or --all' : ''})` })
+    })
+
+  table.command('stats <table> <field>')
+    .description('Column statistics over the matching records: count, distinct, sum, average, min, max, and the distribution of values (the server\'s columnStats process; tables need QUERY_STATS).')
+    .option('-w, --where <criteria...>', 'criteria, ANDed (or --or)')
+    .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
+    .option('--or', 'OR the --where criteria')
+    .option('--filter-json <json|file|->', 'a QueryFilter as JSON')
+    .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
+    .option('-j, --join <table...>', 'join exposed joins (the field may be table.field)')
+    .option('--sort <order>', 'distribution order: count (default, most first), count-asc, value, value-desc', 'count')
+    .option('-l, --limit <n>', 'most distribution rows to show', '25')
+    .option('--local', 'when the server offers no statistics, compute them here from the matching records (paged)')
+    .option('--max-records <n>', 'with --local, the most records to read', '100000')
+    .option(...VARIANT_OPTION)
+    .action(async (name: string, field: string, options: QueryOptions & { sort: string; local?: boolean; maxRecords: string }) => {
+      const c = ctx()
+      const meta = await tableMeta(c, name)
+      const available = await availableJoins(c, meta, { ...options, join: [...(options.join ?? []), ...(field.includes('.') ? [field.slice(0, field.indexOf('.'))] : [])] }, [field])
+      const resolved = resolveField(meta, available, field)
+      if (!resolved) throw new UsageError(`No field "${field}" in ${name}`)
+      const filter = filterFrom(options, meta, undefined, available)
+      const orderField = { count: 'count.desc', 'count-asc': 'count.asc', value: `${field}.asc`, 'value-desc': `${field}.desc` }[options.sort]
+      if (!orderField) throw new UsageError('--sort takes count, count-asc, value or value-desc')
+      const variant = await chooseVariant(c, meta, options.variant)
+      const availability = columnStatsAvailability(meta, await c.metaData() as unknown as Json)
+      let stats
+      if (availability.available) {
+        stats = await runColumnStats(c.server, authenticatedFetch(c.target), { table: name, field, filter, orderBy: orderField, tableVariant: variant })
+      } else if (options.local) {
+        const { joins } = joinsFrom(options, available, [field], filter)
+        const records: Json[] = []
+        const pageSize = 1000
+        const max = Number(options.maxRecords)
+        for (let skip = 0; skip < max; skip += pageSize) {
+          const body = { filter: { ...filter, skip, limit: Math.min(pageSize, max - skip) } as never, ...(joins ? { joins: joins as never } : {}), ...variantBody(variant) }
+          const page = ((await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}/query', { params: { path: { tableName: name } }, body })) as Json).records ?? []) as Json[]
+          records.push(...page)
+          if (page.length < pageSize) break
+        }
+        if (records.length >= max) c.note(`note: stopped at --max-records ${max}; the statistics cover those records only`)
+        stats = computeColumnStats(records, field, resolved.field, orderField)
+      } else {
+        throw new UsageError(`No column statistics: ${availability.reason}. --local computes them here from the matching records.`)
+      }
+      const label = fieldLabel(meta, available, field)
+      const limit = Number(options.limit)
+      const distribution = stats.valueCounts.slice(0, limit).map((r) => ({ value: r.displayValues[field] ?? r.values[field] ?? '', count: r.values.count }))
+      if (c.format === 'json' || c.format === 'yaml' || c.options.query) {
+        c.print({ data: { field, label, ...stats } })
+        return
+      }
+      c.print({ data: stats, rows: stats.fields.map((f) => ({ statistic: f.label, value: stats.stats.displayValues[f.name] ?? stats.stats.values[f.name] ?? '' })), columns: ['statistic', 'value'], footer: `${meta.label}: ${label}${resolved.field.type === 'DATE_TIME' ? ' (grouped by hour)' : ''}${availability.available ? '' : ' (computed locally)'}` })
+      c.print({ data: stats.valueCounts, rows: distribution, columns: ['value', 'count'], headers: [label, 'Count'], footer: stats.valueCounts.length > limit ? `(${limit} of ${stats.valueCounts.length} values; --limit for more)` : `(${stats.valueCounts.length} value${stats.valueCounts.length === 1 ? '' : 's'})` })
     })
 
   table.command('count <table>')
