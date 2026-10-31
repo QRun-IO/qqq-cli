@@ -12,7 +12,7 @@
 import type { Command } from 'commander'
 import { OPERATIONS, clearMetaDataCache, getMetaData, readCachedMetaData, readCachedTableMeta } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
-import { authenticatedFetch, resolveServer } from '../session.js'
+import { authenticatedFetch, target } from '../session.js'
 
 const SCRIPTS: Record<string, string> = {
   bash: `# qqq bash completion: eval "$(qqq completion bash)"
@@ -84,7 +84,7 @@ export function registerCompletion(program: Command, ctx: () => Context): void {
   })
   cache.command('refresh').description('Fetch the metadata again now.').action(async () => {
     const c = ctx()
-    const m = await getMetaData(c.server, authenticatedFetch(c.server), { refresh: true })
+    const m = await getMetaData(c.server, authenticatedFetch(c.target), { refresh: true })
     c.note(`Cached ${Object.keys(m.tables ?? {}).length} tables, ${Object.keys(m.processes ?? {}).length} processes, ${Object.keys(m.widgets ?? {}).length} widgets for ${c.server}.`)
   })
 
@@ -103,7 +103,7 @@ export function registerCompletion(program: Command, ctx: () => Context): void {
       const previous = before[before.length - 1] ?? ''
       const meta = () => {
         try {
-          return readCachedMetaData(resolveServer())?.metaData
+          return readCachedMetaData(target().server)?.metaData
         } catch {
           return undefined
         }
@@ -116,7 +116,7 @@ export function registerCompletion(program: Command, ctx: () => Context): void {
         const table = tableInWords()
         let fields: string[] = []
         try {
-          if (table) fields = Object.keys((readCachedTableMeta<{ fields?: Record<string, unknown> }>(resolveServer(), table)?.fields) ?? {})
+          if (table) fields = Object.keys((readCachedTableMeta<{ fields?: Record<string, unknown> }>(target().server, table)?.fields) ?? {})
         } catch {
           fields = []
         }

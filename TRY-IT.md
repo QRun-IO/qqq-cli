@@ -109,6 +109,15 @@ qqq help-search person ; qqq report run <name> --format xlsx
 qqq search Avery ; qqq tail
 ```
 
+Profiles name servers, as `aws --profile`; sign-ins live in the OS keyring (macOS Keychain here, Secret Service on
+Linux, DPAPI on Windows; `QQQ_KEYRING=file` for a 0600 file). The first sign-in becomes the default profile.
+
+```sh
+qqq login --server http://localhost:8077 --profile sample   # creates the profile; the Keychain gets an item "qqq"
+qqq config profile list ; qqq config profile use sample ; qqq config show
+qqq --profile sample table count person ; QQQ_PROFILE=sample qqq whoami
+```
+
 Shell completion (nouns, verbs, options, and table, process, widget, field and operation names from the local
 metadata cache):
 

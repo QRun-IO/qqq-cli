@@ -138,7 +138,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
   async function fillForm(c: Context, meta: Json, name: string, given: Json, options: { interactive?: boolean }, initial?: Json): Promise<FormSession> {
     const fields = Object.values((meta.fields ?? {}) as Record<string, FieldMeta>)
     for (const k of Object.keys(given)) if (!(meta.fields as Json)[k]) throw new UsageError(`No field "${k}" in ${name}; fields: ${Object.keys(meta.fields as Json).join(', ')}`)
-    const session = new FormSession({ baseUrl: c.server, fetch: authenticatedFetch(c.server), scope: { table: name }, fields, initialValues: initial, tableMeta: meta as never, exclude: initial ? [] : [String(meta.primaryKeyField)] })
+    const session = new FormSession({ baseUrl: c.server, fetch: authenticatedFetch(c.target), scope: { table: name }, fields, initialValues: initial, tableMeta: meta as never, exclude: initial ? [] : [String(meta.primaryKeyField)] })
     await session.load()
     for (const k of session.promptOrder(Object.keys(given))) {
       try {

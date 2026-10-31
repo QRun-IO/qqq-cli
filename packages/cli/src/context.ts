@@ -11,13 +11,14 @@
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
 import { FilterSyntaxError, OUTPUT_FORMATS, applyQuery, callOperation, defaultFormat, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
-import { authenticatedFetch, clientFor, resolveServer } from './session.js'
+import { authenticatedFetch, clientFor, selectTarget, target, type Target } from './session.js'
 
 /** Exit codes, as in the design doc (KofTwentyTwo ADR-0031 shape). */
 export const EXIT = { ok: 0, error: 1, usage: 2, auth: 3, transient: 4, notFound: 5, validation: 6, unexpected: 70 } as const
 
 export interface GlobalOptions {
   server?: string
+  profile?: string
   output?: OutputFormat
   json?: boolean
   query?: string
@@ -36,16 +37,22 @@ export class Context {
     if (this.options.output && !OUTPUT_FORMATS.includes(this.options.output)) {
       throw new UsageError(`--output must be one of ${OUTPUT_FORMATS.join(', ')}`)
     }
+    selectTarget({ profile: this.options.profile, server: this.options.server })
   }
 
-  /** The server origin from --server, QQQ_SERVER or the last sign-in. */
+  /** The profile and server from --profile, QQQ_PROFILE, --server, QQQ_SERVER or the default profile. */
+  get target(): Target {
+    return target()
+  }
+
+  /** The server origin of the target. */
   get server(): string {
-    return resolveServer(this.options.server)
+    return this.target.server
   }
 
   /** The authenticated typed client. */
   get client(): UiApiClient {
-    this.clientCache ??= clientFor(this.server)
+    this.clientCache ??= clientFor(this.target)
     return this.clientCache
   }
 
@@ -73,17 +80,17 @@ export class Context {
 
   /** The server's metadata, from the on-disk cache when fresh. */
   metaData(options: { refresh?: boolean } = {}): Promise<MetaDataDocument> {
-    return getMetaData(this.server, authenticatedFetch(this.server), options)
+    return getMetaData(this.server, authenticatedFetch(this.target), options)
   }
 
   /** A table's definition, cached for five minutes (fields, sections, capabilities). */
   tableMeta<T = Record<string, unknown>>(table: string, options: { refresh?: boolean } = {}): Promise<T> {
-    return getTableMetaData<T>(this.server, table, authenticatedFetch(this.server), options)
+    return getTableMetaData<T>(this.server, table, authenticatedFetch(this.target), options)
   }
 
   /** Calls an operation by id (the generic escape hatch). */
   call(id: string, input: CallInput): Promise<CallResult> {
-    return callOperation(this.server, id, input, authenticatedFetch(this.server))
+    return callOperation(this.server, id, input, authenticatedFetch(this.target))
   }
 
   /** Unwraps a typed client call. */

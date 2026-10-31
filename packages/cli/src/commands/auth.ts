@@ -7,7 +7,7 @@ import type { Command } from 'commander'
 import { createSession, decodeJwtClaims, deviceSignIn, getAuthenticationMetaData } from '@qrun-io/qqq-ui-api-client'
 import type { Context } from '../context.js'
 import { UsageError } from '../context.js'
-import { CLIENT_CHANNEL, currentToken, getLogin, nativeConfig, removeLogin, saveLogin } from '../session.js'
+import { CLIENT_CHANNEL, currentToken, getLogin, nativeConfig, removeLogin, saveLogin, secretStoreKind } from '../session.js'
 import type { Json } from './shared.js'
 
 export function registerAuth(program: Command, ctx: () => Context): void {
@@ -16,14 +16,15 @@ export function registerAuth(program: Command, ctx: () => Context): void {
     .option('--device', 'force the device-authorization grant')
     .action(async (options: { device?: boolean }) => {
       const c = ctx()
-      const origin = c.server
+      const t = c.target
+      const origin = t.server
       const auth = await getAuthenticationMetaData(origin)
       const type = String(auth.type ?? '').toUpperCase()
       if (!options.device && (type === 'MOCK' || type === 'FULLY_ANONYMOUS')) {
         const session = await createSession(origin, {}, CLIENT_CHANNEL)
         const user = (session.values.user ?? {}) as Record<string, unknown>
-        saveLogin(origin, { kind: 'session', authType: type, sessionUUID: session.sessionUUID, user, createdAt: new Date().toISOString() })
-        c.note(`Signed in to ${origin} (${type.toLowerCase()} authentication${user.name || user.email ? ` as ${user.name ?? user.email}` : ''}).`)
+        await saveLogin(t, { kind: 'session', authType: type, sessionUUID: session.sessionUUID, user, createdAt: new Date().toISOString() })
+        c.note(`Signed in to ${origin} (${type.toLowerCase()} authentication${user.name || user.email ? ` as ${user.name ?? user.email}` : ''}) as profile "${t.name}"; sign-in kept in the ${secretStoreKind()}.`)
         return
       }
       if (!options.device && type === 'TABLE_BASED') throw new UsageError('TABLE_BASED sign-in (username and password) is not implemented yet; set QQQ_TOKEN to a session UUID for now.')
@@ -34,17 +35,18 @@ export function registerAuth(program: Command, ctx: () => Context): void {
         c.note(`and confirm the code ${prompt.userCode} (it expires in ${Math.round(prompt.expiresIn / 60)} minutes).`)
         c.note('Waiting for approval...')
       })
-      saveLogin(origin, { kind: 'oauth', config, tokens })
+      await saveLogin(t, { kind: 'oauth', config, tokens })
       const claims = decodeJwtClaims(tokens.accessToken)
-      c.note(`Signed in to ${origin} as ${claims.email ?? claims.preferred_username ?? claims.sub}.`)
+      c.note(`Signed in to ${origin} as ${claims.email ?? claims.preferred_username ?? claims.sub} (profile "${t.name}", sign-in kept in the ${secretStoreKind()}).`)
     })
 
   program.command('logout')
     .description("Forget this server's sign-in (and end a server session).")
     .action(async () => {
       const c = ctx()
-      const origin = c.server
-      const login = getLogin(origin)
+      const t = c.target
+      const origin = t.server
+      const login = await getLogin(t)
       if (login?.kind === 'session') {
         try {
           await c.call('logout', {})
@@ -52,21 +54,23 @@ export function registerAuth(program: Command, ctx: () => Context): void {
           // the session may already be gone
         }
       }
-      c.note(removeLogin(origin) ? `Signed out of ${origin}.` : `Not signed in to ${origin}.`)
+      c.note((await removeLogin(t)) ? `Signed out of ${origin} (profile "${t.name}").` : `Not signed in to ${origin}.`)
     })
 
   program.command('whoami')
     .description('Show the signed-in user, the server version and its extensions.')
     .action(async () => {
       const c = ctx()
-      const origin = c.server
+      const t = c.target
+      const origin = t.server
       const version = await c.unwrap(c.client.GET('/qqq/v1/version')) as Json
-      const token = await currentToken(origin)
+      const token = await currentToken(t)
       const claims = token && token.includes('.') ? decodeJwtClaims(token) : {}
-      const metaData = await c.unwrap(c.client.GET('/qqq/v1/metaData', {})) as Json
-      const login = getLogin(origin)
+      const metaData = await c.metaData() as unknown as Json
+      const login = await getLogin(t)
       const sessionUser = login?.kind === 'session' ? login.user ?? {} : {}
       const result = {
+        profile: `${t.name} (${t.source})`,
         server: origin,
         auth: login?.kind === 'session' ? `${login.authType.toLowerCase()} session` : login ? 'oauth2 bearer' : process.env.QQQ_TOKEN ? 'QQQ_TOKEN' : 'none',
         user: claims.email ?? claims.preferred_username ?? claims.sub ?? sessionUser.email ?? sessionUser.username ?? sessionUser.name ?? '',

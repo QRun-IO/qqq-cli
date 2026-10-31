@@ -67,7 +67,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
       if (options.validate) given.doFullValidation = 'true'
       if (options.skipValidation) given.doFullValidation = 'false'
       const canPrompt = options.prompt !== false && Boolean(process.stdin.isTTY)
-      const fetchImpl = authenticatedFetch(c.server)
+      const fetchImpl = authenticatedFetch(c.target)
       const outcome = await runProcess({
         baseUrl: c.server,
         fetch: fetchImpl,

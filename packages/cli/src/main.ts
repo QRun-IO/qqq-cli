@@ -18,6 +18,7 @@ import { CLI_VERSION } from './session.js'
 import { registerApi } from './commands/api.js'
 import { registerAuth } from './commands/auth.js'
 import { registerCompletion } from './commands/completion.js'
+import { registerConfig } from './commands/config.js'
 import { registerJob } from './commands/job.js'
 import { registerMisc } from './commands/misc.js'
 import { registerProcess } from './commands/process.js'
@@ -29,7 +30,8 @@ program
   .name('qqq')
   .description('Command-line client for QQQ applications, built only on the QQQ UI API (/qqq/v1).')
   .version(`${CLI_VERSION} (UI API client ${UI_API_VERSION})`)
-  .option('-s, --server <url>', 'the QQQ server (default: QQQ_SERVER, or the last one signed in to)')
+  .option('-s, --server <url>', 'the QQQ server (default: QQQ_SERVER, or the default profile)')
+  .option('-p, --profile <name>', 'the profile to use (default: QQQ_PROFILE, or the default profile)')
   .option('-O, --output <format>', 'json, table, text, csv or yaml (default: table on a terminal, json in a pipe; QQQ_OUTPUT)')
   .option('--json', 'same as --output json')
   .option('-Q, --query <jmespath>', 'reshape the output with a JMESPath expression, as `aws --query`')
@@ -50,6 +52,7 @@ registerJob(program, ctx)
 registerWidget(program, ctx)
 registerApi(program, ctx)
 registerCompletion(program, ctx)
+registerConfig(program, ctx)
 
 /** Flat aliases from 0.1: forward to the noun-verb commands with the same options. */
 function alias(flat: string, noun: string, verb: string, description: string): void {

@@ -38,11 +38,12 @@ export function registerMisc(program: Command, ctx: () => Context): void {
     .option('-c, --channel <channels...>', 'more channels, e.g. table:person or record:person:42')
     .action(async (options: { channel?: string[] }) => {
       const c = ctx()
-      const origin = c.server
+      const t = c.target
+      const origin = t.server
       const controller = new AbortController()
       process.on('SIGINT', () => controller.abort())
-      const session = sessionCookieFor(origin)
-      const stream = openRealtimeStream({ baseUrl: origin, token: () => currentToken(origin), clientChannel: CLIENT_CHANNEL, signal: controller.signal, ...(session ? { headers: { Cookie: `sessionUUID=${session}` } } : {}) } as never)
+      const session = await sessionCookieFor(t)
+      const stream = openRealtimeStream({ baseUrl: origin, token: () => currentToken(t), clientChannel: CLIENT_CHANNEL, signal: controller.signal, ...(session ? { headers: { Cookie: `sessionUUID=${session}` } } : {}) } as never)
       for await (const message of stream) {
         const data = (message.data ?? {}) as Json
         if (message.event === 'hello') {
