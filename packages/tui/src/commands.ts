@@ -82,46 +82,49 @@ export class Commands implements CommandsLike {
     }
   }
 
+  /** Opens a metadata object found in the index. */
+  openEntry(kind: string, name: string): void {
+    const s = this.store
+    if (kind === 'table') openTable(s, name)
+    else if (kind === 'process') openProcess(s, name)
+    else if (kind === 'app') openApp(s, name)
+    else if (kind === 'report') this.commandLine(`report run ${name} --format csv`)
+    else if (kind === 'widget') void this.run(`widget get ${name}`)
+  }
+
   palette(): void {
     const s = this.store
     const meta = s.meta
-    const items: PaletteItem[] = []
-    const walk = (nodes: AppTreeNode[], path: string[]) => {
-      for (const n of nodes) {
-        const context = path.join(' › ')
-        if (n.type === 'TABLE') items.push({ label: n.label, kind: 'table', context, run: () => openTable(s, n.name) })
-        else if (n.type === 'PROCESS') items.push({ label: n.label, kind: 'process', context, run: () => openProcess(s, n.name) })
-        else if (n.type === 'APP') items.push({ label: n.label, kind: 'app', context, run: () => openApp(s, n.name) })
-        else if (n.type === 'REPORT') items.push({ label: n.label, kind: 'report', context, run: () => this.commandLine(`report run ${n.name} --format csv`) })
-        if (n.children) walk(n.children, [...path, n.label])
-      }
-    }
-    walk((meta?.appTree ?? []) as AppTreeNode[], [])
-    const listed = new Set(items.map((i) => `${i.kind}:${i.label}`))
-    for (const t of Object.values(meta?.tables ?? {})) if (!t.isHidden && !listed.has(`table:${t.label}`)) items.push({ label: t.label, kind: 'table', context: t.name, run: () => openTable(s, t.name) })
+    const idle: PaletteItem[] = []
     try {
-      for (const r of s.client ? readRecents(s.client.server) : []) {
-        if (r.kind === 'record' && r.table) items.push({ label: r.label, kind: 'recent', context: meta?.tables?.[r.table]?.label ?? r.table, run: () => openRecord(s, r.table!, r.key) })
+      for (const r of s.client ? readRecents(s.client.server).slice(0, 15) : []) {
+        if (r.kind === 'record' && r.table) idle.push({ label: r.label, kind: 'recent', context: meta?.tables?.[r.table]?.label ?? r.table, run: () => openRecord(s, r.table!, r.key) })
+        else if (r.kind === 'table' && r.table) idle.push({ label: r.label, kind: 'recent', context: 'table', run: () => openTable(s, r.table!) })
+        else if (r.kind === 'process' && r.name) idle.push({ label: r.label, kind: 'recent', context: 'process', run: () => openProcess(s, r.name!) })
       }
     } catch {
       // no recents
     }
-    for (const e of this.entries()) if (e.run && !e.disabled && e.section !== 'Context' && !e.label.startsWith('Recent:') && !/^(Table|Process|App): /.test(e.label)) items.push({ label: e.label, kind: 'command', context: e.command ? `:${e.command}` : e.section, run: e.run })
+    for (const e of this.entries('')) if (e.run && !e.disabled && e.section !== 'Context' && e.section !== 'Go to') idle.push({ label: e.label, kind: 'command', context: e.command ? `:${e.command}` : e.section, run: e.run })
+    const searchIndex = (text: string, limit: number) => {
+      const r = s.index?.search(text, { limit, kinds: ['app', 'table', 'process', 'report'] }) ?? { entries: [], total: 0 }
+      return { total: r.total, items: r.entries.map((e) => ({ label: e.label, kind: e.kind, context: e.path.join(' › ') || e.name, run: () => this.openEntry(e.kind, e.name) })) }
+    }
     const features = s.version?.features ?? []
-    const quick = s.extensions.has('qbit-quick-search') || s.extensions.has('quick-search')
+    const quick = s.extensions.has('quick-search') || s.extensions.has('qbit-quick-search')
     const search = quick || features.includes('recordSearch') ? async (text: string): Promise<PaletteItem[]> => {
-      const data = await s.client!.data<{ results?: Array<{ tableName?: string; table?: string; primaryKey?: unknown; recordLabel?: string; label?: string }>; provider?: { status?: string; message?: string | null } }>('searchRecords', { json: { query: text, searchTerm: text, limit: 20 } })
+      const data = await s.client!.data<{ results?: Array<{ tableName?: string; table?: string; primaryKey?: unknown; recordLabel?: string; label?: string }>; provider?: { status?: string } }>('searchRecords', { json: { query: text, searchTerm: text, limit: 20 } })
       if (data.provider?.status === 'NONE') return [{ label: 'No record search on this server (search provider: none)', kind: 'note', context: 'navigation only', run: () => undefined }]
       return (data.results ?? []).map((r) => {
         const table = r.tableName ?? r.table ?? ''
         return { label: r.recordLabel ?? r.label ?? String(r.primaryKey), kind: 'record', context: meta?.tables?.[table]?.label ?? table, run: () => openRecord(s, table, String(r.primaryKey ?? '')) }
       })
     } : undefined
-    s.open(new PaletteOverlay(s, items, search, quick ? 'quick-search extension' : search ? 'POST /search' : ''))
+    s.open(new PaletteOverlay(s, idle, searchIndex, search, s.index?.describe() ?? ''))
   }
 
   menu(): void {
-    this.store.open(new MenuOverlay(this.store, this.entries()))
+    this.store.open(new MenuOverlay(this.store, (text) => this.entries(text), this.store.index?.describe() ?? ''))
   }
 
   commandLine(initial?: string): void {
@@ -421,7 +424,7 @@ export class Commands implements CommandsLike {
   }
 
   /** Every command-center entry for the current context. */
-  entries(): MenuEntry[] {
+  entries(filterText = ''): MenuEntry[] {
     const s = this.store
     const meta = s.meta
     const out: MenuEntry[] = [...(s.screen?.menu?.() ?? [])]
@@ -429,15 +432,18 @@ export class Commands implements CommandsLike {
     // Go to
     out.push({ section: 'Go to', label: 'Reset: go to the home screen', key: 'F10', command: 'reset', detail: 'refreshes metadata, keeps the session', run: () => s.reset() })
     out.push({ section: 'Go to', label: 'Go to anything…', key: 'F2 / .', command: 'goto', run: () => this.palette() })
-    for (const n of (meta?.appTree ?? []) as AppTreeNode[]) if (n.type === 'APP') out.push({ section: 'Go to', label: `App: ${n.label}`, command: `app ${n.name}`, run: () => openApp(s, n.name) })
-    for (const t of Object.values(meta?.tables ?? {}).filter((x) => !x.isHidden).sort((a, b) => a.label.localeCompare(b.label))) out.push({ section: 'Go to', label: `Table: ${t.label}`, command: `table query ${t.name}`, run: () => openTable(s, t.name) })
-    for (const p of Object.values(meta?.processes ?? {}).filter((x) => !x.isHidden).sort((a, b) => a.label.localeCompare(b.label))) out.push({ section: 'Go to', label: `Process: ${p.label}`, command: `process run ${p.name}`, run: () => openProcess(s, p.name) })
-    for (const r of Object.values((meta?.reports ?? {}) as Record<string, { name: string; label: string }>)) out.push({ section: 'Go to', label: `Report: ${r.label}`, command: `report run ${r.name}`, run: () => this.commandLine(`report run ${r.name} --format csv`) })
-    for (const a of Object.values((meta?.apps ?? {}) as Record<string, { name: string; label: string; widgets?: string[] }>)) if (a.widgets?.length) out.push({ section: 'Go to', label: `Dashboard: ${a.label}`, detail: `${a.widgets.length} widgets`, run: () => openApp(s, a.name) })
+    // search-first: top-level apps and recents, plus index matches for the typed text (never every table)
+    for (const n of ((meta?.appTree ?? []) as AppTreeNode[]).filter((x) => x.type === 'APP').slice(0, 30)) out.push({ section: 'Go to', label: `App: ${n.label}`, command: `app ${n.name}`, run: () => openApp(s, n.name) })
     try {
       for (const r of s.client ? readRecents(s.client.server).slice(0, 10) : []) if (r.kind === 'record' && r.table) out.push({ section: 'Go to', label: `Recent: ${meta?.tables?.[r.table]?.label ?? r.table} › ${r.label}`, run: () => openRecord(s, r.table!, r.key) })
     } catch {
       // none
+    }
+    if (filterText.trim() && s.index) {
+      const kindLabel: Record<string, string> = { app: 'App', table: 'Table', process: 'Process', report: 'Report', widget: 'Widget' }
+      for (const e of s.index.search(filterText, { limit: 30 }).entries) {
+        out.push({ id: `index:${e.kind}:${e.name}`, section: 'Go to', label: `${kindLabel[e.kind]}: ${e.label}`, detail: e.path.join(' › '), command: e.kind === 'table' ? `table query ${e.name}` : e.kind === 'process' ? `process run ${e.name}` : undefined, run: () => this.openEntry(e.kind, e.name) })
+      }
     }
     out.push({ section: 'Go to', label: 'Favorites', disabled: s.extensions.has('collaboration') ? undefined : 'needs the collaboration extension' })
     // Work
@@ -451,11 +457,11 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Connection', label: `Stream ${s.status.stream}`, detail: `ping ${s.status.pingMs === null ? '--' : s.status.pingMs.toFixed(0) + ' ms'}`, run: () => this.connection() })
     out.push({ section: 'Connection', label: 'Switch profile…', command: 'profile', run: () => this.chooseProfile() })
     out.push({ section: 'Connection', label: 'Connect to another server…', command: 'server <url>', run: () => s.open(new PromptOverlay(s, 'Connect to a server', 'The server URL.', (u) => this.switchServer(u.trim()), 'http://localhost:8077')) })
-    out.push({ section: 'Connection', label: 'Refresh metadata', run: () => s.run(s.client!.metaData(true), (m) => { s.meta = m; s.client!.clearCaches(); s.flash('metadata refreshed') }) })
+    out.push({ section: 'Connection', label: 'Refresh metadata', run: () => s.run(s.client!.metaData(true), (m) => { s.setMeta(m); s.client!.clearCaches(); s.flash('metadata refreshed') }) })
     out.push({ section: 'Connection', label: 'Copy connection details', run: () => s.message(this.connectionText(), 'info', 'Connection (select with the mouse to copy)') })
     out.push({ section: 'Connection', label: 'Sign out', command: 'signout', run: () => this.signOut() })
     // Settings
-    for (const t of Object.values(THEMES)) out.push({ section: 'Settings', label: `Theme: ${t.label}`, detail: t.name === s.settings.theme ? 'current' : undefined, command: `theme ${t.name}`, run: () => { s.setTheme(t.name); writeTheme(t.name) } })
+    out.push({ id: 'settings:theme', section: 'Settings', label: `Theme: ${s.settings.theme}`, command: 'theme <name>', run: () => this.themePicker() })
     out.push({ section: 'Settings', label: 'View settings for this screen', key: 'v', command: 'view', run: () => this.viewSettings() })
     out.push({ section: 'Settings', label: `Single-key shortcuts: ${s.settings.singleKeys ? 'on' : 'off'}`, command: `shortcuts ${s.settings.singleKeys ? 'off' : 'on'}`, run: () => this.setShortcuts(!s.settings.singleKeys) })
     out.push({ section: 'Settings', label: `Linear layout: ${s.settings.linear ? 'on' : 'off'}`, command: `linear ${s.settings.linear ? 'off' : 'on'}`, run: () => { s.settings.linear = !s.settings.linear; s.bump() } })
@@ -492,6 +498,16 @@ export class Commands implements CommandsLike {
       s.confirm(`${f.message} Fix for this tmux server now?`, () => { applyLiveFix(f); s.flash('fixed for this tmux server'); next(i + 1) }, () => next(i + 1))
     }
     next(0)
+  }
+
+  themePicker(): void {
+    const s = this.store
+    const names = Object.keys(THEMES)
+    s.open(new ChoiceOverlay(s, 'Theme', Object.values(THEMES).map((t) => ({ label: t.label, value: t.name, detail: t.name === s.settings.theme ? 'current' : t.name })), (name) => {
+      s.setTheme(name)
+      writeTheme(name)
+      s.flash(`theme ${name} (saved)`)
+    }, 'saved for next time', Math.max(0, names.indexOf(s.settings.theme))))
   }
 
   prefs(): void {

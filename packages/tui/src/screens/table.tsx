@@ -101,6 +101,8 @@ export class TableScreen implements Screen {
   pageSize = 20
   view: ViewSettings = {}
   private generation = 0
+  /** The column layout, frozen while paging, sorting, filtering and stepping. */
+  private frozen?: { key: string; fromEmpty: boolean; cols: GridColumn[] }
 
   constructor(private store: AppStore, readonly tableName: string, filter?: QueryFilter, options: { index?: number } = {}) {
     this.id = `table:${tableName}:${Date.now()}`
@@ -422,7 +424,13 @@ export class TableScreen implements Screen {
       queueMicrotask(() => this.load())
     }
     const fields = this.fields()
-    const cols = layoutColumns(fields, this.rows, inner - 2, this.view)
+    // column widths are fixed for the life of the grid: computed once from the metadata, the saved view
+    // and the first page, and again only when the width or the view settings change (never per page)
+    const viewKey = `${inner}|${JSON.stringify(this.view)}|${fields.map((f) => f.name).join(',')}`
+    if (!this.frozen || this.frozen.key !== viewKey || (this.frozen.fromEmpty && this.rows.length)) {
+      this.frozen = { key: viewKey, fromEmpty: this.rows.length === 0, cols: layoutColumns(fields, this.rows, inner - 2, this.view) }
+    }
+    const cols = this.frozen.cols
     this.colCursor = Math.min(this.colCursor, Math.max(0, cols.length - 1))
     if (this.colCursor < this.leftCol) this.leftCol = this.colCursor
     while (this.leftCol < this.colCursor && !visibleFrom(cols, this.leftCol, inner - 2).some((c) => c.name === cols[this.colCursor]!.name)) this.leftCol++

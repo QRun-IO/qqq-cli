@@ -11,6 +11,8 @@ export type FKeyLabels = Partial<Record<number, string | null>>
 
 /** One entry of the F9 command center (and of the palette): runnable, searchable, with its shortcut. */
 export interface MenuEntry {
+  /** Stable identity (the cursor comes back to it after a sub-dialog); defaults to section and label. */
+  id?: string
   section: 'Context' | 'Go to' | 'Work' | 'Connection' | 'Settings' | 'Help'
   label: string
   /** Shortcut shown beside the entry. */

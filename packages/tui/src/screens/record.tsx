@@ -173,7 +173,10 @@ export class RecordScreen implements Screen {
       rows.push({ text: `${s.label}${s.tier ? ` (${s.tier})` : ''} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 8)))}`, fg: t.acc, bold: true })
       const tableNames = Object.keys(this.store.meta?.tables ?? {})
       const valueOf = (f: FieldMetaData) => valueText(f as FieldMeta, rec as never, { reveal: this.revealed.has(f.name), tableNames, tableName: this.tableName, primaryKey: this.primaryKey, widgets: this.store.meta?.widgets as never }).text
-      const longest = Math.max(...fields.map((f) => valueOf(f).length + (linkTarget(this.store, f) ? 2 : 0)), 4)
+      // the value column is sized once per section (first record shown) and kept while stepping records
+      const frozenKey = `${s.name}|${inner}`
+      if (!this.sectionWidths.has(frozenKey)) this.sectionWidths.set(frozenKey, Math.max(...fields.map((f) => valueOf(f).length + (linkTarget(this.store, f) ? 2 : 0)), 12))
+      const longest = this.sectionWidths.get(frozenKey)!
       const colWidth = Math.min(60, labelWidth + 2 + longest)
       const two = (view.recordColumns ?? (inner >= 2 * colWidth + 6 ? 2 : 1)) === 2 && inner >= 2 * Math.min(colWidth, 30) + 6
       const fieldText = (f: FieldMetaData) => {
@@ -204,6 +207,9 @@ export class RecordScreen implements Screen {
   openedChild?: { gi: number; cursor: ResultCursor }
 
   groups: AssociationGroup[] = []
+  /** Frozen layout: value width per section and child-list column widths, kept while stepping. */
+  sectionWidths = new Map<string, number>()
+  childWidths = new Map<string, number[]>()
   revealed = new Set<string>()
 
   childRows(group: AssociationGroup, gi: number, rows: Row[], inner: number): void {
@@ -219,7 +225,11 @@ export class RecordScreen implements Screen {
     }
     const binding = (group.association.join?.joinOns ?? []).map((j) => j.rightField)
     const names = childListFields(child as unknown as TableMetaLike, binding)
-    const widths = names.map((n) => Math.min(30, Math.max(child.fields[n]!.label.length, ...records.map((r) => fieldCell(r, child.fields[n]!).length))))
+    const wkey = `${group.association.name}|${names.join(',')}`
+    if (!this.childWidths.has(wkey) || (records.length && this.childWidths.get(wkey)!.every((w, i) => w === child.fields[names[i]!]!.label.length))) {
+      this.childWidths.set(wkey, names.map((n) => Math.min(30, Math.max(child.fields[n]!.label.length, ...records.map((r) => fieldCell(r, child.fields[n]!).length)))))
+    }
+    const widths = this.childWidths.get(wkey)!
     rows.push({ text: '  ' + names.map((n, i) => pad(child.fields[n]!.label, widths[i]!)).join('  '), fg: t.dim })
     records.forEach((r, idx) => {
       rows.push({ text: '  ' + names.map((n, i) => pad(fieldCell(r, child.fields[n]!), widths[i]!)).join('  '), key: `c:${gi}:${idx}`, action: () => this.openChild(group, idx) })
