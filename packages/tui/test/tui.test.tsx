@@ -117,3 +117,49 @@ test('F10 offers Quit, Reset and Cancel; Reset returns to Home with the Apps tre
   expect(h.store.screen?.kind).toBe('home')
   expect(h.store.focus).toBe('sidebar')
 })
+
+test('grid column widths stay fixed while paging, even when the next page has much longer values', async () => {
+  h = await startTui(120, 30)
+  await command(h, 'table query wide')
+  const first = await waitFor(h, (x) => x.includes('40 records') && x.includes('n1 '))
+  const header = (frame: string) => frame.split('\n').find((l) => l.includes('Id') && l.includes('Name') && l.includes('Note'))!
+  const h1 = header(first)
+  await press(h, () => h!.setup.mockInput.pressKey(KeyCodes.END))
+  const last = await waitFor(h, (x) => x.includes('40 a-'))
+  expect(header(last)).toBe(h1)
+  const rowLine = last.split('\n').find((l) => l.includes('40 a-'))!
+  expect(rowLine.indexOf('…')).toBeGreaterThan(0)
+  expect(h1.indexOf('Note')).toBe(header(last).indexOf('Note'))
+})
+
+test('F9 is a stack: the theme picker returns to F9 at the theme entry with the new name; Esc closes F9', async () => {
+  h = await startTui(140, 40)
+  await press(h, () => h!.setup.mockInput.pressKey(KeyCodes.F9))
+  await press(h, () => h!.setup.mockInput.typeText('theme'))
+  let f = await waitFor(h, (x) => x.includes('Theme: high-contrast'))
+  await press(h, () => h!.setup.mockInput.pressEnter())
+  f = await waitFor(h, (x) => x.includes('Classic (cyan title'))
+  await press(h, () => h!.setup.mockInput.typeText('Light'))
+  await press(h, () => h!.setup.mockInput.pressEnter())
+  f = await waitFor(h, (x) => x.includes('Theme: light') && x.includes('Menu  (F9)'))
+  expect(h.store.settings.theme).toBe('light')
+  const menu = h.store.overlays.at(-1) as unknown as { visible(): Array<{ id?: string; label: string }>; index: number }
+  expect(menu.visible()[menu.index]!.label).toBe('Theme: light')
+  f = await press(h, () => h!.setup.mockInput.pressEscape())
+  expect(f).not.toContain('Menu  (F9)')
+  expect(h.store.overlays.length).toBe(0)
+})
+
+test('Home: panels, Tab between them, Enter on an application card opens its app home', async () => {
+  h = await startTui(130, 40)
+  const f = await waitFor(h, (x) => x.includes('Quick actions') && x.includes('Applications (1)'))
+  expect(f).toContain('Recently viewed')
+  const apps = (h.store.screen as unknown as { panels(): Array<{ id: string; items: Array<{ card?: string[] }> }> }).panels().find((p) => p.id === 'apps')!
+  expect(apps.items[0]!.card).toEqual(['◆ People', '', '2 tables · 1 processes', ''])
+  await press(h, () => h!.setup.mockInput.pressTab())
+  await press(h, () => h!.setup.mockInput.pressTab())
+  await press(h, () => h!.setup.mockInput.pressEnter())
+  await waitFor(h, (x) => x.includes('People') && h!.store.screen?.kind === 'app')
+  await press(h, () => h!.setup.mockInput.pressEscape())
+  expect(h.store.screen?.kind).toBe('home')
+})

@@ -31,6 +31,12 @@ export class AppHomeScreen implements Screen {
   widgets = new Map<string, RenderBlock[] | { error: string }>()
   counts = new Map<string, number | string>()
   width = 100
+  /** Lazy loading: what each widget or count row needs, by the row it is drawn on; at most 4 requests at once. */
+  private tasks = new Map<string, { row: number; run: () => Promise<void> }>()
+  private started = new Set<string>()
+  private active = 0
+  private readonly abort = new AbortController()
+  static readonly CONCURRENCY = 4
 
   constructor(private store: AppStore, readonly appName: string) {
     this.id = `app:${appName}`
@@ -60,15 +66,43 @@ export class AppHomeScreen implements Screen {
   }
 
   load(): void {
-    const client = this.store.client
-    if (!client) return
-    for (const w of this.app?.widgets ?? []) {
-      client.widget(w).then((data) => this.widgets.set(w, widgetToBlocks(data))).catch((e) => this.widgets.set(w, { error: errorText(e) })).finally(() => { this.build(); this.store.bump() })
-    }
-    for (const t of this.tableNames()) {
-      client.count(t, { criteria: [], booleanOperator: 'AND' }).then((n) => this.counts.set(t, n)).catch(() => this.counts.set(t, '?')).finally(() => { this.build(); this.store.bump() })
-    }
     this.build()
+  }
+
+  /** Starts the requests whose rows are on screen or one page below, four at a time. */
+  pump(): void {
+    const client = this.store.client
+    if (!client || this.abort.signal.aborted) return
+    const limit = this.list.top + this.list.height * 2
+    const ready = [...this.tasks.entries()].filter(([k, t]) => !this.started.has(k) && t.row <= limit).sort((a, b) => a[1].row - b[1].row)
+    for (const [key, task] of ready) {
+      if (this.active >= AppHomeScreen.CONCURRENCY) break
+      this.started.add(key)
+      this.active++
+      task.run().finally(() => {
+        this.active--
+        if (this.abort.signal.aborted) return
+        this.build()
+        this.store.bump()
+        queueMicrotask(() => this.pump())
+      })
+    }
+  }
+
+  dispose(): void {
+    this.abort.abort()
+  }
+
+  private widgetTask(w: string, row: number): void {
+    if (this.started.has(`w:${w}`)) return
+    const client = this.store.client!.withSignal(this.abort.signal)
+    this.tasks.set(`w:${w}`, { row, run: () => client.widget(w).then((data) => { this.widgets.set(w, widgetToBlocks(data)) }).catch((e) => { if (!this.abort.signal.aborted) this.widgets.set(w, { error: errorText(e) }) }) })
+  }
+
+  private countTask(t: string, row: number): void {
+    if (this.started.has(`c:${t}`)) return
+    const client = this.store.client!.withSignal(this.abort.signal)
+    this.tasks.set(`c:${t}`, { row, run: () => client.count(t, { criteria: [], booleanOperator: 'AND' }).then((n) => { this.counts.set(t, n) }).catch(() => { this.counts.set(t, '?') }) })
   }
 
   tableNames(): string[] {
@@ -87,15 +121,18 @@ export class AppHomeScreen implements Screen {
     for (const w of this.widgetOrder()) {
       const data = this.widgets.get(w)
       const label = (meta?.widgets as Record<string, { label?: string }> | undefined)?.[w]?.label ?? w
+      // widget headings are selectable (Enter reloads it), so the cursor starts at the top and only visible widgets load
+      const reload = () => { this.widgets.delete(w); this.started.delete(`w:${w}`); this.build(); this.store.bump() }
       if (!data) {
-        rows.push({ text: label, fg: t.acc, bold: true })
+        this.widgetTask(w, rows.length)
+        rows.push({ text: label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
         rows.push({ text: '  loading…', fg: t.dim })
       } else if ('error' in data) {
-        rows.push({ text: label, fg: t.acc, bold: true })
+        rows.push({ text: label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
         rows.push({ text: `  ${data.error}`, fg: t.err })
       } else {
         const heading = data[0]?.kind === 'heading' ? data[0] : undefined
-        rows.push({ text: heading ? heading.text : label, fg: t.acc, bold: true })
+        rows.push({ text: heading ? heading.text : label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
         if (heading?.sub) rows.push({ text: `  ${heading.sub}`, fg: t.dim })
         rows.push(...blockLines(heading ? data.slice(1) : data, width - 4).map((l) => ({ ...l, text: '  ' + l.text })))
       }
@@ -107,6 +144,7 @@ export class AppHomeScreen implements Screen {
       for (const name of s.tables ?? []) {
         const label = meta?.tables?.[name]?.label ?? name
         const c = this.counts.get(name)
+        if (c === undefined && this.store.client) this.countTask(name, rows.length)
         rows.push({ text: `    ${pad(label, 34)} ${typeof c === 'number' ? num(c) + ' records' : c ?? '…'}`, key: `t:${name}`, action: () => openTable(this.store, name) })
       }
       for (const name of s.processes ?? []) rows.push({ text: `  ${g.process} ${meta?.processes?.[name]?.label ?? name}`, key: `p:${name}`, action: () => openProcess(this.store, name) })
@@ -137,6 +175,8 @@ export class AppHomeScreen implements Screen {
   refresh(): void {
     this.widgets.clear()
     this.counts.clear()
+    this.started.clear()
+    this.tasks.clear()
     this.load()
   }
 
@@ -158,7 +198,9 @@ export class AppHomeScreen implements Screen {
       this.width = width
       this.build()
     }
-    return <Panel title={this.title()} width={width} height={height} focused={focused}>{this.list.view(width - 2, height - 2, focused)}</Panel>
+    const view = this.list.view(width - 2, height - 2, focused)
+    queueMicrotask(() => this.pump())
+    return <Panel title={this.title()} width={width} height={height} focused={focused}>{view}</Panel>
   }
 }
 

@@ -51,6 +51,7 @@ Keys (the function-key bar is the truth; F1 or `?` lists them; every action is a
 | F8 `d` | delete, asks | Ctrl+S | save a form or continue a process step |
 | F9 | menu: every command, searchable | `:` | command line, history and completion |
 | F10 | Quit, Reset to home, or Cancel (`:reset`) | Ctrl+C | quit now |
+| `a` | actions for the record or rows | `A` `D` `t` | audits, developer, tags (record) |
 
 Things to try: `:table query person`, Enter on a row, PgDn through records, Esc (same row); F6, add a
 condition, Tab to the grammar and type `AND (fi` then Tab; `:table create placeAddress` (country, state, city
@@ -88,6 +89,9 @@ qqq table export person -w "id <= 5" -o -id --fields id,firstName,email --format
 qqq table query person --search lair            # quick search: CONTAINS over the text fields, ANDed with -w/-g
 qqq table get country --key name=Canada         # Go To by a unique key (exit 5 none, exit 2 several)
 qqq table copy pet 1 --set name=Copycat         # copy a record (--dry-run shows the values first)
+qqq table developer person 1                    # developer view: associated scripts and panels (record security, ESB)
+qqq table apis person ; qqq table api-doc <t> <api> <version> [--out f]   # application APIs (none in the sample)
+qqq script list|show|store|logs <t> <pk> …      # associated scripts: show [--revision n], store --file f | --editor -m msg, logs <field> <revisionId>
 qqq apps show greetingsApp                      # an app's home: actions, reports, tables with record counts, widgets
 qqq report list                                 # the sample app has no reports
 qqq help show table person ; qqq help show table person firstName ; qqq help show process greet   # help content from the metadata (none in the sample)

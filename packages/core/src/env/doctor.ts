@@ -102,6 +102,8 @@ export function detectTerminal(env: NodeJS.ProcessEnv = process.env): string {
 
 export interface CheckOptions {
   env?: NodeJS.ProcessEnv
+  /** process.platform (tests pass one). */
+  platform?: string
   columns?: number
   rows?: number
   tmux?: TmuxRunner
@@ -139,7 +141,8 @@ export function checkEnvironment(options: CheckOptions = {}): Report {
   if (!/UTF-?8/i.test(`${env.LC_ALL ?? ''}${env.LC_CTYPE ?? ''}${env.LANG ?? ''}`)) findings.push({ id: 'unicode', level: 'warn', message: 'The locale is not UTF-8; box drawing and block characters may not show. qqq ui --ascii uses plain characters.', advice: 'export LANG=en_US.UTF-8 (or your locale with .UTF-8), or run qqq ui --ascii' })
   if (options.columns !== undefined && options.rows !== undefined && (options.columns < 80 || options.rows < 24)) findings.push({ id: 'size', level: 'warn', message: `The terminal is ${options.columns}x${options.rows}; qqq ui needs at least 80x24.` })
   if (env.TERM === 'dumb') findings.push({ id: 'dumb', level: 'warn', message: 'TERM is dumb: no alternate screen or cursor control. Use the qqq CLI.' })
-  if (terminal === 'Terminal.app') findings.push({ id: 'terminal-app-fkeys', level: 'info', message: 'Terminal.app: F1 to F10 go to macOS unless "Use F1, F2, etc. keys as standard function keys" is on (System Settings › Keyboard), or hold fn.', advice: 'Every F-key action is also in the F9 menu (Esc then 9 in some setups) and on the : command line.' })
+  if (terminal === 'Terminal.app') findings.push({ id: 'terminal-app-fkeys', level: 'info', message: 'Terminal.app: F1 to F10 go to macOS unless "Use F1, F2, etc. keys as standard function keys" is on (System Settings › Keyboard), or hold fn.', advice: 'Fallbacks: Esc then 1..0 for F1..F10; every F-key action is also in the F9 menu and on the : command line.' })
+  if ((options.platform ?? process.platform) === 'darwin' && terminal !== 'Terminal.app') findings.push({ id: 'macos-fkeys', level: 'info', message: `macOS: F1 to F12 send media and system keys unless "Use F1, F2, etc. keys as standard function keys" is on (System Settings › Keyboard › Keyboard Shortcuts › Function Keys), or hold fn.${terminal === 'iTerm2' ? ' iTerm2 also binds some F-keys in Profiles › Keys.' : ''}`, advice: 'Fallbacks that always work: Esc then 1..0 (F1..F10), the F9 menu entries and the : command line.' })
   if (terminal === 'iTerm2') findings.push({ id: 'iterm-page-keys', level: 'info', message: 'iTerm2: if PgUp/PgDn scroll the window instead of reaching qqq ui, set Profiles › Keys › Key Mappings for Page Up/Down to "Send Escape Sequence" ([5~ and [6~), and turn off "Scroll wheel sends arrow keys in alternate screen mode" only if you prefer wheel scrolling.' })
   return { terminal, inTmux, findings }
 }

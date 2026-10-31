@@ -43,10 +43,18 @@ const processMeta = {
   ],
 }
 
+const wideMeta = {
+  name: 'wide', label: 'Wide', primaryKeyField: 'id', insertPermission: true, editPermission: true, deletePermission: true,
+  fields: { id: { name: 'id', label: 'Id', type: 'INTEGER' }, name: { name: 'name', label: 'Name', type: 'STRING' }, note: { name: 'note', label: 'Note', type: 'STRING' } },
+  sections: [{ name: 's', label: 'Wide', tier: 'T1', fieldNames: ['id', 'name', 'note'] }],
+}
+/** Rows 1-20 are short; rows 21-40 have much longer values (column widths must not move). */
+export const WIDE = Array.from({ length: 40 }, (_, i) => ({ id: i + 1, name: i < 20 ? `n${i + 1}` : `a-much-longer-name-number-${i + 1}-xxxxxxxxxxxx`, note: i < 20 ? 'short' : 'y'.repeat(70) }))
+
 export interface FakeLog { requests: Array<{ method: string; path: string; body?: unknown }> }
 
 /** A fetch answering the operations the TUI uses. */
-export function fakeFetch(log: FakeLog = { requests: [] }): typeof fetch {
+export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): typeof fetch {
   let statusPolls = 0
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input as RequestInfo, init)
@@ -60,16 +68,23 @@ export function fakeFetch(log: FakeLog = { requests: [] }): typeof fetch {
     }
     log.requests.push({ method: request.method, path, body })
     if (path === '/version') return json({ apiVersion: '1.8.0', features: ['metaData', 'tables', 'processes'], extensions: [] })
+    if (path === '/metaData' && bigMeta) return json(bigMeta)
     if (path === '/metaData') {
       return json({
         apps: { people: { name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] } },
         appTree: [{ type: 'APP', name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] }],
-        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true } },
+        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' } },
         processes: { sleeper: { name: 'sleeper', label: 'Sleeper' } },
         widgets: {}, branding: { appName: 'Fake' },
       })
     }
     if (path === '/metaData/table/person') return json(personMeta)
+    if (path === '/metaData/table/wide') return json(wideMeta)
+    if (path === '/table/wide/count') return json({ count: WIDE.length })
+    if (path === '/table/wide/query') {
+      const f = ((body as J).filter ?? {}) as { skip?: number; limit?: number }
+      return json({ records: WIDE.slice(f.skip ?? 0, (f.skip ?? 0) + (f.limit ?? 50)).map((w) => ({ values: w, displayValues: {}, recordLabel: w.name })) })
+    }
     if (path === '/metaData/table/address') return json(addressMeta)
     if (path === '/metaData/process/sleeper') return json(processMeta)
     const filter = ((body as J | undefined)?.filter ?? {}) as { skip?: number; limit?: number; orderBys?: Array<{ fieldName: string; isAscending: boolean }>; criteria?: Array<{ fieldName: string; values: string[] }> }

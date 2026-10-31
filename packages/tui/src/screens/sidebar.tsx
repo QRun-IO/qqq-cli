@@ -4,7 +4,9 @@
  */
 
 import type { AppTreeNode } from '../client'
-import type { Key } from '../keys'
+import { isPrintable, type Key } from '../keys'
+import { LineEditor } from '../line-editor'
+import { EditorLine } from '../overlays/basic'
 import { openNode } from '../nav'
 import type { AppStore, SidebarLike } from '../store'
 import { glyphs, theme } from '../theme'
@@ -36,8 +38,15 @@ export class Sidebar implements SidebarLike {
   cursor = 0
   top = 0
 
+  /** Filter-as-you-type inside the pane: matches come from the kernel metadata index. */
+  readonly filter = new LineEditor('')
+
   constructor(private store: AppStore) {
-    for (const n of this.tree()) this.expanded.add(`/${n.name}`)
+    // only the top level is open at first: large instances have hundreds of entries per app
+  }
+
+  matches() {
+    return this.store.index?.search(this.filter.value, { kinds: ['app', 'table', 'process', 'report'], limit: 200 }).entries ?? []
   }
 
   tree(): AppTreeNode[] {
@@ -45,6 +54,32 @@ export class Sidebar implements SidebarLike {
   }
 
   onKey(key: Key): boolean {
+    if (this.filter.value) {
+      const list = this.matches()
+      switch (key.name) {
+        case 'escape': this.filter.set(''); this.cursor = 0; return true
+        case 'down': this.cursor = Math.min(list.length - 1, this.cursor + 1); return true
+        case 'up': this.cursor = Math.max(0, this.cursor - 1); return true
+        case 'pagedown': this.cursor = Math.min(list.length - 1, this.cursor + 10); return true
+        case 'pageup': this.cursor = Math.max(0, this.cursor - 10); return true
+        case 'return': {
+          const e = list[this.cursor]
+          if (e) openNode(this.store, { type: e.kind.toUpperCase(), name: e.name, label: e.label })
+          return true
+        }
+        default:
+          if (this.filter.handle(key)) {
+            this.cursor = 0
+            return true
+          }
+          return false
+      }
+    }
+    if (isPrintable(key) && !/^[:?/.]$/.test(key.sequence) && key.name !== 'space') {
+      this.filter.insert(key.sequence)
+      this.cursor = 0
+      return true
+    }
     const flat = flatten(this.tree(), this.expanded)
     const cur = flat[this.cursor]
     switch (key.name) {
@@ -79,6 +114,24 @@ export class Sidebar implements SidebarLike {
   render(width: number, height: number, focused: boolean) {
     const t = theme()
     const g = glyphs()
+    if (this.filter.value) {
+      const list = this.matches()
+      const inner = height - 3
+      if (this.cursor < this.top) this.top = this.cursor
+      if (this.cursor >= this.top + inner) this.top = this.cursor - inner + 1
+      const rows = list.slice(this.top, this.top + inner).map((e, i) => {
+        const sel = this.top + i === this.cursor
+        const mark = e.kind === 'process' ? g.process + ' ' : e.kind === 'report' ? g.report + ' ' : e.kind === 'app' ? g.app + ' ' : ''
+        return <text key={`${e.kind}:${e.name}`} fg={sel && focused ? t.selFg : t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{pad(` ${mark}${e.label}${e.path.length ? `  ${e.path[e.path.length - 1]}` : ''}`, width - 2)}</text>
+      })
+      while (rows.length < inner) rows.push(<text key={`p${rows.length}`} fg={t.dim}>{pad(rows.length === 0 && !list.length ? ' (no match)' : '', width - 2)}</text>)
+      return (
+        <Panel title={`Apps · ${list.length} match${list.length === 1 ? '' : 'es'}`} width={width} height={height} focused={focused}>
+          <EditorLine editor={this.filter} width={width - 2} focused={focused} />
+          {rows}
+        </Panel>
+      )
+    }
     const flat = flatten(this.tree(), this.expanded)
     const inner = height - 2
     if (this.cursor < this.top) this.top = this.cursor
@@ -94,6 +147,6 @@ export class Sidebar implements SidebarLike {
       return <text key={f.path} fg={sel && focused ? t.selFg : f.node.type === 'APP' ? t.fg : t.dim} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{text}</text>
     })
     while (lines.length < inner) lines.push(<text key={`p${lines.length}`}>{pad('', width - 2)}</text>)
-    return <Panel title={focused ? 'Apps' : 'Apps (Tab)'} width={width} height={height} focused={focused}>{lines}</Panel>
+    return <Panel title={focused ? 'Apps · type to find' : 'Apps (Tab)'} width={width} height={height} focused={focused}>{lines}</Panel>
   }
 }

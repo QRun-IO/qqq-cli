@@ -3,8 +3,12 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { ResultCursor, associationGroups, childFilter, childListFields, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { ResultCursor, associationGroups, childFilter, childListFields, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
+import { actionsOverlay } from '../overlays/actions'
+import { TagOverlay, collaborationOf } from '../overlays/tags'
+import { AuditScreen } from './audits'
+import { DeveloperScreen } from './developer'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
@@ -90,6 +94,7 @@ export class RecordScreen implements Screen {
       this.label = record.recordLabel
       this.store.remember({ kind: 'record', table: this.tableName, key: this.primaryKey, label: record.recordLabel ?? String(this.primaryKey) })
       this.loadWidgets()
+      this.loadTags()
       this.build()
       this.store.bump()
     }).catch((e) => {
@@ -157,6 +162,7 @@ export class RecordScreen implements Screen {
     const view = this.view()
     const labelWidth = view.labelWidth ?? Math.min(28, Math.max(8, ...Object.values(meta.fields).map((f) => f.label.length + 1)))
     rows.push({ text: `${rec.recordLabel ?? this.primaryKey}${this.cursor ? `   (${this.cursor.describe()})` : ''}`, fg: t.fg, bold: true })
+    if (this.tags) rows.push({ text: `Tags: ${this.tags.length ? this.tags.map((x) => x.label ?? x.name).join(' · ') : '(none)'}   t edits`, fg: t.acc2, key: 'tags', action: () => this.openTags() })
     for (const s of orderedSections(meta)) {
       if (s.widgetName) {
         rows.push({ text: '' })
@@ -173,7 +179,10 @@ export class RecordScreen implements Screen {
       rows.push({ text: `${s.label}${s.tier ? ` (${s.tier})` : ''} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 8)))}`, fg: t.acc, bold: true })
       const tableNames = Object.keys(this.store.meta?.tables ?? {})
       const valueOf = (f: FieldMetaData) => valueText(f as FieldMeta, rec as never, { reveal: this.revealed.has(f.name), tableNames, tableName: this.tableName, primaryKey: this.primaryKey, widgets: this.store.meta?.widgets as never }).text
-      const longest = Math.max(...fields.map((f) => valueOf(f).length + (linkTarget(this.store, f) ? 2 : 0)), 4)
+      // the value column is sized once per section (first record shown) and kept while stepping records
+      const frozenKey = `${s.name}|${inner}`
+      if (!this.sectionWidths.has(frozenKey)) this.sectionWidths.set(frozenKey, Math.max(...fields.map((f) => valueOf(f).length + (linkTarget(this.store, f) ? 2 : 0)), 12))
+      const longest = this.sectionWidths.get(frozenKey)!
       const colWidth = Math.min(60, labelWidth + 2 + longest)
       const two = (view.recordColumns ?? (inner >= 2 * colWidth + 6 ? 2 : 1)) === 2 && inner >= 2 * Math.min(colWidth, 30) + 6
       const fieldText = (f: FieldMetaData) => {
@@ -204,6 +213,9 @@ export class RecordScreen implements Screen {
   openedChild?: { gi: number; cursor: ResultCursor }
 
   groups: AssociationGroup[] = []
+  /** Frozen layout: value width per section and child-list column widths, kept while stepping. */
+  sectionWidths = new Map<string, number>()
+  childWidths = new Map<string, number[]>()
   revealed = new Set<string>()
 
   childRows(group: AssociationGroup, gi: number, rows: Row[], inner: number): void {
@@ -219,7 +231,11 @@ export class RecordScreen implements Screen {
     }
     const binding = (group.association.join?.joinOns ?? []).map((j) => j.rightField)
     const names = childListFields(child as unknown as TableMetaLike, binding)
-    const widths = names.map((n) => Math.min(30, Math.max(child.fields[n]!.label.length, ...records.map((r) => fieldCell(r, child.fields[n]!).length))))
+    const wkey = `${group.association.name}|${names.join(',')}`
+    if (!this.childWidths.has(wkey) || (records.length && this.childWidths.get(wkey)!.every((w, i) => w === child.fields[names[i]!]!.label.length))) {
+      this.childWidths.set(wkey, names.map((n) => Math.min(30, Math.max(child.fields[n]!.label.length, ...records.map((r) => fieldCell(r, child.fields[n]!).length)))))
+    }
+    const widths = this.childWidths.get(wkey)!
     rows.push({ text: '  ' + names.map((n, i) => pad(child.fields[n]!.label, widths[i]!)).join('  '), fg: t.dim })
     records.forEach((r, idx) => {
       rows.push({ text: '  ' + names.map((n, i) => pad(fieldCell(r, child.fields[n]!), widths[i]!)).join('  '), key: `c:${gi}:${idx}`, action: () => this.openChild(group, idx) })
@@ -304,6 +320,30 @@ export class RecordScreen implements Screen {
     })
   }
 
+  /** The record's tags (collaboration extension), shown under the header. */
+  tags?: TagEntry[]
+
+  loadTags(): void {
+    const collab = collaborationOf(this.store)
+    if (!collab || this.primaryKey === undefined) return
+    collab.recordTags(this.tableName, this.primaryKey).then((t) => { this.tags = t; this.build(); this.store.bump() }).catch(() => undefined)
+  }
+
+  openTags(): void {
+    const collab = collaborationOf(this.store)
+    if (!collab) return this.store.flash(this.store.extensions.missing('collaboration'), 'error')
+    if (this.primaryKey === undefined) return
+    this.store.open(new TagOverlay(this.store, collab, this.tableName, this.primaryKey, (t) => { this.tags = t; this.build() }))
+  }
+
+  openAudits(): void {
+    if (this.primaryKey !== undefined) this.store.push(new AuditScreen(this.store, this.tableName, this.primaryKey, this.record?.recordLabel))
+  }
+
+  openDeveloper(): void {
+    if (this.primaryKey !== undefined) this.store.push(new DeveloperScreen(this.store, this.tableName, this.primaryKey))
+  }
+
   recordProcesses() {
     return Object.values(this.store.meta?.processes ?? {}).filter((p) => p.tableName === this.tableName && !/bulkInsert|bulkEditWithFile|bulkLoad/i.test(p.name))
   }
@@ -344,6 +384,10 @@ export class RecordScreen implements Screen {
       case 'n': openForm(this.store, this.tableName, { mode: 'create' }); return true
       case 'r': this.refresh(); return true
       case 'l': this.list.current?.action?.(); return true
+      case 'A': this.openAudits(); return true
+      case 't': if (collaborationOf(this.store)) { this.openTags(); return true } return false
+      case 'D': this.openDeveloper(); return true
+      case 'a': actionsOverlay(this.store, this); return true
       default: return false
     }
   }
@@ -373,7 +417,9 @@ export class RecordScreen implements Screen {
       if (v.masked) out.push({ section: 'Context', label: `Reveal ${f.label}`, run: () => this.follow([f]) })
     }
     for (const p of this.recordProcesses()) out.push({ section: 'Context', label: `Run ${p.label} on this record`, run: () => openProcess(this.store, p.name, { recordIds: [String(this.primaryKey)] }) })
-    out.push({ section: 'Context', label: 'Audit history', command: `audit list ${this.tableName} ${this.primaryKey}`, run: () => void this.store.commands().run(`audit list ${this.tableName} ${this.primaryKey}`) })
+    if (this.store.extensions.has('collaboration')) out.push({ section: 'Context', label: 'Tags…', key: 't', command: 'tags', detail: this.tags?.map((x) => x.label).join(', '), run: () => this.openTags() })
+    out.push({ section: 'Context', label: 'Audit history', key: 'A', command: 'audits', run: () => this.openAudits() })
+    out.push({ section: 'Context', label: 'Developer: panels and associated scripts', key: 'D', command: 'dev', run: () => this.openDeveloper() })
     return out
   }
 
@@ -404,7 +450,7 @@ export class RecordScreen implements Screen {
       this.build()
     }
     const t = theme()
-    const hint = this.cursor ? `${this.cursor.describe()} · PgDn/PgUp next/previous · Enter follows ${glyphs().link} or opens a child · Esc back` : `Enter follows ${glyphs().link} or opens a child · Esc back`
+    const hint = `${this.cursor ? `${this.cursor.describe()} · PgDn/PgUp next/previous · ` : ''}a actions · A audits · D developer · Enter follows ${glyphs().link} or opens a child · Esc back`
     return (
       <Panel title={`${this.meta?.label ?? this.tableName} › ${this.title()}`} width={width} height={height} focused={focused}>
         {this.list.view(width - 2, height - 3, focused)}

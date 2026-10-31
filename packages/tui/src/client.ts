@@ -121,6 +121,12 @@ export class TuiClient {
     return meta
   }
 
+  /** A client whose requests stop when the signal aborts (a screen that was left). */
+  withSignal(signal: AbortSignal): TuiClient {
+    const base = this.fetch
+    return new TuiClient({ server: this.server, fetch: ((input: RequestInfo | URL, init?: RequestInit) => base(input, { ...init, signal })) as typeof fetch, useCache: this.useCache })
+  }
+
   clearCaches(): void {
     this.tableCache.clear()
     this.processCache.clear()

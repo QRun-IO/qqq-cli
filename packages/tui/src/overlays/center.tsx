@@ -22,24 +22,39 @@ function matches(e: MenuEntry, needle: string): boolean {
   return !needle || `${e.section} ${e.label} ${e.detail ?? ''} ${e.command ?? ''} ${e.key ?? ''}`.toLowerCase().includes(needle)
 }
 
-/** The F9 command center: every action by section, searchable, shortcuts beside entries. */
+/** The F9 command center: every action by section, searchable, shortcuts beside entries. It is a
+ * stack: an entry that opens a dialog leaves the menu underneath, and closing that dialog comes back
+ * here at the same entry with its state refreshed; entries that navigate close it. */
 export class MenuOverlay implements Overlay {
   readonly id = overlayId('menu')
+  readonly closesOnNavigate = true
   readonly filter = new LineEditor('')
   index = 0
-  entries: MenuEntry[]
+  private selectedId?: string
+  private cache?: { text: string; list: MenuEntry[] }
 
-  constructor(private store: AppStore, entries: MenuEntry[]) {
-    this.entries = entries
+  constructor(private store: AppStore, private build: (filterText: string) => MenuEntry[], readonly summary = '') {
     const section = SECTIONS[store.lastMenuSection] ?? 'Context'
     const first = this.visible().findIndex((e) => e.section === section)
     this.index = Math.max(0, first)
   }
 
-  visible(): MenuEntry[] {
+  static idOf(e: MenuEntry): string {
+    return e.id ?? `${e.section}:${e.label}`
+  }
+
+  /** The entries for the current search text, rebuilt on each repaint so states (theme, profile) are fresh. */
+  visible(fresh = false): MenuEntry[] {
+    if (!fresh && this.cache && this.cache.text === this.filter.value) return this.cache.list
     const needle = this.filter.value.toLowerCase()
-    const list = this.entries.filter((e) => matches(e, needle))
-    return SECTIONS.flatMap((s) => list.filter((e) => e.section === s))
+    const list = this.build(this.filter.value).filter((e) => matches(e, needle) || (needle && e.section === 'Go to' && e.id?.startsWith('index:')))
+    const ordered = SECTIONS.flatMap((s) => list.filter((e) => e.section === s))
+    this.cache = { text: this.filter.value, list: ordered }
+    if (this.selectedId) {
+      const at = ordered.findIndex((e) => MenuOverlay.idOf(e) === this.selectedId)
+      if (at >= 0) this.index = at
+    }
+    return ordered
   }
 
   onKey(key: Key): void {
@@ -67,22 +82,33 @@ export class MenuOverlay implements Overlay {
       if (e.disabled) return this.store.flash(`${e.label}: ${e.disabled}`)
       if (!e.run) return
       this.store.lastMenuSection = SECTIONS.indexOf(e.section)
-      this.store.closeOverlay(this)
+      this.selectedId = MenuOverlay.idOf(e)
+      const before = this.store.screen
+      const depth = this.store.routes.length
       e.run()
-    } else if (this.filter.handle(key)) this.index = 0
+      // navigation closes the menu (the store does it on push and back); otherwise it stays, refreshed
+      if (this.store.screen !== before || this.store.routes.length !== depth) this.store.closeOverlay(this)
+      this.cache = undefined
+    } else if (this.filter.handle(key)) {
+      this.index = 0
+      this.selectedId = undefined
+    }
+    const now = this.visible()
+    if (now[this.index]) this.selectedId = MenuOverlay.idOf(now[this.index]!)
   }
 
   render(sw: number, sh: number) {
     const t = theme()
+    this.cache = undefined
     const width = Math.min(sw - 2, 180)
     const height = Math.min(sh - 2, 40)
     const inner = width - 2
     const list = this.visible()
+    if (this.index >= list.length) this.index = Math.max(0, list.length - 1)
     const columns = this.filter.value ? 1 : width >= 160 ? 3 : width >= 110 ? 2 : 1
     const colWidth = Math.floor(inner / columns)
     const rows = height - 6
     const lines: Array<{ text: string; fg: string; bg?: string }[]> = Array.from({ length: columns }, () => [])
-    // lay sections out in columns, splitting the flat list into chunks that fit
     type Item = { kind: 'h'; text: string } | { kind: 'e'; e: MenuEntry; i: number }
     const items: Item[] = []
     let last: string | undefined
@@ -123,10 +149,10 @@ export class MenuOverlay implements Overlay {
     }
     return (
       <Frame title="Menu  (F9)" width={width} height={height} screenWidth={sw} screenHeight={sh} top={1}>
-        <box paddingLeft={1}><EditorLine editor={this.filter} width={inner - 2} placeholder="type to search every command" /></box>
+        <box paddingLeft={1}><EditorLine editor={this.filter} width={inner - 2} placeholder={`type to search every command${this.summary ? ` and ${this.summary}` : ''}`} /></box>
         <Line text="" width={inner} />
         {out}
-        <Line text={` ${list.length} entries · ↑↓ move · ←→ Tab sections · Enter runs · Esc or F9 closes`} width={inner} fg={t.dim} />
+        <Line text={` ${list.length} entries${this.summary && !this.filter.value ? ` · ${this.summary} · type to search` : ''} · ↑↓ ←→ Tab · Enter runs · Esc or F9 closes`} width={inner} fg={t.dim} />
       </Frame>
     )
   }
@@ -139,40 +165,47 @@ export interface PaletteItem {
   run: () => void
 }
 
-/** The palette (F2, /, ., Ctrl+K): jump to anything by label; searches records when the server can. */
+/**
+ * The palette (F2, /, ., Ctrl+K): jump to anything by label. Search-first: with no text it shows
+ * recents and commands; typed text searches the kernel metadata index (a page at a time, "more…"
+ * on scrolling) and, when the server can, records.
+ */
 export class PaletteOverlay implements Overlay {
   readonly id = overlayId('palette')
   readonly input = new LineEditor('')
   index = 0
   records: PaletteItem[] = []
   searching = false
+  pages = 1
   private timer?: ReturnType<typeof setTimeout>
   private generation = 0
 
-  constructor(private store: AppStore, readonly items: PaletteItem[], readonly searchRecords?: (text: string) => Promise<PaletteItem[]>, readonly searchNote = '') {}
+  constructor(private store: AppStore, readonly idle: PaletteItem[], readonly searchIndex: (text: string, limit: number) => { items: PaletteItem[]; total: number }, readonly searchRecords?: (text: string) => Promise<PaletteItem[]>, readonly summary = '') {}
 
-  list(): PaletteItem[] {
-    const needle = this.input.value.toLowerCase().trim()
-    const words = needle.split(/\s+/).filter(Boolean)
-    const hits = this.items.filter((it) => words.every((w) => `${it.label} ${it.kind} ${it.context ?? ''}`.toLowerCase().includes(w)))
-    hits.sort((a, b) => Number(!a.label.toLowerCase().startsWith(needle)) - Number(!b.label.toLowerCase().startsWith(needle)))
-    return [...hits.slice(0, 200), ...this.records]
+  list(): { items: PaletteItem[]; total: number } {
+    const text = this.input.value.trim()
+    if (!text) return { items: this.idle, total: this.idle.length }
+    const needle = text.toLowerCase()
+    const r = this.searchIndex(text, 50 * this.pages)
+    const commands = this.idle.filter((i) => i.kind === 'command' && i.label.toLowerCase().includes(needle)).slice(0, 10)
+    return { items: [...r.items, ...commands, ...this.records], total: r.total + commands.length + this.records.length }
   }
 
   onKey(key: Key): void {
-    const list = this.list()
+    const { items } = this.list()
     if (key.name === 'escape') return this.store.closeOverlay(this)
-    if (key.name === 'down') this.index = Math.min(list.length - 1, this.index + 1)
+    if (key.name === 'down') this.index = Math.min(items.length - 1, this.index + 1)
     else if (key.name === 'up') this.index = Math.max(0, this.index - 1)
-    else if (key.name === 'pagedown') this.index = Math.min(list.length - 1, this.index + 10)
+    else if (key.name === 'pagedown') this.index = Math.min(items.length - 1, this.index + 10)
     else if (key.name === 'pageup') this.index = Math.max(0, this.index - 10)
     else if (key.name === 'return') {
-      const it = list[this.index]
+      const it = items[this.index]
       if (!it) return
       this.store.closeOverlay(this)
       it.run()
     } else if (this.input.handle(key)) {
       this.index = 0
+      this.pages = 1
       this.records = []
       clearTimeout(this.timer)
       const text = this.input.value.trim()
@@ -184,24 +217,28 @@ export class PaletteOverlay implements Overlay {
         }, 250)
       }
     }
+    // scrolling to the end of a page reveals the next page
+    if (this.index >= items.length - 1 && this.list().total > items.length) this.pages++
   }
 
   render(sw: number, sh: number) {
     const t = theme()
     const width = Math.min(sw - 4, 110)
     const inner = width - 2
-    const list = this.list()
+    const { items, total } = this.list()
     const rows = Math.max(5, Math.min(20, sh - 10))
-    const top = Math.max(0, Math.min(this.index - Math.floor(rows / 2), list.length - rows))
-    const footer = this.searchRecords ? `${this.searching ? 'searching records… · ' : ''}${list.length} matches · records searched by the server${this.searchNote ? ` (${this.searchNote})` : ''}` : `${list.length} matches · no record search on this server: navigation only`
+    const top = Math.max(0, Math.min(this.index - Math.floor(rows / 2), items.length - rows))
+    const typed = Boolean(this.input.value.trim())
+    const more = total > items.length ? ` · ${total - items.length} more (scroll)` : ''
+    const footer = !typed ? `recents and commands · ${this.summary} · type to search` : `${total} matches${more}${this.searchRecords ? (this.searching ? ' · searching records…' : ' · records searched by the server') : ' · no record search on this server'}`
     return (
       <Frame title="Go to  (F2  /  .  Ctrl+K)" width={width} height={rows + 5} screenWidth={sw} screenHeight={sh} top={2}>
         <box paddingLeft={1}><EditorLine editor={this.input} width={inner - 2} placeholder="a table, process, app, report, recent record, command, or text to find records" /></box>
-        {list.slice(top, top + rows).map((it, i) => {
+        {items.slice(top, top + rows).map((it, i) => {
           const sel = top + i === this.index
           return <text key={i} fg={sel ? t.selFg : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${pad(it.label, 38)} ${pad(it.kind, 10)} ${it.context ?? ''}`, inner)}</text>
         })}
-        {Array.from({ length: Math.max(0, rows - Math.min(rows, list.length - top)) }, (_, i) => <Line key={`e${i}`} text="" width={inner} />)}
+        {Array.from({ length: Math.max(0, rows - Math.min(rows, items.length - top)) }, (_, i) => <Line key={`e${i}`} text={i === 0 && !items.length ? (typed ? ' (nothing matches)' : ' (no recents yet; type to search)') : ''} width={inner} fg={t.dim} />)}
         <Line text="" width={inner} />
         <Line text={` ${footer}`} width={inner} fg={t.dim} />
       </Frame>

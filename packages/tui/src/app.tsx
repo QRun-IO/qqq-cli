@@ -103,10 +103,14 @@ function StatusLine({ store, width }: { store: AppStore; width: number }) {
   )
 }
 
+/** Short labels for narrow terminals (below ~100 columns), so nothing clips at 80. */
+const SHORT: Record<string, string> = { Help: 'Help', 'Go to': 'Go', View: 'View', Edit: 'Edit', Refresh: 'Refr', Filter: 'Filt', New: 'New', Delete: 'Del', Menu: 'Menu', Quit: 'Quit', NewChild: 'Child', 'Re-run': 'Again', Open: 'Open' }
+
 function FKeyBar({ store, width }: { store: AppStore; width: number }) {
   const t = theme()
   const keys = store.fkeys()
   const cell = Math.max(7, Math.floor(width / keys.length))
+  const narrow = width < 100
   let used = 0
   return (
     <text>
@@ -114,11 +118,14 @@ function FKeyBar({ store, width }: { store: AppStore; width: number }) {
         const w = k.n === 10 ? Math.max(0, width - used) : cell
         used += w
         const num = String(k.n).padStart(2)
-        const label = k.label && k.label.length > w - 2 ? ({ Refresh: 'Reload', NewChild: 'Child', 'Re-run': 'Again' } as Record<string, string>)[k.label] ?? k.label : k.label
+        // a key that does nothing here still shows its global label, dimmed, so the bar teaches the keymap
+        const active = k.label !== null
+        const base = active ? k.label! : k.global
+        const label = narrow || base.length > w - 2 ? SHORT[base] ?? base : base
         return (
           <span key={k.n}>
             <span fg={t.keyNum}>{num}</span>
-            <span fg={t.keyLabelFg} bg={k.label === null ? undefined : t.keyLabelBg}>{pad(label ?? '', Math.max(0, w - 2))}</span>
+            <span fg={active ? t.keyLabelFg : t.dim} bg={active ? t.keyLabelBg : undefined}>{pad(label, Math.max(0, w - 2))}</span>
           </span>
         )
       })}

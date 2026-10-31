@@ -48,12 +48,12 @@ export interface Harness {
 }
 
 /** Renders the whole TUI against the fake server and waits for the home screen. */
-export async function startTui(width = 120, height = 36): Promise<Harness> {
+export async function startTui(width = 120, height = 36, options: { metaData?: unknown } = {}): Promise<Harness> {
   const log: FakeLog = { requests: [] }
-  const store = boot({ args: parseArgs(['--profile', 'fake']), quit: () => undefined, build: 'test', secrets: sessionSecrets, fetch: fakeFetch(log) })
+  const store = boot({ args: parseArgs(['--profile', 'fake']), quit: () => undefined, build: 'test', secrets: sessionSecrets, fetch: fakeFetch(log, options.metaData) })
   const setup = await testRender(<App store={store} />, { width, height })
   const h: Harness = { setup, store, log, frame: () => setup.captureCharFrame() }
-  await waitFor(h, (f) => f.includes('Apps'))
+  await waitFor(h, (f) => f.includes('Apps') && h.store.screen?.kind === 'home')
   return h
 }
 

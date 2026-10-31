@@ -128,3 +128,20 @@ test('a refused heartbeat is reported as the state error', async () => {
   assert.equal(handle.state.error, 'Not found')
   await handle.stop()
 })
+
+test('tags: vocabulary search, create, record tags and apply call the qbit operations', async () => {
+  const { calls, transport } = fake((id) => {
+    if (id === 'getQbitCollaborationTags') return { items: [{ id: 1, label: 'VIP', approved: true }] }
+    if (id === 'postQbitCollaborationTags') return { id: 9, label: 'New one', approved: true }
+    return { items: [{ id: 1, label: 'VIP' }, { id: 9, label: 'New one' }] }
+  })
+  const collab = new Collaboration(withCollab, transport)
+  assert.deepEqual((await collab.tags('person', 'vi')).map((t) => t.label), ['VIP'])
+  assert.equal((await collab.createTag('person', 'New one', 'teal')).id, 9)
+  assert.equal((await collab.recordTags('person', '3')).length, 2)
+  await collab.applyTags('person', '3', { add: [9], remove: [] })
+  assert.deepEqual(calls.map((c) => c.id), ['getQbitCollaborationTags', 'postQbitCollaborationTags', 'getQbitCollaborationRecordsByTableByPkTags', 'putQbitCollaborationRecordsByTableByPkTags'])
+  assert.deepEqual(calls[0]!.input.query, { table: 'person', q: 'vi', limit: '50' })
+  assert.deepEqual(calls[1]!.input.json, { table: 'person', label: 'New one', color: 'teal' })
+  assert.deepEqual(calls[3]!.input, { path: { table: 'person', pk: '3' }, json: { add: [9] } })
+})

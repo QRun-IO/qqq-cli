@@ -11,7 +11,7 @@
  */
 
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
-import { History, addRecent, currentCredential, readIdleMinutes, type MetaDataDocument, type RecentItem } from '@qrun-io/qqq-core'
+import { History, MetaDataIndex, addRecent, currentCredential, readIdleMinutes, type MetaDataDocument, type RecentItem } from '@qrun-io/qqq-core'
 import { TUI_CHANNEL, TuiClient, type VersionInfo } from './client'
 import { charOf, isPrintable, type Key } from './keys'
 import { ChoiceOverlay, ConfirmOverlay, MessageOverlay } from './overlays/basic'
@@ -70,6 +70,8 @@ export class AppStore {
   height = 40
   client?: TuiClient
   meta?: MetaDataDocument
+  /** The search index over the metadata, built once per metadata document. */
+  index?: MetaDataIndex
   version?: VersionInfo
   extensions = new Extensions()
   target?: Target
@@ -145,7 +147,19 @@ export class AppStore {
 
   // ---- navigation ----
 
+  /** Replaces the metadata and rebuilds the search index (once per document). */
+  setMeta(meta: MetaDataDocument): void {
+    this.meta = meta
+    this.index = new MetaDataIndex(meta)
+  }
+
+  /** Dialogs that belong to the screen they were opened on (the F9 menu) close when navigation happens. */
+  private closeNavOverlays(): void {
+    this.overlays = this.overlays.filter((o) => !(o as { closesOnNavigate?: boolean }).closesOnNavigate)
+  }
+
   push(screen: Screen): void {
+    this.closeNavOverlays()
     this.routes.push(screen)
     this.focus = 'content'
     this.bump()
@@ -159,6 +173,7 @@ export class AppStore {
 
   /** Replaces the top screen (a form that saved becomes the record). */
   replace(screen: Screen): void {
+    this.closeNavOverlays()
     const old = this.routes.pop()
     old?.dispose?.()
     this.routes.push(screen)
@@ -167,6 +182,7 @@ export class AppStore {
 
   /** Back one screen; the screen below resumes with its state intact. */
   back(): void {
+    this.closeNavOverlays()
     if (this.routes.length <= 1) {
       if (!this.settings.linear && this.sidebar && this.showSidebar) this.focus = 'sidebar'
       this.bump()
@@ -180,6 +196,7 @@ export class AppStore {
 
   /** Back to the first screen (home). */
   home(): void {
+    this.closeNavOverlays()
     while (this.routes.length > 1) this.routes.pop()?.dispose?.()
     this.screen?.resume?.()
     this.bump()
@@ -235,7 +252,10 @@ export class AppStore {
   handleKey(raw: Key): void {
     this.lastInput = Date.now()
     // Ctrl+F / Ctrl+B page forward and back everywhere: no terminal or tmux intercepts them
-    const key: Key = raw.ctrl && (raw.name === 'f' || raw.name === 'b') ? { name: raw.name === 'f' ? 'pagedown' : 'pageup', sequence: '' } : raw
+    let key: Key = raw.ctrl && (raw.name === 'f' || raw.name === 'b') ? { name: raw.name === 'f' ? 'pagedown' : 'pageup', sequence: '' } : raw
+    // F-key fallbacks for terminals that take the F-keys: Esc then a digit (arrives as Alt+digit) or Ctrl+digit; 0 is F10
+    const digit = /^[0-9]$/.test(raw.name) ? raw.name : /^[0-9]$/.test(raw.sequence?.slice(-1) ?? '') && raw.meta ? raw.sequence.slice(-1) : undefined
+    if (digit !== undefined && (raw.meta || raw.ctrl)) key = { name: `f${digit === '0' ? 10 : digit}`, sequence: '' }
     try {
       this.dispatch(key)
     } catch (e) {
@@ -352,7 +372,7 @@ export class AppStore {
       }
       if (!this.client) return done()
       this.client.clearCaches()
-      this.client.metaData(true).then((m) => { this.meta = m }).catch((e) => this.error(e)).finally(done)
+      this.client.metaData(true).then((m) => this.setMeta(m)).catch((e) => this.error(e)).finally(done)
     })
   }
 
@@ -376,7 +396,7 @@ export class AppStore {
     this.status.server = client.server
     const [version, meta] = await Promise.all([client.version(), client.metaData()])
     this.version = version
-    this.meta = meta
+    this.setMeta(meta)
     this.extensions.load(version)
     setPresenceSource(collaborationPresence(this.extensions.registry, client, this.status.user))
     this.status.apiVersion = version.apiVersion
@@ -485,12 +505,12 @@ export class AppStore {
   }
 
   /** The function-key bar for the current context. */
-  fkeys(): Array<{ n: number; label: string | null }> {
+  fkeys(): Array<{ n: number; label: string | null; global: string }> {
     const defaults: Record<number, string> = { 1: 'Help', 2: 'Go to', 3: 'View', 4: 'Edit', 5: 'Refresh', 6: 'Filter', 7: 'New', 8: 'Delete', 9: 'Menu', 10: 'Quit' }
     const overrides: FKeyLabels = this.screen?.fkeys?.() ?? { 3: null, 4: null, 6: null, 7: null, 8: null }
     return Object.entries(defaults).map(([n, label]) => {
       const k = Number(n)
-      return { n: k, label: k in overrides ? overrides[k]! : label }
+      return { n: k, label: k in overrides ? overrides[k]! : label, global: label }
     })
   }
 

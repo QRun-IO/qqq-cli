@@ -15,12 +15,12 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRC | 60 | 35 | 11 | 2 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
 | QRY | 70 | 30 | 6 | 13 | 21 |
-| REC | 65 | 32 | 5 | 17 | 11 |
+| REC | 65 | 32 | 3 | 19 | 11 |
 | REL | 9 | 6 | 0 | 3 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 21 | 10 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 173 | 82 | 40 | 106 |
+| **all** | 401 | 173 | 80 | 42 | 106 |
 
 ## Summary (TUI column)
 
@@ -281,8 +281,8 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REC-056 | Record view hash links: #audit, #/launchProcess={process} and #{section} anchors | n/a | todo |  |
 | REC-057 | Create presets from links: #/createChild= opens a child create dialog over the record; /create#/defaultValues= | n/a | todo |  |
 | REC-052 | Dependent possible values: a field whose filter uses ${input.otherField} offers only the choices matching the  | pass | pass | contingent fields; TUI: contingent fields wait and narrow |
-| REC-053 | Table developer view shows the API Docs & Playground section for the table's application APIs | todo | todo | developer view |
-| REC-054 | Record developer view manages associated scripts: versions, new versions, test runs, logs, docs and script cre | todo | todo |  |
+| REC-053 | Table developer view shows the API Docs & Playground section for the table's application APIs | partial | todo | qqq table apis <t> and table api-doc <t> <api> <version> (saved as JSON); no playground; the sample exposes no application APIs (verified: none listed, an unknown API exits 5) |
+| REC-054 | Record developer view manages associated scripts: versions, new versions, test runs, logs, docs and script cre | partial | todo | qqq script list/show [--revision]/store --file/--editor/logs, and table developer <t> <pk> with the developer panels (verified live on person 1); no test runs; the sample has no associated scripts, so scripts are covered by node tests |
 | REC-055 | Record view keyboard shortcuts n, e, c, d, a (Material) and their help text | n/a | pass | TUI: n e c d; F-keys |
 | REC-058 | Record view on phones and tablets: the title stays readable, the header controls wrap onto their own row, and  | n/a | todo |  |
 | REC-059 | Record forms on phones and tablets: every editor type fits without sideways scrolling, controls are touch-size | n/a | todo |  |
