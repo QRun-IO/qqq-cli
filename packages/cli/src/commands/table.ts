@@ -3,10 +3,10 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import type { Command } from 'commander'
-import { AssociationError, FormInputError, FormSession, buildFilter, parentLinkValues, printFilter, relatedRecordTarget, type FieldMeta, type QueryFilter, type RecordLike, type TableMetaLike } from '@qrun-io/qqq-core'
+import { AssociationError, FormInputError, safeFileName, saveDownload, FormSession, buildFilter, parentLinkValues, printFilter, relatedRecordTarget, type FieldMeta, type QueryFilter, type RecordLike, type TableMetaLike } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -307,15 +307,15 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--format <fmt>', 'csv, xlsx, json or tsv', 'csv')
     .option('-f, --fields <names>', 'comma-separated fields to include')
     .option('-l, --limit <n>', 'most records')
-    .option('--out <file>', 'output file (default: <table>.<format>)')
+    .option('--out <file>', 'output file (default: <table>.<format>, never overwriting)')
     .action(async (name: string, options: QueryOptions & { format: string; out?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
       const filter = filterFrom(options, meta)
-      const out = options.out ?? `${name}.${options.format}`
+      const out = options.out ?? safeFileName(`${name}.${options.format}`)
       const result = await c.call('exportTable', { path: { tableName: name }, json: { format: options.format, filter, fieldNames: options.fields ? options.fields.split(',') : undefined, limit: options.limit ? Number(options.limit) : undefined } })
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
-      writeFileSync(out, bytes)
+      saveDownload(out, bytes, { explicit: options.out !== undefined })
       c.note(`wrote ${out} (${bytes.length} bytes, ${result.contentType})`)
     })
 

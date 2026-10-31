@@ -5,7 +5,7 @@
 
 import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { blocksToText, formatCsv, widgetRows, widgetToBlocks } from '@qrun-io/qqq-core'
+import { blocksToText, formatCsv, safeFileName, saveDownload, widgetRows, widgetToBlocks } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { parsePairs, type Json } from './shared.js'
 
@@ -53,13 +53,13 @@ export function registerWidget(program: Command, ctx: () => Context): void {
   program.command('report').description('Reports: run.').command('run <report>')
     .description('Run a report and save its output (csv, xlsx, json, pdf as the report allows).')
     .option('--format <fmt>', 'output format', 'csv')
-    .option('-o, --out <file>', 'output file (default: <report>.<format>)')
+    .option('-o, --out <file>', 'output file (default: <report>.<format>, never overwriting)')
     .action(async (name: string, options: { format: string; out?: string }) => {
       const c = ctx()
       const result = await c.call('runReport', { path: { reportName: name }, query: { format: options.format } })
-      const out = options.out ?? `${name}.${options.format}`
+      const out = options.out ?? safeFileName(`${name}.${options.format}`)
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
-      writeFileSync(out, bytes)
+      saveDownload(out, bytes, { explicit: options.out !== undefined })
       c.note(`wrote ${out} (${bytes.length} bytes, ${result.contentType})`)
     })
 

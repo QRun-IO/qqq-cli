@@ -9,10 +9,9 @@
  * file). The models are the kernel's (records/associations, records/record-view).
  */
 
-import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
 import {
-  associationGroups, associationLabel, associationsOf, childListFields, fetchChildren, fileDownload, findAssociation, recordView, relationshipValues, tableHelp,
+  associationGroups, associationLabel, associationsOf, childListFields, fetchChildren, fileDownload, safeFileName, saveDownload, findAssociation, recordView, relationshipValues, tableHelp,
   type RecordLike, type TableMetaLike, type WidgetMetaLike,
 } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
@@ -181,7 +180,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
 
   table.command('download <table> <primaryKey> <field>')
     .description('Save a file stored in a record field (FILE_DOWNLOAD through GET /table/{t}/{pk}/{field}/{file}, or a BLOB value).')
-    .option('-o, --out <file>', 'where to write (default: the file name; - for stdout)')
+    .option('-o, --out <file>', 'where to write (default: the file name, never overwriting; - for stdout)')
     .action(async (name: string, primaryKey: string, fieldName: string, options: { out?: string }) => {
       const c = ctx()
       const meta = await c.tableMeta<TableMetaLike>(name)
@@ -194,7 +193,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
       if (file?.route) {
         const result = await c.call('downloadRecordFieldFile', { path: file.route })
         bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
-        fileName = file.fileName
+        fileName = safeFileName(file.fileName)
       } else if (file?.url) {
         c.print({ data: file, rows: [{ file: file.fileName, url: file.url }], columns: ['file', 'url'], footer: 'The file is outside the QQQ server; download it from the URL.' })
         return
@@ -203,14 +202,14 @@ export function registerRelated(program: Command, ctx: () => Context): void {
         if (raw === null || raw === undefined || raw === '') throw new UsageError(`${meta.label} ${primaryKey} has no file in ${field.label}.`)
         if (typeof raw !== 'string' || field.type !== 'BLOB') throw new UsageError(`${field.label} is not a file field (no FILE_DOWNLOAD adornment, not a BLOB).`)
         bytes = new Uint8Array(Buffer.from(raw, 'base64'))
-        fileName = `${name}-${primaryKey}-${fieldName}`
+        fileName = safeFileName(`${name}-${primaryKey}-${fieldName}`)
       }
       const out = options.out ?? fileName
       if (out === '-') {
         process.stdout.write(bytes)
         return
       }
-      writeFileSync(out, bytes)
+      saveDownload(out, bytes, { explicit: options.out !== undefined })
       c.note(`wrote ${out} (${bytes.length} bytes)`)
     })
 }

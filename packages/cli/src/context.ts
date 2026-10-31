@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { FilterSyntaxError, OUTPUT_FORMATS, applyQuery, callOperation, defaultFormat, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { FilterSyntaxError, OUTPUT_FORMATS, UnsafeFileNameError, applyQuery, callOperation, defaultFormat, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { authenticatedFetch, clientFor, selectTarget, target, type Target } from './session.js'
 
 /** Exit codes, as in the design doc (KofTwentyTwo ADR-0031 shape). */
@@ -123,7 +123,7 @@ export class UsageError extends Error {}
 
 /** Maps an error to its exit code and the stderr text. */
 export function describeError(error: unknown, trace = false): { code: number; text: string } {
-  if (error instanceof UsageError || error instanceof FilterSyntaxError) return { code: EXIT.usage, text: `Error: ${error.message}` }
+  if (error instanceof UsageError || error instanceof FilterSyntaxError || error instanceof UnsafeFileNameError) return { code: EXIT.usage, text: `Error: ${error.message}` }
   if (error instanceof UiApiError) {
     const lines = [`Error: ${error.message} (${error.code}, HTTP ${error.status}${error.traceId ? `, trace ${error.traceId}` : ''})`]
     for (const fieldError of error.fieldErrors) lines.push(`  ${fieldError.field}: ${fieldError.message}`)
