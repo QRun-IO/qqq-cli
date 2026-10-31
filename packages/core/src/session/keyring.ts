@@ -26,6 +26,20 @@ export interface SecretStore {
 
 const SERVICE = 'qqq'
 
+/** A secrets file that is not valid JSON: refused, so saving one sign-in never wipes the others. */
+export class SecretFileError extends Error {}
+
+function readSecretsFile(file: string): Record<string, string> {
+  if (!existsSync(file)) return {}
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as unknown
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, string>
+  } catch {
+    // reported below
+  }
+  throw new SecretFileError(`${file} is not a valid secrets file; fix or remove it (sign in again afterwards)`)
+}
+
 /** macOS Keychain. */
 export class KeychainStore implements SecretStore {
   readonly kind = 'macos-keychain'
@@ -82,12 +96,7 @@ export class DpapiFileStore implements SecretStore {
   readonly kind = 'windows-dpapi'
   constructor(private readonly file = join(configDir(), 'secrets.dpapi.json')) {}
   private read(): Record<string, string> {
-    if (!existsSync(this.file)) return {}
-    try {
-      return JSON.parse(readFileSync(this.file, 'utf8')) as Record<string, string>
-    } catch {
-      return {}
-    }
+    return readSecretsFile(this.file)
   }
   private write(data: Record<string, string>): void {
     mkdirSync(join(this.file, '..'), { recursive: true })
@@ -123,12 +132,7 @@ export class FileStore implements SecretStore {
   readonly kind = 'file'
   constructor(private readonly file = join(configDir(), 'secrets.json')) {}
   private read(): Record<string, string> {
-    if (!existsSync(this.file)) return {}
-    try {
-      return JSON.parse(readFileSync(this.file, 'utf8')) as Record<string, string>
-    } catch {
-      return {}
-    }
+    return readSecretsFile(this.file)
   }
   private write(data: Record<string, string>): void {
     mkdirSync(join(this.file, '..'), { recursive: true, mode: 0o700 })

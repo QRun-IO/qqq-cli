@@ -1,0 +1,3 @@
+--- stderr ---
+Error: Saved views are unavailable for this table.
+--- exit 2

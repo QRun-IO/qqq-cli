@@ -3,23 +3,22 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import type { Command } from 'commander'
 import { OPERATIONS, operation, type OperationInfo } from '@qrun-io/qqq-core'
 import type { Context } from '../context.js'
 import { UsageError } from '../context.js'
-import { parsePairs, readJson } from './shared.js'
+import { parsePairs, readFileArg, readJson, writeDownload } from './shared.js'
 
 export function registerApi(program: Command, ctx: () => Context): void {
   program.command('api [operationId]')
     .description('Call any UI API operation by its operationId (every operation of the document is reachable this way).')
-    .option('-p, --path <name=value...>', 'path parameters')
+    .option('--path <name=value...>', 'path parameters')
     .option('-q, --param <name=value...>', 'query parameters')
     .option('-b, --body-json <json|file|->', 'JSON request body (inline, a file, or - for stdin)')
     .option('-F, --form <name=value|name=@file...>', 'multipart form fields; @file uploads a file')
     .option('--bytes <file>', 'raw request body (application/octet-stream)')
-    .option('-o, --out <file>', 'write a binary response to a file')
+    .option('-o, --out <file>', 'write a binary response to a file (- for stdout)')
     .option('-l, --list', 'list the operations instead of calling one')
     .option('-e, --extension <name>', 'with --list: only this extension\'s operations (`core` for core ones)')
     .action(async (operationId: string | undefined, options: OperationOptions & { list?: boolean; extension?: string }) => {
@@ -28,7 +27,7 @@ export function registerApi(program: Command, ctx: () => Context): void {
         const selected = OPERATIONS.filter((o) => !options.extension || (options.extension === 'core' ? !o.extension : o.extension === options.extension))
         const rows = selected.map((o) => ({ operationId: o.id, extension: o.extension ?? '', method: o.method, path: o.path, body: o.bodyTypes.join('|'), summary: o.summary }))
         const extensions = new Set(selected.map((o) => o.extension).filter(Boolean)).size
-        c.print({ data: rows, columns: ['operationId', 'extension', 'method', 'path', 'body'], footer: `(${rows.length} operations, ${extensions} extensions; qqq api <operationId> --path k=v --param k=v --body-json '{...}'; whether an extension is installed: qqq whoami)` })
+        c.print({ data: rows, columns: ['operationId', 'extension', 'method', 'path', 'body'], footer: `(${rows.length} operation${rows.length === 1 ? '' : 's'}; ${extensions} extensions; qqq api <operationId> --path k=v --param k=v --body-json '{...}'; whether an extension is installed: qqq whoami)` })
         return
       }
       const op = operation(operationId)
@@ -58,7 +57,7 @@ export async function runOperation(c: Context, op: OperationInfo, options: Opera
   if (options.form) {
     form = {}
     for (const [k, v] of Object.entries(parsePairs(options.form, '--form'))) {
-      form[k] = v.startsWith('@') ? new File([readFileSync(v.slice(1))], basename(v.slice(1))) : v
+      form[k] = v.startsWith('@') ? new File([readFileArg(v.slice(1), `--form ${k}`) as BlobPart], basename(v.slice(1))) : v
     }
   }
   const result = await c.call(operationId, {
@@ -66,12 +65,12 @@ export async function runOperation(c: Context, op: OperationInfo, options: Opera
     query: parsePairs(options.param, '--param'),
     json: options.bodyJson !== undefined ? readJson(options.bodyJson, '--body-json') : undefined,
     form,
-    bytes: options.bytes ? new Uint8Array(readFileSync(options.bytes)) : undefined,
+    bytes: options.bytes ? readFileArg(options.bytes, '--bytes') : undefined,
   })
   if (result.bytes) {
-    if (!options.out) throw new UsageError(`${operationId} returned ${result.contentType} (${result.bytes.length} bytes); pass --out <file>`)
-    writeFileSync(options.out, result.bytes)
-    c.note(`wrote ${options.out} (${result.bytes.length} bytes, ${result.contentType})`)
+    if (!options.out) throw new UsageError(`${operationId} returned ${result.contentType} (${result.bytes.length} bytes); pass --out <file> (or --out - for stdout)`)
+    const written = writeDownload(options.out, options.out, result.bytes)
+    if (written) c.note(`wrote ${written} (${result.bytes.length} bytes, ${result.contentType})`)
     return
   }
   if (typeof result.data === 'string') {

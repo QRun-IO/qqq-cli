@@ -19,6 +19,8 @@ import { registerAudit } from './commands/audit.js'
 import { registerAuth } from './commands/auth.js'
 import { registerCompletion } from './commands/completion.js'
 import { registerConfig } from './commands/config.js'
+import { registerDeveloper } from './commands/developer.js'
+import { registerDoctor } from './commands/doctor.js'
 import { registerExtensions } from './commands/extensions.js'
 import { registerHelp } from './commands/help.js'
 import { registerJob } from './commands/job.js'
@@ -36,8 +38,8 @@ export function createProgram(): Command {
   program
     .name('qqq')
     .description('Command-line client for QQQ applications, built only on the QQQ UI API (/qqq/v1).')
-    .version(`${CLI_VERSION} (UI API client ${UI_API_VERSION})`)
-    .option('-s, --server <url>', 'the QQQ server (default: QQQ_SERVER, or the default profile)')
+    .version(`${CLI_VERSION} (UI API client ${UI_API_VERSION})`, '--version', 'print the version')
+    .option('--server <url>', 'the QQQ server (default: QQQ_SERVER, or the default profile)')
     .option('-p, --profile <name>', 'the profile to use (default: QQQ_PROFILE, or the default profile)')
     .option('-O, --output <format>', 'json, table, text, csv or yaml (default: table on a terminal, json in a pipe; QQQ_OUTPUT)')
     .option('--json', 'same as --output json')
@@ -55,6 +57,7 @@ export function createProgram(): Command {
   registerAuth(program, ctx)
   registerMisc(program, ctx)
   registerTable(program, ctx)
+  registerDeveloper(program, ctx)
   registerAudit(program, ctx)
   registerRelated(program, ctx)
   registerProcess(program, ctx)
@@ -65,6 +68,7 @@ export function createProgram(): Command {
   registerExtensions(program, ctx)
   registerCompletion(program, ctx)
   registerConfig(program, ctx)
+  registerDoctor(program, ctx)
   registerHelp(program, ctx)
   registerUi(program, ctx)
 

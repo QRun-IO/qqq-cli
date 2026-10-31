@@ -15,12 +15,12 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRC | 60 | 35 | 11 | 2 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
 | QRY | 70 | 30 | 6 | 13 | 21 |
-| REC | 65 | 31 | 6 | 17 | 11 |
+| REC | 65 | 32 | 3 | 19 | 11 |
 | REL | 9 | 6 | 0 | 3 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 21 | 10 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 172 | 83 | 40 | 106 |
+| **all** | 401 | 173 | 80 | 42 | 106 |
 
 ## Summary (TUI column)
 
@@ -101,7 +101,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRC-011 | Process possible-value fields | pass | pass | labels or ids, prompts list choices; TUI: picker |
 | PRC-012 | VIEW_FORM labels and backend values | pass | pass | label: value on every step; TUI: summary shows view fields |
 | PRC-013 | HTML component renders the step html value, sanitized | pass | todo | {step}.html as text (tags stripped) |
-| PRC-014 | DOWNLOAD_FORM delivers the generated file | pass | todo | GET /download/{file} saved to --out-dir; no sample process offers one, verified by tests |
+| PRC-014 | DOWNLOAD_FORM delivers the generated file | pass | todo | GET /download/{file} saved to --out-dir, else the download directory; no sample process offers one, verified by tests |
 | PRC-015 | Step help content for process screens | pass | todo | step helpContents shown on the screen, process help at start and in describe; none in the sample |
 | PRC-016 | Back to the backend back step with entered values | partial | todo | b at the prompt when the step reports backStep (isStepBack=true); no sample process declares one, verified by tests |
 | PRC-017 | Dynamic step list from processMetaDataAdjustment.updatedFrontendStepList | pass | pass | updatedFrontendStepList followed; TUI: kernel runner |
@@ -248,7 +248,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REC-019 | Zoned DATE_TIME display behaviors (fixed zone and per-record zone) | n/a | todo | display zones |
 | REC-020 | HTML field edits in the rich-text editor and renders sanitized | todo | todo | raw HTML; $EDITOR todo |
 | REC-021 | PASSWORD is masked on read and never overwritten by the mask | pass | pass | server masks; TUI: masked |
-| REC-022 | BLOB upload and download without a download adornment | todo | todo | blob upload and download |
+| REC-022 | BLOB upload and download without a download adornment | pass | todo | table create/update --upload and table download (base64 BLOB value) verified on fieldLab; default name into the download directory |
 | REC-023 | Dynamic default values (user id, create day, modify day, explicit NONE) | pass | todo | server |
 | REC-024 | Max-length policies: truncate, ellipsis, pass-through and reject | pass | todo | maxLength checked locally |
 | REC-025 | Case and whitespace normalization on save | pass | todo | behaviors |
@@ -259,7 +259,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REC-030 | SIZE adornment sets the query grid column width | n/a | todo |  |
 | REC-031 | CODE_EDITOR adornment: code view with formatting and a code editor on forms | partial | todo | raw code on view; no code editor (unit-tested) |
 | REC-032 | RENDER_HTML adornment renders sanitized HTML | partial | todo | HTML shown as text (unit-tested) |
-| REC-033 | REVEAL adornment masks, reveals and copies the value | partial | partial | masked until --reveal; no copy (unit-tested; none in the sample); TUI: masked; Enter reveals |
+| REC-033 | REVEAL adornment masks, reveals and copies the value | partial | partial | masked until --reveal in the record view and in query and child-list cells; no copy (unit-tested; none in the sample); TUI: masked; Enter reveals |
 | REC-034 | FILE_DOWNLOAD adornment links to the stored file with its name | partial | partial | name plus qqq table download via the field route (unit-tested); live only for BLOB values, server finding 16; TUI: Enter saves through the file dialog; no sample field |
 | REC-035 | FILE_UPLOAD adornment formats, replacing and removing a stored file | partial | todo | create/update --upload field=path as multipart, replace and remove verified on a BLOB; FILE_UPLOAD formats not in the sample |
 | REC-036 | TOOLTIP adornment shows its text on the value | partial | todo | tooltip text in parentheses after the value (unit-tested) |
@@ -281,8 +281,8 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REC-056 | Record view hash links: #audit, #/launchProcess={process} and #{section} anchors | n/a | todo |  |
 | REC-057 | Create presets from links: #/createChild= opens a child create dialog over the record; /create#/defaultValues= | n/a | todo |  |
 | REC-052 | Dependent possible values: a field whose filter uses ${input.otherField} offers only the choices matching the  | pass | pass | contingent fields; TUI: contingent fields wait and narrow |
-| REC-053 | Table developer view shows the API Docs & Playground section for the table's application APIs | todo | todo | developer view |
-| REC-054 | Record developer view manages associated scripts: versions, new versions, test runs, logs, docs and script cre | todo | todo |  |
+| REC-053 | Table developer view shows the API Docs & Playground section for the table's application APIs | partial | todo | qqq table apis <t> and table api-doc <t> <api> <version> (saved as JSON); no playground; the sample exposes no application APIs (verified: none listed, an unknown API exits 5) |
+| REC-054 | Record developer view manages associated scripts: versions, new versions, test runs, logs, docs and script cre | partial | todo | qqq script list/show [--revision]/store --file/--editor/logs, and table developer <t> <pk> with the developer panels (verified live on person 1); no test runs; the sample has no associated scripts, so scripts are covered by node tests |
 | REC-055 | Record view keyboard shortcuts n, e, c, d, a (Material) and their help text | n/a | pass | TUI: n e c d; F-keys |
 | REC-058 | Record view on phones and tablets: the title stays readable, the header controls wrap onto their own row, and  | n/a | todo |  |
 | REC-059 | Record forms on phones and tablets: every editor type fits without sideways scrolling, controls are touch-size | n/a | todo |  |

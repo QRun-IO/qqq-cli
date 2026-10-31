@@ -1,0 +1,5 @@
+Id,First Name,Create Date
+1,Avery,2026-10-31 22:33:01 UTC
+2,Blair,2026-10-31 22:33:01 UTC
+--- stderr ---
+--- exit 0

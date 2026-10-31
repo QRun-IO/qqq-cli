@@ -4,12 +4,13 @@
  */
 
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { FileStore, defaultSecretStore } from '../session/keyring.js'
-import { profileNameForServer, readConfig, removeProfile, resolveProfile, upsertProfile } from '../session/profiles.js'
+import { FileStore, SecretFileError, defaultSecretStore } from '../session/keyring.js'
+import { readFilePreferences, writeFilePreferences } from '../files/navigator.js'
+import { ConfigFileError, profileNameForServer, readConfig, readTheme, removeProfile, resolveProfile, upsertProfile, writeTheme } from '../session/profiles.js'
 
 test('profiles resolve from --profile, QQQ_PROFILE, --server, then the default', () => {
   const dir = mkdtempSync(join(tmpdir(), 'qqq-cfg-'))
@@ -46,6 +47,51 @@ test('the file secret store round-trips and QQQ_KEYRING=file forces it', async (
     assert.equal(await store.delete('a'), true)
     assert.equal(await store.delete('a'), false)
     assert.equal(defaultSecretStore({ QQQ_KEYRING: 'file' }).kind, 'file')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a corrupt config.json is refused, never overwritten with an empty profile list', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-cfg-'))
+  const env = { QQQ_CONFIG_DIR: dir }
+  try {
+    writeFileSync(join(dir, 'config.json'), '{"profiles": {"prod": {"server": "https://prod.example"}}')
+    assert.throws(() => readConfig(env), ConfigFileError)
+    assert.throws(() => upsertProfile('new', { server: 'http://localhost:1' }, {}, env), ConfigFileError)
+    assert.match(readFileSync(join(dir, 'config.json'), 'utf8'), /prod\.example/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('the ui section (files, theme) survives profile writes, and unknown sections are kept', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-cfg-'))
+  const env = { QQQ_CONFIG_DIR: dir }
+  try {
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ profiles: {}, future: { keep: true } }))
+    writeFilePreferences({ downloadDir: '/tmp/dl' }, env)
+    writeTheme('midnight', {}, env)
+    upsertProfile('sample', { server: 'http://localhost:8077' }, {}, env)
+    assert.deepEqual(readFilePreferences(env), { downloadDir: '/tmp/dl' })
+    assert.equal(readTheme('sample', env), 'midnight')
+    writeFilePreferences({ downloadDir: undefined, uploadDir: '/tmp/up' }, env)
+    assert.deepEqual(readFilePreferences(env), { uploadDir: '/tmp/up' })
+    assert.equal(readConfig(env).defaultProfile, 'sample')
+    assert.deepEqual(readConfig(env).future, { keep: true })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a corrupt secrets file is refused, so one sign-in never wipes the others', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-sec-'))
+  try {
+    const file = join(dir, 'secrets.json')
+    writeFileSync(file, '{"a@x": "one", ')
+    const store = new FileStore(file)
+    await assert.rejects(store.set('b@y', 'two'), SecretFileError)
+    assert.equal(readFileSync(file, 'utf8'), '{"a@x": "one", ')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

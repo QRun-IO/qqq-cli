@@ -1,0 +1,1 @@
+{"title":"Line Chart","description":"Total units have been <strong>increasing</strong> over the last five months.","chartData":{"labels":["January","February","March","April","May"],"datasets":[{"label":"Units","data":[1753,1830,920,1543,1804]}],"dataset":{"label":"Units","data":[1753,1830,920,1543,1804]}},"isCurrency":false,"height":0,"type":"chart"}

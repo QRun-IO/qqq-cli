@@ -1,0 +1,8 @@
+step     label     components            field          type     required
+-------  --------  --------------------  -------------  -------  --------
+screen0  Screen 0  EDIT_FORM, VIEW_FORM  sleepMillis    INTEGER  yes
+screen0  Screen 0  EDIT_FORM, VIEW_FORM  outputMessage  STRING
+screen1  Screen 1  VIEW_FORM             outputMessage  STRING
+Sleep Interactive (sleepInteractive); records: 0..any
+--- stderr ---
+--- exit 0

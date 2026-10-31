@@ -13,7 +13,8 @@ import type { Command } from 'commander'
 import { COLLABORATION, type CollaborationTarget, type CommentEntry, type FavoriteEntry, type PresenceState } from '@qrun-io/qqq-core'
 import type { Context } from '../context.js'
 import { UsageError } from '../context.js'
-import type { Json } from './shared.js'
+import { countFooter, instantText, positiveInt, type Json } from './shared.js'
+import type { DisplayOptions } from '@qrun-io/qqq-core'
 
 const TARGET_TYPES = ['TABLE', 'APP', 'RECORD', 'PROCESS', 'REPORT', 'SAVED_VIEW']
 
@@ -40,13 +41,13 @@ function favoriteRows(items: FavoriteEntry[]): Json[] {
   return items.map((f) => ({ id: f.id ?? '', type: f.targetType ?? '', name: f.targetName ?? '', record: f.recordId ?? '', label: f.label ?? '', folder: f.folder ?? '', available: f.available ?? '', href: f.href ?? '' }))
 }
 
-function commentRows(threads: CommentEntry[]): Json[] {
+function commentRows(threads: CommentEntry[], display?: DisplayOptions): Json[] {
   const rows: Json[] = []
   const add = (comment: CommentEntry, depth: number) => {
     rows.push({
       id: comment.id ?? '',
       author: comment.authorDisplayName ?? comment.authorUserId ?? '',
-      at: String(comment.createdAt ?? '').slice(0, 16).replace('T', ' '),
+      at: instantText(comment.createdAt ?? '', display),
       state: comment.deleted ? 'deleted' : comment.resolvedAt ? 'resolved' : '',
       body: `${depth ? '  > ' : ''}${String(comment.body ?? '').replace(/\s+/g, ' ').slice(0, 100)}`,
     })
@@ -67,7 +68,7 @@ function targetOf(name: string, recordId: string | undefined, type: string | und
 export function registerCollab(noun: Command, ctx: () => Context): void {
   noun.command('presence <table> [pk]')
     .description('Who is on a table or record right now. --watch joins (you appear too) and prints each change until Ctrl+C; --observe watches without joining.')
-    .option('-w, --watch', 'join and follow changes (heartbeat every 20 s, leaves on exit)')
+    .option('--watch', 'join and follow changes (heartbeat every 20 s, leaves on exit)')
     .option('--observe', 'follow changes without joining')
     .option('--editing [field]', 'with --watch: join as EDITING, optionally on a field')
     .action(async (table: string, pk: string | undefined, options: { watch?: boolean; observe?: boolean; editing?: string | boolean }) => {
@@ -82,7 +83,7 @@ export function registerCollab(noun: Command, ctx: () => Context): void {
       if (!options.watch && !options.observe) {
         const state = await collaboration.presenceSnapshot(scope)
         const rows = state.people.map((p) => ({ name: p.name, user: p.userId, mode: p.mode, field: p.fieldName ?? '' }))
-        c.print({ data: { table, pk: pk ?? null, count: state.count, viewers: rows }, rows, columns: ['name', 'user', 'mode', 'field'], footer: `(${state.count} on ${pk !== undefined ? `${table} ${pk}` : table}; --watch to join and follow)` })
+        c.print({ data: { table, pk: pk ?? null, count: state.count, viewers: rows }, rows, columns: ['name', 'user', 'mode', 'field'], footer: countFooter(state.count, 'person', [`on ${pk !== undefined ? `${table} ${pk}` : table}`, '--watch to join and follow'], 'people') })
         return
       }
       let last = ''
@@ -116,8 +117,8 @@ export function registerCollab(noun: Command, ctx: () => Context): void {
     .option('--cursor <token>', 'continue from a previous page')
     .action(async (table: string, pk: string, options: { limit: string; cursor?: string }) => {
       const c = ctx()
-      const page = await (await collab(c)).comments(table, pk, { limit: Number(options.limit), cursor: options.cursor })
-      c.print({ data: page, rows: commentRows(page.threads), columns: ['id', 'author', 'at', 'state', 'body'], footer: `(${page.threads.length} threads${page.nextCursor ? `; more: --cursor ${page.nextCursor}` : ''})` })
+      const page = await (await collab(c)).comments(table, pk, { limit: positiveInt(options.limit, '--limit'), cursor: options.cursor })
+      c.print({ data: page, rows: commentRows(page.threads, c.dateTimeDisplay), columns: ['id', 'author', 'at', 'state', 'body'], footer: countFooter(page.threads.length, 'thread', [page.nextCursor && `more: --cursor ${page.nextCursor}`]) })
     })
   comments.command('add <table> <pk> <body...>')
     .description('Post a comment (mentions: @[Name](user:id)); --reply-to answers a thread.')
@@ -126,7 +127,7 @@ export function registerCollab(noun: Command, ctx: () => Context): void {
     .action(async (table: string, pk: string, body: string[], options: { replyTo?: string; field?: string }) => {
       const c = ctx()
       const comment = await (await collab(c)).addComment(table, pk, body.join(' '), { parentCommentId: options.replyTo ? Number(options.replyTo) : undefined, fieldName: options.field })
-      c.print({ data: comment, rows: commentRows([comment]), columns: ['id', 'author', 'at', 'state', 'body'] })
+      c.print({ data: comment, rows: commentRows([comment], c.dateTimeDisplay), columns: ['id', 'author', 'at', 'state', 'body'] })
     })
 
   const favorites = noun.command('favorites').description('Your favorites (starred tables, records, apps, processes, reports, saved views).')
@@ -159,7 +160,7 @@ export function registerCollab(noun: Command, ctx: () => Context): void {
     .option('-l, --limit <n>', 'most entries (1-50)', '20')
     .action(async (options: { limit: string }) => {
       const c = ctx()
-      const items = await (await collab(c)).recents(Number(options.limit))
+      const items = await (await collab(c)).recents(positiveInt(options.limit, '--limit'))
       c.print({ data: items, rows: favoriteRows(items), columns: ['type', 'name', 'record', 'label', 'available'] })
     })
 
@@ -197,7 +198,7 @@ export function registerCollab(noun: Command, ctx: () => Context): void {
         { item: 'open tasks', value: work.openTaskCount ?? 0 },
         { item: 'unread mentions', value: work.unreadMentionCount ?? 0 },
         ...Object.entries(work.assignedRecordsByTable ?? {}).map(([table, n]) => ({ item: `assigned: ${table}`, value: n })),
-        ...(work.tasks ?? []).map((t) => ({ item: `task ${t.id ?? ''}${t.dueAt ? ` due ${String(t.dueAt).slice(0, 10)}` : ''}`, value: `${t.title ?? ''}${t.tableName ? ` (${t.tableName} ${t.recordId ?? ''})` : ''}` })),
+        ...(work.tasks ?? []).map((t) => ({ item: `task ${t.id ?? ''}${t.dueAt ? ` due ${instantText(t.dueAt, c.dateTimeDisplay)}` : ''}`, value: `${t.title ?? ''}${t.tableName ? ` (${t.tableName} ${t.recordId ?? ''})` : ''}` })),
       ]
       c.print({ data: work, rows, columns: ['item', 'value'] })
     })
@@ -207,7 +208,7 @@ export function registerCollab(noun: Command, ctx: () => Context): void {
     .option('-l, --limit <n>', 'most people (1-100)', '20')
     .action(async (query: string | undefined, options: { limit: string }) => {
       const c = ctx()
-      const people = await (await collab(c)).people(query, Number(options.limit))
-      c.print({ data: people, rows: people.map((p) => ({ user: p.userId ?? '', name: p.displayName ?? '', email: p.email ?? '', lastSeen: String(p.lastSeenAt ?? '').slice(0, 16).replace('T', ' ') })), columns: ['user', 'name', 'email', 'lastSeen'] })
+      const people = await (await collab(c)).people(query, positiveInt(options.limit, '--limit'))
+      c.print({ data: people, rows: people.map((p) => ({ user: p.userId ?? '', name: p.displayName ?? '', email: p.email ?? '', lastSeen: instantText(p.lastSeenAt ?? '', c.dateTimeDisplay) })), columns: ['user', 'name', 'email', 'lastSeen'] })
     })
 }

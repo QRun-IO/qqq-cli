@@ -13,6 +13,7 @@
 import type { FieldMeta } from '../forms/fields.js'
 import { blocksToText, htmlToText, widgetToBlocks } from '../widgets/render-model.js'
 import { displayDateTime, type DisplayOptions } from '../forms/datetime.js'
+import { helpContentText } from '../help/help-content.js'
 import type { RecordLike, SectionMeta, TableMetaLike } from './associations.js'
 
 export interface HelpContent {
@@ -43,11 +44,7 @@ export function selectHelpContent(entries: unknown, roles: readonly string[] = V
 /** Help content as plain text: TEXT as written, HTML and MARKDOWN through the server's rendered HTML. */
 export function helpEntryText(entry: HelpContent | undefined): string {
   if (!entry) return ''
-  const format = entry.format ?? 'TEXT'
-  let text = entry.contentAsText?.trim() ? entry.contentAsText
-    : format === 'TEXT' ? entry.content ?? entry.summary ?? ''
-      : htmlToText(entry.contentAsHtml || entry.content || entry.summary || '')
-  text = text.trim()
+  let text = (helpContentText(entry as unknown as Record<string, unknown>) || entry.summary || '').trim()
   if (entry.title && !text.startsWith(entry.title)) text = `${entry.title}: ${text}`
   const links = (entry.links ?? []).filter((l) => l?.url).map((l) => `${l.label ?? l.url} <${l.url}>`)
   return links.length ? `${text}${text ? ' ' : ''}(${links.join(', ')})` : text
@@ -167,6 +164,11 @@ export interface ValueOptions {
   empty?: string
   /** DATE_TIME display: the viewer's zone (default), another zone, or the raw UTC instant (`--utc`). */
   dateTime?: DisplayOptions
+  /**
+   * A cell of a record list rather than the record view: the same adornment rules (REVEAL masked,
+   * CHIP, ERROR, DATE_TIME in the zone), without link targets, download hints or tooltips.
+   */
+  cell?: boolean
 }
 
 /** A field value rendered for a terminal. */
@@ -190,6 +192,7 @@ function str(value: unknown): string {
 /** Renders one value through its adornments, in Next's order; TOOLTIP text is appended in parentheses. */
 export function valueText(field: FieldMeta, record: RecordLike, options: ValueOptions = {}): ValueText {
   const out = valueTextWithoutTooltip(field, record, options)
+  if (options.cell) return out
   const tip = tooltipText(field, record)
   if (tip && out.text) out.text = `${out.text} (${tip})`
   return out
@@ -212,7 +215,7 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
 
   if (findAdornment(field, 'LINK')) {
     if (value === null || value === undefined || value === '') return { text: empty, adornment: 'LINK' }
-    const target = linkTarget(field, record)
+    const target = options.cell ? undefined : linkTarget(field, record)
     if (target?.kind === 'record') return { text: `${str(value)} → ${target.tableName} ${target.primaryKey}`, link: { tableName: target.tableName, primaryKey: target.primaryKey }, adornment: 'LINK' }
     if (target?.kind === 'url') return { text: str(value) === target.href ? target.href : `${str(value)} <${target.href}>`, link: { url: target.href }, adornment: 'LINK' }
     return { text: str(value), adornment: 'LINK' }
@@ -240,6 +243,7 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
   if (findAdornment(field, 'FILE_DOWNLOAD')) {
     const file = fileDownload(field, record)
     if (!file) return { text: empty, adornment: 'FILE_DOWNLOAD' }
+    if (options.cell) return { text: file.fileName, file, adornment: 'FILE_DOWNLOAD' }
     const hint = file.route && options.tableName ? ` (qqq table download ${options.tableName} ${options.primaryKey ?? file.route.primaryKey} ${field.name})` : file.url ? ` <${file.url}>` : ''
     return { text: `${file.fileName}${hint}`, file, adornment: 'FILE_DOWNLOAD' }
   }
@@ -250,11 +254,11 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
 
   if (field.type === 'BLOB' && typeof raw === 'string') {
     const bytes = Math.floor(raw.replace(/=+$/, '').length * 3 / 4)
-    const hint = options.tableName ? ` (qqq table download ${options.tableName} ${options.primaryKey ?? ''} ${field.name})`.replace('  ', ' ') : ''
+    const hint = options.tableName && !options.cell ? ` (qqq table download ${options.tableName} ${options.primaryKey ?? ''} ${field.name})`.replace('  ', ' ') : ''
     return { text: `<file, ${bytes} bytes>${hint}`, ...(findAdornment(field, 'FILE_UPLOAD') ? { adornment: 'FILE_UPLOAD' } : {}) }
   }
 
-  const related = relatedRecordTarget(field, record, options.tableNames)
+  const related = options.cell ? undefined : relatedRecordTarget(field, record, options.tableNames)
   if (related) return { text: `${str(value)} → ${related.tableName} ${related.primaryKey}`, link: related }
 
   return { text: str(value), ...(findAdornment(field, 'FILE_UPLOAD') ? { adornment: 'FILE_UPLOAD' } : {}) }

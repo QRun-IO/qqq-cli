@@ -8,7 +8,7 @@ import { openRealtimeStream, unwrap } from '@qrun-io/qqq-ui-api-client'
 import { appHome, callOperation } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { CLIENT_CHANNEL, authenticatedFetch, currentToken, sessionCookieFor } from '../session.js'
-import type { Json } from './shared.js'
+import { countFooter, positiveInt, type Json } from './shared.js'
 
 export function registerMisc(program: Command, ctx: () => Context): void {
   const listApps = async () => {
@@ -52,10 +52,10 @@ export function registerMisc(program: Command, ctx: () => Context): void {
     .option('-l, --limit <n>', 'most results', '20')
     .action(async (text: string, options: { table?: string; limit: string }) => {
       const c = ctx()
-      const result = await c.call('searchRecords', { json: { searchTerm: text, tableNames: options.table ? [options.table] : undefined, limitPerTable: Number(options.limit) } })
+      const result = await c.call('searchRecords', { json: { searchTerm: text, tableNames: options.table ? [options.table] : undefined, limitPerTable: positiveInt(options.limit, '--limit') } })
       const data = result.data as Json
       const results = ((data.results ?? []) as Json[]).map((r) => ({ table: r.tableName, key: r.recordId, label: r.recordLabel, details: Array.isArray(r.details) ? (r.details as unknown[]).map((d) => (typeof d === 'object' && d ? Object.values(d as Json).join(' ') : String(d))).join(' · ') : r.details ?? '' }))
-      c.print({ data, rows: results, columns: ['table', 'key', 'label', 'details'], footer: `(${results.length} results)` })
+      c.print({ data, rows: results, columns: ['table', 'key', 'label', 'details'], footer: countFooter(results.length, 'result') })
     })
 
   program.command('tail')
@@ -69,24 +69,33 @@ export function registerMisc(program: Command, ctx: () => Context): void {
       process.on('SIGINT', () => controller.abort())
       const session = await sessionCookieFor(t)
       const stream = openRealtimeStream({ baseUrl: origin, token: () => currentToken(t), clientChannel: CLIENT_CHANNEL, signal: controller.signal, ...(session ? { headers: { Cookie: `sessionUUID=${session}` } } : {}) } as never)
-      for await (const message of stream) {
-        const data = (message.data ?? {}) as Json
-        if (message.event === 'hello') {
-          const connectionId = String(data.connectionId ?? (data.data as Json | undefined)?.connectionId ?? '')
-          const add = ['user:me', ...(options.channel ?? [])]
-          await unwrap(c.client.POST('/qqq/v1/realtime/subscriptions', { body: { connectionId, add } }))
-          c.note(`Following ${add.join(', ')} on ${origin} (Ctrl-C to stop).`)
-          continue
+      try {
+        await follow(stream)
+      } catch (error) {
+        // Ctrl-C ends a follow as `tail -f` does: quietly, exit 130
+        if (!controller.signal.aborted) throw error
+      }
+      if (controller.signal.aborted) process.exitCode = 130
+      async function follow(messages: typeof stream): Promise<void> {
+        for await (const message of messages) {
+          const data = (message.data ?? {}) as Json
+          if (message.event === 'hello') {
+            const connectionId = String(data.connectionId ?? (data.data as Json | undefined)?.connectionId ?? '')
+            const add = ['user:me', ...(options.channel ?? [])]
+            await unwrap(c.client.POST('/qqq/v1/realtime/subscriptions', { body: { connectionId, add } }))
+            c.note(`Following ${add.join(', ')} on ${origin} (Ctrl-C to stop).`)
+            continue
+          }
+          if (c.format === 'json') {
+            console.log(JSON.stringify(message))
+            continue
+          }
+          const payload = (data.data ?? data) as Json
+          const time = new Date().toTimeString().slice(0, 8)
+          const detail = payload.label ?? payload.title ?? payload.message ?? payload.jobId ?? ''
+          const progress = payload.percent !== undefined && payload.percent !== null ? ` ${payload.percent}%` : ''
+          console.log(`${time} ${message.event}${data.channel ? ` [${data.channel}]` : ''} ${detail}${progress}${payload.status ? ` ${payload.status}` : ''}`.trim())
         }
-        if (c.format === 'json') {
-          console.log(JSON.stringify(message))
-          continue
-        }
-        const payload = (data.data ?? data) as Json
-        const time = new Date().toISOString().slice(11, 19)
-        const detail = payload.label ?? payload.title ?? payload.message ?? payload.jobId ?? ''
-        const progress = payload.percent !== undefined && payload.percent !== null ? ` ${payload.percent}%` : ''
-        console.log(`${time} ${message.event}${data.channel ? ` [${data.channel}]` : ''} ${detail}${progress}${payload.status ? ` ${payload.status}` : ''}`.trim())
       }
     })
 }

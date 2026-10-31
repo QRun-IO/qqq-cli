@@ -11,12 +11,14 @@
 
 import type { Command } from 'commander'
 import {
-  associationGroups, associationLabel, associationsOf, childListFields, fetchChildren, fileDownload, safeFileName, saveDownload, findAssociation, recordView, relationshipValues, tableViewHelp,
-  defaultJoinColumns, withJoinFields, displayDateTime, fieldLabel, type DisplayOptions, type ExposedJoin, type RecordLike, type TableMetaLike, type WidgetMetaLike,
+  associationGroups, associationLabel, associationsOf, childListFields, fetchChildren, fileDownload, safeFileName, findAssociation, helpToText, recordView, relationshipValues, tableHelp, VIEW_SCREEN_HELP_ROLES,
+  defaultJoinColumns, withJoinFields, fieldLabel, variantBody, variantParam, type ExposedJoin, type RecordLike, type TableMetaLike, type WidgetMetaLike,
 } from '@qrun-io/qqq-core'
+import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch } from '../session.js'
-import { valueText, type Json } from './shared.js'
+import { countFooter, intOption, valueText, writeDownload, type Json } from './shared.js'
+import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
 /** Reads one record (`{ record }` or a bare record). */
 export async function getRecord(c: Context, table: string, primaryKey: string, associations: boolean, query: Record<string, string | undefined> = {}): Promise<Json> {
@@ -40,8 +42,10 @@ async function associationTables(c: Context, root: TableMetaLike): Promise<Recor
         const meta = await c.tableMeta<TableMetaLike>(name)
         tables[name] = meta
         queue.push(meta)
-      } catch {
-        // no access to the child table: shown as unavailable
+      } catch (error) {
+        // no access to the child table (403, or 404 for a table the user may not see): shown as
+        // unavailable; anything else (the server down, a 500) is a real failure
+        if (!(error instanceof UiApiError && (error.status === 403 || error.status === 404))) throw error
       }
     }
   }
@@ -66,7 +70,7 @@ export async function showRecord(c: Context, table: string, primaryKey: string, 
   }
   // fields of joined tables (--join), one section per join
   for (const join of options.joined ?? []) {
-    for (const name of defaultJoinColumns(join, 1000)) rows.push({ section: join.label, field: fieldLabel(meta as unknown as Json, options.joined!, name), value: valueText(record as unknown as Json, name, withJoinFields(meta as unknown as Json, options.joined!), c.dateTimeDisplay) })
+    for (const name of defaultJoinColumns(join, 1000)) rows.push({ section: join.label, field: fieldLabel(meta as unknown as Json, options.joined!, name), value: valueText(record as unknown as Json, name, withJoinFields(meta as unknown as Json, options.joined!), c.dateTimeDisplay, options.reveal) })
   }
   const links = sections.flatMap((s) => s.fields).filter((x) => x.value.link && 'tableName' in x.value.link)
   const structured = c.format === 'json' || c.format === 'yaml'
@@ -79,8 +83,9 @@ export async function showRecord(c: Context, table: string, primaryKey: string, 
   if (structured) return
 
   if (options.helpContent) {
-    const help = tableViewHelp(meta)
-    if (help.length) c.print({ data: help, rows: help.map((h) => ({ slot: h.slot, help: h.text })), columns: ['slot', 'help'], headers: ['Table help', ''] })
+    // the table's own help, as `qqq help show table <t>` prints it (sections and fields are inline above)
+    const help = tableHelp(meta as unknown as Json, { role: VIEW_SCREEN_HELP_ROLES }).filter((e) => e.where === 'table' || e.where.startsWith('table ('))
+    if (help.length) process.stdout.write(`\n${helpToText(help)}\n`)
   }
   if (options.links && links.length) {
     c.print({
@@ -109,18 +114,12 @@ export async function showRecord(c: Context, table: string, primaryKey: string, 
       const relationship = relationshipValues(group.association, parentTable, group.parent, childTable)
       const binding = 'error' in relationship ? [] : Object.keys(relationship.values)
       const fields = childListFields(childTable, binding)
-      const childRows = group.records.map((child) => Object.fromEntries(fields.map((f) => [f, valueOf(child, f, childTable, c.dateTimeDisplay)])))
+      const childRows = group.records.map((child) => Object.fromEntries(fields.map((f) => [f, valueText(child as unknown as Json, f, childTable as unknown as Json, c.dateTimeDisplay, options.reveal)])))
       process.stdout.write(`\n${indent}${title} (${group.records.length})\n`)
       if (childRows.length) c.print({ data: group.records, rows: childRows, columns: fields, headers: fields.map((f) => childTable.fields[f]?.label ?? f) })
       else process.stdout.write(`${indent}  none\n`)
     }
   }
-}
-
-function valueOf(record: RecordLike, field: string, table?: TableMetaLike, display?: DisplayOptions): string {
-  if (table?.fields[field]?.type === 'DATE_TIME') return displayDateTime(record.values[field], record.displayValues?.[field], display)
-  const value = record.displayValues?.[field] ?? record.values[field]
-  return value === null || value === undefined ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
 
 export function registerRelated(program: Command, ctx: () => Context): void {
@@ -131,14 +130,21 @@ export function registerRelated(program: Command, ctx: () => Context): void {
     .option('-l, --limit <n>', 'children per page', '25')
     .option('--skip <n>', 'children to skip', '0')
     .option('--all', 'every child (pages of --limit)')
-    .action(async (name: string, primaryKey: string, associationName: string | undefined, options: { limit: string; skip: string; all?: boolean }) => {
+    .option('--reveal', 'show REVEAL (masked) values')
+    .option(...VARIANT_OPTION)
+    .action(async (name: string, primaryKey: string, associationName: string | undefined, options: { limit: string; skip: string; all?: boolean; reveal?: boolean; variant?: string }) => {
       const c = ctx()
       const meta = await c.tableMeta<TableMetaLike>(name)
       const all = associationsOf(meta)
       if (!all.length) throw new UsageError(`${meta.label ?? name} has no associations (child lists).`)
-      const parent = await getRecord(c, name, primaryKey, false) as unknown as RecordLike
+      const limit = intOption(options.limit, '--limit', 1)!
+      let skip = intOption(options.skip, '--skip')!
+      const variant = await chooseVariant(c, meta as unknown as Json, options.variant)
+      const parent = await getRecord(c, name, primaryKey, false, { tableVariant: variantParam(variant) }) as unknown as RecordLike
       const widgets = ((await c.metaData()).widgets ?? {}) as Record<string, WidgetMetaLike>
       const fetchImpl = authenticatedFetch(c.target)
+      // a child table on the same variant-backed backend is queried with the parent's variant
+      const childVariant = (child: TableMetaLike) => (variant && (child as unknown as Json).usesVariants === true ? variantBody(variant) : {})
       if (!associationName) {
         const rows: Json[] = []
         for (const association of all) {
@@ -146,7 +152,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
           let count: number | string = ''
           try {
             childTable = await c.tableMeta<TableMetaLike>(association.associatedTableName)
-            count = (await fetchChildren({ baseUrl: c.server, fetch: fetchImpl, parentTable: meta, parent, childTable, association, limit: 0 })).count ?? ''
+            count = (await fetchChildren({ baseUrl: c.server, fetch: fetchImpl, parentTable: meta, parent, childTable, association, limit: 0, ...childVariant(childTable) })).count ?? ''
           } catch (error) {
             count = `unavailable: ${error instanceof Error ? error.message : String(error)}`
           }
@@ -158,13 +164,10 @@ export function registerRelated(program: Command, ctx: () => Context): void {
       const association = findAssociation(meta, associationName)
       if (!association) throw new UsageError(`No association "${associationName}" on ${meta.label ?? name}; associations: ${all.map((a) => `${a.name} (${a.associatedTableName})`).join(', ')}`)
       const childTable = await c.tableMeta<TableMetaLike>(association.associatedTableName)
-      const limit = Number(options.limit)
-      let skip = Number(options.skip)
-      if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(skip) || skip < 0) throw new UsageError('--limit must be a positive integer and --skip a non-negative one.')
       const records: RecordLike[] = []
       let count: number | undefined
       for (;;) {
-        const page = await fetchChildren({ baseUrl: c.server, fetch: fetchImpl, parentTable: meta, parent, childTable, association, limit, skip, count: count === undefined })
+        const page = await fetchChildren({ baseUrl: c.server, fetch: fetchImpl, parentTable: meta, parent, childTable, association, limit, skip, count: count === undefined, ...childVariant(childTable) })
         count ??= page.count
         records.push(...page.records)
         if (!options.all || page.records.length < limit) break
@@ -176,22 +179,28 @@ export function registerRelated(program: Command, ctx: () => Context): void {
       const label = associationLabel(meta, association, { widgets, childTable })
       c.print({
         data: { association: association.name, table: childTable.name, count, skip: first, records },
-        rows: records.map((r) => Object.fromEntries(fields.map((f) => [f, valueOf(r, f, childTable, c.dateTimeDisplay)]))),
+        rows: records.map((r) => Object.fromEntries(fields.map((f) => [f, valueText(r as unknown as Json, f, childTable as unknown as Json, c.dateTimeDisplay, options.reveal)]))),
         columns: fields,
         headers: fields.map((f) => childTable.fields[f]?.label ?? f),
-        footer: `${label} of ${parent.recordLabel ?? `${meta.label} ${primaryKey}`}: ${records.length ? `${first + 1}-${first + records.length}` : 'none'} of ${count ?? '?'}${!options.all && count !== undefined && first + records.length < count ? `; next: --skip ${first + records.length}` : ''}`,
+        footer: countFooter(records.length, 'record', [
+          `${label} of ${parent.recordLabel ?? `${meta.label} ${primaryKey}`}`,
+          records.length ? `${first + 1}-${first + records.length} of ${count ?? '?'}` : `of ${count ?? '?'}`,
+          !options.all && count !== undefined && first + records.length < count && `next: --skip ${first + records.length}`,
+        ]),
       })
     })
 
   table.command('download <table> <primaryKey> <field>')
     .description('Save a file stored in a record field (FILE_DOWNLOAD through GET /table/{t}/{pk}/{field}/{file}, or a BLOB value).')
-    .option('-o, --out <file>', 'where to write, replacing an existing file (default: the file name, name-1.ext when taken; - for stdout)')
-    .action(async (name: string, primaryKey: string, fieldName: string, options: { out?: string }) => {
+    .option('-o, --out <file>', 'where to write, replacing an existing file (default: the file name in the download directory, name-1.ext when taken; - for stdout)')
+    .option(...VARIANT_OPTION)
+    .action(async (name: string, primaryKey: string, fieldName: string, options: { out?: string; variant?: string }) => {
       const c = ctx()
       const meta = await c.tableMeta<TableMetaLike>(name)
       const field = meta.fields[fieldName]
       if (!field) throw new UsageError(`No field "${fieldName}" in ${name}`)
-      const record = await getRecord(c, name, primaryKey, false) as unknown as RecordLike
+      const variant = await chooseVariant(c, meta as unknown as Json, options.variant)
+      const record = await getRecord(c, name, primaryKey, false, { tableVariant: variantParam(variant) }) as unknown as RecordLike
       const file = fileDownload(field, record)
       let bytes: Uint8Array
       let fileName: string
@@ -209,12 +218,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
         bytes = new Uint8Array(Buffer.from(raw, 'base64'))
         fileName = safeFileName(`${name}-${primaryKey}-${fieldName}`)
       }
-      const out = options.out ?? fileName
-      if (out === '-') {
-        process.stdout.write(bytes)
-        return
-      }
-      const written = saveDownload(out, bytes, { explicit: options.out !== undefined })
-      c.note(`wrote ${written} (${bytes.length} bytes)`)
+      const written = writeDownload(options.out, fileName, bytes)
+      if (written) c.note(`wrote ${written} (${bytes.length} bytes)`)
     })
 }
