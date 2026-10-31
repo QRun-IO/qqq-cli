@@ -239,3 +239,12 @@ test('screens: help content, HELP_TEXT preview, WIDGET named and ad hoc, Google 
   assert.deepEqual(summaryLines([{ status: 'OK', tableName: 'person', recordId: 4, linkPreText: 'Created ', linkText: 'Avery' }]), [{ status: 'OK', count: undefined, message: 'Created Avery', bullets: undefined, link: 'person 4' }])
 })
 
+
+test('a server that never stops answering with a next step is an error, not a completed run', async () => {
+  const loop: ProcessStep[] = [{ name: 'a', components: [{ type: 'VIEW_FORM' }] }, { name: 'b', components: [{ type: 'VIEW_FORM' }] }]
+  const server = fakeServer([
+    [/init$/, () => ({ type: 'COMPLETE', processUUID: 'u9', nextStep: 'a', values: {} })],
+    [/step\/a$/, () => ({ type: 'COMPLETE', processUUID: 'u9', nextStep: 'a', values: {} })],
+  ])
+  await assert.rejects(runProcess({ baseUrl: base, fetch: server.fetch, meta: { name: 'loop', frontendSteps: loop } }), (error: unknown) => error instanceof ProcessError && /did not finish after 200 steps/.test(error.message))
+})

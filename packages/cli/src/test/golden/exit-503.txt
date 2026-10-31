@@ -1,0 +1,3 @@
+--- stderr ---
+Error: fake 503 (UNAVAILABLE, HTTP 503, trace trace-503)
+--- exit 4

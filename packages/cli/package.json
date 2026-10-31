@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@qrun-io/qqq-ui-api-client": "1.8.0-rc.1",
+    "@qrun-io/qqq-ui-api-conformance": "1.6.0-rc.1",
     "commander": "15.0.0",
     "@qrun-io/qqq-core": "0.1.0-dev"
   },

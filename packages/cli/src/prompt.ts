@@ -26,10 +26,12 @@ export interface PromptOptions {
 
 /**
  * A readline interface whose Ctrl-C is passed on as SIGINT to the process (readline takes the
- * terminal into raw mode, so the key would otherwise only reach the interface).
+ * terminal into raw mode, so the key would otherwise only reach the interface, which closes and
+ * fails the question with a bare AbortError): a command that listens for SIGINT (process run
+ * cancels its run) gets it, anything else exits 130 as a shell expects.
  */
-function openInterface(out: NodeJS.WritableStream): Interface {
-  const rl = createInterface({ input: process.stdin, output: out })
+function openInterface(out: NodeJS.WritableStream, input: NodeJS.ReadableStream = process.stdin): Interface {
+  const rl = createInterface({ input, output: out, terminal: Boolean((input as { isTTY?: boolean }).isTTY) })
   rl.on('SIGINT', () => {
     if (process.listenerCount('SIGINT') > 0) process.emit('SIGINT', 'SIGINT')
     else process.exit(130)
@@ -37,12 +39,23 @@ function openInterface(out: NodeJS.WritableStream): Interface {
   return rl
 }
 
-/** Asks one question on the terminal; returns the trimmed answer. */
-export async function ask(question: string, options: { out?: NodeJS.WritableStream; signal?: AbortSignal } = {}): Promise<string> {
-  if (!process.stdin.isTTY) throw new UsageError('This question needs a terminal.')
-  const rl = openInterface(options.out ?? process.stderr)
+/** Ctrl-D (end of input) at a question is a usage error; an abort the caller asked for stays an abort. */
+async function question(rl: Interface, text: string, signal?: AbortSignal): Promise<string> {
   try {
-    return (await rl.question(question, { signal: options.signal })).trim()
+    return await rl.question(text, { signal })
+  } catch (error) {
+    if (!signal?.aborted && (error as { code?: string }).code === 'ABORT_ERR') throw new UsageError('No answer (end of input).')
+    throw error
+  }
+}
+
+/** Asks one question on the terminal; returns the trimmed answer. */
+export async function ask(text: string, options: { out?: NodeJS.WritableStream; signal?: AbortSignal; input?: NodeJS.ReadableStream } = {}): Promise<string> {
+  const input = options.input ?? process.stdin
+  if (!(input as { isTTY?: boolean }).isTTY) throw new UsageError('This question needs a terminal.')
+  const rl = openInterface(options.out ?? process.stderr, input)
+  try {
+    return (await question(rl, text, options.signal)).trim()
   } finally {
     rl.close()
   }
@@ -81,7 +94,7 @@ async function promptField(rl: Interface, out: NodeJS.WritableStream, session: F
         hint = 'label or id'
       }
     }
-    const answer = (await rl.question(`${field.label}${field.isRequired ? ' *' : ''} [${hint}]${current ? ` (${current})` : ''}: `, { signal })).trim()
+    const answer = (await question(rl, `${field.label}${field.isRequired ? ' *' : ''} [${hint}]${current ? ` (${current})` : ''}: `, signal)).trim()
     if (answer === '' && current) return
     if (answer === '' && !field.isRequired) {
       await session.set(field.name, null)

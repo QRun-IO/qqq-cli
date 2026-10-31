@@ -1,0 +1,3 @@
+--- stderr ---
+Error: getTableMetaData needs path parameter "tableName" (--path tableName=...)
+--- exit 2

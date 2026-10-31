@@ -1,0 +1,6 @@
+destination   type   provider  publishers  triggers  published  consumed  failed  deadLettered  lastActivity
+------------  -----  --------  ----------  --------  ---------  --------  ------  ------------  -----------------------
+personEvents  TOPIC  local     1           0         3          3         0       0             2026-10-31 19:30:00 UTC
+(1 destination; 1 provider)
+--- stderr ---
+--- exit 0

@@ -51,8 +51,14 @@ export interface ViewSettings {
 export interface Config {
   defaultProfile?: string
   profiles: Record<string, Profile>
+  /** Local client settings shared by the CLI and the TUI: theme, views, files (files/navigator.ts). */
   ui?: UiSettings
+  /** Sections this version does not know are kept as they are. */
+  [section: string]: unknown
 }
+
+/** config.json is not valid JSON: refused, so a write never replaces the profiles with nothing. */
+export class ConfigFileError extends Error {}
 
 export function configDir(env: NodeJS.ProcessEnv = process.env): string {
   return env.QQQ_CONFIG_DIR ?? join(env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'qqq')
@@ -61,12 +67,14 @@ export function configDir(env: NodeJS.ProcessEnv = process.env): string {
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const file = join(configDir(env), 'config.json')
   if (!existsSync(file)) return { profiles: {} }
+  let parsed: Config
   try {
-    const parsed = JSON.parse(readFileSync(file, 'utf8')) as Config
-    return { defaultProfile: parsed.defaultProfile, profiles: parsed.profiles ?? {}, ...(parsed.ui ? { ui: parsed.ui } : {}) }
-  } catch {
-    return { profiles: {} }
+    parsed = JSON.parse(readFileSync(file, 'utf8')) as Config
+  } catch (error) {
+    throw new ConfigFileError(`${file} is not valid JSON (${error instanceof Error ? error.message : String(error)}); fix or remove it (nothing was changed)`)
   }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new ConfigFileError(`${file} is not a JSON object; fix or remove it (nothing was changed)`)
+  return { ...parsed, profiles: parsed.profiles ?? {} }
 }
 
 export function writeConfig(config: Config, env: NodeJS.ProcessEnv = process.env): void {

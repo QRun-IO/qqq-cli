@@ -15,9 +15,10 @@
 import { CommanderError } from 'commander'
 import { EXIT, describeError } from './context.js'
 import { createProgram } from './program.js'
+import { importLegacyCredentials } from './session.js'
 
 const program = createProgram()
-program.parseAsync().catch((error: unknown) => {
+importLegacyCredentials().then(() => program.parseAsync()).catch((error: unknown) => {
   if (error instanceof CommanderError) {
     process.exitCode = error.exitCode === 0 ? 0 : EXIT.usage
     return

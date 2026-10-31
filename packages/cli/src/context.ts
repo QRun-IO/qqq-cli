@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { Collaboration, ExtensionNotInstalledError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { Collaboration, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieFor, target, type Target } from './session.js'
 
@@ -143,18 +143,15 @@ export class Context {
     return unwrap(result)
   }
 
-  /** Asks on the terminal unless --yes; without a terminal and without --yes, refuses. */
+  /**
+   * Asks on the terminal unless --yes; without a terminal and without --yes, refuses. Ctrl-C at the
+   * question exits 130 (prompt.ask passes it on as SIGINT), never a silent "no".
+   */
   async confirm(question: string): Promise<boolean> {
     if (this.options.yes) return true
     if (!process.stdin.isTTY) throw new UsageError(`${question} Pass --yes to confirm without a terminal.`)
-    const { createInterface } = await import('node:readline/promises')
-    const rl = createInterface({ input: process.stdin, output: process.stderr })
-    try {
-      const answer = await rl.question(`${question} [y/N] `)
-      return /^y(es)?$/i.test(answer.trim())
-    } finally {
-      rl.close()
-    }
+    const { ask } = await import('./prompt.js')
+    return /^y(es)?$/i.test(await ask(`${question} [y/N] `))
   }
 
   /** A note for people, on stderr so pipes stay clean. */
@@ -168,7 +165,7 @@ export class UsageError extends Error {}
 
 /** Maps an error to its exit code and the stderr text. */
 export function describeError(error: unknown, trace = false): { code: number; text: string } {
-  if (error instanceof UsageError || error instanceof FilterSyntaxError || error instanceof UnsafeFileNameError) return { code: EXIT.usage, text: `Error: ${error.message}` }
+  if (error instanceof UsageError || error instanceof FilterSyntaxError || error instanceof UnsafeFileNameError || error instanceof OperationInputError) return { code: EXIT.usage, text: `Error: ${error.message}` }
   if (error instanceof ExtensionNotInstalledError) return { code: EXIT.notFound, text: `Error: ${error.message}` }
   if (error instanceof UiApiError) {
     const lines = [`Error: ${error.message} (${error.code}, HTTP ${error.status}${error.traceId ? `, trace ${error.traceId}` : ''})`]
@@ -178,11 +175,13 @@ export function describeError(error: unknown, trace = false): { code: number; te
       : error.code === 'RATE_LIMITED' ? EXIT.transient
         : error.code === 'NOT_FOUND' ? EXIT.notFound
           : error.code === 'BAD_REQUEST' || error.code === 'CONFLICT' ? EXIT.validation
-            : error.status >= 500 ? EXIT.unexpected : EXIT.error
+            // a gateway or an overloaded server: try again later, as a refused connection
+            : error.status === 502 || error.status === 503 || error.status === 504 ? EXIT.transient
+              : error.status >= 500 ? EXIT.unexpected : EXIT.error
     return { code, text: lines.join('\n') }
   }
   if (error instanceof ProcessError) return { code: error.isInputError ? EXIT.validation : EXIT.error, text: `Error: ${error.message}` }
-  if (error instanceof TypeError && /fetch failed|ECONNREFUSED|ENOTFOUND|network/i.test(String((error as Error & { cause?: unknown }).cause ?? error.message))) {
+  if (error instanceof TypeError && /fetch failed|ECONNREFUSED|ENOTFOUND|ECONNRESET|ETIMEDOUT|network|bad port/i.test(`${error.message} ${String((error as Error & { cause?: unknown }).cause ?? '')}`)) {
     return { code: EXIT.transient, text: `Error: cannot reach the server (${String((error as Error & { cause?: { message?: string } }).cause?.message ?? error.message)})` }
   }
   const message = error instanceof Error ? error.message : String(error)

@@ -3,11 +3,10 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { blocksToText, formatCsv, listReports, safeFileName, saveDownload, widgetRows, widgetToBlocks } from '@qrun-io/qqq-core'
+import { blocksToText, formatCsv, listReports, safeFileName, widgetRows, widgetToBlocks } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
-import { parsePairs, type Json } from './shared.js'
+import { countFooter, parsePairs, positiveInt, writeDownload, type Json } from './shared.js'
 
 export function registerWidget(program: Command, ctx: () => Context): void {
   const widget = program.command('widget').description('Widgets (dashboard tiles): list, get.')
@@ -35,12 +34,8 @@ export function registerWidget(program: Command, ctx: () => Context): void {
         const rows = widgetRows(blocks)
         if (!rows) throw new UsageError(`Widget ${name} has no table or series to export.`)
         const csv = formatCsv(rows.rows, rows.columns, rows.headers)
-        if (typeof options.csv === 'string') {
-          writeFileSync(options.csv, csv)
-          c.note(`wrote ${options.csv} (${rows.rows.length} rows)`)
-        } else {
-          process.stdout.write(csv)
-        }
+        const written = writeDownload(typeof options.csv === 'string' ? options.csv : '-', safeFileName(`${name}.csv`), new TextEncoder().encode(csv))
+        if (written) c.note(`wrote ${written} (${rows.rows.length} rows)`)
         return
       }
       if (c.format === 'json' || c.format === 'yaml') {
@@ -61,14 +56,13 @@ export function registerWidget(program: Command, ctx: () => Context): void {
   report.command('run <report>')
     .description('Run a report and save its output (csv, xlsx, json, pdf as the report allows).')
     .option('--format <fmt>', 'output format', 'csv')
-    .option('-o, --out <file>', 'output file, replaced if it exists (default: <report>.<format>; name-1.<format> when taken)')
+    .option('-o, --out <file>', 'output file, replaced if it exists, or - for stdout (default: <report>.<format> in the download directory; name-1.<format> when taken)')
     .action(async (name: string, options: { format: string; out?: string }) => {
       const c = ctx()
       const result = await c.call('runReport', { path: { reportName: name }, query: { format: options.format } })
-      const out = options.out ?? safeFileName(`${name}.${options.format}`)
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
-      const written = saveDownload(out, bytes, { explicit: options.out !== undefined })
-      c.note(`wrote ${written} (${bytes.length} bytes, ${result.contentType})`)
+      const written = writeDownload(options.out, safeFileName(`${name}.${options.format}`), bytes)
+      if (written) c.note(`wrote ${written} (${bytes.length} bytes, ${result.contentType})`)
     })
 
   const prefs = program.command('prefs').description('Your preferences: list, get, set, action.')
@@ -101,8 +95,8 @@ export function registerWidget(program: Command, ctx: () => Context): void {
 
   program.command('help-search <text>').description("Search the application's help content.").option('-l, --limit <n>', 'most results', '20').action(async (text: string, options: { limit: string }) => {
     const c = ctx()
-    const data = (await c.call('searchHelp', { query: { q: text, limit: options.limit } })).data as Json
+    const data = (await c.call('searchHelp', { query: { q: text, limit: String(positiveInt(options.limit, '--limit')) } })).data as Json
     const rows = ((data.results ?? []) as Json[]).map((r) => ({ kind: r.kind, name: r.name, label: r.label ?? '', table: r.table ?? '', href: r.href ?? '' }))
-    c.print({ data, rows, columns: ['kind', 'name', 'label', 'table', 'href'], footer: `(${rows.length} results)` })
+    c.print({ data, rows, columns: ['kind', 'name', 'label', 'table', 'href'], footer: countFooter(rows.length, 'result') })
   })
 }

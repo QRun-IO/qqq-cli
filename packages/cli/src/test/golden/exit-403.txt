@@ -1,0 +1,3 @@
+--- stderr ---
+Error: fake 403 (PERMISSION_DENIED, HTTP 403, trace trace-403)
+--- exit 3

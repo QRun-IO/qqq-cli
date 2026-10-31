@@ -261,18 +261,19 @@ export interface ChildPage {
 }
 
 /** Reads one page of children through `queryTable` (none with `limit: 0`) and their total through `countTable`. */
-export async function fetchChildren(options: { baseUrl: string; fetch: typeof fetch; parentTable: TableMetaLike; parent: RecordLike; childTable: TableMetaLike; association: AssociationMeta; limit?: number; skip?: number; count?: boolean }): Promise<ChildPage> {
+export async function fetchChildren(options: { baseUrl: string; fetch: typeof fetch; parentTable: TableMetaLike; parent: RecordLike; childTable: TableMetaLike; association: AssociationMeta; limit?: number; skip?: number; count?: boolean; tableVariant?: { type: string; id: string } }): Promise<ChildPage> {
+  const variant = options.tableVariant ? { tableVariant: options.tableVariant } : {}
   const filter = childFilter(options.association, options.parentTable, options.parent, options.childTable, { limit: options.limit, skip: options.skip })
   let records: RecordLike[] = []
   if (options.limit !== 0) {
-    const query = await callOperation(options.baseUrl, 'queryTable', { path: { tableName: options.childTable.name }, json: { filter } }, options.fetch)
+    const query = await callOperation(options.baseUrl, 'queryTable', { path: { tableName: options.childTable.name }, json: { filter, ...variant } }, options.fetch)
     const data = query.data as { records?: RecordLike[] } | RecordLike[]
     records = Array.isArray(data) ? data : data.records ?? []
   }
   let count: number | undefined
   if (options.count !== false) {
     const { skip: _skip, limit: _limit, orderBys: _orderBys, ...countFilter } = filter
-    const result = await callOperation(options.baseUrl, 'countTable', { path: { tableName: options.childTable.name }, query: { includeDistinct: 'false' }, json: { filter: countFilter } }, options.fetch)
+    const result = await callOperation(options.baseUrl, 'countTable', { path: { tableName: options.childTable.name }, query: { includeDistinct: 'false' }, json: { filter: countFilter, ...variant } }, options.fetch)
     count = (result.data as { count?: number }).count
   }
   return { association: options.association, filter, records, ...(count !== undefined ? { count } : {}) }

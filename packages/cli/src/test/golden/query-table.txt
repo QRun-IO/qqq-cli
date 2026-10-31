@@ -1,0 +1,8 @@
+Id  First Name  Last Name  Email                  Birth Date  Is Employed  Annual Salary  Days Worked
+--  ----------  ---------  ---------------------  ----------  -----------  -------------  -----------
+1   Avery       Sample     avery@example.invalid  1990-01-15  Yes          $75,003.50     42
+2   Blair       Sample     blair@example.invalid  1991-02-16  Yes          $150,000.00    42
+3   Casey       Sample     casey@example.invalid  1992-03-17  Yes          $300,000.00    100,100
+(3 records)
+--- stderr ---
+--- exit 0

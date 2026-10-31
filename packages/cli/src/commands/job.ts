@@ -6,7 +6,7 @@
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import type { Context } from '../context.js'
-import type { Json } from './shared.js'
+import { countFooter, instantText, positiveInt, type Json } from './shared.js'
 
 function noJobs(error: unknown): never {
   if (error instanceof UiApiError && error.status === 404) throw new Error('This server has no jobs operations (durable jobs are not enabled on it).')
@@ -22,10 +22,10 @@ export function registerJob(program: Command, ctx: () => Context): void {
     .option('-l, --limit <n>', 'most jobs', '50')
     .action(async (options: { all?: boolean; limit: string }) => {
       const c = ctx()
-      const result = await c.call('listJobs', { query: { scope: 'mine', state: options.all ? undefined : 'active', limit: options.limit } }).catch(noJobs)
+      const result = await c.call('listJobs', { query: { scope: 'mine', state: options.all ? undefined : 'active', limit: String(positiveInt(options.limit, '--limit')) } }).catch(noJobs)
       const data = result.data as Json
       const jobs = ((data.jobs ?? []) as Json[]).map((j) => ({ id: j.jobId, label: j.label ?? j.processName, status: j.status, percent: j.percent ?? '', message: j.message ?? '' }))
-      c.print({ data, rows: jobs, columns: ['id', 'label', 'status', 'percent', 'message'], footer: `(${data.activeCount ?? 0} active)` })
+      c.print({ data, rows: jobs, columns: ['id', 'label', 'status', 'percent', 'message'], footer: countFooter(jobs.length, 'job', [`${data.activeCount ?? 0} active`]) })
     })
 
   job.command('get <jobId>')
@@ -47,7 +47,7 @@ export function registerJob(program: Command, ctx: () => Context): void {
         const data = result.data as Json
         const lines = (data.log ?? data.lines ?? []) as Json[]
         for (const line of lines) {
-          console.log(`${String(line.timestamp ?? line.at ?? '').slice(11, 19)}  ${line.level ?? 'info'}  ${line.message ?? ''}`.trim())
+          console.log(`${instantText(line.timestamp ?? line.at ?? '', c.dateTimeDisplay)}  ${line.level ?? 'info'}  ${line.message ?? ''}`.trim())
           afterLogId = String(line.id ?? line.logId ?? afterLogId ?? '')
         }
         const status = String(data.status ?? data.state ?? '')

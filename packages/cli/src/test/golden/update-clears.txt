@@ -1,0 +1,6 @@
+updated         label           fields
+--------------  --------------  ---------------
+Address book 1  placeAddress 1  stateId, cityId
+--- stderr ---
+note: cleared City (depends on a changed field)
+--- exit 0

@@ -24,7 +24,11 @@ export interface HelpEntry {
   links: Array<{ label: string; url: string }>
 }
 
-/** One help content entry as text. */
+/**
+ * One help content entry as text: the one rule every help display uses (`help show`, the record
+ * view's `--help-content`, process screens and `process describe`). TEXT as written; HTML and
+ * MARKDOWN through the server's rendered HTML (or the content with tags stripped).
+ */
 export function helpContentText(entry: J): string {
   if (typeof entry.contentAsText === 'string' && entry.contentAsText.trim()) return entry.contentAsText.trim()
   const content = typeof entry.content === 'string' ? entry.content : ''
@@ -40,7 +44,15 @@ function entries(value: unknown): J[] {
   return []
 }
 
-function toEntries(where: string, raw: unknown, role?: string): HelpEntry[] {
+/** A role filter: one role or several (entries with any of them, or with no roles, pass). */
+export type HelpRoles = string | readonly string[]
+
+function roleMatches(entryRoles: string[], role?: HelpRoles): boolean {
+  if (!role || !entryRoles.length) return true
+  return (typeof role === 'string' ? [role] : role).some((r) => entryRoles.includes(r))
+}
+
+function toEntries(where: string, raw: unknown, role?: HelpRoles): HelpEntry[] {
   return entries(raw).map((e) => ({
     where,
     ...(typeof e.title === 'string' ? { title: e.title } : {}),
@@ -48,11 +60,11 @@ function toEntries(where: string, raw: unknown, role?: string): HelpEntry[] {
     text: helpContentText(e),
     roles: Array.isArray(e.roles) ? (e.roles as unknown[]).map(String) : [],
     links: Array.isArray(e.links) ? (e.links as J[]).map((l) => ({ label: String(l.label ?? l.url ?? ''), url: String(l.url ?? '') })) : [],
-  })).filter((e) => (e.text || e.summary) && (!role || !e.roles.length || e.roles.includes(role)))
+  })).filter((e) => (e.text || e.summary) && roleMatches(e.roles, role))
 }
 
 /** `helpContents` as a slot map (`{ slot: [entries] }`) or a list, flattened with the slot named. */
-function slotEntries(where: string, raw: unknown, role?: string): HelpEntry[] {
+function slotEntries(where: string, raw: unknown, role?: HelpRoles): HelpEntry[] {
   if (Array.isArray(raw)) return toEntries(where, raw, role)
   if (raw && typeof raw === 'object') {
     const out: HelpEntry[] = []
@@ -63,7 +75,7 @@ function slotEntries(where: string, raw: unknown, role?: string): HelpEntry[] {
 }
 
 /** A table's help: the table's own, each section's, and each field's (or only one field's). */
-export function tableHelp(tableMeta: J, options: { field?: string; role?: string } = {}): HelpEntry[] {
+export function tableHelp(tableMeta: J, options: { field?: string; role?: HelpRoles } = {}): HelpEntry[] {
   const fields = (tableMeta.fields ?? {}) as Record<string, J>
   if (options.field) {
     const field = fields[options.field]
@@ -77,7 +89,7 @@ export function tableHelp(tableMeta: J, options: { field?: string; role?: string
 }
 
 /** A process's help: the process's own, then each step's and each step field's. */
-export function processHelp(processMeta: J, options: { role?: string } = {}): HelpEntry[] {
+export function processHelp(processMeta: J, options: { role?: HelpRoles } = {}): HelpEntry[] {
   const out = slotEntries('process', processMeta.helpContents, options.role)
   for (const step of (processMeta.frontendSteps ?? []) as J[]) {
     const stepName = String(step.label ?? step.name)
@@ -95,7 +107,7 @@ export function processHelp(processMeta: J, options: { role?: string } = {}): He
 }
 
 /** An app's, a widget's or the instance's help. */
-export function metaHelp(where: string, meta: J, options: { role?: string } = {}): HelpEntry[] {
+export function metaHelp(where: string, meta: J, options: { role?: HelpRoles } = {}): HelpEntry[] {
   return slotEntries(where, meta.helpContents, options.role)
 }
 

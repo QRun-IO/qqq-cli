@@ -1,0 +1,8 @@
+{
+  "outputMessage": "Slept for 100 milliseconds.",
+  "sleepMillis": 100
+}
+--- stderr ---
+Sleep Interactive: starting
+  running 1/2 sleeping
+--- exit 0
