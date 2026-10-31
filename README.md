@@ -107,7 +107,7 @@ The suite only reads. It never writes. It checks that:
 
 ## Testing a client locally
 
-`qqq-dev-idp` is a small OIDC provider for **local development only**: device grant, refresh and RS256 JWTs, with one issuer per client, as Authentik does it. Run it with the QQQ sample app:
+`qqq-dev-idp` is a small OIDC provider for **local development only**: device grant, authorization code with S256 PKCE on loopback redirects (an Approve / Deny page, or `--auto-approve`), refresh, revocation, end-session and RS256 JWTs, with one issuer per client, as Authentik does it. Run it with the QQQ sample app:
 
 ```sh
 npx qqq-dev-idp --port 9400 --client sample-app --client sample-cli --user you@example.com --groups admins --auto-approve

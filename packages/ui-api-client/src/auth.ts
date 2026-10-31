@@ -7,7 +7,9 @@
  * Sign-in for native clients (CLI, TUI, desktop), as documented in the QQQ docs
  * UI-API-CLIENTS.md section 7: read GET /qqq/v1/metaData/authentication, use the app's public
  * native client (values.nativeClientId) at its issuer with the OAuth2 device-authorization grant
- * (RFC 8628), then send the access token as `Authorization: Bearer`; refresh it at the provider.
+ * (RFC 8628) or the authorization-code grant with PKCE on a loopback redirect (RFC 7636, RFC 8252),
+ * then send the access token as `Authorization: Bearer`; refresh it at the provider; on sign-out,
+ * revoke the refresh token (RFC 7009) and end the provider session.
  */
 
 /** Tokens from the provider, with an absolute expiry. */
@@ -34,6 +36,8 @@ export interface ProviderEndpoints {
   tokenEndpoint: string
   deviceAuthorizationEndpoint?: string
   authorizationEndpoint?: string
+  endSessionEndpoint?: string
+  revocationEndpoint?: string
 }
 
 /** What to show the user while a device sign-in waits for approval. */
@@ -82,6 +86,8 @@ export async function discoverProvider(issuer: string, fetchImpl: typeof fetch =
     tokenEndpoint: doc.token_endpoint,
     deviceAuthorizationEndpoint: doc.device_authorization_endpoint,
     authorizationEndpoint: doc.authorization_endpoint,
+    endSessionEndpoint: doc.end_session_endpoint,
+    revocationEndpoint: doc.revocation_endpoint,
   }
 }
 
@@ -138,6 +144,90 @@ export async function deviceSignIn(
   throw new Error('The code expired; sign in again')
 }
 
+/** A PKCE pair (RFC 7636, S256). */
+export interface Pkce {
+  verifier: string
+  challenge: string
+}
+
+function base64url(bytes: Uint8Array): string {
+  return Buffer.from(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** Creates a random code verifier (43 characters) and its S256 challenge. */
+export async function createPkce(): Promise<Pkce> {
+  const verifier = base64url(globalThis.crypto.getRandomValues(new Uint8Array(32)))
+  const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)))
+  return { verifier, challenge: base64url(digest) }
+}
+
+/** A random `state` value for an authorization request. */
+export function createState(): string {
+  return base64url(globalThis.crypto.getRandomValues(new Uint8Array(16)))
+}
+
+/**
+ * The authorization URL to open in the browser (code + PKCE). No `nonce` is sent: some providers
+ * copy it into the access token, which the server then refuses (UI-API-CLIENTS.md section 7).
+ */
+export function authorizationUrl(endpoints: ProviderEndpoints, config: NativeSignInConfig, request: { redirectUri: string; state: string; challenge: string }): string {
+  if (!endpoints.authorizationEndpoint) throw new Error('The provider has no authorization_endpoint')
+  const url = new URL(endpoints.authorizationEndpoint)
+  url.searchParams.set('response_type', 'code')
+  url.searchParams.set('client_id', config.clientId)
+  url.searchParams.set('redirect_uri', request.redirectUri)
+  url.searchParams.set('scope', config.scope)
+  url.searchParams.set('state', request.state)
+  url.searchParams.set('code_challenge', request.challenge)
+  url.searchParams.set('code_challenge_method', 'S256')
+  return url.toString()
+}
+
+/** What the loopback redirect brought back, checked: the code, or why sign-in failed. */
+export function readAuthorizationCallback(callback: URL, expectedState: string): { code: string } {
+  const params = callback.searchParams
+  const error = params.get('error')
+  if (error) throw new Error(error === 'access_denied' ? `Sign-in was denied${params.get('error_description') ? `: ${params.get('error_description')}` : ''}` : `Sign-in failed at the provider: ${params.get('error_description') ?? error}`)
+  if (params.get('state') !== expectedState) throw new Error('Sign-in failed: the state in the provider redirect does not match this request (possible forgery); nothing was saved')
+  const code = params.get('code')
+  if (!code) throw new Error('Sign-in failed: the provider redirect carries no code')
+  return { code }
+}
+
+/** Exchanges an authorization code at the token endpoint with the PKCE verifier (public client). */
+export async function exchangeAuthorizationCode(config: NativeSignInConfig, request: { code: string; verifier: string; redirectUri: string }, fetchImpl: typeof fetch = fetch, endpoints?: ProviderEndpoints): Promise<TokenSet> {
+  const ep = endpoints ?? await discoverProvider(config.issuer, fetchImpl)
+  const result = await postForm(fetchImpl, ep.tokenEndpoint, {
+    grant_type: 'authorization_code',
+    client_id: config.clientId,
+    code: request.code,
+    code_verifier: request.verifier,
+    redirect_uri: request.redirectUri,
+  })
+  if (!result.ok) throw new Error(`Exchanging the code failed: ${result.body.error_description ?? result.body.error ?? result.status}`)
+  return toTokenSet(result.body)
+}
+
+/** Revokes a token at the provider (RFC 7009); false when the provider has no revocation endpoint. */
+export async function revokeToken(config: NativeSignInConfig, token: string, tokenTypeHint: 'refresh_token' | 'access_token' = 'refresh_token', fetchImpl: typeof fetch = fetch): Promise<boolean> {
+  const ep = await discoverProvider(config.issuer, fetchImpl)
+  if (!ep.revocationEndpoint) return false
+  const result = await postForm(fetchImpl, ep.revocationEndpoint, { token, token_type_hint: tokenTypeHint, client_id: config.clientId })
+  if (!result.ok) throw new Error(`Revoking the token failed: ${result.body.error_description ?? result.body.error ?? result.status}`)
+  return true
+}
+
+/** The provider's end-session URL (OIDC RP-initiated logout), or undefined when it has none. */
+export async function endSessionUrl(config: NativeSignInConfig, options: { idToken?: string; postLogoutRedirectUri?: string } = {}, fetchImpl: typeof fetch = fetch): Promise<string | undefined> {
+  const ep = await discoverProvider(config.issuer, fetchImpl)
+  if (!ep.endSessionEndpoint) return undefined
+  const url = new URL(ep.endSessionEndpoint)
+  url.searchParams.set('client_id', config.clientId)
+  if (options.idToken) url.searchParams.set('id_token_hint', options.idToken)
+  if (options.postLogoutRedirectUri) url.searchParams.set('post_logout_redirect_uri', options.postLogoutRedirectUri)
+  return url.toString()
+}
+
 /**
  * Refreshes the access token at the provider (refresh_token grant, public client).
  *
@@ -156,6 +246,11 @@ export async function refreshTokens(config: NativeSignInConfig, refreshToken: st
   if (!result.ok) throw new Error(`Refreshing the token failed: ${result.body.error_description ?? result.body.error ?? result.status}`)
   const tokens = toTokenSet(result.body)
   return { ...tokens, refreshToken: tokens.refreshToken ?? refreshToken }
+}
+
+/** Keeps the ID token of a sign-in across refreshes that do not return one (for id_token_hint at sign-out). */
+export function keepIdToken(next: TokenSet, previous: TokenSet): TokenSet {
+  return next.idToken ? next : { ...next, idToken: previous.idToken }
 }
 
 /** True when the access token expires within `skewSeconds`. */
