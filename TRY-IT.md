@@ -149,12 +149,32 @@ lists the candidates. Validation (required, type, length, range, pattern) runs l
 same codes and messages the server would give. Form adjusters (on-load and on-change rules an application declares)
 are called when the server has them; this sample app has none.
 
+Related records and the record view. `table get` shows sections in metadata order (hidden sections and fields never),
+empty values as `--`, and adornments as text: a record link names its table and key (`Avery Sample → person 1`),
+a chip is `[value]`, a REVEAL value is masked until `--reveal`, an error value starts with `!`, a tooltip follows in
+parentheses, HTML is shown as text, a stored file shows its size or name and the download command.
+
+```sh
+qqq table get person 1 --associations          # every association as tables, all levels: Pet [pets], then each pet's notes
+qqq table get pet 1 --links                    # the records this one links to, with the command that opens each
+qqq table get pet 1 --follow personId          # open the related record (LINK adornment or possible-value table)
+qqq table children person 1                    # the record's associations and how many children each has
+qqq table children person 1 pets --limit 2 --skip 2    # one page of a child list, with the count and the next --skip
+qqq table children pet 1 notes --all
+qqq table create pet --parent person=2 --set name=Rexley --set speciesId=Dog    # a child linked to its parent
+qqq table create petNote --parent pet=5 --set "note=Vet visit"                 # then: qqq table get person 2 --associations
+qqq table create fieldLab --set name=withfile --upload blobValue=./notes.txt   # multipart/form-data
+qqq table update fieldLab 1 --upload blobValue=./other.txt ; qqq table update fieldLab 1 --set blobValue=   # replace, remove
+qqq table download fieldLab 1 blobValue -o copy.txt                            # -o - for stdout
+qqq table get person 1 --help-content          # table, section and field help (this sample app declares none)
+```
+
 Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `lastPeriod(week)`,
 `startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
 the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views,
-column statistics, joins, variants, audits, record copy, help content display, jobs on a durable-jobs server,
+column statistics, joins, variants, audits, record copy, `help show`, jobs on a durable-jobs server,
 TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
 
 ## Reporting what you find
