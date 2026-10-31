@@ -50,7 +50,7 @@ Keys (the function-key bar is the truth; F1 or `?` lists them; every action is a
 | F7 `n` | new (a child on a child list) | `x` `g` `v` | export, go to by key, view settings |
 | F8 `d` | delete, asks | Ctrl+S | save a form or continue a process step |
 | F9 | menu: every command, searchable | `:` | command line, history and completion |
-| F10 | quit, asks | Ctrl+C | quit now |
+| F10 | Quit, Reset to home, or Cancel (`:reset`) | Ctrl+C | quit now |
 
 Things to try: `:table query person`, Enter on a row, PgDn through records, Esc (same row); F6, add a
 condition, Tab to the grammar and type `AND (fi` then Tab; `:table create placeAddress` (country, state, city

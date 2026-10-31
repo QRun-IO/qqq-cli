@@ -14,7 +14,7 @@ import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { History, addRecent, currentCredential, readIdleMinutes, type MetaDataDocument, type RecentItem } from '@qrun-io/qqq-core'
 import { TUI_CHANNEL, TuiClient, type VersionInfo } from './client'
 import { charOf, isPrintable, type Key } from './keys'
-import { ConfirmOverlay, MessageOverlay } from './overlays/basic'
+import { ChoiceOverlay, ConfirmOverlay, MessageOverlay } from './overlays/basic'
 import { Extensions } from './extensions'
 import { collaborationPresence, presenceSource, setPresenceSource } from './presence'
 import { setAscii, setTheme, theme } from './theme'
@@ -314,11 +314,46 @@ export class AppStore {
 
   // ---- quitting ----
 
+  /** F10: a small dialog with Quit, Reset (home screen) and Cancel. */
   requestQuit(): void {
+    this.open(new ChoiceOverlay<'quit' | 'reset' | 'cancel'>(this, 'Quit qqq?', [
+      { label: 'Quit', value: 'quit', detail: 'end the program' },
+      { label: 'Reset: go to the home screen', value: 'reset', detail: 'keeps the session' },
+      { label: 'Cancel', value: 'cancel', detail: 'Esc' },
+    ], (choice) => {
+      if (choice === 'quit') this.guard('quit', () => this.quit())
+      else if (choice === 'reset') this.reset()
+    }, 'Enter chooses'))
+  }
+
+  /** Warns about unsaved forms or running processes before `then`. */
+  private guard(what: 'quit' | 'reset', then: () => void): void {
     const dirty = this.routes.some((s) => s.dirty?.())
     const busy = this.routes.some((s) => s.busy?.())
-    const warn = dirty ? ' A form has unsaved changes that will be lost.' : busy ? ' A process is still running; it continues on the server.' : ''
-    this.confirm(`Quit qqq?${warn}`, () => this.quit())
+    if (!dirty && !busy) return then()
+    const warn = dirty ? 'A form has unsaved changes that will be lost.' : 'A process is still running; it continues on the server.'
+    this.confirm(`${warn} ${what === 'quit' ? 'Quit' : 'Reset'} anyway?`, then)
+  }
+
+  /**
+   * Reset: closes dialogs and every screen above Home (after the same warning), refreshes the
+   * metadata, and returns to Home with the Apps tree focused. The session and profile stay.
+   */
+  reset(): void {
+    this.guard('reset', () => {
+      this.overlays = []
+      while (this.routes.length > 1) this.routes.pop()?.dispose?.()
+      const done = () => {
+        this.sidebar = this.sidebarFactory?.(this) ?? this.sidebar
+        this.screen?.resume?.()
+        this.focus = this.showSidebar ? 'sidebar' : 'content'
+        this.flash('reset: home screen, metadata refreshed')
+        this.bump()
+      }
+      if (!this.client) return done()
+      this.client.clearCaches()
+      this.client.metaData(true).then((m) => { this.meta = m }).catch((e) => this.error(e)).finally(done)
+    })
   }
 
   quit(): void {

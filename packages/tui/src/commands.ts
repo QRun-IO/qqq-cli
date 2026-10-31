@@ -36,12 +36,12 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
 
 /** Global keys for the help overlay. */
 export const GLOBAL_KEYS: Array<[string, string]> = [
   ['F1  ?', 'help (this)'], ['F2  /  .', 'go to anything'], ['F3  Enter', 'view / open'], ['F4  e', 'edit'], ['F5  r', 'refresh'],
-  ['F6  f', 'filter (grid)'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['F10', 'quit (asks)'],
+  ['F6  f', 'filter (grid)'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['F10', 'quit, reset or cancel'],
   ['Esc', 'back, cancel'], ['Tab', 'Apps tree / content'], ['↑↓ PgUp PgDn', 'move, page'], ['Ctrl+F Ctrl+B', 'page (always works)'], ['Space S+Space', 'page lists'], ['Home End', 'first, last'], ['← →', 'columns, tree'],
   ['s', 'sort by column'], ['Space (grid)', 'select row'], ['b', 'run a process on selection'], ['x', 'export'], ['g', 'go to by key'], ['v', 'view settings'],
   [']  [', 'next / previous record'], ['Ctrl+S', 'save a form'], [':', 'command line'], ['Ctrl+K', 'palette'], ['Ctrl+C', 'quit now'],
@@ -183,7 +183,7 @@ export class Commands implements CommandsLike {
     try {
       switch (cmd) {
         case 'quit': case 'q': case 'exit': return s.requestQuit()
-        case 'home': return s.home()
+        case 'home': case 'reset': return s.reset()
         case 'back': return s.back()
         case 'help': return this.help()
         case 'menu': return this.menu()
@@ -427,7 +427,7 @@ export class Commands implements CommandsLike {
     const out: MenuEntry[] = [...(s.screen?.menu?.() ?? [])]
     out.push({ section: 'Context', label: 'Back', key: 'Esc', command: 'back', run: () => s.back() })
     // Go to
-    out.push({ section: 'Go to', label: 'Home', command: 'home', run: () => s.home() })
+    out.push({ section: 'Go to', label: 'Reset: go to the home screen', key: 'F10', command: 'reset', detail: 'refreshes metadata, keeps the session', run: () => s.reset() })
     out.push({ section: 'Go to', label: 'Go to anything…', key: 'F2 / .', command: 'goto', run: () => this.palette() })
     for (const n of (meta?.appTree ?? []) as AppTreeNode[]) if (n.type === 'APP') out.push({ section: 'Go to', label: `App: ${n.label}`, command: `app ${n.name}`, run: () => openApp(s, n.name) })
     for (const t of Object.values(meta?.tables ?? {}).filter((x) => !x.isHidden).sort((a, b) => a.label.localeCompare(b.label))) out.push({ section: 'Go to', label: `Table: ${t.label}`, command: `table query ${t.name}`, run: () => openTable(s, t.name) })

@@ -57,8 +57,8 @@ expect 12-help 'Help  (F1' 'Keys'
 keys Escape T:: 'T:app SampleWidgetsDashboard' Enter
 expect 13-dashboard 'Sample Widgets Dashboard'
 keys F10
-expect 14-quit-confirm 'Quit qqq?'
-keys y
+expect 14-quit-confirm 'Quit qqq?' 'Reset: go to the home screen'
+keys Enter
 sleep 1
 echo "captures in $out"
 [[ $fails == 0 ]] && echo "smoke: ok" || { echo "smoke: $fails failed"; exit 1; }
