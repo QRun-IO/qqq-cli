@@ -138,6 +138,7 @@ export class FormEditor {
         for (const n of r.cleared) this.editors.get(n)?.set('')
         delete this.session.errors[name]
         if (this.options.bulkEdit) this.enabled.add(name)
+        if (option && this.current === name) this.index = Math.min(this.names.length - 1, this.index + 1)
       }))
     }, initial))
   }
@@ -237,7 +238,7 @@ export class FormEditor {
         const pickGlyph = this.session.hasChoices(name) && !disabled ? ' ▾' : ''
         editor = <text fg={disabled ? t.dim : sel ? t.selFg : t.inputFg} bg={disabled ? undefined : sel ? t.selBg : t.inputBg}>{pad(trunc(shown, editorWidth - pickGlyph.length) + pickGlyph, editorWidth)}</text>
       }
-      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : idx === this.index ? hintFor(f) : ''
+      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : idx === this.index ? (this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : hintFor(f)) : ''
       return (
         <box key={name} flexDirection="row" height={1}>
           <text fg={sel ? t.acc2 : disabled ? t.dim : t.fg}>{`${sel ? g.pointer : ' '}${bulk}${pad(f.label, labelWidth - 1)}${required} `}</text>

@@ -176,7 +176,7 @@ export class RecordScreen implements Screen {
         const v = cell(rec, f.name)
         return masked && v ? '••••••' : v
       }
-      const longest = Math.max(...fields.map((f) => valueOf(f).length), 4)
+      const longest = Math.max(...fields.map((f) => valueOf(f).length + (linkTarget(this.store, f) ? 2 : 0)), 4)
       const colWidth = Math.min(60, labelWidth + 2 + longest)
       const two = (view.recordColumns ?? (inner >= 2 * colWidth + 6 ? 2 : 1)) === 2 && inner >= 2 * Math.min(colWidth, 30) + 6
       const fieldText = (f: FieldMetaData) => {
