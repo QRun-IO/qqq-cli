@@ -140,6 +140,25 @@ export function downloadReference(values: FieldValues): { fileName: string; quer
   return undefined
 }
 
+/**
+ * A server-supplied file name made safe to write in a chosen directory: the last path segment
+ * only (either separator), without control characters; empty, `.` and `..` are refused (throws).
+ */
+export function safeDownloadName(name: string): string {
+  const base = name.split(/[\\/]/).pop()!.replace(/[\u0000-\u001f\u007f]/g, '').trim()
+  if (!base || base === '.' || base === '..') throw new Error(`unsafe file name from the server: ${JSON.stringify(name)}`)
+  return base
+}
+
+/** Candidate names when one exists already: `a.csv`, `a-1.csv`, `a-2.csv`, … */
+export function* alternativeNames(name: string): Generator<string> {
+  yield name
+  const dot = name.lastIndexOf('.')
+  const stem = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot) : ''
+  for (let i = 1; i < 1000; i++) yield `${stem}-${i}${ext}`
+}
+
 /** Downloads a DOWNLOAD_FORM file (GET /download/{file}); returns its bytes and content type. */
 export async function downloadProcessFile(baseUrl: string, fetchImpl: typeof fetch, reference: { fileName: string; query: Record<string, string> }): Promise<{ bytes: Uint8Array; contentType: string }> {
   const result = await callOperation(baseUrl, 'download', { path: { file: reference.fileName }, query: reference.query }, fetchImpl)

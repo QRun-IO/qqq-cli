@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
-import { BACK, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpText, isMissingValue, processHelpText, runProcess, screenToText, summaryLines, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, alternativeNames, safeDownloadName, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpText, isMissingValue, processHelpText, runProcess, screenToText, summaryLines, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { ask, promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -94,8 +94,8 @@ export function registerProcess(program: Command, ctx: () => Context): void {
           if (block.kind !== 'download') continue
           const file = await downloadProcessFile(c.server, fetchImpl, block)
           mkdirSync(options.outDir, { recursive: true })
-          const path = join(options.outDir, basename(block.fileName))
-          writeFileSync(path, file.bytes)
+          // the name comes from the server: last segment only, and never overwrite an existing file
+          const path = writeNew(options.outDir, safeDownloadName(block.fileName), file.bytes)
           saved.push(path)
           c.note(`saved ${path} (${file.bytes.length} bytes${file.contentType ? `, ${file.contentType}` : ''})`)
         }
@@ -198,6 +198,20 @@ export function registerProcess(program: Command, ctx: () => Context): void {
 }
 
 interface RunOptions { values?: string[]; valuesJson?: string; records?: string; filterJson?: string; file?: string[]; interactive?: boolean; prompt: boolean; timeout: string; skipValidation?: boolean; validate?: boolean; outDir: string; recordLimit: string; quiet?: boolean }
+
+/** Writes bytes to a new file in `dir` (flag wx), taking `name-1.ext`, `name-2.ext`, … when the name is taken. */
+function writeNew(dir: string, name: string, bytes: Uint8Array): string {
+  for (const candidate of alternativeNames(name)) {
+    const path = join(dir, candidate)
+    try {
+      writeFileSync(path, bytes, { flag: 'wx' })
+      return path
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    }
+  }
+  throw new UsageError(`no free file name for ${name} in ${dir}`)
+}
 
 function outcomeStepLabel(meta: ProcessMeta, stepName: string): string {
   return meta.frontendSteps?.find((s) => s.name === stepName)?.label ?? stepName
