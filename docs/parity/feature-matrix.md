@@ -14,13 +14,13 @@ The TUI column fills in during M3.
 | NAV | 40 | 9 | 3 | 1 | 27 |
 | PRC | 60 | 35 | 11 | 2 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
-| QRY | 70 | 28 | 19 | 0 | 23 |
-| REC | 65 | 30 | 23 | 0 | 12 |
-| REL | 9 | 4 | 5 | 0 | 0 |
+| QRY | 70 | 30 | 6 | 13 | 21 |
+| REC | 65 | 31 | 6 | 17 | 11 |
+| REL | 9 | 6 | 0 | 3 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 21 | 10 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 167 | 118 | 7 | 109 |
+| **all** | 401 | 172 | 83 | 40 | 106 |
 
 ## Rows
 
@@ -134,10 +134,10 @@ The TUI column fills in during M3.
 | QRY-090 | Column menu sorts, pins, opens a field filter and hides a column | n/a | todo | saved views and column UI |
 | QRY-091 | Column menu copies page or full query values in backend sort order | n/a | todo | saved views and column UI |
 | QRY-092 | Column chooser searches, groups, counts and marks changed layouts | n/a | todo | saved views and column UI |
-| QRY-093 | Last saved view and unsaved edits survive reopening and reload | n/a | todo | saved views and column UI |
-| QRY-094 | Counted quick views render and open their saved-view route | n/a | todo | saved views and column UI |
+| QRY-093 | Last saved view and unsaved edits survive reopening and reload | n/a | todo | no screen state to keep: views are opened by name |
+| QRY-094 | Counted quick views render and open their saved-view route | partial | todo | saved-view list counts quick views with doCount (--counts counts all) |
 | QRY-095 | A new query defaults to fifty rows per page | n/a | todo | saved views and column UI |
-| QRY-096 | A saved view reconciles removed fields and warns the user | n/a | todo | saved views and column UI |
+| QRY-096 | A saved view reconciles removed fields and warns the user | partial | todo | opening a view drops removed fields with Material's warnings on stderr |
 | QRY-001 | Record list renders metadata labels and all records in the default primary-key-descending order | pass | todo | default order by primary key |
 | QRY-002 | Pagination with Material page sizes and URL state | pass | todo | --limit, --skip, --all |
 | QRY-003 | Column header sort cycles ascending, descending and default; sort kept in the URL | pass | todo | --order, -field for descending |
@@ -155,10 +155,10 @@ The TUI column fills in during M3.
 | QRY-017 | Filters live in the URL: reload, back/forward and Material-style JSON links | pass | todo | --print-filter gives the JSON the web links accept |
 | QRY-018 | Backend-only operators from links render and filter correctly | pass | todo | any operator in --where |
 | QRY-019 | Quick search combines with the advanced filter | pass | todo | --search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter |
-| QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | todo | todo | joins |
-| QRY-021 | Many-side exposed join repeats rows and reports the distinct count | todo | todo | joins |
-| QRY-022 | Column statistics aggregate the filtered rows | todo | todo | column statistics |
-| QRY-023 | Tables without QUERY_STATS offer no column statistics | todo | todo |  |
+| QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | partial | todo | --join and table.field in --fields/--where/--order, labelled "Join: Field"; the sample exposes no joins, verified through an association join (person to pet) |
+| QRY-021 | Many-side exposed join repeats rows and reports the distinct count | pass | todo | a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct) |
+| QRY-022 | Column statistics aggregate the filtered rows | partial | todo | qqq table stats <t> <field> [-w …] through the columnStats process; the sample has neither QUERY_STATS nor the process, so --local (same figures from the matching rows) is what was verified |
+| QRY-023 | Tables without QUERY_STATS offer no column statistics | pass | todo | without QUERY_STATS (or the process) table stats exits 2 with the reason; --local is an explicit opt-in |
 | QRY-030 | Selection menu: this page, full query result, first N, clear | pass | todo | -r ids, --filter-json, --limit |
 | QRY-031 | Bulk Edit launches with the checked record ids | todo | todo | bulk edit |
 | QRY-032 | Bulk Delete of the full query result sends the whole filter | todo | todo | bulk delete |
@@ -169,23 +169,23 @@ The TUI column fills in during M3.
 | QRY-041 | XLSX and JSON exports carry the same rows | pass | todo | csv, xlsx, json, tsv; format from --out extension; --no-header; bad format or field exit 2 before the request |
 | QRY-042 | Nothing to export disables the formats | n/a | todo | nothing to disable |
 | QRY-043 | Backend refuses exports of unreadable tables | pass | todo | server refuses |
-| QRY-050 | Your saved views are listed and open on their own route | todo | todo | saved views |
-| QRY-051 | Saving a new view stores filter, sort, columns and page size | todo | todo |  |
-| QRY-052 | Update, rename and delete your view | todo | todo |  |
-| QRY-053 | Duplicate names and unknown views are reported without changes | todo | todo |  |
-| QRY-054 | A view shared with you opens read-only and the backend refuses changes | todo | todo |  |
-| QRY-060 | Variant table asks for a variant, queries with it and remembers it | todo | todo | table variants |
-| QRY-061 | Dismissing the variant prompt queries nothing; backend requires a variant | todo | todo |  |
+| QRY-050 | Your saved views are listed and open on their own route | partial | todo | qqq saved-view list <t>, open <t> <view>, table query --view; the sample has no saved views; verified with node tests and a local stub server |
+| QRY-051 | Saving a new view stores filter, sort, columns and page size | partial | todo | saved-view save --name: filter, sort, columns and page size as the Material RecordQueryView |
+| QRY-052 | Update, rename and delete your view | partial | todo | saved-view save --replace, rename, delete (asks; --yes) |
+| QRY-053 | Duplicate names and unknown views are reported without changes | partial | todo | a name in use is refused before any change; an unknown view exits 2 with the list |
+| QRY-054 | A view shared with you opens read-only and the backend refuses changes | partial | todo | views shared with you are listed as shared by their owner; changes to them are the server's to refuse, its message shown |
+| QRY-060 | Variant table asks for a variant, queries with it and remembers it | partial | todo | table variants; --variant on query, count, get, copy, export, writes and process run; a terminal asks; not remembered between commands; no variant table in the sample |
+| QRY-061 | Dismissing the variant prompt queries nothing; backend requires a variant | partial | todo | no --variant and no terminal (or no answer): exit 2, nothing queried; no variant table in the sample |
 | QRY-062 | A table without count, export or write capabilities offers none of them | pass | todo | describe shows capabilities; server refuses |
 | QRY-063 | Enum-backed Pet Species table is read-only | pass | todo | server refuses writes |
 | QRY-064 | Backend refuses count and export for a table without those capabilities | pass | todo |  |
 | QRY-065 | Export streams from the v1 export route | pass | todo | POST /table/{t}/export |
-| QRY-066 | Variant options come from the v1 variants route | todo | todo | variants route |
+| QRY-066 | Variant options come from the v1 variants route | partial | todo | GET /table/{t}/variants (called live; the sample lists none) |
 | QRY-067 | Go To opens a record by its primary key or a configured unique key (Material gotoFieldNames) | pass | todo | table get --key; the primary key and Material gotoFieldNames are the declared keys, other fields looked up with a note |
 | QRY-068 | Default grid columns follow the table sections (section order, each field once), not the metadata field order  | pass | todo | default columns follow sections by tier |
 | QRY-069 | Pagination numbers are locale formatted in the shown range and the total | n/a | todo | locale formatting |
 | QRY-070 | Query screen keyboard shortcuts n (new record), r (refresh the query), f (open the filter builder) | n/a | todo | shortcuts |
-| QRY-071 | Processes launched from a variant table run with the chosen variant (tableVariant on init and every step) and  | todo | todo | tableVariant on processes |
+| QRY-071 | Processes launched from a variant table run with the chosen variant (tableVariant on init and every step) and  | partial | todo | process run --variant: tableVariant on init, every step and status; sent live, no variant table to observe |
 | QRY-080 | Basic mode displays default quick filters from table metadata and applies their criteria | n/a | todo | quick filters UI |
 | QRY-081 | Add quick filter accepts metadata fields and remembers a chosen field | n/a | todo |  |
 | QRY-082 | Basic mode cannot simplify repeated or nested advanced conditions and explains why | n/a | todo |  |
@@ -201,17 +201,17 @@ The TUI column fills in during M3.
 | QRY-024 | Column configuration is reachable and usable by touch on phones and tablets | n/a | n/a | phone layout |
 | QRY-036 | Bulk actions launch from a phone card selection | n/a | n/a | phone layout |
 | QRY-055 | Saved views and export menus fit the phone and are touch-sized | n/a | n/a | phone layout |
-| REL-001 | Possible-value cells show the related record label and link to it | pass | todo | display values and labels |
-| REL-002 | Parent lists exactly its own children; View All opens the filtered child list | todo | todo | child lists: table get --associations partial |
-| REL-003 | Adding a child from its parent links it and shows it immediately | todo | todo | create child |
-| REL-004 | Three-level associations: each pet shows only its own notes | todo | todo |  |
-| REL-005 | Editing and deleting a child leaves no stale parent, list or unexpected rows | pass | todo | server |
-| REL-006 | Denied child reads show an unavailable panel without data or actions | pass | todo | server |
-| REL-007 | Aliased and composite associations bind to their widgets and list the right members | todo | todo |  |
-| REL-008 | Adding through a composite association stores every join value | todo | todo |  |
-| REL-009 | Deleting a parent removes associated children and leaves other parents intact | pass | todo | server |
+| REL-001 | Possible-value cells show the related record label and link to it | pass | todo | display values; table get shows the target (Avery Sample → person 1), --links lists them, --follow opens one |
+| REL-002 | Parent lists exactly its own children; View All opens the filtered child list | pass | todo | table get --associations lists exactly the record's children; table children pages a list with its count (View All) |
+| REL-003 | Adding a child from its parent links it and shows it immediately | pass | todo | table create <child> --parent table=pk; table get --associations shows it at once |
+| REL-004 | Three-level associations: each pet shows only its own notes | pass | todo | person > pets > notes: each pet lists only its own notes |
+| REL-005 | Editing and deleting a child leaves no stale parent, list or unexpected rows | pass | todo | records are never cached: update or delete a child, the next get/children shows the current rows |
+| REL-006 | Denied child reads show an unavailable panel without data or actions | partial | todo | unreadable child tables shown as unavailable without data; table children shows the server message; the sample has no denied child table (unit-tested) |
+| REL-007 | Aliased and composite associations bind to their widgets and list the right members | partial | todo | composite joins and widget-section labels in the kernel, unit-tested; the sample declares none |
+| REL-008 | Adding through a composite association stores every join value | partial | todo | --parent sets every join value of a composite association, unit-tested; the sample declares none |
+| REL-009 | Deleting a parent removes associated children and leaves other parents intact | pass | todo | table delete of a parent: its pets are gone, other parents keep theirs |
 | REC-001 | Record view shows the record label, tiered sections and backend-formatted values | pass | todo | table get by section and tier |
-| REC-002 | Empty values render a placeholder; hidden fields and hidden sections are never shown | todo | todo | hidden sections |
+| REC-002 | Empty values render a placeholder; hidden fields and hidden sections are never shown | partial | todo | empty values show --; hidden sections and fields are dropped by the kernel record view (unit-tested; the sample has none) |
 | REC-003 | Record view of a missing record shows Record Not Found and a way back | pass | todo | exit 5 |
 | REC-004 | Record view tabs and list view expose every visible section | n/a | todo | tabs |
 | REC-005 | Create form validates required fields in the browser before any request | pass | todo | validated locally before any request |
@@ -237,22 +237,22 @@ The TUI column fills in during M3.
 | REC-025 | Case and whitespace normalization on save | pass | todo | behaviors |
 | REC-026 | Numeric range policies: reject, exclusive reject, inclusive clip and exclusive clip | pass | todo | ranges checked locally |
 | REC-027 | Unique keys are enforced with the backend message on create and edit | pass | todo | server message |
-| REC-028 | LINK adornment: record links and URL links | todo | todo | adornments |
-| REC-029 | CHIP adornment colors and icons by value | todo | todo |  |
+| REC-028 | LINK adornment: record links and URL links | pass | todo | record links name table and key, --follow opens them; URL links show the URL |
+| REC-029 | CHIP adornment colors and icons by value | partial | todo | chip as [value]; colors and icons not shown (unit-tested; none in the sample) |
 | REC-030 | SIZE adornment sets the query grid column width | n/a | todo |  |
-| REC-031 | CODE_EDITOR adornment: code view with formatting and a code editor on forms | todo | todo |  |
-| REC-032 | RENDER_HTML adornment renders sanitized HTML | todo | todo |  |
-| REC-033 | REVEAL adornment masks, reveals and copies the value | todo | todo | reveal |
-| REC-034 | FILE_DOWNLOAD adornment links to the stored file with its name | todo | todo | file download |
-| REC-035 | FILE_UPLOAD adornment formats, replacing and removing a stored file | todo | todo | file upload |
-| REC-036 | TOOLTIP adornment shows its text on the value | n/a | todo |  |
-| REC-037 | WIDGET adornment renders the field value as the named widget | todo | todo |  |
-| REC-038 | ERROR adornment highlights the value | todo | todo |  |
-| REC-039 | Field help content follows screen roles and formats | todo | todo | help |
-| REC-040 | Section help content on the record view | todo | todo |  |
-| REC-041 | Table help content slots are delivered in table metadata | todo | todo |  |
-| REC-042 | Audit history lists who changed what, newest first | todo | todo | audits |
-| REC-043 | Audit history without process permission reads the audit table | todo | todo |  |
+| REC-031 | CODE_EDITOR adornment: code view with formatting and a code editor on forms | partial | todo | raw code on view; no code editor (unit-tested) |
+| REC-032 | RENDER_HTML adornment renders sanitized HTML | partial | todo | HTML shown as text (unit-tested) |
+| REC-033 | REVEAL adornment masks, reveals and copies the value | partial | todo | masked until --reveal; no copy (unit-tested; none in the sample) |
+| REC-034 | FILE_DOWNLOAD adornment links to the stored file with its name | partial | todo | name plus qqq table download via the field route (unit-tested); live only for BLOB values, server finding 16 |
+| REC-035 | FILE_UPLOAD adornment formats, replacing and removing a stored file | partial | todo | create/update --upload field=path as multipart, replace and remove verified on a BLOB; FILE_UPLOAD formats not in the sample |
+| REC-036 | TOOLTIP adornment shows its text on the value | partial | todo | tooltip text in parentheses after the value (unit-tested) |
+| REC-037 | WIDGET adornment renders the field value as the named widget | partial | todo | value rendered through the widget render model as text (unit-tested) |
+| REC-038 | ERROR adornment highlights the value | partial | todo | value marked with ! (unit-tested) |
+| REC-039 | Field help content follows screen roles and formats | partial | todo | table get --help-content: view-screen roles, HTML/MARKDOWN as text (unit-tested; the sample has no help); qqq help show lists help alone |
+| REC-040 | Section help content on the record view | partial | todo | section help with --help-content (unit-tested) |
+| REC-041 | Table help content slots are delivered in table metadata | partial | todo | table helpContent and helpContents slots with --help-content (unit-tested) |
+| REC-042 | Audit history lists who changed what, newest first | partial | todo | qqq audit list <t> <pk> [--asc]: entries newest first with field changes; the sample audits no table, verified with node tests and a local stub server |
+| REC-043 | Audit history without process permission reads the audit table | partial | todo | without the audit process the audit table is queried with its auditTable and auditDetail joins (node tests) |
 | REC-044 | Record label format is used for the record's title and dialogs | pass | todo | recordLabel |
 | REC-045 | Possible-value editor shows stored labels, looks up defaults and selects by keyboard | pass | todo | labels resolved, defaults looked up |
 | REC-046 | Read-only persona sees no write actions and the backend refuses writes | pass | todo | server |
@@ -272,8 +272,8 @@ The TUI column fills in during M3.
 | REC-061 | An editable dynamicForm widget on a record form validates its fields and persists them in the declared JSON re | todo | todo |  |
 | REC-062 | Inline enum possible values filter by label prefix without a lookup request; CHIP adornments style options and | pass | todo | inline enums |
 | REC-060 | Material table and field form adjusters and field rules operate against the real QQQ sample server | todo | todo | adjusters wired, no sample to test |
-| REC-064 | Record sections render qualified fields from readable exposed joins | todo | todo | joins |
-| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | todo | todo | variants |
+| REC-064 | Record sections render qualified fields from readable exposed joins | partial | todo | table get --join adds joined fields (queryJoins); verified with an association join |
+| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | todo | get, copy and update -i read with --variant; v1 writes ignore it (server finding #19) |
 | REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | pass | todo | an unchanged wall-clock time keeps the original instant and its precision |
 | SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | todo |  |
 | SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | todo | disabled tables listed with a reason |

@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "spec:merge": "node scripts/merge-spec.mjs --out packages/ui-api-client/openapi/qqq-v1.json",
+    "spec:merge-extensions": "node scripts/merge-extensions.mjs",
     "generate": "npm run generate -w @qrun-io/qqq-ui-api-client && node scripts/gen-operations.mjs",
     "build": "npm run build -w @qrun-io/qqq-ui-api-client && npm run build -w @qrun-io/qqq-core && npm run build -w @qrun-io/qqq-ui-api-conformance && npm run build -w @qrun-io/qqq-cli",
     "test": "npm test --workspaces --if-present",

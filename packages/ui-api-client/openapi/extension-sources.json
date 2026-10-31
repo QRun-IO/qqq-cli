@@ -1,0 +1,96 @@
+{
+  "core": "http://localhost:8077/qqq/v1/openapi.json",
+  "extensions": [
+    {
+      "name": "esb",
+      "version": "1.1.0",
+      "document": ".worktrees/qqq-develop/qqq-esb/src/main/resources/openapi/qqq-v1/esb.yaml",
+      "branch": "HEAD",
+      "commit": "6ac64fc66"
+    },
+    {
+      "name": "health",
+      "version": "1.1.0",
+      "document": ".worktrees/qqq-develop/qqq-middleware-javalin/src/main/resources/openapi/qqq-v1/health.yaml",
+      "branch": "HEAD",
+      "commit": "6ac64fc66"
+    },
+    {
+      "name": "alerts",
+      "version": "1.2.0",
+      "document": "qbit-alerts/src/main/resources/openapi/qqq-v1/alerts.yaml",
+      "branch": "develop",
+      "commit": "a3fc6ac"
+    },
+    {
+      "name": "assistant",
+      "version": "1.6.0",
+      "document": "qbit-assistant/qbit-assistant/src/main/resources/openapi/qqq-v1/assistant.yaml",
+      "branch": "develop",
+      "commit": "bcf173f"
+    },
+    {
+      "name": "collaboration",
+      "version": "1.1.0",
+      "document": "qbit-collaboration/src/main/resources/openapi/qqq-v1/collaboration.yaml",
+      "branch": "develop",
+      "commit": "03407ae"
+    },
+    {
+      "name": "data-analysis",
+      "version": "1.5.0",
+      "document": "qbit-data-analysis/src/main/resources/openapi/qqq-v1/data-analysis.yaml",
+      "branch": "develop",
+      "commit": "368d2c0"
+    },
+    {
+      "name": "db-performance",
+      "version": "1.0.0",
+      "document": "qbit-db-performance/src/main/resources/openapi/qqq-v1/db-performance.yaml",
+      "branch": "develop",
+      "commit": "4fd2c30"
+    },
+    {
+      "name": "edi",
+      "version": "1.1.0",
+      "document": "qbit-edi/src/main/resources/openapi/qqq-v1/edi.yaml",
+      "branch": "develop",
+      "commit": "75a4e6b"
+    },
+    {
+      "name": "qa-capture",
+      "version": "1.0.0",
+      "document": "qbit-qa-capture/src/main/resources/openapi/qqq-v1/qa-capture.yaml",
+      "branch": "develop",
+      "commit": "1aee6cb"
+    },
+    {
+      "name": "quick-search",
+      "version": "1.1.0",
+      "document": "qbit-quick-search/src/main/resources/openapi/qqq-v1/quick-search.yaml",
+      "branch": "develop",
+      "commit": "bd50e1f"
+    },
+    {
+      "name": "release-notes",
+      "version": "1.0.0",
+      "document": "qbit-release-notes/src/main/resources/openapi/qqq-v1/release-notes.yaml",
+      "branch": "develop",
+      "commit": "8fed18e"
+    },
+    {
+      "name": "secured-data",
+      "version": "1.1.0",
+      "document": "qbit-secured-data/src/main/resources/openapi/qqq-v1/secured-data.yaml",
+      "branch": "develop",
+      "commit": "7b302ed"
+    },
+    {
+      "name": "sql-workbench",
+      "version": "1.1.0",
+      "document": "qbit-sql-workbench/src/main/resources/openapi/qqq-v1/sql-workbench.yaml",
+      "branch": "develop",
+      "commit": "a182076"
+    }
+  ]
+}

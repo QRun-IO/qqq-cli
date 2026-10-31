@@ -105,6 +105,15 @@ qqq table copy pet 1 --set name=Copycat         # copy a record (--dry-run shows
 qqq apps show greetingsApp                      # an app's home: actions, reports, tables with record counts, widgets
 qqq report list                                 # the sample app has no reports
 qqq help show table person [field] ; qqq help show process greet   # help content from the metadata (none in the sample)
+qqq table query person --join pet --select -l 4      # joins: exposed joins (none in the sample), else the table's associations
+qqq table query person --fields id,firstName,pet.name -w "pet.name STARTS_WITH C" -o pet.name
+qqq table count person --join pet                     # many-side join: count and distinctCount
+qqq table get person 1 --join pet
+qqq table variants person                             # none in the sample; --variant <id|name|type:id> on table commands and process run
+qqq table stats person annualSalary --local -l 3     # column statistics; the sample has no columnStats process, --local computes them
+qqq saved-view list person ; qqq saved-view open person <view> ; qqq table query person --view <view> -w …   # saved views (none in the sample)
+qqq saved-view save person --name Mine -w "lastName = Sample" -o -id --fields id,firstName -l 50 ; saved-view rename|delete person Mine …
+qqq audit list person 1                               # audit history (the sample audits nothing: exit 2 with the reason)
 qqq process list ; qqq process describe sleepInteractive
 qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
 qqq process run clonePeople -r 1,2                       # records by primary key
@@ -114,6 +123,7 @@ qqq widget get SampleStackedBarChartWidget --output json      # the raw payload
 qqq prefs list ; qqq prefs get regional ; qqq prefs set regional --set weekStartsOn=MONDAY
 qqq help-search person ; qqq report run <name> --format xlsx
 qqq search Avery ; qqq tail
+qqq extensions ; qqq esb table person           # extensions (qbits): see "Extensions (qbits)" below
 ```
 
 Profiles name servers, as `aws --profile`; sign-ins live in the OS keyring (macOS Keychain here, Secret Service on
@@ -200,6 +210,26 @@ lists the candidates. Validation (required, type, length, range, pattern) runs l
 same codes and messages the server would give. Form adjusters (on-load and on-change rules an application declares)
 are called when the server has them; this sample app has none.
 
+Related records and the record view. `table get` shows sections in metadata order (hidden sections and fields never),
+empty values as `--`, and adornments as text: a record link names its table and key (`Avery Sample → person 1`),
+a chip is `[value]`, a REVEAL value is masked until `--reveal`, an error value starts with `!`, a tooltip follows in
+parentheses, HTML is shown as text, a stored file shows its size or name and the download command.
+
+```sh
+qqq table get person 1 --associations          # every association as tables, all levels: Pet [pets], then each pet's notes
+qqq table get pet 1 --links                    # the records this one links to, with the command that opens each
+qqq table get pet 1 --follow personId          # open the related record (LINK adornment or possible-value table)
+qqq table children person 1                    # the record's associations and how many children each has
+qqq table children person 1 pets --limit 2 --skip 2    # one page of a child list, with the count and the next --skip
+qqq table children pet 1 notes --all
+qqq table create pet --parent person=2 --set name=Rexley --set speciesId=Dog    # a child linked to its parent
+qqq table create petNote --parent pet=5 --set "note=Vet visit"                 # then: qqq table get person 2 --associations
+qqq table create fieldLab --set name=withfile --upload blobValue=./notes.txt   # multipart/form-data
+qqq table update fieldLab 1 --upload blobValue=./other.txt ; qqq table update fieldLab 1 --set blobValue=   # replace, remove
+qqq table download fieldLab 1 blobValue -o copy.txt                            # -o - for stdout
+qqq table get person 1 --help-content          # table, section and field help inline (this sample app declares none; qqq help show for help alone)
+```
+
 DATE_TIME values are typed and shown in your zone (the `TZ` environment) and sent as UTC instants, as the web
 UI does; `--utc` shows the raw instants. A time skipped by a spring-forward change moves forward by the gap; a
 time repeated by a fall-back change means its first occurrence. In filters, a date alone on a DATE_TIME field
@@ -218,9 +248,71 @@ Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `las
 `startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
-the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views,
-column statistics, joins, variants, audits, jobs on a durable-jobs server,
-TABLE_BASED sign-in.
+the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), jobs on a
+durable-jobs server, TABLE_BASED sign-in. Built but not verifiable against this sample, which has none of them:
+saved views, server-side column statistics (columnStats), audits, a variant-backed table, exposed joins (joins were
+checked through an association join instead); node tests and a local stub server cover those.
+
+## Extensions (qbits)
+
+An extension is a qbit or module that adds UI API operations. The CLI knows every extension whose
+document was merged into the client (13 today, listed in `docs/extensions.md`); a server installs
+some of them and lists them in `GET /version`. Each has a noun:
+
+| Noun | Extension | First-class verbs | Generated verbs (one per operation) |
+|---|---|---|---|
+| `qqq esb` | esb (qqq) | `overview`, `table <t>`, `process <p>`, `dead-letters <trigger>`, `messages <destination> [--trigger t]` | `get-overview`, `get-table`, ... |
+| `qqq collab` | collaboration | `presence <table> [pk] [--watch\|--observe]`, `comments list\|add`, `favorites list\|add\|remove`, `recents`, `follow [--status]`, `unfollow`, `my-work`, `people [q]` | `get-records-timeline <table> <pk>`, `get-records-tags`, `put-records-assignment`, ... (45) |
+| `qqq health`, `alerts`, `assistant`, `data-analysis`, `db-performance`, `edi`, `qa-capture`, `quick-search`, `release-notes`, `secured-data`, `sql-workbench` | the qbit of that name | none yet | every operation, e.g. `qqq sql-workbench get-capabilities` |
+
+Generated verbs are the method plus the literal path segments after the extension's prefix. They take
+path parameters as arguments or `--path name=value`, plus `--param`, `--body-json`, `--form` and `--out`.
+`qqq <noun> --help` lists them with the operation behind each.
+
+What happens:
+
+- **Installed.** The command runs. `qqq whoami` and `qqq extensions` show it with its version.
+- **Not installed.** Every verb of the noun, and `qqq api <operation>` for any of its operations, stops
+  before calling the server, with exit 5: `extension collaboration is not installed on this server
+  (installed: esb 1.1.0)`.
+- **Installed below the minimum the client needs** (esb, health and collaboration need 1.1.0): exit 5,
+  `this client needs extension esb 1.1.0 or later; this server has 1.0.0`.
+- **Installed but unknown to this client** (a newer qbit): listed by `qqq whoami` and `qqq extensions`
+  as `unknown to this client`, never dropped. It has no noun until the client document is regenerated.
+
+The installed list comes from `GET /version`, cached with the metadata for five minutes (`qqq cache
+refresh` rereads it). `QQQ_EXTENSION_CHECK=off` skips the check, for a Prism mock whose `/version` is
+only an example.
+
+```sh
+qqq extensions                                   # known vs installed, versions, minimums, operations
+qqq api --list --extension collaboration         # an extension's operations (the list has an extension column)
+qqq esb table person                             # sample server: what person publishes, which processes it triggers
+qqq esb process syncPerson ; qqq esb messages personEvents --trigger syncPerson.personEvents
+qqq collab presence person 1                     # sample server: exit 5, collaboration is not installed
+```
+
+Collaboration needs a server with qbit-collaboration. Its repo has a demo server (memory backend, MOCK
+users alice, bob and admin); it runs on port 8098 beside the sample server:
+
+```sh
+cd ../qbit-collaboration && ./mvnw -q test-compile dependency:build-classpath -Dmdep.includeScope=test -Dmdep.outputFile=target/demo-classpath.txt
+mkdir -p /tmp/fe/next-dashboard && echo '<html></html>' > /tmp/fe/next-dashboard/index.html   # it insists on a Next export
+java -Dqqq.javalin.frontend=next -Dcollab.dev.port=8098 -cp "target/test-classes:target/classes:$(cat target/demo-classpath.txt):/tmp/fe" \
+  com.kingsrook.qbits.collaboration.devserver.CollaborationDevServer
+
+qqq login --server http://localhost:8098 --profile collab        # alice
+qqq --profile collab collab presence person 1 --watch            # join; prints each change until Ctrl+C
+qqq --profile collab collab presence person --observe            # watch the table without appearing
+qqq --profile collab collab comments list person 1 ; qqq --profile collab collab comments add person 1 "Looks right"
+qqq --profile collab collab favorites list ; qqq --profile collab collab favorites add person 4
+qqq --profile collab collab follow person 2 --comments off ; qqq --profile collab collab my-work
+```
+
+To see someone else, open `http://localhost:8098/?createMockSession=true&user=bob` in a browser on a
+person (needs a real Next export), or hold a lease as bob with curl (`POST /qqq/v1/qbit/collaboration/presence?user=bob`).
+Presence lists everyone holding a lease on the record or table, you included while you `--watch`;
+`since` is when the CLI first saw them.
 
 ## Reporting what you find
 
