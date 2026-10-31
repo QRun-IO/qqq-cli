@@ -96,12 +96,13 @@ test('joinPresence subscribes the scope channel on hello and applies presence.ch
     { event: 'presence.changed', data: { table: 'person', viewers: [{ userId: 'zed', displayName: 'Zed' }] } },
     { event: 'presence.changed', data: { table: 'person', pk: '1', viewers: [{ userId: 'bob', displayName: 'Bob Chen', mode: 'EDITING', fieldName: 'email' }] } },
   ]
+  const emptied: RealtimeMessage = { event: 'presence.changed', data: { table: 'person', pk: '1' } }
   async function* stream(signal: AbortSignal): AsyncIterable<RealtimeMessage> {
-    for (const e of events) {
+    let next = 0
+    while (!signal.aborted) {
       await tick(2)
-      yield e
+      if (next < events.length) yield events[next++]!
     }
-    await new Promise((resolve) => signal.addEventListener('abort', resolve))
   }
   const { calls, transport } = fake((id, input) => {
     if (id === 'updateRealtimeSubscriptions') return { active: (input.json as { add: string[] }).add, refused: [] }
@@ -113,6 +114,9 @@ test('joinPresence subscribes the scope channel on hello and applies presence.ch
   assert.deepEqual(calls.find((c) => c.id === 'updateRealtimeSubscriptions')?.input.json, { connectionId: 'sse-1', add: ['record:person:1'] })
   assert.equal(handle.state.live, true)
   assert.deepEqual(handle.people.map((p) => [p.userId, p.mode, p.fieldName]), [['bob', 'EDITING', 'email']])
+  events.push(emptied)
+  await tick(10)
+  assert.equal(handle.count, 0, 'a snapshot without viewers empties the scope (the qbit omits the empty list)')
   await handle.stop()
   assert.equal(calls.some((c) => c.id === 'postQbitCollaborationPresence' || c.id === 'deleteQbitCollaborationPresence'), false, 'watch-only never takes a lease')
   assert.equal(presenceChannel({ table: 'person' }), 'table:person')

@@ -311,7 +311,7 @@ export class Collaboration {
           const result = await this.transport.call('postQbitCollaborationPresence', { json: { connectionId, table: scope.table, pk: scope.pk, mode, fieldName } })
           const data = result.data as Snapshot | undefined
           // The qbit answers the heartbeat with the snapshot; older builds answer {success}.
-          if (data && Array.isArray(data.viewers)) {
+          if (data && typeof data.table === 'string') {
             apply(data)
             return
           }
@@ -339,8 +339,9 @@ export class Collaboration {
               delay = options.reconnectMs ?? 2000
               await refresh()
             } else if (message.event === 'presence.changed') {
+              // An emptied scope arrives as {"table": "person"} with no viewers at all.
               const raw = message.data as Snapshot & { data?: Snapshot }
-              const snapshot = raw && Array.isArray(raw.viewers) ? raw : raw?.data
+              const snapshot = raw && typeof raw.table === 'string' ? raw : raw?.data
               if (snapshot && snapshot.table === scope.table && (scope.pk === undefined ? snapshot.pk == null : String(snapshot.pk) === scope.pk)) apply(snapshot)
             } else if (message.event === 'resync') {
               await refresh()

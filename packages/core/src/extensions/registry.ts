@@ -135,7 +135,7 @@ export class ExtensionNotInstalledError extends Error {
     const subject = operationId ? `${operationId} belongs to extension ${extension}, which` : `extension ${extension}`
     const found = installed.find((e) => e.name === extension)
     const text = reason === 'too-old'
-      ? `${operationId ? `${operationId} needs ` : ''}extension ${extension} ${knownExtension(extension)?.minVersion} or later; this server has ${found?.version ?? 'an unknown version'} (installed: ${list})`
+      ? `${operationId ? `${operationId} needs` : 'this client needs'} extension ${extension} ${knownExtension(extension)?.minVersion} or later; this server has ${found?.version ?? 'an unknown version'} (installed: ${list})`
       : `${subject} is not installed on this server (installed: ${list})`
     super(text)
     this.name = 'ExtensionNotInstalledError'
