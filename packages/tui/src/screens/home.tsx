@@ -159,8 +159,8 @@ export class HomeScreen implements Screen {
         const walk = (nodes: AppTreeNode[]) => {
           for (const n of nodes) {
             if (n.type === 'TABLE' && tables.length < 6 && (meta?.tables?.[n.name] as { insertPermission?: boolean } | undefined)?.insertPermission) tables.push(n)
-            else if (n.type === 'PROCESS' && procs.length < 6 && (meta?.processes?.[n.name] as { hasPermission?: boolean } | undefined)?.hasPermission !== false) procs.push(n)
-            if (n.children && (tables.length < 6 || procs.length < 6)) walk(n.children)
+            else if (n.type === 'PROCESS' && procs.length < 4 && (meta?.processes?.[n.name] as { hasPermission?: boolean } | undefined)?.hasPermission !== false) procs.push(n)
+            if (n.children && (tables.length < 6 || procs.length < 4)) walk(n.children)
           }
         }
         walk(tree)
