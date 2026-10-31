@@ -5,6 +5,7 @@
 
 import { useKeyboard, useTerminalDimensions } from '@opentui/react'
 import { Component, useEffect, useReducer, type ReactNode } from 'react'
+import type { AppTreeNode } from './client'
 import { presenceText, usePresence } from './presence'
 import type { AppStore } from './store'
 import { theme } from './theme'
@@ -36,12 +37,38 @@ export class ErrorBoundary extends Component<{ children: ReactNode; resetKey: st
   }
 }
 
+/** The apps above a table, process or app in the app tree (labels, outermost first). */
+export function appPath(nodes: AppTreeNode[], name: string, type: string, path: string[] = []): string[] | undefined {
+  for (const n of nodes) {
+    if (n.name === name && n.type === type) return path
+    if (n.children) {
+      const found = appPath(n.children, name, type, [...path, n.label])
+      if (found) return found
+    }
+  }
+  return undefined
+}
+
+/** The title-bar path of the top screen: its apps, the table, then the record or form. */
+export function breadcrumbs(store: AppStore): string[] {
+  const top = store.screen as (import('./types').Screen & { tableName?: string; processName?: string; appName?: string }) | undefined
+  if (!top) return []
+  const tree = (store.meta?.appTree ?? []) as AppTreeNode[]
+  const tableLabel = top.tableName ? store.meta?.tables?.[top.tableName]?.label ?? top.tableName : undefined
+  if (top.kind === 'table') return [...(appPath(tree, top.tableName!, 'TABLE') ?? []), top.title()]
+  if (top.kind === 'record') return [...(appPath(tree, top.tableName!, 'TABLE') ?? []), tableLabel!, top.title()]
+  if (top.kind === 'form') return [...(appPath(tree, top.tableName!, 'TABLE') ?? []), top.title()]
+  if (top.kind === 'process') return [...(appPath(tree, top.processName!, 'PROCESS') ?? []), top.title()]
+  if (top.kind === 'app') return [...(appPath(tree, top.appName!, 'APP') ?? []), top.title()]
+  return [top.title()]
+}
+
 function TitleBar({ store, width }: { store: AppStore; width: number }) {
   const t = theme()
   const presence = usePresence(store.screen?.presenceScope?.())
   const brand = (store.meta?.branding as { appName?: string } | undefined)?.appName ?? 'QQQ'
-  const crumbs = store.routes.map((s) => s.title()).filter(Boolean)
-  const shown = crumbs.length > 3 ? ['…', ...crumbs.slice(-3)] : crumbs
+  const crumbs = breadcrumbs(store)
+  const shown = crumbs.length > 5 ? ['…', ...crumbs.slice(-5)] : crumbs
   const left = ` ${brand} ─ ${shown.join(' › ')}`
   // collaboration presence slot: "N others viewing" (empty without the collaboration extension)
   const others = presenceText(presence)

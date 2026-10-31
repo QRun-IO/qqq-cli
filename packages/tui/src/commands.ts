@@ -105,11 +105,12 @@ export class Commands implements CommandsLike {
     } catch {
       // no recents
     }
-    for (const e of this.entries()) if (e.run && !e.disabled && e.section !== 'Context') items.push({ label: e.label, kind: 'command', context: e.command ? `:${e.command}` : e.section, run: e.run })
+    for (const e of this.entries()) if (e.run && !e.disabled && e.section !== 'Context' && !e.label.startsWith('Recent:') && !/^(Table|Process|App): /.test(e.label)) items.push({ label: e.label, kind: 'command', context: e.command ? `:${e.command}` : e.section, run: e.run })
     const features = s.version?.features ?? []
     const quick = s.extensions.has('qbit-quick-search') || s.extensions.has('quick-search')
     const search = quick || features.includes('recordSearch') ? async (text: string): Promise<PaletteItem[]> => {
-      const data = await s.client!.data<{ results?: Array<{ tableName?: string; table?: string; primaryKey?: unknown; recordLabel?: string; label?: string; values?: Record<string, unknown> }> }>('searchRecords', { json: { query: text, searchTerm: text, limit: 20 } })
+      const data = await s.client!.data<{ results?: Array<{ tableName?: string; table?: string; primaryKey?: unknown; recordLabel?: string; label?: string }>; provider?: { status?: string; message?: string | null } }>('searchRecords', { json: { query: text, searchTerm: text, limit: 20 } })
+      if (data.provider?.status === 'NONE') return [{ label: 'No record search on this server (search provider: none)', kind: 'note', context: 'navigation only', run: () => undefined }]
       return (data.results ?? []).map((r) => {
         const table = r.tableName ?? r.table ?? ''
         return { label: r.recordLabel ?? r.label ?? String(r.primaryKey), kind: 'record', context: meta?.tables?.[table]?.label ?? table, run: () => openRecord(s, table, String(r.primaryKey ?? '')) }

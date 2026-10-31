@@ -93,16 +93,17 @@ export class MenuOverlay implements Overlay {
       }
       items.push({ kind: 'e', e, i })
     })
-    const perColumn = Math.max(rows, Math.ceil(items.length / columns))
-    const selItem = items.findIndex((it) => it.kind === 'e' && it.i === this.index)
-    const scroll = columns === 1 ? Math.max(0, Math.min(selItem - Math.floor(rows / 2), items.length - rows)) : 0
-    items.slice(scroll).forEach((it, k) => {
-      const col = columns === 1 ? 0 : Math.floor(k / perColumn)
-      if (col >= columns || lines[col]!.length >= rows) return
+    // items flow down columns of `rows`; a window of `columns` columns follows the selection
+    const selItem = Math.max(0, items.findIndex((it) => it.kind === 'e' && it.i === this.index))
+    const selCol = Math.floor(selItem / rows)
+    const firstCol = Math.max(0, selCol - columns + 1)
+    items.forEach((it, k) => {
+      const col = Math.floor(k / rows) - firstCol
+      if (col < 0 || col >= columns) return
       if (it.kind === 'h') lines[col]!.push({ text: ` ${it.text}`, fg: t.acc })
       else {
         const sel = it.i === this.index
-        const keyText = it.e.key ? ` ${it.e.key}` : ''
+        const keyText = it.e.key ? ` ${it.e.key} ` : ''
         const detail = it.e.disabled ? ` (${it.e.disabled})` : it.e.detail ? ` ${it.e.detail}` : ''
         const room = colWidth - 3 - keyText.length
         const text = `   ${trunc(it.e.label + detail, room)}`

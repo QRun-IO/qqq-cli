@@ -3,8 +3,10 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { ResultCursor, readViewSettings, widgetToBlocks, writeViewSettings, type QueryRecord, type RenderBlock } from '@qrun-io/qqq-core'
-import type { Association, FieldMetaData, TableMetaData } from '../client'
+import { ResultCursor, associationGroups, childFilter, childListFields, readViewSettings, relatedRecordTarget, safeFileName, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { resolve } from 'node:path'
+import { PromptOverlay } from '../overlays/basic'
+import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
 import { openForm, openProcess, openRecord } from '../nav'
@@ -12,19 +14,19 @@ import { ChoiceOverlay } from '../overlays/basic'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
-import { cell, errorText, pad, trunc } from '../util/text'
+import { cell, errorText, fieldCell, pad, trunc } from '../util/text'
 import { blockLines } from '../widgets'
 import { ListModel, Panel, type Row } from './list'
 import { defaultColumns } from './table'
 
 type FullRecord = QueryRecord & { associatedRecords?: Record<string, QueryRecord[]> }
 
-/** A field whose value names a record of another table (a possible-value source that is a table). */
-export function linkTarget(store: AppStore, field: FieldMetaData): string | undefined {
+/** The record a field links to (LINK adornment, or a possible-value source that is a table), through the kernel. */
+export function linkTarget(store: AppStore, field: FieldMetaData, record?: QueryRecord): string | undefined {
+  const tables = Object.keys(store.meta?.tables ?? {})
+  if (record) return relatedRecordTarget(field as FieldMeta, record as never, tables)?.tableName
   const pvs = field.possibleValueSourceName
-  if (pvs && store.meta?.tables?.[pvs]) return pvs
-  const link = field.adornments?.find((a) => a.type === 'LINK')?.values as { toRecordFromTable?: string } | undefined
-  return link?.toRecordFromTable && store.meta?.tables?.[link.toRecordFromTable] ? link.toRecordFromTable : undefined
+  return pvs && tables.includes(pvs) ? pvs : undefined
 }
 
 /** Sections in tier order (T1, then T2, then T3, then the rest), hidden ones left out. */
@@ -56,8 +58,7 @@ export class RecordScreen implements Screen {
   }
 
   title(): string {
-    const name = this.record?.recordLabel ?? this.label ?? this.primaryKey ?? ''
-    return `${this.meta?.label ?? this.tableName} › ${name}`
+    return String(this.record?.recordLabel ?? this.label ?? this.primaryKey ?? '')
   }
 
   presenceScope(): string {
@@ -171,80 +172,122 @@ export class RecordScreen implements Screen {
       if (!fields.length) continue
       rows.push({ text: '' })
       rows.push({ text: `${s.label}${s.tier ? ` (${s.tier})` : ''} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 8)))}`, fg: t.acc, bold: true })
-      const valueOf = (f: FieldMetaData) => {
-        const masked = f.type === 'PASSWORD' || f.adornments?.some((a) => a.type === 'REVEAL')
-        const v = cell(rec, f.name)
-        return masked && v ? '••••••' : v
-      }
+      const tableNames = Object.keys(this.store.meta?.tables ?? {})
+      const valueOf = (f: FieldMetaData) => valueText(f as FieldMeta, rec as never, { reveal: this.revealed.has(f.name), tableNames, tableName: this.tableName, primaryKey: this.primaryKey, widgets: this.store.meta?.widgets as never }).text
       const longest = Math.max(...fields.map((f) => valueOf(f).length + (linkTarget(this.store, f) ? 2 : 0)), 4)
       const colWidth = Math.min(60, labelWidth + 2 + longest)
       const two = (view.recordColumns ?? (inner >= 2 * colWidth + 6 ? 2 : 1)) === 2 && inner >= 2 * Math.min(colWidth, 30) + 6
       const fieldText = (f: FieldMetaData) => {
-        const link = linkTarget(this.store, f) && rec.values?.[f.name] !== null && rec.values?.[f.name] !== undefined ? ` ${g.link}` : ''
+        const v = valueText(f as FieldMeta, rec as never, { tableNames, widgets: this.store.meta?.widgets as never })
+        const link = v.link ? ` ${g.link}` : v.file ? ' [file: Enter saves]' : v.masked ? ' [Enter reveals]' : ''
         return `${pad(f.label, labelWidth)}  ${trunc(valueOf(f) + link, (two ? colWidth : Math.min(inner - 4, 100)) - labelWidth - 2)}`
       }
       for (let i = 0; i < fields.length; i += two ? 2 : 1) {
         const pair = two ? fields.slice(i, i + 2) : [fields[i]!]
-        const links = pair.filter((f) => linkTarget(this.store, f) && rec.values?.[f.name] !== null && rec.values?.[f.name] !== undefined)
+        const links = pair.filter((f) => { const v = valueText(f as FieldMeta, rec as never, { tableNames }); return Boolean(v.link || v.file || v.masked) })
         const text = '  ' + (two ? pad(fieldText(pair[0]!), colWidth) + '    ' + (pair[1] ? fieldText(pair[1]) : '') : fieldText(pair[0]!))
         rows.push({ text, key: `f:${pair[0]!.name}`, action: () => this.follow(links) })
       }
     }
-    for (const a of meta.associations ?? []) this.childRows(a, rows, inner)
+    const tables: Record<string, TableMetaLike | undefined> = Object.fromEntries([...this.childMeta].map(([k, v]) => [k, v as unknown as TableMetaLike]))
+    this.groups = associationGroups(rec as never, meta as unknown as TableMetaLike, tables, { widgets: this.store.meta?.widgets as never, maxDepth: 1 })
+    this.groups.forEach((group, gi) => this.childRows(group, gi, rows, inner))
     this.list.setRows(rows)
+    // back from a child record: land on the child that was viewed last (it may have stepped)
+    if (this.openedChild) {
+      const key = `c:${this.openedChild.gi}:${this.openedChild.cursor.index}`
+      const at = rows.findIndex((r) => r.key === key)
+      if (at >= 0) this.list.cursor = at
+    }
   }
 
-  childRows(a: Association, rows: Row[], inner: number): void {
+  /** The child list and cursor of the child record opened last. */
+  openedChild?: { gi: number; cursor: ResultCursor }
+
+  groups: AssociationGroup[] = []
+  revealed = new Set<string>()
+
+  childRows(group: AssociationGroup, gi: number, rows: Row[], inner: number): void {
     const t = theme()
     const g = glyphs()
-    const child = this.childMeta.get(a.associatedTableName)
-    const records = this.record?.associatedRecords?.[a.name] ?? []
-    const label = a.label ?? child?.label ?? a.name
+    const child = this.childMeta.get(group.table)
+    const records = group.records as QueryRecord[]
     rows.push({ text: '' })
-    rows.push({ text: `${label} (${records.length}) ${g.rule.repeat(Math.max(0, Math.min(60, inner - label.length - 8)))}`, fg: t.acc, bold: true, key: `c:${a.name}`, action: () => this.newChild(a) })
-    if (!child) return
-    const joinFields = new Set((a.join?.joinOns ?? []).map((j) => j.rightField))
-    const names = defaultColumns(child).filter((n) => !joinFields.has(n)).slice(0, 6)
-    const widths = names.map((n) => Math.min(30, Math.max(child.fields[n]!.label.length, ...records.map((r) => cell(r, n).length))))
+    rows.push({ text: `${group.label} (${records.length}) ${g.rule.repeat(Math.max(0, Math.min(60, inner - group.label.length - 8)))}`, fg: t.acc, bold: true, key: `c:${gi}`, action: () => this.newChild(group) })
+    if (group.unavailable || !child) {
+      rows.push({ text: `  ${group.unavailable ?? 'no metadata'}`, fg: t.dim })
+      return
+    }
+    const binding = (group.association.join?.joinOns ?? []).map((j) => j.rightField)
+    const names = childListFields(child as unknown as TableMetaLike, binding)
+    const widths = names.map((n) => Math.min(30, Math.max(child.fields[n]!.label.length, ...records.map((r) => fieldCell(r, child.fields[n]!).length))))
     rows.push({ text: '  ' + names.map((n, i) => pad(child.fields[n]!.label, widths[i]!)).join('  '), fg: t.dim })
     records.forEach((r, idx) => {
-      rows.push({ text: '  ' + names.map((n, i) => pad(cell(r, n), widths[i]!)).join('  '), key: `c:${a.name}:${idx}`, action: () => this.openChild(a, idx) })
+      rows.push({ text: '  ' + names.map((n, i) => pad(fieldCell(r, child.fields[n]!), widths[i]!)).join('  '), key: `c:${gi}:${idx}`, action: () => this.openChild(group, idx) })
     })
     if (!records.length) rows.push({ text: '  (none) · Enter on the heading or F7 adds one', fg: t.dim })
   }
 
-  /** The filter selecting this record's children of an association. */
-  childFilter(a: Association) {
-    return { criteria: (a.join?.joinOns ?? []).map((j) => ({ fieldName: j.rightField, operator: 'EQUALS' as const, values: [String(this.record?.values?.[j.leftField] ?? '')] })), booleanOperator: 'AND' as const }
+  /** The filter selecting this record's children of a group (kernel childFilter). */
+  childFilterOf(group: AssociationGroup) {
+    const child = this.childMeta.get(group.table)!
+    const f = childFilter(group.association, this.meta as unknown as TableMetaLike, this.record as never, child as unknown as TableMetaLike)
+    return { criteria: f.criteria, booleanOperator: f.booleanOperator, ...(f.subFilters ? { subFilters: f.subFilters } : {}) }
   }
 
   /** Opens a child record with a cursor over its siblings, so PgDn steps through them. */
-  openChild(a: Association, index: number): void {
-    const child = this.childMeta.get(a.associatedTableName)
+  openChild(group: AssociationGroup, index: number): void {
+    const child = this.childMeta.get(group.table)
     if (!child) return
-    const cursor = new ResultCursor({ baseUrl: this.store.client!.server, fetch: this.store.client!.fetch, table: a.associatedTableName, filter: this.childFilter(a), pageSize: 50, primaryKeyField: child.primaryKeyField, index })
-    const records = this.record?.associatedRecords?.[a.name] ?? []
+    const records = group.records as QueryRecord[]
+    const cursor = new ResultCursor({ baseUrl: this.store.client!.server, fetch: this.store.client!.fetch, table: group.table, filter: this.childFilterOf(group), pageSize: 50, primaryKeyField: child.primaryKeyField, index })
     cursor.seed(0, records.slice(0, 50), records.length)
-    openRecord(this.store, a.associatedTableName, String(records[index]?.values?.[child.primaryKeyField] ?? ''), { cursor, label: records[index]?.recordLabel })
+    this.openedChild = { gi: this.groups.indexOf(group), cursor }
+    openRecord(this.store, group.table, String(records[index]?.values?.[child.primaryKeyField] ?? ''), { cursor, label: records[index]?.recordLabel })
   }
 
-  newChild(a: Association): void {
-    const values = Object.fromEntries((a.join?.joinOns ?? []).map((j) => [j.rightField, this.record?.values?.[j.leftField]]))
-    openForm(this.store, a.associatedTableName, { mode: 'create', initial: values })
+  newChild(group: AssociationGroup): void {
+    const values = Object.fromEntries((group.association.join?.joinOns ?? []).map((j) => [j.rightField, this.record?.values?.[j.leftField]]))
+    openForm(this.store, group.table, { mode: 'create', initial: values })
+  }
+
+  /** Saves a FILE_DOWNLOAD field to a file (kernel fileDownload, safe names, no overwrite unless named). */
+  download(f: FieldMetaData): void {
+    const v = valueText(f as FieldMeta, this.record as never, {})
+    const file = v.file
+    if (!file) return
+    if (!file.route) return this.store.message(`This file is outside the server: ${file.url ?? ''}`, 'info', 'Download')
+    const route = file.route
+    this.store.open(new PromptOverlay(this.store, `Save ${file.fileName}`, `Path (relative to ${process.cwd()}); an existing file is not overwritten unless you name it.`, (path) => {
+      const explicit = path.trim() !== safeFileName(file.fileName)
+      this.store.run(this.store.client!.call('downloadRecordFieldFile', { path: { tableName: route.tableName, primaryKey: route.primaryKey, fieldName: route.fieldName, filename: route.filename } }), (r) => {
+        const bytes = r.bytes ?? new TextEncoder().encode(typeof r.data === 'string' ? r.data : JSON.stringify(r.data))
+        const out = saveDownload(resolve(path.trim()), bytes, { explicit })
+        this.store.message(`Saved ${out} (${bytes.length} bytes).`)
+      })
+    }, safeFileName(file.fileName)))
   }
 
   follow(fields: FieldMetaData[]): void {
-    const go = (f: FieldMetaData) => openRecord(this.store, linkTarget(this.store, f)!, String(this.record?.values?.[f.name]))
+    const go = (f: FieldMetaData) => {
+      const v = valueText(f as FieldMeta, this.record as never, { tableNames: Object.keys(this.store.meta?.tables ?? {}) })
+      if (v.file) return this.download(f)
+      if (v.masked) {
+        this.revealed.add(f.name)
+        return this.build()
+      }
+      if (v.link && 'tableName' in v.link) return openRecord(this.store, v.link.tableName, v.link.primaryKey)
+      if (v.link && 'url' in v.link) return this.store.message(v.link.url, 'info', 'Link (open it in a browser)')
+    }
     if (!fields.length) return this.store.flash('no link on this line (links are marked ' + glyphs().link + ')')
     if (fields.length === 1) return go(fields[0]!)
     this.store.open(new ChoiceOverlay(this.store, 'Follow which link?', fields.map((f) => ({ label: f.label, value: f, detail: cell(this.record, f.name) })), go))
   }
 
-  currentAssociation(): Association | undefined {
+  currentAssociation(): AssociationGroup | undefined {
     const key = this.list.current?.key ?? ''
     if (!key.startsWith('c:')) return undefined
-    const name = key.split(':')[1]
-    return this.meta?.associations?.find((a) => a.name === name)
+    return this.groups[Number(key.split(':')[1])]
   }
 
   deleteRecord(): void {
@@ -319,15 +362,20 @@ export class RecordScreen implements Screen {
       { section: 'Context', label: 'View settings (columns, label width)', key: 'v', run: () => { const o = this.viewSettings(); if (o) this.store.open(o) } },
       { section: 'Context', label: 'Copy as a CLI command', detail: `qqq ${this.cliEquivalent()}`, run: () => this.store.message(`qqq ${this.cliEquivalent()}`, 'info', 'CLI equivalent') },
     ]
-    for (const a of this.meta?.associations ?? []) {
-      out.push({ section: 'Context', label: `New ${this.childMeta.get(a.associatedTableName)?.label ?? a.name} for this record`, run: () => this.newChild(a) })
-      out.push({ section: 'Context', label: `Query all ${this.childMeta.get(a.associatedTableName)?.label ?? a.name} of this record`, run: () => import('../nav').then((n) => n.openTable(this.store, a.associatedTableName, this.childFilter(a))) })
+    for (const group of this.groups) {
+      out.push({ section: 'Context', label: `New ${group.label} for this record`, key: 'F7', run: () => this.newChild(group) })
+      out.push({ section: 'Context', label: `Query all ${group.label} of this record`, run: () => import('../nav').then((n) => n.openTable(this.store, group.table, this.childFilterOf(group))) })
     }
+    const tableNames = Object.keys(this.store.meta?.tables ?? {})
     for (const f of Object.values(this.meta?.fields ?? {})) {
-      if (linkTarget(this.store, f) && this.record?.values?.[f.name] !== null && this.record?.values?.[f.name] !== undefined) out.push({ section: 'Context', label: `Follow ${f.label}`, detail: cell(this.record, f.name), run: () => this.follow([f]) })
+      if (!this.record) break
+      const v = valueText(f as FieldMeta, this.record as never, { tableNames })
+      if (v.link) out.push({ section: 'Context', label: `Follow ${f.label}`, detail: cell(this.record, f.name), run: () => this.follow([f]) })
+      if (v.file) out.push({ section: 'Context', label: `Download ${f.label}`, detail: v.file.fileName, run: () => this.download(f) })
+      if (v.masked) out.push({ section: 'Context', label: `Reveal ${f.label}`, run: () => this.follow([f]) })
     }
     for (const p of this.recordProcesses()) out.push({ section: 'Context', label: `Run ${p.label} on this record`, run: () => openProcess(this.store, p.name, { recordIds: [String(this.primaryKey)] }) })
-    out.push({ section: 'Context', label: 'Audits', disabled: 'audits arrive with the kernel support (another branch)' })
+    out.push({ section: 'Context', label: 'Audit history', command: `audit list ${this.tableName} ${this.primaryKey}`, run: () => void this.store.commands().run(`audit list ${this.tableName} ${this.primaryKey}`) })
     return out
   }
 
@@ -360,7 +408,7 @@ export class RecordScreen implements Screen {
     const t = theme()
     const hint = this.cursor ? `${this.cursor.describe()} · PgDn/PgUp next/previous · Enter follows ${glyphs().link} or opens a child · Esc back` : `Enter follows ${glyphs().link} or opens a child · Esc back`
     return (
-      <Panel title={this.title()} width={width} height={height} focused={focused}>
+      <Panel title={`${this.meta?.label ?? this.tableName} › ${this.title()}`} width={width} height={height} focused={focused}>
         {this.list.view(width - 2, height - 3, focused)}
         <text fg={t.dim}>{pad(` ${hint}`, width - 2)}</text>
       </Panel>

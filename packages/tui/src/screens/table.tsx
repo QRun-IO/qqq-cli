@@ -5,7 +5,7 @@
 
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { ResultCursor, printFilter, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
+import { ResultCursor, findRecordByKey, gotoKeys, printFilter, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
@@ -16,7 +16,7 @@ import { GridViewSettingsOverlay } from '../overlays/view-settings'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
-import { cell, errorText, num, pad, padLeft, shellQuote, trunc } from '../util/text'
+import { errorText, fieldCell, num, pad, padLeft, shellQuote, trunc } from '../util/text'
 import { Panel } from './list'
 
 export interface GridColumn {
@@ -49,7 +49,7 @@ export function layoutColumns(fields: FieldMetaData[], rows: QueryRecord[], avai
   const gap = 1
   const cols = fields.map((f) => {
     const numeric = ['INTEGER', 'LONG', 'DECIMAL'].includes(f.type) && !f.possibleValueSourceName
-    const longest = Math.max(f.label.length + 1, ...rows.map((r) => cell(r, f.name).length), 3)
+    const longest = Math.max(f.label.length + 1, ...rows.map((r) => fieldCell(r, f).length), 3)
     const saved = view.widths?.[f.name]
     return { name: f.name, label: f.label, type: f.type, numeric, longest, width: saved ?? Math.min(40, longest) }
   })
@@ -278,10 +278,26 @@ export class TableScreen implements Screen {
     }))
   }
 
+  /** Go to a record by its primary key or a configured unique key (kernel gotoKeys / findRecordByKey). */
   gotoKey(): void {
-    this.store.open(new PromptOverlay(this.store, `Go to ${this.title()} by ${this.meta?.fields[this.meta.primaryKeyField]?.label ?? 'key'}`, 'Opens the record with this primary key.', (value) => {
-      if (value.trim()) openRecord(this.store, this.tableName, value.trim())
-    }))
+    const meta = this.meta
+    if (!meta) return
+    const keys = gotoKeys(meta as never)
+    const ask = (key: string[]) => {
+      const labels = key.map((n) => meta.fields[n]?.label ?? n)
+      this.store.open(new PromptOverlay(this.store, `Go to ${this.title()} by ${labels.join(' + ')}`, key.length > 1 ? `Values for ${labels.join(', ')}, separated by commas.` : 'Opens the record with this value.', (text) => {
+        const parts = key.length > 1 ? text.split(',').map((x) => x.trim()) : [text.trim()]
+        if (!parts.some(Boolean)) return
+        const values = Object.fromEntries(key.map((n, i) => [n, parts[i] ?? '']))
+        if (key.length === 1 && key[0] === meta.primaryKeyField) return openRecord(this.store, this.tableName, parts[0])
+        this.store.run(findRecordByKey(this.store.client!.server, this.store.client!.fetch, meta as never, values), (r) => {
+          if (r.found === 'one') openRecord(this.store, this.tableName, r.primaryKey)
+          else this.store.flash(r.found === 'none' ? 'no record has that key' : 'more than one record has that key', 'error')
+        })
+      }))
+    }
+    if (keys.length === 1) return ask(keys[0]!)
+    this.store.open(new ChoiceOverlay(this.store, 'Go to by which key?', keys.map((k) => ({ label: k.map((n) => meta.fields[n]?.label ?? n).join(' + '), value: k })), ask))
   }
 
   filterDialog(): void {
@@ -380,8 +396,8 @@ export class TableScreen implements Screen {
     ]
     for (const f of ['csv', 'xlsx', 'json', 'tsv']) out.push({ section: 'Context', label: `Export as ${f}`, key: f === 'csv' ? 'x' : undefined, command: `export ${f}`, run: () => this.exportAs(f) })
     for (const p of this.tableProcesses()) out.push({ section: 'Context', label: `Run ${p.label}`, detail: this.selection.size ? `${this.selection.size} selected` : 'cursor record', disabled: p.parked, run: () => this.runProcess(p.name) })
-    out.push({ section: 'Context', label: 'Saved views', disabled: 'saved views arrive with the kernel support (another branch)' })
-    out.push({ section: 'Context', label: 'Column statistics', disabled: 'not yet in the kernel' })
+    out.push({ section: 'Context', label: 'Saved views of this table', command: `saved-view list ${this.tableName}`, run: () => void this.store.commands().run(`saved-view list ${this.tableName}`) })
+    out.push({ section: 'Context', label: `Column statistics: ${this.fields()[this.colCursor]?.label ?? ''}`, command: `table stats ${this.tableName} ${this.fields()[this.colCursor]?.name ?? ''}`, run: () => void this.store.commands().run(`table stats ${this.tableName} ${this.fields()[this.colCursor]?.name ?? ''}`) })
     return out
   }
 
@@ -444,7 +460,7 @@ export class TableScreen implements Screen {
       const sel = i === this.rowIndex
       const key = String(r.values?.[pk] ?? '')
       const marked = this.selection.has(key)
-      const text = (marked ? g.mark + ' ' : '  ') + shown.map((c) => (c.numeric ? padLeft(cell(r, c.name), c.width) : pad(cell(r, c.name), c.width))).join(' ')
+      const text = (marked ? g.mark + ' ' : '  ') + shown.map((c) => (c.numeric ? padLeft(fieldCell(r, c), c.width) : pad(fieldCell(r, c), c.width))).join(' ')
       const bg = sel ? (focused ? t.selBg : t.selInactiveBg) : zebra && i % 2 === 1 ? t.zebraBg : undefined
       lines.push(<text key={`r${i}`} fg={sel ? (focused ? t.selFg : t.fg) : marked ? t.markFg : t.fg} bg={bg}>{pad(text, inner)}</text>)
       if (comfortable) lines.push(<text key={`s${i}`}>{pad('', inner)}</text>)

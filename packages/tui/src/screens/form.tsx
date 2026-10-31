@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { FormInputError, FormSession, ResultCursor, isMissingValue, validateValue, type FieldMeta, type FieldValues } from '@qrun-io/qqq-core'
+import { FormInputError, FormSession, ResultCursor, copyRecordValues, dateTimesToUtc, defaultTimeZone, isInstant, isMissingValue, utcToLocalInput, validateValue, type FieldMeta, type FieldValues } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import type { TableMetaData } from '../client'
 import type { Key } from '../keys'
@@ -24,7 +24,7 @@ const TEXT_TYPES = new Set(['STRING', 'TEXT', 'HTML', 'PASSWORD', 'INTEGER', 'LO
 function hintFor(f: FieldMeta): string {
   switch (f.type) {
     case 'DATE': return 'YYYY-MM-DD'
-    case 'DATE_TIME': return 'YYYY-MM-DDTHH:MM (UTC)'
+    case 'DATE_TIME': return `YYYY-MM-DD HH:MM (${defaultTimeZone()})`
     case 'TIME': return 'HH:MM'
     case 'INTEGER': case 'LONG': return 'whole number'
     case 'DECIMAL': return 'number'
@@ -272,6 +272,7 @@ export class FormScreen implements Screen {
   meta?: TableMetaData
   editor?: FormEditor
   error?: string
+  originals: FieldValues = {}
 
   constructor(private store: AppStore, readonly tableName: string, readonly options: FormOptions) {
     this.id = `form:${tableName}:${options.mode}:${Date.now()}`
@@ -287,10 +288,12 @@ export class FormScreen implements Screen {
       const display: Record<string, string> = {}
       if (this.options.mode !== 'create' && this.options.primaryKey !== undefined) {
         const rec = await client.record(this.tableName, this.options.primaryKey)
-        initial = { ...rec.values }
+        initial = this.options.mode === 'copy' ? copyRecordValues(meta, rec) as FieldValues : { ...rec.values }
         Object.assign(display, rec.displayValues ?? {})
-        if (this.options.mode === 'copy') delete initial[meta.primaryKeyField]
       }
+      // DATE_TIME values are edited in the local zone and sent back as UTC
+      this.originals = { ...initial }
+      for (const f of Object.values(meta.fields)) if (f.type === 'DATE_TIME' && isInstant(initial[f.name])) initial[f.name] = utcToLocalInput(String(initial[f.name]), defaultTimeZone())
       const fields = Object.values(meta.fields) as FieldMeta[]
       const session = new FormSession({ baseUrl: client.server, fetch: client.fetch, scope: { table: this.tableName }, fields, initialValues: initial, tableMeta: meta as never, exclude: this.options.mode === 'edit' ? [] : [meta.primaryKeyField] })
       for (const [k, v] of Object.entries(display)) if (session.hasChoices(k) && !isMissingValue(initial[k])) session.displayValues[k] = v
@@ -363,11 +366,12 @@ export class FormScreen implements Screen {
             this.store.back()
             return
           }
-          await client.update(this.tableName, this.options.primaryKey, Object.fromEntries(changed.map((n) => [n, editor.session.values[n] ?? null])))
+          const values = dateTimesToUtc(Object.values(editor.session.fields), Object.fromEntries(changed.map((n) => [n, editor.session.values[n] ?? null])), { originals: this.originals })
+          await client.update(this.tableName, this.options.primaryKey, values)
           this.store.flash(`saved ${meta.label} ${this.options.primaryKey}`)
           this.store.back()
         } else {
-          const record = await client.insert(this.tableName, editor.session.submission())
+          const record = await client.insert(this.tableName, dateTimesToUtc(Object.values(editor.session.fields), editor.session.submission()))
           const pk = record.values?.[meta.primaryKeyField]
           this.store.flash(`created ${meta.label} ${String(pk ?? '')}`)
           replaceWithRecord(this.store, this.tableName, String(pk))

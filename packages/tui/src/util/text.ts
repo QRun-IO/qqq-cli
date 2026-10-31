@@ -3,6 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
+import { displayDateTime } from '@qrun-io/qqq-core'
 import { glyphs } from '../theme'
 
 /** Cuts text to a width, with an ellipsis when it was longer. */
@@ -43,6 +44,15 @@ export function cell(record: { values?: Record<string, unknown>; displayValues?:
   const v = display ?? raw
   if (v === null || v === undefined) return ''
   return typeof v === 'object' ? JSON.stringify(v) : String(v)
+}
+
+/** A value as text for a field: DATE_TIME in the viewer's zone (kernel displayDateTime), else the display value. */
+export function fieldCell(record: { values?: Record<string, unknown>; displayValues?: Record<string, string> } | undefined, field: { name: string; type: string }): string {
+  if (record && field.type === 'DATE_TIME') {
+    const raw = record.values?.[field.name]
+    if (raw !== null && raw !== undefined && raw !== '') return displayDateTime(raw, record.displayValues?.[field.name])
+  }
+  return cell(record, field.name)
 }
 
 /** Splits a command line into arguments as a shell would (quotes, backslash escapes; no expansion). */

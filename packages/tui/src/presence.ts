@@ -11,6 +11,8 @@
  */
 
 import { useSyncExternalStore } from 'react'
+import { Collaboration, type ExtensionRegistry, type PresenceHandle } from '@qrun-io/qqq-core'
+import type { TuiClient } from './client'
 
 export interface PresencePerson {
   name: string
@@ -58,4 +60,40 @@ export function presenceText(p: Presence): string {
   if (!p.count) return ''
   const names = p.people.slice(0, 3).map((x) => x.name).join(', ')
   return `${p.count} other${p.count === 1 ? '' : 's'} viewing${names ? `: ${names}${p.count > 3 ? ', …' : ''}` : ''}`
+}
+
+/**
+ * Presence from the kernel's collaboration module: joins the scope of the screen on top (a lease
+ * renewed by the kernel), leaves the previous one. Others only: this client is not counted.
+ */
+export function collaborationPresence(registry: ExtensionRegistry, client: TuiClient, selfName?: string): PresenceSource | undefined {
+  const collab = new Collaboration(registry, { call: (id, input) => client.call(id, input) })
+  if (!collab.available) return undefined
+  const listeners = new Set<() => void>()
+  let current: { scope: string; handle?: PresenceHandle; value: Presence } | undefined
+  const notify = () => { for (const l of listeners) l() }
+  return {
+    get: (scope) => (current?.scope === scope ? current.value : NONE),
+    subscribe: (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
+    enter: (scope) => {
+      if (current?.scope === scope) return
+      void current?.handle?.stop()
+      current = undefined
+      if (!scope) return notify()
+      const [kind, table, ...pk] = scope.split(':')
+      if (!table || (kind !== 'table' && kind !== 'record')) return
+      const entry: { scope: string; handle?: PresenceHandle; value: Presence } = { scope, value: NONE }
+      current = entry
+      collab.joinPresence(kind === 'record' ? { table, pk: pk.join(':') } : { table }, {
+        onChange: (state) => {
+          const people = state.people.filter((p) => p.name !== selfName).map((p) => ({ name: p.name, since: p.since.toISOString() }))
+          entry.value = { count: people.length, people }
+          notify()
+        },
+      }).then((h) => { entry.handle = h }).catch(() => undefined)
+    },
+  }
 }

@@ -16,6 +16,7 @@ import { TUI_CHANNEL, TuiClient, type VersionInfo } from './client'
 import { charOf, isPrintable, type Key } from './keys'
 import { ConfirmOverlay, MessageOverlay } from './overlays/basic'
 import { Extensions } from './extensions'
+import { collaborationPresence, presenceSource, setPresenceSource } from './presence'
 import { setAscii, setTheme, theme } from './theme'
 import type { FKeyLabels, Overlay, Screen } from './types'
 import { errorText } from './util/text'
@@ -125,6 +126,7 @@ export class AppStore {
     this.paintQueued = true
     queueMicrotask(() => {
       this.paintQueued = false
+      this.syncPresence()
       for (const l of this.listeners) l()
     })
   }
@@ -147,6 +149,12 @@ export class AppStore {
     this.routes.push(screen)
     this.focus = 'content'
     this.bump()
+  }
+
+  /** Tells the presence source which scope is on top (called on every repaint; cheap when unchanged). */
+  private syncPresence(): void {
+    const scope = this.lock ? undefined : this.screen?.presenceScope?.()
+    presenceSource().enter?.(scope)
   }
 
   /** Replaces the top screen (a form that saved becomes the record). */
@@ -333,6 +341,7 @@ export class AppStore {
     this.version = version
     this.meta = meta
     this.extensions.load(version)
+    setPresenceSource(collaborationPresence(this.extensions.registry, client, this.status.user))
     this.status.apiVersion = version.apiVersion
     this.sidebar = this.sidebarFactory?.(this)
     if (options.timers) {

@@ -280,7 +280,7 @@ export class ProcessScreen implements Screen {
     if (Array.isArray(lines) && lines.length) {
       for (const l of lines) {
         const status = String(l.status ?? 'INFO')
-        out.push({ text: trunc(`${pad(status, 8)} ${l.count !== undefined ? String(l.count).padStart(6) : '      '}  ${String(l.message ?? '').replace(/\s+/g, ' ').trim()}`, width), fg: status === 'OK' ? t.ok : status === 'ERROR' ? t.err : status === 'WARNING' ? t.warn : t.fg })
+        out.push({ text: trunc(`${pad(status, 8)} ${l.count !== undefined && l.count !== null ? String(l.count).padStart(6) : '      '}  ${String(l.message ?? '').replace(/\s+/g, ' ').trim()}`, width), fg: status === 'OK' ? t.ok : status === 'ERROR' ? t.err : status === 'WARNING' ? t.warn : t.fg })
       }
       return out
     }
@@ -321,7 +321,7 @@ export class ProcessScreen implements Screen {
       const summary = v.validationSummary as Array<{ status?: string; count?: number; message?: string }> | undefined
       for (const l of summary ?? []) lines.push({ text: `${pad(String(l.status ?? ''), 8)} ${String(l.count ?? '').padStart(5)}  ${String(l.message ?? '')}`, fg: l.status === 'ERROR' ? t.err : l.status === 'OK' ? t.ok : t.fg })
       lines.push({ text: '' })
-      const opts = ['Validate first (check every record before running)', 'Skip validation and run']
+      const opts = v.validationSummary ? ['Validate again', 'Run with these results'] : ['Validate first (check every record before running)', 'Skip validation and run']
       opts.forEach((o, i) => lines.push({ text: `${i === this.reviewChoice ? g.radioOn : g.radioOff} ${o}`, fg: i === this.reviewChoice ? t.acc2 : t.fg }))
       lines.push({ text: '' })
       lines.push({ text: '↑↓ choose · Enter continues · Esc cancels', fg: t.dim })
