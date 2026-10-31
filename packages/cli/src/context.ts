@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { Collaboration, ExtensionNotInstalledError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { Collaboration, ExtensionNotInstalledError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieFor, target, type Target } from './session.js'
 
@@ -27,6 +27,7 @@ export interface GlobalOptions {
   yes?: boolean
   trace?: boolean
   noPager?: boolean
+  utc?: boolean
 }
 
 export class Context {
@@ -63,6 +64,11 @@ export class Context {
     if (this.options.output) return this.options.output
     if (this.options.json) return 'json'
     return defaultFormat(Boolean(process.stdout.isTTY))
+  }
+
+  /** How DATE_TIME values are shown: in the TZ zone, or raw UTC instants with --utc. */
+  get dateTimeDisplay(): DisplayOptions {
+    return { utc: Boolean(this.options.utc), timeZone: defaultTimeZone() }
   }
 
   /** `--fields a,b,c` as a list, or undefined. */
@@ -165,6 +171,7 @@ export function describeError(error: unknown, trace = false): { code: number; te
             : error.status >= 500 ? EXIT.unexpected : EXIT.error
     return { code, text: lines.join('\n') }
   }
+  if (error instanceof ProcessError) return { code: error.isInputError ? EXIT.validation : EXIT.error, text: `Error: ${error.message}` }
   if (error instanceof TypeError && /fetch failed|ECONNREFUSED|ENOTFOUND|network/i.test(String((error as Error & { cause?: unknown }).cause ?? error.message))) {
     return { code: EXIT.transient, text: `Error: cannot reach the server (${String((error as Error & { cause?: { message?: string } }).cause?.message ?? error.message)})` }
   }

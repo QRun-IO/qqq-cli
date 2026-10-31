@@ -131,7 +131,7 @@ export function validateValue(field: FieldMeta, raw: unknown): string | undefine
       if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || Number.isNaN(Date.parse(text))) return 'must be a date, YYYY-MM-DD'
       break
     case 'DATE_TIME':
-      if (Number.isNaN(Date.parse(text))) return 'must be a date and time, YYYY-MM-DDTHH:MM'
+      if (!/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/i.test(text) || Number.isNaN(Date.parse(text.replace(' ', 'T')))) return 'must be a date and time, YYYY-MM-DDTHH:MM (local time) or an ISO instant'
       break
     case 'TIME':
       if (!/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(text)) return 'must be a time, HH:MM'

@@ -21,6 +21,7 @@ import { registerAuth } from './commands/auth.js'
 import { registerCompletion } from './commands/completion.js'
 import { registerConfig } from './commands/config.js'
 import { registerExtensions } from './commands/extensions.js'
+import { registerHelp } from './commands/help.js'
 import { registerJob } from './commands/job.js'
 import { registerMisc } from './commands/misc.js'
 import { registerProcess } from './commands/process.js'
@@ -39,6 +40,7 @@ program
   .option('-Q, --query <jmespath>', 'reshape the output with a JMESPath expression, as `aws --query`')
   .option('--fields <names>', 'comma-separated columns to show in table, text and csv output')
   .option('-y, --yes', 'answer yes to confirmations (delete, cancel)')
+  .option('--utc', 'show DATE_TIME values as raw UTC instants instead of in the local zone (TZ)')
   .option('--trace', 'print stack traces for unexpected errors')
   .exitOverride()
   .configureOutput({ writeErr: (text) => process.stderr.write(text) })
@@ -56,6 +58,7 @@ registerApi(program, ctx)
 registerExtensions(program, ctx)
 registerCompletion(program, ctx)
 registerConfig(program, ctx)
+registerHelp(program, ctx)
 
 /** Flat aliases from 0.1: forward to the noun-verb commands with the same options. */
 function alias(flat: string, noun: string, verb: string, description: string): void {

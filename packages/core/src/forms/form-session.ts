@@ -13,6 +13,7 @@
 
 import { applyAdjustment, fieldAdjusterIdentifier, hasTableOnLoadAdjuster, runFormAdjuster, type FormAdjusterOutput } from './adjuster.js'
 import { applyBehaviors, dependentsOf, dependencyValues, getDependencies, isContingentlyDisabled, isMissingValue, missingDependencies, validateValues, type FieldMeta, type FieldValues, type PossibleValue } from './fields.js'
+import { defaultTimeZone, isInstant, localToUtc, utcToLocal } from './datetime.js'
 import { resolvePossibleValue, searchPossibleValues, type FormScope } from './possible-values.js'
 
 export interface FormSessionOptions {
@@ -25,6 +26,8 @@ export interface FormSessionOptions {
   tableMeta?: { supplementalMetaData?: Record<string, unknown> }
   /** Fields never offered for input (the primary key on create). */
   exclude?: string[]
+  /** The zone DATE_TIME values are typed and shown in (default: the TZ environment). */
+  timeZone?: string
 }
 
 export interface FieldState {
@@ -56,6 +59,9 @@ export class FormSession {
   private readonly fetchImpl: typeof fetch
   private readonly tableMeta?: FormSessionOptions['tableMeta']
   private readonly exclude: Set<string>
+  /** The zone typed DATE_TIME values are read in. */
+  readonly timeZone: string
+  private readonly originals: FieldValues
 
   constructor(options: FormSessionOptions) {
     this.baseUrl = options.baseUrl
@@ -66,7 +72,11 @@ export class FormSession {
     this.order = options.fields.map((f) => f.name)
     this.fields = Object.fromEntries(options.fields.map((f) => [f.name, f]))
     this.values = { ...(options.initialValues ?? {}) }
+    this.originals = { ...(options.initialValues ?? {}) }
+    this.timeZone = options.timeZone ?? defaultTimeZone()
     for (const f of options.fields) if (this.values[f.name] === undefined && f.defaultValue !== undefined && f.defaultValue !== null) this.values[f.name] = f.defaultValue
+    // DATE_TIME instants are shown in the local zone
+    for (const f of options.fields) if (f.type === 'DATE_TIME' && isInstant(this.values[f.name])) this.displayValues[f.name] = utcToLocal(String(this.values[f.name]), this.timeZone)
   }
 
   /** Runs the table's on-load adjuster when it declares one. */
@@ -163,6 +173,12 @@ export class FormSession {
     if (isContingentlyDisabled(field, this.values)) throw new FormInputError(`${field.label}: ${this.state(name).disabledBecause}`)
     let value: unknown = input
     if (typeof input === 'string') value = applyBehaviors(field, input)
+    if (field.type === 'DATE_TIME' && typeof value === 'string' && !isMissingValue(value)) {
+      // typed local time to the UTC instant the server stores; an unchanged wall-clock time keeps the original instant
+      value = localToUtc(value, { timeZone: this.timeZone, original: this.originals[name] })
+      if (isInstant(value)) this.displayValues[name] = utcToLocal(String(value), this.timeZone)
+      else delete this.displayValues[name]
+    }
     if (this.hasChoices(name) && typeof value === 'string' && !isMissingValue(value)) {
       const resolved = await this.resolveChoice(name, value)
       value = resolved.id

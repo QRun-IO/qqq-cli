@@ -98,6 +98,13 @@ qqq table create pet --set name=Pixel --set personId=2 --set speciesId=2
 qqq table update pet 7 --set name=Pixel2
 qqq table delete pet 7            # asks; --yes skips
 qqq table export person --format xlsx --out people.xlsx
+qqq table export person -w "id <= 5" -o -id --fields id,firstName,email --format tsv --out -   # stdout; format also from --out
+qqq table query person --search lair            # quick search: CONTAINS over the text fields, ANDed with -w/-g
+qqq table get country --key name=Canada         # Go To by a unique key (exit 5 none, exit 2 several)
+qqq table copy pet 1 --set name=Copycat         # copy a record (--dry-run shows the values first)
+qqq apps show greetingsApp                      # an app's home: actions, reports, tables with record counts, widgets
+qqq report list                                 # the sample app has no reports
+qqq help show table person [field] ; qqq help show process greet   # help content from the metadata (none in the sample)
 qqq process list ; qqq process describe sleepInteractive
 qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
 qqq process run clonePeople -r 1,2                       # records by primary key
@@ -145,18 +152,51 @@ qqq process run placeAddressPick -v countryId=USA -v stateId=Illinois -v cityId=
 qqq table create pet --set name=Rex --set personId=1 --set speciesId=1 --set birthDate=2020-13-40   # exit 6, checked locally
 ```
 
+Processes show every screen as the web does, in component order: help text, HTML as text, `label: value` pairs
+(on every step, not only the last), the process records as a table (paged through `GET …/records`, `--record-limit`),
+the validation review (count, preview, then the validation lines), the summary lines, files to download (saved to
+`--out-dir` with the path printed) and widgets in steps. Intermediate screens go to stderr; the last screen is the
+command's output (`--output json` gives the raw response).
+
+```sh
+qqq process run greetInteractive -r 1,2,3 -v greetingPrefix=Hi       # results: values, then the greeted records
+qqq process run clonePeople -r 1,2                  # on a terminal: "Validate fully … or skip validation? [v/S]"
+qqq process run clonePeople -r 1,2 --validate       # validation lines, then "Submit? [Y/n]" (n cancels the run)
+qqq process run sleepInteractive -v sleepMillis=8000   # press Ctrl-C while it runs: POST …/cancel, exit 130
+qqq process describe person.bulkEdit                # steps, fields, and the process and step help
+```
+
+Ctrl-C during a run (while a job runs or at a prompt) asks the server to cancel it (`POST …/cancel`) and exits 130;
+a second Ctrl-C leaves at once. When a step reports a `backStep`, the terminal offers `b` to go back to it with the
+values entered so far (none of the sample's processes declares one). A process's `minInputRecords` and
+`maxInputRecords` are checked before `init` (a filter is counted first).
+
 Possible-value fields take an id, an exact label, or a partial label that matches one choice; an ambiguous partial
 lists the candidates. Validation (required, type, length, range, pattern) runs locally before the request, with the
 same codes and messages the server would give. Form adjusters (on-load and on-change rules an application declares)
 are called when the server has them; this sample app has none.
+
+DATE_TIME values are typed and shown in your zone (the `TZ` environment) and sent as UTC instants, as the web
+UI does; `--utc` shows the raw instants. A time skipped by a spring-forward change moves forward by the gap; a
+time repeated by a fall-back change means its first occurrence. In filters, a date alone on a DATE_TIME field
+means local midnight. Fields the server formats in a declared zone (fixed or per-record) keep its text.
+
+```sh
+TZ=America/Chicago qqq table create fieldLab --set name=tz --set dateTimeValue=2026-10-31T14:30   # stored 19:30Z
+qqq table get fieldLab 4                          # Date Time Value  2026-10-31 14:30:00 CDT
+qqq --utc table get fieldLab 4                    # Date Time Value  2026-10-31T19:30:00Z
+TZ=Asia/Tokyo qqq table get fieldLab 4            # 2026-11-01 04:30:00 GMT+9
+qqq table query fieldLab -w "dateTimeValue BETWEEN 2026-10-31,2026-10-31T23:59" --print-filter
+qqq process run fieldLab.bulkEdit -r 4 -v bulkEditEnabledFields=dateTimeValue -v dateTimeValue=2026-10-31T09:15 -v name=tz --validate
+```
 
 Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `lastPeriod(week)`,
 `startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
 the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views,
-column statistics, joins, variants, audits, record copy, help content display, jobs on a durable-jobs server,
-TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
+column statistics, joins, variants, audits, jobs on a durable-jobs server,
+TABLE_BASED sign-in.
 
 ## Extensions (qbits)
 
