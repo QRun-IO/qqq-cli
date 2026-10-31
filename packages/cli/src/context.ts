@@ -13,6 +13,16 @@ import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client
 import { FilterSyntaxError, OUTPUT_FORMATS, applyQuery, callOperation, defaultFormat, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { authenticatedFetch, clientFor, selectTarget, target, type Target } from './session.js'
 
+/**
+ * Where output goes. The CLI writes to the process streams; `runCli` (the TUI's `:` command line)
+ * points these at a pane for the duration of one command.
+ */
+export const io = {
+  out: (text: string): void => { process.stdout.write(text) },
+  err: (text: string): void => { process.stderr.write(text) },
+  isTTY: (): boolean => Boolean(process.stdout.isTTY),
+}
+
 /** Exit codes, as in the design doc (KofTwentyTwo ADR-0031 shape). */
 export const EXIT = { ok: 0, error: 1, usage: 2, auth: 3, transient: 4, notFound: 5, validation: 6, unexpected: 70 } as const
 
@@ -60,7 +70,7 @@ export class Context {
   get format(): OutputFormat {
     if (this.options.output) return this.options.output
     if (this.options.json) return 'json'
-    return defaultFormat(Boolean(process.stdout.isTTY))
+    return defaultFormat(io.isTTY())
   }
 
   /** `--fields a,b,c` as a list, or undefined. */
@@ -70,7 +80,7 @@ export class Context {
 
   /** Prints a result in the chosen format, after --query. */
   print(printable: Printable): void {
-    process.stdout.write(render(printable, this.format, this.options.query) + '\n')
+    io.out(render(printable, this.format, this.options.query) + '\n')
   }
 
   /** Reshapes data with --query without printing (for callers that print themselves). */
@@ -114,7 +124,7 @@ export class Context {
 
   /** A note for people, on stderr so pipes stay clean. */
   note(text: string): void {
-    process.stderr.write(text + '\n')
+    io.err(text + '\n')
   }
 }
 

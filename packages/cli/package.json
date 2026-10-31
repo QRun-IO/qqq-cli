@@ -27,5 +27,15 @@
     "@qrun-io/qqq-ui-api-client": "1.8.0-rc.1",
     "commander": "15.0.0",
     "@qrun-io/qqq-core": "0.1.0-dev"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./program": {
+      "types": "./dist/program.d.ts",
+      "default": "./dist/program.js"
+    }
   }
 }
