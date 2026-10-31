@@ -5,39 +5,69 @@
 
 import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { FormInputError, FormSession, buildFilter, combineWithQuickSearch, copyRecordValues, findRecordByKey, gotoKeys, isGotoKey, printFilter, quickSearchFields, quickSearchFilter, type FieldMeta, type QueryFilter } from '@qrun-io/qqq-core'
+import { FormInputError, FormSession, JoinError, buildFilter, combineWithQuickSearch, copyRecordValues, associationJoin, defaultJoinColumns, exposedJoins, fieldLabel, findRecordByKey, gotoKeys, isGotoKey, joinFieldNames, planJoins, printFilter, quickSearchFields, quickSearchFilter, resolveField, listTableVariants, variantBody, variantParam, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
 import { UsageError, type Context } from '../context.js'
-import { defaultFields, labelsFor, parsePairs, readJson, valueText, type Json } from './shared.js'
+import { defaultFields, parsePairs, readJson, valueText, type Json } from './shared.js'
+import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
-interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string }
+interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean }
 
 /** The formats the export route writes. */
 const EXPORT_FORMATS = ['csv', 'xlsx', 'json', 'tsv']
 
-/** A field of the table, or `joinTable.field` of one of its exposed joins. */
-function isKnownField(meta: Json, name: string): boolean {
-  if ((meta.fields as Json | undefined)?.[name]) return true
-  const at = name.indexOf('.')
-  if (at < 1) return false
-  const joinTable = name.slice(0, at)
-  return ((meta.exposedJoins ?? []) as Json[]).some((j) => (j.joinTable as Json | undefined)?.name === joinTable && Boolean(((j.joinTable as Json).fields as Json | undefined)?.[name.slice(at + 1)]))
+/**
+ * The joins a command may use: the table's exposed joins, plus, when a join is asked for that is not
+ * exposed, the table's associations (each joined table's metadata fetched).
+ */
+async function availableJoins(c: Context, meta: Json, options: { join?: string[]; where?: string[]; group?: string[]; order?: string[]; filterJson?: string }, columns?: string[]): Promise<ExposedJoin[]> {
+  const exposed = exposedJoins(meta, (await c.metaData() as unknown as Json).tables as Record<string, Json> | undefined)
+  const text = [...(options.join ?? []), ...(columns ?? []), ...(options.where ?? []), ...(options.group ?? []), ...(options.order ?? []), options.filterJson ?? ''].join(' ')
+  const wanted = (meta.associations ?? []) as Json[]
+  const extra: ExposedJoin[] = []
+  for (const association of wanted) {
+    const table = String(association.associatedTableName ?? '')
+    if (!table || exposed.some((j) => j.table === table) || extra.some((j) => j.table === table)) continue
+    if (!(options.join ?? []).includes(table) && !text.includes(`${table}.`)) continue
+    const join = associationJoin(association, await c.tableMeta<Json>(table))
+    if (join) extra.push(join)
+  }
+  return [...exposed, ...extra]
 }
 
 async function tableMeta(c: Context, table: string): Promise<Json> {
   return c.tableMeta<Json>(table)
 }
 
-function filterFrom(options: QueryOptions, meta: Json, columns?: string[]): QueryFilter {
+function filterFrom(options: QueryOptions, meta: Json, columns?: string[], joins: ExposedJoin[] = []): QueryFilter {
+  const knownFields = [...Object.keys((meta.fields ?? {}) as Json), ...joinFieldNames(joins)]
   const filter = options.filterJson ? readJson(options.filterJson, '--filter-json') as QueryFilter
-    : buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields: Object.keys((meta.fields ?? {}) as Json) })
+    : buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields })
   if (options.search === undefined) return filter
   // quick search as the web UI does it: CONTAINS on each shown string field, ORed, ANDed onto the filter
   const fields = quickSearchFields(meta, columns)
   if (!fields.length) throw new UsageError(`--search: ${meta.label} has no text fields to search${columns ? ' among --fields' : ''}`)
   return combineWithQuickSearch(filter, quickSearchFilter(options.search, fields))
+}
+
+/** The joins a query or count needs (--join, plus joined names in columns and the filter). */
+function joinsFrom(options: QueryOptions, available: ExposedJoin[], columns: string[] | undefined, filter: QueryFilter): { joins?: QueryJoin[]; used: ExposedJoin[]; includeDistinct: boolean } {
+  try {
+    const plan = planJoins(available, { named: options.join, select: options.select, columns, filter })
+    return { ...(plan.joins.length ? { joins: plan.joins } : {}), used: plan.used, includeDistinct: plan.includeDistinct }
+  } catch (error) {
+    if (error instanceof JoinError) throw new UsageError(error.message)
+    throw error
+  }
+}
+
+/** Prints a count, with the distinct count when a many-side join can repeat records. */
+function printCount(c: Context, result: Json, includeDistinct: boolean): void {
+  const row: Json = { count: result.count }
+  if (includeDistinct) row.distinctCount = result.distinctCount ?? ''
+  c.print({ data: result, rows: [row], columns: Object.keys(row) })
 }
 
 /** --fields of the command (or the global one), as a list. */
@@ -46,7 +76,7 @@ function columnsFrom(c: Context, options: { fields?: string }): string[] | undef
 }
 
 export function registerTable(program: Command, ctx: () => Context): void {
-  const table = program.command('table').description('Tables: list, describe, query, count, get, create, copy, update, delete, export.')
+  const table = program.command('table').description('Tables: list, describe, variants, query, count, get, create, copy, update, delete, export.')
 
   table.command('list')
     .description('List the tables you may read (optionally of one app).')
@@ -86,6 +116,15 @@ export function registerTable(program: Command, ctx: () => Context): void {
       c.print({ data: meta, rows: fields, columns: ['name', 'label', 'type', 'required', 'editable', 'possibleValues', 'hidden'], footer: `${meta.label} (${meta.name}), primary key ${meta.primaryKeyField}\n${sections}\ncapabilities: ${((meta.capabilities ?? []) as string[]).join(', ')}` })
     })
 
+  table.command('variants <table>')
+    .description('The variants a table\'s backend can be scoped to (give one to other commands with --variant).')
+    .action(async (name: string) => {
+      const c = ctx()
+      const meta = await tableMeta(c, name)
+      const variants = await listTableVariants(c.server, authenticatedFetch(c.target), name)
+      c.print({ data: variants, rows: variants.map((v) => ({ id: v.id, name: v.name ?? '', type: v.type })), columns: ['id', 'name', 'type'], footer: meta.usesVariants ? `${meta.label} needs a ${String(meta.variantTableLabel ?? 'variant')}: --variant <id|name>` : `${meta.label} does not use variants${variants.length ? '' : ' (none listed)'}` })
+    })
+
   const query = table.command('query <table>')
     .description('Query a table. Criteria: "field OPERATOR value[,value]" (operators as the UI API, or = != < <= > >= ~); values may be now(-7d), thisPeriod(month), startOf(quarter,-1), me(), ${variable.x}.')
     .option('-w, --where <criteria...>', 'criteria, ANDed (or --or)')
@@ -101,33 +140,42 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--print-filter', 'print the QueryFilter JSON the options produced and stop')
     .option('--count', 'print only the count of matching records')
     .option('-S, --search <text>', 'quick search: records whose text fields contain this, ANDed with the filter (as the web UI search box)')
+    .option('-j, --join <table...>', 'join exposed joins (by joined table name or label); joined fields are named table.field in --fields, --where and --order')
+    .option('--select', 'select the --join tables\' fields (shown columns from a join select it anyway)')
+    .option(...VARIANT_OPTION)
     .action(async (name: string, options: QueryOptions) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
-      const filter = filterFrom(options, meta, columnsFrom(c, options))
+      const given = columnsFrom(c, options)
+      const available = await availableJoins(c, meta, options, given)
+      const filter = filterFrom(options, meta, given, available)
+      const { joins, used, includeDistinct } = joinsFrom(options, available, given, filter)
       if (options.printFilter) {
-        c.print({ data: filter })
+        c.print({ data: joins ? { filter, joins } : filter })
         return
       }
+      const variant = await chooseVariant(c, meta, options.variant)
       if (options.count) {
-        const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}/count', { params: { path: { tableName: name }, query: { includeDistinct: false } }, body: { filter: filter as never } })) as Json
-        c.print({ data: result, rows: [{ count: result.count }], columns: ['count'] })
+        const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}/count', { params: { path: { tableName: name }, query: { includeDistinct } }, body: { filter: filter as never, ...(joins ? { joins: joins as never } : {}), ...variantBody(variant) } })) as Json
+        printCount(c, result, includeDistinct)
         return
       }
       const records: Json[] = []
       const limit = options.all ? Number(options.pageSize) : Number(options.limit)
       let skip = Number(options.skip ?? 0)
       for (;;) {
-        const body = { filter: { ...filter, skip, limit } as never }
+        const body = { filter: { ...filter, skip, limit } as never, ...(joins ? { joins: joins as never } : {}), ...variantBody(variant) }
         const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}/query', { params: { path: { tableName: name } }, body })) as Json
         const page = (result.records ?? []) as Json[]
         records.push(...page)
         if (!options.all || page.length < limit) break
         skip += limit
       }
-      const fields = columnsFrom(c, options) ?? defaultFields(meta)
+      const selected = used.filter((j) => joins?.find((q) => q.joinTable === j.table)?.select || options.select)
+      const fields = given ?? [...defaultFields(meta), ...selected.flatMap((j) => defaultJoinColumns(j))]
+      const joinsShown = used.map((j) => j.table)
       const rows = records.map((r) => Object.fromEntries(fields.map((f) => [f, valueText(r, f)])))
-      c.print({ data: records, rows, columns: fields, headers: labelsFor(meta, fields), footer: `(${records.length} record${records.length === 1 ? '' : 's'}${filter.criteria?.length || filter.subFilters?.length ? `; filter: ${printFilter(filter)}` : ''}${!options.all && records.length === limit ? '; more may exist: --limit, --skip or --all' : ''})` })
+      c.print({ data: records, rows, columns: fields, headers: fields.map((f) => fieldLabel(meta, used, f)), footer: `(${records.length} record${records.length === 1 ? '' : 's'}${joinsShown.length ? `; joined: ${joinsShown.join(', ')}${includeDistinct ? ' (many-side: rows may repeat a record; --count gives the distinct count)' : ''}` : ''}${variant ? `; variant ${variant.name ?? `${variant.type}:${variant.id}`}` : ''}${filter.criteria?.length || filter.subFilters?.length ? `; filter: ${printFilter(filter)}` : ''}${!options.all && records.length === limit ? '; more may exist: --limit, --skip or --all' : ''})` })
     })
 
   table.command('count <table>')
@@ -137,37 +185,47 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--or', 'OR the --where criteria')
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON')
     .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
+    .option('-j, --join <table...>', 'join exposed joins (by joined table name or label); joined fields are named table.field in --fields, --where and --order')
+    .option('--select', 'select the --join tables\' fields (shown columns from a join select it anyway)')
+    .option(...VARIANT_OPTION)
     .action(async (name: string, options: QueryOptions) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
-      const filter = filterFrom(options, meta)
-      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}/count', { params: { path: { tableName: name }, query: { includeDistinct: false } }, body: { filter: filter as never } })) as Json
-      c.print({ data: result, rows: [{ count: result.count }], columns: ['count'] })
+      const available = await availableJoins(c, meta, options)
+      const filter = filterFrom(options, meta, undefined, available)
+      const { joins, includeDistinct } = joinsFrom(options, available, undefined, filter)
+      const variant = await chooseVariant(c, meta, options.variant)
+      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}/count', { params: { path: { tableName: name }, query: { includeDistinct } }, body: { filter: filter as never, ...(joins ? { joins: joins as never } : {}), ...variantBody(variant) } })) as Json
+      printCount(c, result, includeDistinct)
     })
 
   table.command('get <table> [primaryKey]')
     .description('View one record, with field labels and display values: by primary key, or by a unique key with --key field=value (the web UI\'s Go To).')
     .option('--associations', 'include associated records')
     .option('-k, --key <field=value...>', 'find the record by key fields instead of the primary key (one match required)')
-    .action(async (name: string, primaryKeyArg: string | undefined, options: { associations?: boolean; key?: string[] }) => {
+    .option('-j, --join <table...>', 'include fields of these exposed joins (table.field)')
+    .option(...VARIANT_OPTION)
+    .action(async (name: string, primaryKeyArg: string | undefined, options: { associations?: boolean; key?: string[]; join?: string[]; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      const variant = await chooseVariant(c, meta, options.variant)
+      const plan = joinsFrom({ join: options.join, select: true } as QueryOptions, await availableJoins(c, meta, { join: options.join }), undefined, { criteria: [], booleanOperator: 'AND' })
       let primaryKey = primaryKeyArg
       if (options.key?.length) {
         if (primaryKey !== undefined) throw new UsageError('Give a primary key or --key, not both.')
         const values = parsePairs(options.key, '--key')
         for (const field of Object.keys(values)) if (!(meta.fields as Json)[field]) throw new UsageError(`No field "${field}" in ${name}`)
         if (!isGotoKey(meta, Object.keys(values))) c.note(`note: ${Object.keys(values).join('+')} is not a declared key of ${meta.label} (keys: ${gotoKeys(meta).map((k) => k.join('+')).join(', ')}); looking it up anyway`)
-        const found = await findRecordByKey(c.server, authenticatedFetch(c.target), meta, values)
+        const found = await findRecordByKey(c.server, authenticatedFetch(c.target), meta, values, { tableVariant: variant })
         if (found.found === 'none') throw new UiApiError(404, { code: 'NOT_FOUND', message: 'Record not found.' })
         if (found.found === 'many') throw new UsageError(`More than 1 record was found for ${Object.entries(values).map(([k, v]) => `${k}=${v}`).join(', ')}; it is not a unique key (use table query).`)
         primaryKey = found.primaryKey
       }
       if (primaryKey === undefined) throw new UsageError('Give a primary key, or --key field=value.')
-      const result = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { includeAssociations: options.associations ? true : undefined } as never } })) as Json
+      const result = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { includeAssociations: options.associations ? true : undefined, queryJoins: plan.joins ? JSON.stringify(plan.joins) : undefined, tableVariant: variantParam(variant) } as never } })) as Json
       const record = (result.record ?? result) as Json
-      const fieldMeta = (meta.fields ?? {}) as Record<string, Json>
-      const rows = defaultFields(meta, 1000).map((f) => ({ field: String(fieldMeta[f]?.label ?? f), value: valueText(record, f) }))
+      const shown = [...defaultFields(meta, 1000), ...plan.used.flatMap((j) => defaultJoinColumns(j, 1000))]
+      const rows = shown.map((f) => ({ field: fieldLabel(meta, plan.used, f), value: valueText(record, f) }))
       c.print({ data: record, rows, columns: ['field', 'value'], headers: ['Field', 'Value'], footer: String(record.recordLabel ?? `${meta.label} ${primaryKey}`) })
     })
 
@@ -199,7 +257,8 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--input-json <json|file|->', 'the whole record as a JSON object of field values')
     .option('-i, --interactive', 'prompt for fields on the terminal')
     .option('--generate-input-skeleton', 'print an empty JSON object with the editable fields and stop')
-    .action(async (name: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; generateInputSkeleton?: boolean }) => {
+    .option(...VARIANT_OPTION)
+    .action(async (name: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; generateInputSkeleton?: boolean; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
       const fields = (meta.fields ?? {}) as Record<string, Json>
@@ -211,10 +270,11 @@ export function registerTable(program: Command, ctx: () => Context): void {
       }
       const given = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
       if (!Object.keys(given).length && !options.interactive) throw new UsageError('Give field values with --set name=value or --input-json, or prompt with -i.')
+      const variant = await chooseVariant(c, meta, options.variant, { write: true })
       const session = await fillForm(c, meta, name, given, options)
       const problems = session.validate()
       if (Object.keys(problems).length) validationError(session, problems)
-      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}', { params: { path: { tableName: name } }, body: session.submission() as never })) as Json
+      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}', { params: { path: { tableName: name }, query: { tableVariant: variantParam(variant) } as never }, body: session.submission() as never })) as Json
       const record = (result.record ?? result) as Json
       const pk = (record.values as Json | undefined)?.[String(meta.primaryKeyField)] ?? record[String(meta.primaryKeyField)] ?? ''
       c.print({ data: result, rows: [{ created: `${meta.label} ${pk}`, label: record.recordLabel ?? '' }], columns: ['created', 'label'] })
@@ -225,11 +285,13 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-s, --set <name=value...>', 'values to change in the copy')
     .option('-i, --interactive', 'prompt for every editable field, the copied values shown')
     .option('--dry-run', 'print the values the copy would insert and stop')
-    .action(async (name: string, primaryKey: string, options: { set?: string[]; interactive?: boolean; dryRun?: boolean }) => {
+    .option(...VARIANT_OPTION)
+    .action(async (name: string, primaryKey: string, options: { set?: string[]; interactive?: boolean; dryRun?: boolean; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      const variant = await chooseVariant(c, meta, options.variant, { write: !options.dryRun })
       if (meta.insertPermission === false) throw new UiApiError(403, { code: 'PERMISSION_DENIED', message: `You may not create ${meta.label} records` })
-      const source = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: {} as never } })) as Json
+      const source = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { tableVariant: variantParam(variant) } as never } })) as Json
       const sourceRecord = (source.record ?? source) as Json
       const copied = copyRecordValues(meta, sourceRecord)
       const given = parsePairs(options.set, '--set')
@@ -243,7 +305,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
         c.print({ data: values, rows: Object.entries(values).map(([field, value]) => ({ field, value: session.displayValues[field] ?? value ?? '' })), columns: ['field', 'value'] })
         return
       }
-      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}', { params: { path: { tableName: name } }, body: values as never })) as Json
+      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}', { params: { path: { tableName: name }, query: { tableVariant: variantParam(variant) } as never }, body: values as never })) as Json
       const record = (result.record ?? result) as Json
       const pk = (record.values as Json | undefined)?.[String(meta.primaryKeyField)] ?? ''
       c.print({ data: result, rows: [{ created: `${meta.label} ${pk}`, label: record.recordLabel ?? '', from: `${meta.label} ${primaryKey}` }], columns: ['created', 'label', 'from'] })
@@ -255,14 +317,16 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--input-json <json|file|->', 'field values as a JSON object')
     .option('-i, --interactive', 'prompt for every editable field, current values shown')
     .option('--expected-version <v>', 'optimistic locking: fail when the record changed')
-    .action(async (name: string, primaryKey: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; expectedVersion?: string }) => {
+    .option(...VARIANT_OPTION)
+    .action(async (name: string, primaryKey: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; expectedVersion?: string; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      const variant = await chooseVariant(c, meta, options.variant, { write: true })
       const given = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
       if (!Object.keys(given).length && !options.interactive) throw new UsageError('Give field values with --set name=value or --input-json, or prompt with -i.')
       let initial: Json | undefined
       if (options.interactive) {
-        const existing = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: {} as never } })) as Json
+        const existing = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { tableVariant: variantParam(variant) } as never } })) as Json
         initial = ((existing.record ?? existing) as Json).values as Json
       }
       const session = await fillForm(c, meta, name, given, { interactive: false }, initial)
@@ -275,21 +339,23 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const problems = session.validate(touched)
       if (Object.keys(problems).length) validationError(session, problems)
       const values = Object.fromEntries(touched.map((n) => [n, session.values[n] ?? null]))
-      const result = await c.unwrap(c.client.PATCH('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { expectedVersion: options.expectedVersion } as never }, body: values as never })) as Json
+      const result = await c.unwrap(c.client.PATCH('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { expectedVersion: options.expectedVersion, tableVariant: variantParam(variant) } as never }, body: values as never })) as Json
       const record = (result.record ?? result) as Json
       c.print({ data: result, rows: [{ updated: `${meta.label} ${primaryKey}`, label: record.recordLabel ?? '', fields: touched.join(', ') }], columns: ['updated', 'label', 'fields'] })
     })
 
   table.command('delete <table> <primaryKey>')
     .description('Delete a record (asks first; --yes skips the question).')
-    .action(async (name: string, primaryKey: string) => {
+    .option(...VARIANT_OPTION)
+    .action(async (name: string, primaryKey: string, options: { variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      const variant = await chooseVariant(c, meta, options.variant, { write: true })
       if (!await c.confirm(`Delete ${meta.label} ${primaryKey}?`)) {
         c.note('Not deleted.')
         return
       }
-      const result = await c.unwrap(c.client.DELETE('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey } } })) as Json
+      const result = await c.unwrap(c.client.DELETE('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { tableVariant: variantParam(variant) } as never } })) as Json
       c.print({ data: result ?? {}, rows: [{ deleted: `${meta.label} ${primaryKey}` }], columns: ['deleted'] })
     })
 
@@ -306,6 +372,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--out <file>', 'output file, or - for stdout (default: <table>.<format>)')
     .option('--no-header', 'leave out the header row (csv, tsv, xlsx)')
     .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
+    .option(...VARIANT_OPTION)
     .action(async (name: string, options: QueryOptions & { format?: string; out?: string; header: boolean }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
@@ -313,12 +380,15 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const format = (options.format ?? (fromOut && EXPORT_FORMATS.includes(fromOut) ? fromOut : 'csv')).toLowerCase()
       if (!EXPORT_FORMATS.includes(format)) throw new UsageError(`--format must be one of ${EXPORT_FORMATS.join(', ')}`)
       const columns = columnsFrom(c, options)
-      const unknown = (columns ?? []).filter((f) => !isKnownField(meta, f))
+      // the export route takes joined columns of exposed joins by name (it has no joins member)
+      const available = exposedJoins(meta)
+      const unknown = (columns ?? []).filter((f) => !resolveField(meta, available, f))
       if (unknown.length) throw new UsageError(`No field ${unknown.join(', ')} in ${name}; fields: ${Object.keys((meta.fields ?? {}) as Json).join(', ')}`)
       if (options.limit !== undefined && !(Number(options.limit) > 0)) throw new UsageError('--limit must be a positive number')
-      const filter = filterFrom(options, meta, columns)
+      const filter = filterFrom(options, meta, columns, available)
+      const variant = await chooseVariant(c, meta, options.variant)
       const out = options.out ?? `${name}.${format}`
-      const result = await c.call('exportTable', { path: { tableName: name }, json: { format, filter, fieldNames: columns, limit: options.limit ? Number(options.limit) : undefined, ...(options.header === false ? { includeHeaderRow: false } : {}) } })
+      const result = await c.call('exportTable', { path: { tableName: name }, json: { format, filter, fieldNames: columns, limit: options.limit ? Number(options.limit) : undefined, ...(options.header === false ? { includeHeaderRow: false } : {}), ...variantBody(variant) } })
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
       if (out === '-') {
         process.stdout.write(bytes)
