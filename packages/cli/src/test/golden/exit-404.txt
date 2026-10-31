@@ -1,0 +1,3 @@
+--- stderr ---
+Error: fake 404 (NOT_FOUND, HTTP 404, trace trace-404)
+--- exit 5

@@ -1,0 +1,3 @@
+--- stderr ---
+Error: Interactive prompts need a terminal; give values with --set, --values or --input-json.
+--- exit 2

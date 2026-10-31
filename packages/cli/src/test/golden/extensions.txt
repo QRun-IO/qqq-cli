@@ -1,0 +1,18 @@
+extension       noun                installed  status         client  minimum  operations  channels
+--------------  ------------------  ---------  -------------  ------  -------  ----------  -----------------------------------------
+esb             qqq esb             1.1.0      ok             1.1.0   1.1.0    5
+health          qqq health                     not installed  1.1.0   1.1.0    4
+alerts          qqq alerts                     not installed  1.2.0            6
+assistant       qqq assistant                  not installed  1.6.0            16
+collaboration   qqq collab                     not installed  1.1.0   1.1.0    45          record:{table}:{pk} table:{table} user:me
+data-analysis   qqq data-analysis              not installed  1.5.0            21
+db-performance  qqq db-performance             not installed  1.0.0            4
+edi             qqq edi                        not installed  1.1.0            4
+qa-capture      qqq qa-capture                 not installed  1.0.0            2
+quick-search    qqq quick-search               not installed  1.1.0            2
+release-notes   qqq release-notes              not installed  1.0.0            3
+secured-data    qqq secured-data               not installed  1.1.0            3
+sql-workbench   qqq sql-workbench              not installed  1.1.0            21
+(installed: esb 1.1.0; 136 extension operations in this client)
+--- stderr ---
+--- exit 0

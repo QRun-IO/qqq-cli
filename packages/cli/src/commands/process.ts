@@ -3,15 +3,15 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
-import { BACK, displayDateTime, formatValue, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpText, isMissingValue, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, variantParam, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, displayDateTime, formatValue, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpToText, isMissingValue, processHelp, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, variantParam, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { ask, promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
-import { parsePairs, readJson, type Json } from './shared.js'
+import { downloadDir, intOption, parsePairs, positiveInt, readFileArg, readJson, type Json } from './shared.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
 async function processMeta(c: Context, name: string): Promise<Json> {
@@ -47,12 +47,9 @@ export function registerProcess(program: Command, ctx: () => Context): void {
         if (!formFields.length) rows.push({ step: step.name, label: step.label, components, field: '', type: '', required: '' })
         for (const f of formFields) rows.push({ step: step.name, label: step.label, components, field: f.name, type: f.type, required: f.isRequired ? 'yes' : '' })
       }
-      const help = [
-        ...processHelpText(meta as never),
-        ...((meta.frontendSteps ?? []) as Json[]).flatMap((step) => helpText(step.helpContents as never).map((t) => `${String(step.label ?? step.name)}: ${t}`)),
-        ...((meta.frontendSteps ?? []) as Json[]).flatMap((step) => ((step.components ?? []) as Json[]).filter((x) => x.type === 'HELP_TEXT' && (x.values as Json | undefined)?.text).map((x) => `${String(step.label ?? step.name)}: ${String((x.values as Json).text)}`)),
-      ]
-      c.print({ data: meta, rows, columns: ['step', 'label', 'components', 'field', 'type', 'required'], footer: `${meta.label} (${meta.name})${meta.tableName ? ` on table ${meta.tableName}` : ''}; records: ${meta.minInputRecords ?? 0}..${meta.maxInputRecords ?? 'any'}${help.length ? `\n\nHelp:\n${help.join('\n')}` : ''}` })
+      // the same help `qqq help show process <p>` prints
+      const help = processHelp(meta)
+      c.print({ data: meta, rows, columns: ['step', 'label', 'components', 'field', 'type', 'required'], footer: `${meta.label} (${meta.name})${meta.tableName ? ` on table ${meta.tableName}` : ''}; records: ${meta.minInputRecords ?? 0}..${meta.maxInputRecords ?? 'any'}${help.length ? `\n\nHelp:\n${helpToText(help)}` : ''}` })
     })
 
   proc.command('run <process>')
@@ -67,7 +64,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
     .option('--timeout <ms>', 'how long each step may run before the server backgrounds it', '0')
     .option('--skip-validation', 'on a validation review step, skip full validation')
     .option('--validate', 'on a validation review step, run full validation first')
-    .option('--out-dir <dir>', 'where files a step offers for download are saved', '.')
+    .option('--out-dir <dir>', 'where files a step offers for download are saved (default: the download directory, else the current one)')
     .option('--record-limit <n>', 'most records a record list shows', '100')
     .option('--quiet', 'no progress or intermediate screens on stderr')
     .option(...VARIANT_OPTION)
@@ -100,9 +97,10 @@ export function registerProcess(program: Command, ctx: () => Context): void {
         for (const block of screen) {
           if (block.kind !== 'download') continue
           const file = await downloadProcessFile(c.server, fetchImpl, block)
-          mkdirSync(options.outDir, { recursive: true })
+          const dir = options.outDir ?? downloadDir()
+          mkdirSync(dir, { recursive: true })
           // the name comes from the server: last segment only, and never overwrite an existing file
-          const path = saveDownload(join(options.outDir, safeFileName(block.fileName)), file.bytes, { explicit: false })
+          const path = saveDownload(join(dir, safeFileName(block.fileName)), file.bytes, { explicit: false })
           saved.push(path)
           c.note(`saved ${path} (${file.bytes.length} bytes${file.contentType ? `, ${file.contentType}` : ''})`)
         }
@@ -110,6 +108,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
 
       // Ctrl-C: the first cancels the run on the server, a second leaves at once
       const abort = new AbortController()
+      let declined = false
       const onInterrupt = () => {
         if (abort.signal.aborted) process.exit(130)
         c.note('\ncancelling (Ctrl-C again to leave at once)...')
@@ -125,12 +124,12 @@ export function registerProcess(program: Command, ctx: () => Context): void {
           meta,
           values: given,
           records,
-          files: Object.fromEntries(Object.entries(parsePairs(options.file, '--file')).map(([field, path]) => [field, { name: basename(path), bytes: new Uint8Array(readFileSync(path)) }])),
-          stepTimeoutMillis: Number(options.timeout),
+          files: Object.fromEntries(Object.entries(parsePairs(options.file, '--file')).map(([field, path]) => [field, { name: basename(path), bytes: readFileArg(path, `--file ${field}`) }])),
+          stepTimeoutMillis: intOption(options.timeout, '--timeout'),
           tableVariant,
           always: Boolean(options.interactive),
           signal: abort.signal,
-          screen: { recordLimit: Number(options.recordLimit), format: (field, value, shown) => (field.type === 'DATE_TIME' ? displayDateTime(value, shown, c.dateTimeDisplay) : formatValue(field, value)) },
+          screen: { recordLimit: positiveInt(options.recordLimit, '--record-limit'), format: (field, value, shown) => (field.type === 'DATE_TIME' ? displayDateTime(value, shown, c.dateTimeDisplay) : formatValue(field, value)) },
           onProgress: (e) => {
             if (options.quiet) return
             if (e.phase === 'init') c.note(`${meta.label ?? name}: starting`)
@@ -157,6 +156,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
               } else if (values.validationSummary !== undefined && canPrompt && !c.options.yes) {
                 const answer = await ask('Submit? [Y/n] ', { signal: abort.signal })
                 if (/^n/i.test(answer)) {
+                  declined = true
                   abort.abort()
                   throw new Error('not submitted')
                 }
@@ -194,6 +194,11 @@ export function registerProcess(program: Command, ctx: () => Context): void {
           },
         })
       } catch (error) {
+        if (error instanceof ProcessCancelledError && declined) {
+          // answering no is a choice, as "Not deleted." is for table delete: exit 0
+          c.note(`Not submitted; ${meta.label ?? name} ${error.message}${error.processUUID ? ` (process ${error.processUUID})` : ''}`)
+          return
+        }
         if (error instanceof ProcessCancelledError) {
           c.note(`${meta.label ?? name}: ${error.message}${error.processUUID ? ` (process ${error.processUUID})` : ''}`)
           process.exitCode = 130
@@ -207,7 +212,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
     })
 }
 
-interface RunOptions { values?: string[]; valuesJson?: string; records?: string; filterJson?: string; file?: string[]; interactive?: boolean; prompt: boolean; timeout: string; skipValidation?: boolean; validate?: boolean; outDir: string; recordLimit: string; quiet?: boolean; variant?: string }
+interface RunOptions { values?: string[]; valuesJson?: string; records?: string; filterJson?: string; file?: string[]; interactive?: boolean; prompt: boolean; timeout: string; skipValidation?: boolean; validate?: boolean; outDir?: string; recordLimit: string; quiet?: boolean; variant?: string }
 
 function outcomeStepLabel(meta: ProcessMeta, stepName: string): string {
   return meta.frontendSteps?.find((s) => s.name === stepName)?.label ?? stepName

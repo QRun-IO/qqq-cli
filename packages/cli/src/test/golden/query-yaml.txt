@@ -1,0 +1,8 @@
+- id: 1
+  name: Avery Sample
+- id: 2
+  name: Blair Sample
+- id: 3
+  name: Casey Sample
+--- stderr ---
+--- exit 0

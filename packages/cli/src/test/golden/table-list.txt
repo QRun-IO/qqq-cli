@@ -1,0 +1,21 @@
+name              label                 insert  edit  delete
+----------------  --------------------  ------  ----  ------
+placeAddress      Address book          yes     yes   yes
+carrier           Carrier               yes     yes   yes
+stateCity         Cities by state       yes     yes   yes
+country           Countries             yes     yes   yes
+customer          Customer              yes     yes   yes
+fieldLab          Field Lab             yes     yes   yes
+person            Person                yes     yes   yes
+pet               Pet                   yes     yes   yes
+petNote           Pet Note              yes     yes   yes
+petSpecies        Pet Species           yes     yes   yes
+sales_order       Sales Order           yes     yes   yes
+sales_order_line  Sales Order Line      yes     yes   yes
+sales_order_tag   Sales Order Tag       yes     yes   yes
+sku               SKU                   yes     yes   yes
+countryState      States and provinces  yes     yes   yes
+tag               Tag                   yes     yes   yes
+user_preference   User Preferences      yes     yes   yes
+--- stderr ---
+--- exit 0

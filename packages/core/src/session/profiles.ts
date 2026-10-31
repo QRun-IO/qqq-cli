@@ -18,12 +18,47 @@ export interface Profile {
   server: string
   note?: string
   createdAt?: string
+  /** Display settings of the terminal UI for this profile only (override the global `ui`). */
+  ui?: Pick<UiSettings, 'theme'>
+}
+
+/** Local display settings of the terminal UI (not server preferences): theme and per-screen view settings. */
+export interface UiSettings {
+  theme?: string
+  /** Keyed by screen, e.g. `table:person`, `record:person`, `app:peopleApp`. */
+  views?: Record<string, ViewSettings>
+}
+
+/** How one screen is shown: grid columns and widths, stripes, density; record columns; widget order. */
+export interface ViewSettings {
+  /** Visible grid columns, in order. */
+  columns?: string[]
+  /** Column widths in cells, by field name. */
+  widths?: Record<string, number>
+  /** How free width is used: fit columns to content, or fill the terminal width. */
+  fit?: 'content' | 'fill'
+  zebra?: boolean
+  headerRule?: boolean
+  density?: 'compact' | 'comfortable'
+  /** Record view: one or two columns of fields, and the label width. */
+  recordColumns?: 1 | 2
+  labelWidth?: number
+  /** App home: widget names in display order. */
+  widgetOrder?: string[]
+  [key: string]: unknown
 }
 
 export interface Config {
   defaultProfile?: string
   profiles: Record<string, Profile>
+  /** Local client settings shared by the CLI and the TUI: theme, views, files (files/navigator.ts). */
+  ui?: UiSettings
+  /** Sections this version does not know are kept as they are. */
+  [section: string]: unknown
 }
+
+/** config.json is not valid JSON: refused, so a write never replaces the profiles with nothing. */
+export class ConfigFileError extends Error {}
 
 export function configDir(env: NodeJS.ProcessEnv = process.env): string {
   return env.QQQ_CONFIG_DIR ?? join(env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'qqq')
@@ -32,12 +67,14 @@ export function configDir(env: NodeJS.ProcessEnv = process.env): string {
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const file = join(configDir(env), 'config.json')
   if (!existsSync(file)) return { profiles: {} }
+  let parsed: Config
   try {
-    const parsed = JSON.parse(readFileSync(file, 'utf8')) as Config
-    return { defaultProfile: parsed.defaultProfile, profiles: parsed.profiles ?? {} }
-  } catch {
-    return { profiles: {} }
+    parsed = JSON.parse(readFileSync(file, 'utf8')) as Config
+  } catch (error) {
+    throw new ConfigFileError(`${file} is not valid JSON (${error instanceof Error ? error.message : String(error)}); fix or remove it (nothing was changed)`)
   }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new ConfigFileError(`${file} is not a JSON object; fix or remove it (nothing was changed)`)
+  return { ...parsed, profiles: parsed.profiles ?? {} }
 }
 
 export function writeConfig(config: Config, env: NodeJS.ProcessEnv = process.env): void {
@@ -101,4 +138,36 @@ export function removeProfile(name: string, env: NodeJS.ProcessEnv = process.env
   if (config.defaultProfile === name) config.defaultProfile = Object.keys(config.profiles)[0]
   writeConfig(config, env)
   return had
+}
+
+/** The terminal UI theme in effect: the profile's, else the global one, else undefined (the UI's default). */
+export function readTheme(profile?: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const config = readConfig(env)
+  return (profile ? config.profiles[profile]?.ui?.theme : undefined) ?? config.ui?.theme
+}
+
+/** Saves the theme globally, or for one profile when `profile` is given. */
+export function writeTheme(theme: string | undefined, options: { profile?: string } = {}, env: NodeJS.ProcessEnv = process.env): void {
+  const config = readConfig(env)
+  if (options.profile && config.profiles[options.profile]) {
+    config.profiles[options.profile]!.ui = { ...config.profiles[options.profile]!.ui, theme }
+  } else {
+    config.ui = { ...config.ui, theme }
+  }
+  writeConfig(config, env)
+}
+
+/** The saved view settings of one screen (`table:person`), or an empty object. */
+export function readViewSettings(key: string, env: NodeJS.ProcessEnv = process.env): ViewSettings {
+  return { ...(readConfig(env).ui?.views?.[key] ?? {}) }
+}
+
+/** Saves the view settings of one screen, replacing what was saved; undefined removes them. */
+export function writeViewSettings(key: string, view: ViewSettings | undefined, env: NodeJS.ProcessEnv = process.env): void {
+  const config = readConfig(env)
+  const views = { ...(config.ui?.views ?? {}) }
+  if (view === undefined) delete views[key]
+  else views[key] = view
+  config.ui = { ...config.ui, views }
+  writeConfig(config, env)
 }

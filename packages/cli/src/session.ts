@@ -47,9 +47,8 @@ export function selectTarget(options: { profile?: string; server?: string }): vo
   selection = options
 }
 
-/** The current target, after importing any 0.1 credentials file. */
+/** The current target (main imports any 0.1 credentials file before a command runs). */
 export function target(): Target {
-  importLegacyCredentials()
   return resolveProfile(selection)
 }
 
@@ -81,7 +80,8 @@ export async function getLogin(t: Target): Promise<StoredLogin | undefined> {
   try {
     return JSON.parse(raw) as StoredLogin
   } catch {
-    return undefined
+    // treating it as "not signed in" would hide the problem behind a 401
+    throw new Error(`The stored sign-in of profile "${t.name}" is unreadable; \`qqq logout\` then \`qqq login\` replaces it.`)
   }
 }
 
@@ -162,8 +162,12 @@ export function secretStoreKind(): string {
   return secrets().kind
 }
 
-/** Imports ~/.config/qqq-cli/credentials.json (0.1) into profiles and the keyring, once. */
-function importLegacyCredentials(): void {
+/**
+ * Imports ~/.config/qqq-cli/credentials.json (0.1) into profiles and the keyring, once. The file is
+ * renamed only after every sign-in was stored; when the keyring refuses one, the file stays and
+ * the next command tries again.
+ */
+export async function importLegacyCredentials(): Promise<void> {
   const dir = process.env.QQQ_CLI_HOME ?? join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'qqq-cli')
   const file = join(dir, 'credentials.json')
   if (!existsSync(file)) return
@@ -172,12 +176,12 @@ function importLegacyCredentials(): void {
     const config = readConfig()
     for (const [server, login] of Object.entries(legacy.servers ?? {})) {
       const name = Object.entries(config.profiles).find(([, p]) => p.server === server)?.[0] ?? new URL(server).host.replace(/[^A-Za-z0-9.-]+/g, '-')
+      await secrets().set(`${name}@${server}`, JSON.stringify(login))
       upsertProfile(name, { server, note: 'imported from qqq-cli 0.1' }, { makeDefault: legacy.defaultServer === server })
-      void secrets().set(`${name}@${server}`, JSON.stringify(login))
     }
     renameSync(file, `${file}.imported`)
     process.stderr.write(`Imported the 0.1 sign-ins from ${file} into profiles (${file}.imported kept).\n`)
-  } catch {
-    // leave the file alone
+  } catch (error) {
+    process.stderr.write(`warning: could not import the 0.1 sign-ins from ${file} (${error instanceof Error ? error.message : String(error)}); the file is left as it was\n`)
   }
 }

@@ -1,0 +1,5 @@
+updated         label           fields
+--------------  --------------  ------
+Address book 1  placeAddress 1  cityId
+--- stderr ---
+--- exit 0

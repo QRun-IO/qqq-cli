@@ -28,51 +28,37 @@ qqq-sample-server status | log | restart | stop
 
 Data resets on every restart. Mock auth means no sign-in; `POST /qqq/v1/manageSession` gives a session.
 
-## M0 shell (2026-10-31): classic TUI against the sample server
+## TUI (`qqq ui`, M3)
 
 ```sh
-qqq-tui-spike            # the shell: app tree, tables, records, processes, live footer
-qqq-tui-spike test       # in-memory renderer tests
+qqq ui                         # default profile; qqq --profile sample ui
+qqq ui table query person -w "lastName STARTS_WITH S"     # straight to a screen
+qqq ui --check                 # terminal and tmux check with fixes (also runs quickly at startup)
+npm run test:tui               # in-memory renderer tests; packages/tui/scripts/smoke.sh drives it in tmux
 ```
 
-Keys (the function-key bar at the bottom is the truth):
+Keys (the function-key bar is the truth; F1 or `?` lists them; every action is also in F9 and on `:`):
 
 | Key | Does | Key | Does |
 |---|---|---|---|
-| F1 | help | Esc | back a screen, or back to the Apps tree |
-| F2 | go to any table or process by name | Tab | switch between the Apps tree and the content |
-| F3 | view the record under the cursor | Enter | open (tree item, table row) |
-| F4 | edit (M3) | ↑ ↓ PgUp PgDn Home End | move and page, server-side paging on tables |
-| F5 | refresh | ← → | scroll columns; expand or collapse tree nodes |
-| F6 | filter a table: `field OPERATOR value[,value]` | `s` | sort by the bracketed column |
-| F7 | new record (M3) | `:` | command line: `table person lastName STARTS_WITH S`, `record pet 3`, `process sleepInteractive`, `home`, `quit` |
-| F8 | delete the record under the cursor, with confirm | F9 | menu |
-| F10 | quit | Ctrl+C | quit immediately |
+| F1 `?` | help, what you can do here, help search | Esc | back; the grid keeps its row, filter and page |
+| F2 `/` `.` Ctrl+K | go to anything (apps, tables, processes, recents, commands) | Tab | Apps pane / content |
+| F3 Enter | view / open | PgUp PgDn, Ctrl+F Ctrl+B | page (Ctrl+F/B work even when tmux takes PgUp) |
+| F4 `e` | edit | `]` `[` (PgDn PgUp in a record) | next / previous record of the list |
+| F5 `r` | refresh | `s` | sort by the column under the cursor |
+| F6 `f` | filter: guided builder or the grammar with completion | Space / `b` | select rows / run a process on them |
+| F7 `n` | new (a child on a child list) | `x` `g` `v` | export, go to by key, view settings |
+| F8 `d` | delete, asks | Ctrl+S | save a form or continue a process step |
+| F9 | menu: every command, searchable | `:` | command line, history and completion |
+| F10 | Quit, Reset to home, or Cancel (`:reset`) | Ctrl+C | quit now |
 
-Footer status line, live: server, auth and session, UI API version, ping (every 5 s), realtime stream state
-(reconnects on its own), job count (`n/a` when the server has no `/jobs`), last stream event, clock.
+Things to try: `:table query person`, Enter on a row, PgDn through records, Esc (same row); F6, add a
+condition, Tab to the grammar and type `AND (fi` then Tab; `:table create placeAddress` (country, state, city
+narrow); Space on two people, `b`, Person Bulk Edit; `:app SampleWidgetsDashboard`; F9 Settings for themes,
+download folder, PIN and the screen lock; `:theme light`. See `packages/tui/README.md` for settings and for the
+keys your terminal or tmux may take (`qqq ui --check` finds them).
 
-Things to try: open Person, PgDn through Pets or Cities, F6 with `birthDate GREATER_THAN 1990-01-01`,
-delete a pet with F8 and watch the count, restart the server with `qqq-sample-server restart` and watch
-the footer go to `reconnecting` and back.
-
-## M0 legacy screens: generated grid and form
-
-```sh
-QQQ_SPIKE_SCREEN=legacy qqq-tui-spike    # Ctrl+G grid, Ctrl+F form, Ctrl+P process, Ctrl+Q quit
-qqq-tui-spike binary                      # the compiled macOS binary (legacy screens)
-```
-
-What to look at:
-- Grid: 10,000 generated rows x 40 columns. Arrows, PageUp/Down, Home/End, Left/Right scroll columns,
-  `s` sorts the cursor column. The status line shows key-to-frame latency. Resize the window.
-- Form: Tab between every field type, type into the Home State field to filter the picker, Enter to
-  pick, Ctrl+S validates and shows errors beside fields.
-- Process: runs the sample's Sleep Interactive process on the server with an async job and polling.
-  Change the milliseconds, press Enter. Watch the log lines at the bottom.
-
-Known: typing in the same instant as Tab (paste, automation) lands in the previous field; a human does
-not hit this. Windows binary is cross-compiled and unverified.
+The M0 spike (`qqq-tui-spike`, `packages/tui-spike`) stays in the repo for reference.
 
 ## CLI (`qqq`, M1 in progress)
 
@@ -104,7 +90,7 @@ qqq table get country --key name=Canada         # Go To by a unique key (exit 5 
 qqq table copy pet 1 --set name=Copycat         # copy a record (--dry-run shows the values first)
 qqq apps show greetingsApp                      # an app's home: actions, reports, tables with record counts, widgets
 qqq report list                                 # the sample app has no reports
-qqq help show table person [field] ; qqq help show process greet   # help content from the metadata (none in the sample)
+qqq help show table person ; qqq help show table person firstName ; qqq help show process greet   # help content from the metadata (none in the sample)
 qqq table query person --join pet --select -l 4      # joins: exposed joins (none in the sample), else the table's associations
 qqq table query person --fields id,firstName,pet.name -w "pet.name STARTS_WITH C" -o pet.name
 qqq table count person --join pet                     # many-side join: count and distinctCount
@@ -112,7 +98,8 @@ qqq table get person 1 --join pet
 qqq table variants person                             # none in the sample; --variant <id|name|type:id> on table commands and process run
 qqq table stats person annualSalary --local -l 3     # column statistics; the sample has no columnStats process, --local computes them
 qqq saved-view list person ; qqq saved-view open person <view> ; qqq table query person --view <view> -w …   # saved views (none in the sample)
-qqq saved-view save person --name Mine -w "lastName = Sample" -o -id --fields id,firstName -l 50 ; saved-view rename|delete person Mine …
+qqq saved-view save person --name Mine -w "lastName = Sample" -o -id --fields id,firstName -l 50   # -l is the view's page size
+qqq saved-view rename person Mine Mine2 ; qqq saved-view delete person Mine2 --yes
 qqq audit list person 1                               # audit history (the sample audits nothing: exit 2 with the reason)
 qqq process list ; qqq process describe sleepInteractive
 qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
@@ -165,13 +152,42 @@ metadata cache):
 
 ```sh
 eval "$(qqq completion zsh)"      # or bash; fish: qqq completion fish | source; pwsh: see qqq completion pwsh
-qqq cache show | refresh | clear  # the metadata cache behind listings and completion (5 minutes, ~/.cache/qqq)
+qqq cache show ; qqq cache refresh ; qqq cache clear   # the metadata cache behind listings and completion (5 minutes, ~/.cache/qqq)
 ```
 
-Global options go anywhere: `--server`, `--output json|table|text|csv|yaml` (`-O`), `--json`, `--query` (`-Q`),
-`--fields`, `--yes`, `--trace`. Table on a terminal, JSON in a pipe, `QQQ_OUTPUT` overrides. Exit codes:
-0 ok, 1 error, 2 usage or bad filter, 3 auth, 4 server unreachable or rate limited, 5 not found,
-6 validation, 70 server error. `qqq job …` says this sample server has no jobs operations.
+Global options go anywhere: `--server`, `--profile` (`-p`), `--output json|table|text|csv|yaml` (`-O`), `--json`,
+`--query` (`-Q`), `--fields`, `--yes` (`-y`), `--utc`, `--trace`, `--version`. Table on a terminal, JSON in a pipe,
+`QQQ_OUTPUT` overrides. `--server` and `--path` have no short form (`-s` is `--set`, `-p` is `--profile`), and `-V`
+is `--view` on `table query` (the version is `--version`). The same option names mean the same thing on every noun:
+`--where/-w`, `--group/-g`, `--order/-o`, `--limit/-l`, `--skip`, `--fields/-f`, `--join/-j`, `--variant`,
+`--reveal`, `--yes`; numbers are checked before anything is sent (`-l many` exits 2). Every list ends with the same
+footer, `(3 records; joined: pet; more may exist: --limit, --skip or --all)`. Exit codes: 0 ok (also "Not deleted."
+and "Not submitted." after a no), 1 error, 2 usage or bad filter (also Ctrl-D at a question), 3 auth, 4 server
+unreachable, rate limited or a 502/503/504, 5 not found, 6 validation, 70 server error, 130 Ctrl-C (a run cancelled,
+`tail` stopped). `qqq job …` says this sample server has no jobs operations.
+
+Downloads (`table download`, `table export`, `report run`, `widget get --csv`, process files) go where `--out` or
+`--out-dir` says (`-` is stdout), else into the download directory when one is set, else the current directory;
+a default name never replaces a file (`name-1.ext`). The settings live in the `ui` section of
+`~/.config/qqq/config.json` and are the same ones the TUI's F9 Settings change:
+
+```sh
+qqq config set download-dir ~/Downloads/qqq     # created when missing; an empty value removes it
+qqq config get ; qqq config get download-dir    # also upload-dir, download-mode (ask|silent, the TUI) and theme
+qqq config set theme classic ; qqq -p sample config set theme light   # globally, or for one profile
+qqq table export person                         # wrote ~/Downloads/qqq/person.csv
+```
+
+Is everything in order? `qqq doctor` checks the profile, the server (reachable, UI API version within 1.6.0 to
+1.8.0, authentication type, the sign-in accepted, extensions), the keyring and the metadata cache, and exits 1 with
+what failed. `--conformance` adds the read-only conformance checks. The terminal rows come from the same check as
+`qqq ui --check` (tmux bindings that take PageUp/PageDown and F-keys, alternate screen, colour, unicode, size);
+`--fix` offers each live tmux fix (`--yes` answers those) and appends them to `~/.tmux.conf` only after a y typed at
+the terminal.
+
+```sh
+qqq doctor ; qqq doctor --conformance ; qqq doctor --fix
+```
 
 Contingent fields (field 1 narrows field 2) are handled by the kernel's form session, for tables and process
 steps alike. The sample's Address book is country → state → city:
@@ -180,6 +196,8 @@ steps alike. The sample's Address book is country → state → city:
 qqq table create placeAddress --set label=Home --set countryId=USA --set stateId=Missouri --set cityId="St. Louis"
 qqq table create placeAddress --set label=X --set stateId=Missouri      # exit 2: set Country first
 qqq table create placeAddress -i                                        # prompts; choices narrow after each answer
+qqq table update placeAddress 3 --set cityId="Kansas City"              # narrowed by the record's own state (Missouri), no -i needed
+qqq table update placeAddress 3 --set stateId=Illinois                  # clears and sends the city that depended on it
 qqq table update placeAddress 3 -i                                      # prompts with the current values
 qqq process run placeAddressPick                                        # asks for what the step lacks, same narrowing
 qqq process run placeAddressPick -v countryId=USA -v stateId=Illinois -v cityId=spring   # labels, ids or unique partials
@@ -224,9 +242,10 @@ qqq table children person 1 pets --limit 2 --skip 2    # one page of a child lis
 qqq table children pet 1 notes --all
 qqq table create pet --parent person=2 --set name=Rexley --set speciesId=Dog    # a child linked to its parent
 qqq table create petNote --parent pet=5 --set "note=Vet visit"                 # then: qqq table get person 2 --associations
-qqq table create fieldLab --set name=withfile --upload blobValue=./notes.txt   # multipart/form-data
+echo hello > notes.txt ; echo other > other.txt
+qqq table create fieldLab --set name=withfile --upload blobValue=./notes.txt   # multipart/form-data; note the id it prints
 qqq table update fieldLab 1 --upload blobValue=./other.txt ; qqq table update fieldLab 1 --set blobValue=   # replace, remove
-qqq table download fieldLab 1 blobValue -o copy.txt                            # -o - for stdout
+qqq table download fieldLab 1 blobValue -o copy.txt                            # -o - for stdout; without -o, the download directory
 qqq table get person 1 --help-content          # table, section and field help inline (this sample app declares none; qqq help show for help alone)
 ```
 
@@ -236,7 +255,7 @@ time repeated by a fall-back change means its first occurrence. In filters, a da
 means local midnight. Fields the server formats in a declared zone (fixed or per-record) keep its text.
 
 ```sh
-TZ=America/Chicago qqq table create fieldLab --set name=tz --set dateTimeValue=2026-10-31T14:30   # stored 19:30Z
+TZ=America/Chicago qqq table create fieldLab --set name=tz --set dateTimeValue=2026-10-31T14:30   # stored 19:30Z; use the id it prints below
 qqq table get fieldLab 4                          # Date Time Value  2026-10-31 14:30:00 CDT
 qqq --utc table get fieldLab 4                    # Date Time Value  2026-10-31T19:30:00Z
 TZ=Asia/Tokyo qqq table get fieldLab 4            # 2026-11-01 04:30:00 GMT+9

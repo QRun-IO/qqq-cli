@@ -34,19 +34,16 @@ export async function chooseVariant(c: Context, meta: Json, typed: string | unde
     chosen = variants[0]!
     c.note(`${label}: ${chosen.name ?? chosen.id} (the only one)`)
   } else if (variants.length && process.stdin.isTTY) {
-    const { createInterface } = await import('node:readline/promises')
-    const rl = createInterface({ input: process.stdin, output: process.stderr })
+    const { ask } = await import('../prompt.js')
+    variants.forEach((v, i) => process.stderr.write(`  ${i + 1}. ${v.name ?? v.id} (${v.id})\n`))
+    const answer = await ask(`${meta.label} needs a ${label}: `)
+    if (!answer) throw new UsageError(`No ${label} chosen; nothing was queried.`)
+    const index = Number(answer)
     try {
-      variants.forEach((v, i) => process.stderr.write(`  ${i + 1}. ${v.name ?? v.id} (${v.id})\n`))
-      const answer = (await rl.question(`${meta.label} needs a ${label}: `)).trim()
-      if (!answer) throw new UsageError(`No ${label} chosen; nothing was queried.`)
-      const index = Number(answer)
       chosen = Number.isInteger(index) && index >= 1 && index <= variants.length ? variants[index - 1]! : resolveVariant(variants, answer)
     } catch (error) {
       if (error instanceof VariantError) throw new UsageError(error.message)
       throw error
-    } finally {
-      rl.close()
     }
   } else {
     throw new UsageError(`${meta.label} needs a ${label}: --variant <id|name>${variants.length ? ` (${variants.slice(0, 10).map((v) => `${v.name ?? v.id} (${v.id})`).join(', ')}${variants.length > 10 ? ', …' : ''})` : '; the server lists none'}`)

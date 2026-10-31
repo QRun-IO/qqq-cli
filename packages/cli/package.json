@@ -23,6 +23,14 @@
     "qqq": "dist/main.js"
   },
   "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./program": {
+      "types": "./dist/program.d.ts",
+      "default": "./dist/program.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -46,6 +54,7 @@
   "dependencies": {
     "@qrun-io/qqq-core": "1.0.0-rc.1",
     "@qrun-io/qqq-ui-api-client": "1.8.0-rc.2",
+    "@qrun-io/qqq-ui-api-conformance": "1.6.0-rc.2",
     "commander": "15.0.0"
   }
 }

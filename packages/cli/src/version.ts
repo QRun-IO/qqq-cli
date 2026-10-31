@@ -31,6 +31,6 @@ export function versionText(): string {
   const build = BUILD_TARGET ? `${BUILD_TARGET} binary${BUILD_SHA ? `, ${BUILD_SHA}` : ''}` : `node ${process.versions.node}`
   return [
     `qqq ${CLI_VERSION} (${build})`,
-    `UI API: servers ${UI_API_RANGE}; client generated from ${UI_API_VERSION}`,
+    `UI API client ${UI_API_VERSION}; servers UI API ${UI_API_RANGE}`,
   ].join('\n')
 }

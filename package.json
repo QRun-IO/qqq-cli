@@ -23,7 +23,9 @@
     "prepublishOnly": "npm run build",
     "lint": "node scripts/lint.mjs",
     "binaries": "node scripts/build-binaries.mjs",
-    "release": "node scripts/release.mjs"
+    "release": "node scripts/release.mjs",
+    "test:tui": "cd packages/tui && bun install --frozen-lockfile && bun test",
+    "typecheck:tui": "cd packages/tui && bun install --frozen-lockfile && npx tsc -p tsconfig.json"
   },
   "devDependencies": {
     "@stoplight/prism-cli": "5.16.0",

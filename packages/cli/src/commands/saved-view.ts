@@ -3,12 +3,12 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import type { Command } from 'commander'
+import { Option, type Command } from 'commander'
 import { decodeJwtClaims } from '@qrun-io/qqq-ui-api-client'
 import { SavedViewError, buildFilter, buildViewJson, callOperation, deleteSavedView, exposedJoins, findSavedView, joinFieldNames, listSavedViews, printFilter, resolveField, savedViewProcesses, storeSavedView, variantBody, viewToQuery, type QueryFilter, type SavedView, type SavedViewProcesses } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch, currentToken, getLogin } from '../session.js'
-import { defaultFields, readJson, type Json } from './shared.js'
+import { countFooter, defaultFields, positiveInt, readJson, type Json } from './shared.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
 /** The signed-in user's id as saved views record owners (email, else username or subject). */
@@ -78,7 +78,7 @@ export function registerSavedView(program: Command, ctx: () => Context): void {
       }))
       const mine = rows.filter((r) => r.owner === 'you')
       const ordered = [...mine, ...rows.filter((r) => r.owner !== 'you')]
-      c.print({ data: views, rows: ordered, columns: ['id', 'label', 'owner', 'type', 'filter', 'count'], footer: `(${views.length} view${views.length === 1 ? '' : 's'}${processes.store ? '' : '; saving is unavailable'})` })
+      c.print({ data: views, rows: ordered, columns: ['id', 'label', 'owner', 'type', 'filter', 'count'], footer: countFooter(views.length, 'view', [!processes.store && 'saving is unavailable']) })
     })
 
   sv.command('open <table> <view>')
@@ -99,9 +99,10 @@ export function registerSavedView(program: Command, ctx: () => Context): void {
     .option('-o, --order <field...>', 'sort; prefix - for descending')
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON instead')
     .option('-f, --fields <names>', 'comma-separated columns to show (default: the table\'s default columns)')
-    .option('-l, --page-size <n>', 'rows per page', '25')
+    .option('-l, --limit <n>', 'rows per page (the view\'s page size; as --limit on table query)')
+    .addOption(new Option('--page-size <n>', 'same as --limit').hideHelp())
     .option('--replace', 'update your view of that name instead of refusing')
-    .action(async (table: string, options: { name: string; where?: string[]; group?: string[]; or?: boolean; order?: string[]; filterJson?: string; fields?: string; pageSize: string; replace?: boolean }) => {
+    .action(async (table: string, options: { name: string; where?: string[]; group?: string[]; or?: boolean; order?: string[]; filterJson?: string; fields?: string; limit?: string; pageSize?: string; replace?: boolean }) => {
       const c = ctx()
       const { meta, processes, fetchImpl } = await context(c, table)
       const filter = options.filterJson ? readJson(options.filterJson, '--filter-json') as QueryFilter
@@ -115,7 +116,7 @@ export function registerSavedView(program: Command, ctx: () => Context): void {
       if (same.length && !options.replace) throw new UsageError(`A view named "${options.name}" exists (id ${same.map((v) => v.id).join(', ')}); nothing was saved. --replace updates it.`)
       const target = same.find((v) => !me || !v.userId || v.userId === me) ?? same[0]
       const allColumns = Object.keys((meta.fields ?? {}) as Json).filter((n) => !((meta.fields as Record<string, Json>)[n]!.isHidden))
-      const view = buildViewJson({ filter, columns, allColumns, rowsPerPage: Number(options.pageSize), base: target?.view })
+      const view = buildViewJson({ filter, columns, allColumns, rowsPerPage: positiveInt(options.limit ?? options.pageSize ?? '25', '--limit'), base: target?.view })
       const stored = await guard(() => storeSavedView(c.server, fetchImpl, processes, { table, label: options.name, view, ...(target ? { id: target.id } : {}) }))
       c.print({ data: stored, rows: [{ [target ? 'updated' : 'saved']: stored.label, id: stored.id }], columns: [target ? 'updated' : 'saved', 'id'] })
     })

@@ -73,6 +73,9 @@ export interface RunnerOptions {
   onProgress?: (event: { step?: string; message?: string; current?: number; total?: number; phase: 'init' | 'step' | 'running' | 'complete' | 'back' | 'cancel' }) => void
 }
 
+/** Most steps a run takes before the runner stops it as a loop. */
+export const MAX_STEPS = 200
+
 /** Returned by a provider to go back to the step's back step. */
 export const BACK: unique symbol = Symbol('qqq.process.back')
 
@@ -172,11 +175,13 @@ export async function runProcess(options: RunnerOptions): Promise<RunOutcome> {
     response = await settle(response)
     if (response.type !== 'COMPLETE') throw new ProcessError(`unexpected ${response.type} after init`, response.processUUID)
 
-    for (let guard = 0; guard < 200; guard++) {
+    for (let guard = 0; ; guard++) {
       checkAbort()
       if (response.processMetaDataAdjustment?.updatedFrontendStepList) steps = response.processMetaDataAdjustment.updatedFrontendStepList
       const next = response.nextStep
       if (!next) break
+      // a server that keeps answering with a next step is a loop, not a completed run
+      if (guard >= MAX_STEPS) throw new ProcessError(`${meta.label ?? meta.name} did not finish after ${MAX_STEPS} steps (last: ${next})`, processUUID)
       const step = steps.find((s) => s.name === next) ?? { name: next }
       const isLast = steps.length > 0 && steps[steps.length - 1]!.name === next
       options.onProgress?.({ phase: 'step', step: next })
