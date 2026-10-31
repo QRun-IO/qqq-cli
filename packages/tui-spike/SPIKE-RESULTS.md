@@ -68,13 +68,41 @@ Design context: `QRun-IO/.planning/research/tui-cli-clients.md` (section 8, spik
 - Node 26 `--experimental-ffi` path and Node SEA (deferred to M5 as the second packaging route).
 - Ink was not tried, because OpenTUI met every criterion that could be checked here.
 
+## Addendum, same day: the classic shell
+
+James asked for the feel of a great old TUI: Page Up and Page Down everywhere, function keys, a real-time
+footer. `src/shell/` is that, against the live sample server: title bar with breadcrumbs, the app tree
+from `appTree`, server-paged table grid (`POST /table/{t}/query` + `/count`, page size = visible rows),
+record view by sections and tiers, the process screen, overlays (help, go-to, menu, confirm, prompt), a
+`:` command line, and a status line that pings every 5 s, follows the SSE stream state (reconnects with
+backoff), and shows session, API version, job count and clock. F1 to F10 bar at the bottom, Midnight
+Commander style. `TRY-IT.md` has the keymap.
+
+What it taught us for M3:
+
+- Function keys arrive as `f1`..`f12`; tmux and iTerm pass them. macOS Terminal needs "Use F1, F2, etc.
+  keys as standard function keys" or the keys go to the OS; every F-key action also needs a non-F path
+  (the `:` line and the menu cover that today).
+- A screen that throws takes the whole terminal down with a stack trace and no restore. The shell now has
+  a per-screen error boundary; the real TUI head needs one at every screen and overlay plus a top-level
+  handler that restores the terminal.
+- `GET /table/{t}/{pk}` returns `{ record }`, not a bare record (the query endpoint returns `{ records }`).
+- `GET /jobs` is not served by the sample app even though `features` lists `durableJobs`; the footer
+  shows `jobs n/a` rather than guessing.
+- The realtime stream's `hello` event carries `heartbeatSeconds`; a client can time out a silent stream
+  at twice that and reconnect.
+- Processes with no frontend steps (`simpleSleep`) complete on `init`; `clonePeople` refuses `init`
+  without records and the error must be shown, not thrown.
+- Keying screens by route identity (`key={table}` etc.) is what resets per-screen state when the route
+  changes to the same screen type; without it the process screen kept the previous process.
+
 ## How to run it
 
 ```sh
 cd packages/tui-spike
 bun install
 bun test                         # in-memory renderer
-bun run src/main.tsx             # Ctrl+G grid, Ctrl+F form, Ctrl+P process, Ctrl+Q quit
+bun run src/main.tsx             # the classic shell; QQQ_SPIKE_SCREEN=legacy for the first screens
 QQQ_SERVER=http://localhost:8077 QQQ_PROCESS=sleepInteractive bun run src/main.tsx
 bun run build.ts [darwin|linux|windows]   # dist/ executables (needs the native packages, see above)
 ```

@@ -24,7 +24,7 @@ export const GRID_COLORS = {
    text: "#d5dce5",
 };
 
-function pad(text: string, width: number): string
+export function pad(text: string, width: number): string
 {
    if (text.length === width)
    {

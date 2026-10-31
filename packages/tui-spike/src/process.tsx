@@ -6,7 +6,7 @@ import type { KeyEvent } from "@opentui/core";
 import { ApiError, UiApi, type AuthMetaData, type ProcessMetaData, type ProcessStepResponse, type VersionResponse } from "./api";
 
 const BASE = (process.env.QQQ_SERVER ?? "http://localhost:8077") + "/qqq/v1";
-const PROCESS = process.env.QQQ_PROCESS ?? "sleepInteractive";
+const DEFAULT_PROCESS = process.env.QQQ_PROCESS ?? "sleepInteractive";
 
 const C = { dim: "#66737f", acc: "#7cc2e8", ok: "#8bd49b", err: "#ff9088", key: "#ffd98a", bar: "#8bd49b", barBg: "#2a333f", focusBg: "#1f3646" };
 
@@ -17,9 +17,10 @@ interface Log
    kind: "info" | "ok" | "err";
 }
 
-export function ProcessScreen({ width, active }: { width: number; active: boolean })
+export function ProcessScreen({ width, active, processName = DEFAULT_PROCESS, api: sharedApi }: { width: number; active: boolean; processName?: string; api?: UiApi })
 {
-   const api = useRef(new UiApi(BASE));
+   const PROCESS = processName;
+   const api = useRef(sharedApi ?? new UiApi(BASE));
    const [phase, setPhase] = useState<"connecting" | "ready" | "running" | "done" | "error">("connecting");
    const [meta, setMeta] = useState<ProcessMetaData | null>(null);
    const [server, setServer] = useState("");
@@ -47,11 +48,14 @@ export function ProcessScreen({ width, active }: { width: number; active: boolea
          {
             const version = await api.current.get<VersionResponse>("/version");
             const auth = await api.current.get<AuthMetaData>("/metaData/authentication");
-            if (auth.type !== "MOCK" && auth.type !== "FULLY_ANONYMOUS")
+            if (!api.current.token)
             {
-               throw new Error(`spike only handles MOCK/FULLY_ANONYMOUS auth, server says ${auth.type}`);
+               if (auth.type !== "MOCK" && auth.type !== "FULLY_ANONYMOUS")
+               {
+                  throw new Error(`spike only handles MOCK/FULLY_ANONYMOUS auth, server says ${auth.type}`);
+               }
+               await api.current.manageSession();
             }
-            await api.current.manageSession();
             const m = await api.current.get<ProcessMetaData>(`/metaData/process/${PROCESS}`);
             if (cancelled)
             {
@@ -60,7 +64,7 @@ export function ProcessScreen({ width, active }: { width: number; active: boolea
             setServer(`${BASE} · UI API ${version.apiVersion} · auth ${auth.type} · session as ${api.current.authMode}`);
             setMeta(m);
             setPhase("ready");
-            log(`connected, session created, process "${m.label}" has ${m.frontendSteps.length} steps`, "ok");
+            log(`connected, process "${m.label}" has ${(m.frontendSteps ?? []).length} frontend steps`, "ok");
          }
          catch (e)
          {
@@ -91,6 +95,10 @@ export function ProcessScreen({ width, active }: { width: number; active: boolea
       try
       {
          const init = await api.current.postForm<ProcessStepResponse>(`/processes/${meta.name}/init`, { values: "{}" });
+         if (init.type === "ERROR")
+         {
+            throw new Error(String(init.userFacingError ?? init.error ?? "process init failed"));
+         }
          if (init.type !== "COMPLETE")
          {
             throw new Error(`unexpected init response ${init.type}`);
@@ -98,14 +106,23 @@ export function ProcessScreen({ width, active }: { width: number; active: boolea
          processUUID.current = init.processUUID;
          log(`init → processUUID ${init.processUUID.slice(0, 8)}… next step ${init.nextStep}`);
          setStepIndex(1);
-         const step0 = meta.frontendSteps[0]!;
-         let response = await api.current.postForm<ProcessStepResponse>(`/processes/${meta.name}/${init.processUUID}/step/${step0.name}`, {
-            values: JSON.stringify({ sleepMillis: Number(sleepMillis) || 0 }),
+         const steps = meta.frontendSteps ?? [];
+         const stepName = init.nextStep ?? steps[0]?.name;
+         if (!stepName)
+         {
+            setResult(init.values ?? {}); setElapsed(performance.now() - startedAt.current); setPhase("done");
+            log("process completed on init (no frontend steps)", "ok");
+            return;
+         }
+         const step0 = steps.find((s) => s.name === stepName);
+         const wantsSleep = !step0 || (step0.formFields ?? []).some((f) => f.name === "sleepMillis");
+         let response = await api.current.postForm<ProcessStepResponse>(`/processes/${meta.name}/${init.processUUID}/step/${stepName}`, {
+            values: JSON.stringify(wantsSleep ? { sleepMillis: Number(sleepMillis) || 0 } : {}),
             stepTimeoutMillis: "0",
          });
          if (response.type === "JOB_STARTED")
          {
-            log(`step ${step0.name} → job ${response.jobUUID.slice(0, 8)}… (async)`);
+            log(`step ${stepName} → job ${response.jobUUID.slice(0, 8)}… (async)`);
             const jobUUID = response.jobUUID;
             while (response.type === "JOB_STARTED" || response.type === "RUNNING")
             {
@@ -127,7 +144,7 @@ export function ProcessScreen({ width, active }: { width: number; active: boolea
          {
             setElapsed(performance.now() - startedAt.current);
             setResult(response.values ?? {});
-            setStepIndex(meta.frontendSteps.length);
+            setStepIndex((meta.frontendSteps ?? []).length);
             setPhase("done");
             log(`complete in ${((performance.now() - startedAt.current) / 1000).toFixed(2)} s · nextStep ${response.nextStep}`, "ok");
          }

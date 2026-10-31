@@ -1,6 +1,7 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { App } from "./app";
+import { Shell } from "./shell/shell";
 import { writeReport } from "./perf";
 
 const renderer = await createCliRenderer({ exitOnCtrlC: true, useMouse: false, gatherStats: true, targetFps: 60 });
@@ -11,4 +12,4 @@ renderer.on("destroy", () =>
    void writeReport(reportPath, { platform: process.platform, arch: process.arch, bun: Bun.version, term: process.env.TERM ?? "", columns: process.stdout.columns, rows: process.stdout.rows });
 });
 
-createRoot(renderer).render(<App />);
+createRoot(renderer).render(process.env.QQQ_SPIKE_SCREEN === "legacy" ? <App /> : <Shell />);

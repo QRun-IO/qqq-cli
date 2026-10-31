@@ -19,12 +19,39 @@ qqq-sample-server status | log | restart | stop
 
 Data resets on every restart. Mock auth means no sign-in; `POST /qqq/v1/manageSession` gives a session.
 
-## M0 spike (2026-10-31): OpenTUI feasibility
+## M0 shell (2026-10-31): classic TUI against the sample server
 
 ```sh
-qqq-tui-spike            # from source: Ctrl+G grid, Ctrl+F form, Ctrl+P process, Ctrl+Q quit
-qqq-tui-spike binary     # the compiled macOS binary
+qqq-tui-spike            # the shell: app tree, tables, records, processes, live footer
 qqq-tui-spike test       # in-memory renderer tests
+```
+
+Keys (the function-key bar at the bottom is the truth):
+
+| Key | Does | Key | Does |
+|---|---|---|---|
+| F1 | help | Esc | back a screen, or back to the Apps tree |
+| F2 | go to any table or process by name | Tab | switch between the Apps tree and the content |
+| F3 | view the record under the cursor | Enter | open (tree item, table row) |
+| F4 | edit (M3) | ↑ ↓ PgUp PgDn Home End | move and page, server-side paging on tables |
+| F5 | refresh | ← → | scroll columns; expand or collapse tree nodes |
+| F6 | filter a table: `field OPERATOR value[,value]` | `s` | sort by the bracketed column |
+| F7 | new record (M3) | `:` | command line: `table person lastName STARTS_WITH S`, `record pet 3`, `process sleepInteractive`, `home`, `quit` |
+| F8 | delete the record under the cursor, with confirm | F9 | menu |
+| F10 | quit | Ctrl+C | quit immediately |
+
+Footer status line, live: server, auth and session, UI API version, ping (every 5 s), realtime stream state
+(reconnects on its own), job count (`n/a` when the server has no `/jobs`), last stream event, clock.
+
+Things to try: open Person, PgDn through Pets or Cities, F6 with `birthDate GREATER_THAN 1990-01-01`,
+delete a pet with F8 and watch the count, restart the server with `qqq-sample-server restart` and watch
+the footer go to `reconnecting` and back.
+
+## M0 legacy screens: generated grid and form
+
+```sh
+QQQ_SPIKE_SCREEN=legacy qqq-tui-spike    # Ctrl+G grid, Ctrl+F form, Ctrl+P process, Ctrl+Q quit
+qqq-tui-spike binary                      # the compiled macOS binary (legacy screens)
 ```
 
 What to look at:
