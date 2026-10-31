@@ -59,6 +59,8 @@ test('the permanent fix is appended once in a marked block; choices are remember
     assert.deepEqual(readDoctorState(env).dontAsk, ['tmux-key-PPage'])
     assert.ok(!startupFindings(report, readDoctorState(env)).some((f) => f.id === 'tmux-key-PPage'))
     assert.equal(detectTerminal({ TERM_PROGRAM: 'Apple_Terminal' }), 'Terminal.app')
+    assert.ok(checkEnvironment({ env: { TERM_PROGRAM: 'iTerm.app', LANG: 'en_US.UTF-8', COLORTERM: 'truecolor' }, platform: 'darwin', tmux: () => '' }).findings.some((f) => f.id === 'macos-fkeys' && /iTerm2/.test(f.message)))
+    assert.ok(!checkEnvironment({ env: { LANG: 'C.UTF-8' }, platform: 'linux', tmux: () => '' }).findings.some((f) => f.id === 'macos-fkeys'))
     assert.equal(detectTerminal({ WT_SESSION: '1' }), 'Windows Terminal')
   } finally {
     rmSync(dir, { recursive: true, force: true })

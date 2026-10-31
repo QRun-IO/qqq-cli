@@ -252,7 +252,10 @@ export class AppStore {
   handleKey(raw: Key): void {
     this.lastInput = Date.now()
     // Ctrl+F / Ctrl+B page forward and back everywhere: no terminal or tmux intercepts them
-    const key: Key = raw.ctrl && (raw.name === 'f' || raw.name === 'b') ? { name: raw.name === 'f' ? 'pagedown' : 'pageup', sequence: '' } : raw
+    let key: Key = raw.ctrl && (raw.name === 'f' || raw.name === 'b') ? { name: raw.name === 'f' ? 'pagedown' : 'pageup', sequence: '' } : raw
+    // F-key fallbacks for terminals that take the F-keys: Esc then a digit (arrives as Alt+digit) or Ctrl+digit; 0 is F10
+    const digit = /^[0-9]$/.test(raw.name) ? raw.name : /^[0-9]$/.test(raw.sequence?.slice(-1) ?? '') && raw.meta ? raw.sequence.slice(-1) : undefined
+    if (digit !== undefined && (raw.meta || raw.ctrl)) key = { name: `f${digit === '0' ? 10 : digit}`, sequence: '' }
     try {
       this.dispatch(key)
     } catch (e) {
@@ -502,12 +505,12 @@ export class AppStore {
   }
 
   /** The function-key bar for the current context. */
-  fkeys(): Array<{ n: number; label: string | null }> {
+  fkeys(): Array<{ n: number; label: string | null; global: string }> {
     const defaults: Record<number, string> = { 1: 'Help', 2: 'Go to', 3: 'View', 4: 'Edit', 5: 'Refresh', 6: 'Filter', 7: 'New', 8: 'Delete', 9: 'Menu', 10: 'Quit' }
     const overrides: FKeyLabels = this.screen?.fkeys?.() ?? { 3: null, 4: null, 6: null, 7: null, 8: null }
     return Object.entries(defaults).map(([n, label]) => {
       const k = Number(n)
-      return { n: k, label: k in overrides ? overrides[k]! : label }
+      return { n: k, label: k in overrides ? overrides[k]! : label, global: label }
     })
   }
 

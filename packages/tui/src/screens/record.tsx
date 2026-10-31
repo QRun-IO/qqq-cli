@@ -5,6 +5,9 @@
 
 import { ResultCursor, associationGroups, childFilter, childListFields, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
+import { actionsOverlay } from '../overlays/actions'
+import { AuditScreen } from './audits'
+import { DeveloperScreen } from './developer'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
@@ -314,6 +317,14 @@ export class RecordScreen implements Screen {
     })
   }
 
+  openAudits(): void {
+    if (this.primaryKey !== undefined) this.store.push(new AuditScreen(this.store, this.tableName, this.primaryKey, this.record?.recordLabel))
+  }
+
+  openDeveloper(): void {
+    if (this.primaryKey !== undefined) this.store.push(new DeveloperScreen(this.store, this.tableName, this.primaryKey))
+  }
+
   recordProcesses() {
     return Object.values(this.store.meta?.processes ?? {}).filter((p) => p.tableName === this.tableName && !/bulkInsert|bulkEditWithFile|bulkLoad/i.test(p.name))
   }
@@ -354,6 +365,9 @@ export class RecordScreen implements Screen {
       case 'n': openForm(this.store, this.tableName, { mode: 'create' }); return true
       case 'r': this.refresh(); return true
       case 'l': this.list.current?.action?.(); return true
+      case 'A': this.openAudits(); return true
+      case 'D': this.openDeveloper(); return true
+      case 'a': actionsOverlay(this.store, this); return true
       default: return false
     }
   }
@@ -383,7 +397,8 @@ export class RecordScreen implements Screen {
       if (v.masked) out.push({ section: 'Context', label: `Reveal ${f.label}`, run: () => this.follow([f]) })
     }
     for (const p of this.recordProcesses()) out.push({ section: 'Context', label: `Run ${p.label} on this record`, run: () => openProcess(this.store, p.name, { recordIds: [String(this.primaryKey)] }) })
-    out.push({ section: 'Context', label: 'Audit history', command: `audit list ${this.tableName} ${this.primaryKey}`, run: () => void this.store.commands().run(`audit list ${this.tableName} ${this.primaryKey}`) })
+    out.push({ section: 'Context', label: 'Audit history', key: 'A', command: 'audits', run: () => this.openAudits() })
+    out.push({ section: 'Context', label: 'Developer: panels and associated scripts', key: 'D', command: 'dev', run: () => this.openDeveloper() })
     return out
   }
 
@@ -414,7 +429,7 @@ export class RecordScreen implements Screen {
       this.build()
     }
     const t = theme()
-    const hint = this.cursor ? `${this.cursor.describe()} · PgDn/PgUp next/previous · Enter follows ${glyphs().link} or opens a child · Esc back` : `Enter follows ${glyphs().link} or opens a child · Esc back`
+    const hint = `${this.cursor ? `${this.cursor.describe()} · PgDn/PgUp next/previous · ` : ''}a actions · A audits · D developer · Enter follows ${glyphs().link} or opens a child · Esc back`
     return (
       <Panel title={`${this.meta?.label ?? this.tableName} › ${this.title()}`} width={width} height={height} focused={focused}>
         {this.list.view(width - 2, height - 3, focused)}

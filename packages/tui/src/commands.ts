@@ -18,6 +18,8 @@ import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
 import { CommandLineOverlay, HelpOverlay, LockOverlay, MenuOverlay, PaletteOverlay, type PaletteItem } from './overlays/center'
 import { chooseFolder } from './overlays/files-helpers'
 import { OutputScreen } from './screens/output'
+import { TableApisScreen } from './screens/developer'
+import { actionsOverlay } from './overlays/actions'
 import { SignInScreen } from './screens/signin'
 import type { AppStore, CommandsLike } from './store'
 import type { MenuEntry } from './types'
@@ -36,14 +38,14 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
 
 /** Global keys for the help overlay. */
 export const GLOBAL_KEYS: Array<[string, string]> = [
   ['F1  ?', 'help (this)'], ['F2  /  .', 'go to anything'], ['F3  Enter', 'view / open'], ['F4  e', 'edit'], ['F5  r', 'refresh'],
-  ['F6  f', 'filter (grid)'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['F10', 'quit, reset or cancel'],
+  ['F6  f', 'filter (grid)'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['Esc 1..0, Ctrl+1..0', 'F1..F10 when the terminal takes F-keys'], ['F10', 'quit, reset or cancel'],
   ['Esc', 'back, cancel'], ['Tab', 'Apps tree / content'], ['↑↓ PgUp PgDn', 'move, page'], ['Ctrl+F Ctrl+B', 'page (always works)'], ['Space S+Space', 'page lists'], ['Home End', 'first, last'], ['← →', 'columns, tree'],
-  ['s', 'sort by column'], ['Space (grid)', 'select row'], ['b', 'run a process on selection'], ['x', 'export'], ['g', 'go to by key'], ['v', 'view settings'],
+  ['a', 'actions here'], ['A  D', 'audits, developer'], ['s', 'sort by column'], ['Space (grid)', 'select row'], ['b', 'run a process on selection'], ['x', 'export'], ['g', 'go to by key'], ['v', 'view settings'],
   [']  [', 'next / previous record'], ['Ctrl+S', 'save a form'], [':', 'command line'], ['Ctrl+K', 'palette'], ['Ctrl+C', 'quit now'],
 ]
 
@@ -224,6 +226,22 @@ export class Commands implements CommandsLike {
           return screen.exportAs?.(rest[0] ?? 'csv')
         }
         case 'jobs': return this.jobs()
+        case 'audits': case 'audit': {
+          const screen = s.screen as { kind?: string; openAudits?: () => void; tableName?: string } | undefined
+          if (screen?.kind === 'record') return screen.openAudits?.()
+          if (screen?.kind === 'table' && screen.tableName) return fail(`audits are per record: open a ${s.meta?.tables?.[screen.tableName]?.label ?? screen.tableName} record and press A (or :audits there)`)
+          return fail(':audits works on a record (or :audit list <table> <key>)')
+        }
+        case 'dev': case 'developer': {
+          const screen = s.screen as { kind?: string; openDeveloper?: () => void; tableName?: string } | undefined
+          if (screen?.kind === 'record') return screen.openDeveloper?.()
+          if (screen?.kind === 'table' && screen.tableName) return s.push(new TableApisScreen(s, screen.tableName))
+          return fail(':dev works on a record (scripts, panels) or a table (APIs)')
+        }
+        case 'actions': {
+          if (s.screen) return actionsOverlay(s, s.screen)
+          return
+        }
         case 'doctor': case 'check': return this.doctor()
         case 'profile': return rest[0] ? this.switchProfile(rest[0]) : this.chooseProfile()
         case 'server': return rest[0] ? this.switchServer(rest[0]) : fail('server <url>')

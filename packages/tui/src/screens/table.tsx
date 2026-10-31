@@ -12,6 +12,8 @@ import { openForm, openProcess, openRecord } from '../nav'
 import { ChoiceOverlay, PromptOverlay } from '../overlays/basic'
 import { FilterOverlay } from '../overlays/filter'
 import { saveFile } from '../overlays/files-helpers'
+import { actionsOverlay } from '../overlays/actions'
+import { TableApisScreen } from './developer'
 import { GridViewSettingsOverlay } from '../overlays/view-settings'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
@@ -370,6 +372,8 @@ export class TableScreen implements Screen {
       case 'g': this.gotoKey(); return true
       case 'x': this.exportDialog(); return true
       case 'b': this.bulkActions(); return true
+      case 'a': actionsOverlay(this.store, this); return true
+      case 'D': this.store.push(new TableApisScreen(this.store, this.tableName)); return true
       default: return false
     }
   }
@@ -389,6 +393,7 @@ export class TableScreen implements Screen {
     ]
     for (const f of ['csv', 'xlsx', 'json', 'tsv']) out.push({ section: 'Context', label: `Export as ${f}`, key: f === 'csv' ? 'x' : undefined, command: `export ${f}`, run: () => this.exportAs(f) })
     for (const p of this.tableProcesses()) out.push({ section: 'Context', label: `Run ${p.label}`, detail: this.selection.size ? `${this.selection.size} selected` : 'cursor record', disabled: p.parked, run: () => this.runProcess(p.name) })
+    out.push({ section: 'Context', label: 'Developer: application APIs of this table', key: 'D', command: 'dev', run: () => this.store.push(new TableApisScreen(this.store, this.tableName)) })
     out.push({ section: 'Context', label: 'Saved views of this table', command: `saved-view list ${this.tableName}`, run: () => void this.store.commands().run(`saved-view list ${this.tableName}`) })
     out.push({ section: 'Context', label: `Column statistics: ${this.fields()[this.colCursor]?.label ?? ''}`, command: `table stats ${this.tableName} ${this.fields()[this.colCursor]?.name ?? ''}`, run: () => void this.store.commands().run(`table stats ${this.tableName} ${this.fields()[this.colCursor]?.name ?? ''}`) })
     return out
@@ -480,7 +485,7 @@ export class TableScreen implements Screen {
     const filterText = printFilter(this.filter) || 'no filter'
     lines.push(<text key="f" fg={t.dim}>{pad(` ${filterText}`, inner)}</text>)
     const status = c ? `${c.total === undefined ? '…' : num(c.total)} records · row ${num(c.index + 1)} · page ${this.rowsPage + 1}/${c.pageCount}${this.sort ? ` · sort ${this.sort.field} ${this.sort.asc ? 'asc' : 'desc'}` : ''} · col ${this.colCursor + 1}/${cols.length}${this.fetchMs !== undefined ? ` · ${this.fetchMs.toFixed(0)} ms` : ''}${this.loading ? ' · loading' : ''}` : 'loading…'
-    const hint = this.store.singleKeys ? ' · s sort · f filter · v view · x export · Space select' : ''
+    const hint = this.store.singleKeys ? ' · a actions · s sort · f filter · v view · x export · Space select' : ''
     lines.push(<text key="s" fg={t.dim}>{pad(` ${status}${hint}`, inner)}</text>)
     return <Panel title={this.title()} width={width} height={height} focused={focused}>{lines}</Panel>
   }
