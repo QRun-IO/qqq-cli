@@ -158,6 +158,39 @@ describe('exit codes', { concurrency: true }, () => {
   test('a bad --limit exits 2 before any request', async () => golden('bad-limit', await qqq(['table', 'query', 'person', '-l', 'many'])))
 })
 
+describe('doctor', () => {
+  test('doctor passes against a healthy server', async () => {
+    const result = await qqq(['doctor', '-O', 'json'])
+    assert.equal(result.code, 0, result.stdout + result.stderr)
+    const report = JSON.parse(result.stdout) as { ok: boolean; checks: Array<{ area: string; check: string; status: string; detail: string }> }
+    assert.equal(report.ok, true)
+    assert.deepEqual(report.checks.filter((x) => x.area !== 'terminal').map((x) => [x.check, x.status]).slice(0, 6), [['profile', 'ok'], ['reachable', 'ok'], ['UI API version', 'ok'], ['authentication', 'ok'], ['signed in', 'ok'], ['extensions', 'ok']])
+  })
+  test('doctor without a sign-in exits 1 and says what to do', async () => {
+    const local = sandbox()
+    try {
+      const result = await runCli(['--server', server.url, 'doctor', '-O', 'table'], local.env)
+      assert.equal(result.code, 1)
+      assert.match(result.stdout, /signed in\s+fail\s+no sign-in for profile/)
+      assert.match(result.stdout, /checks failed: signed in/)
+    } finally {
+      local.dispose()
+    }
+  })
+  test('doctor on an unreachable server exits 1', async () => {
+    const result = await runCli(['--server', 'http://127.0.0.1:59999', 'doctor', '-O', 'json'], box.env)
+    assert.equal(result.code, 1)
+    assert.equal((JSON.parse(result.stdout) as { checks: Array<{ check: string; status: string }> }).checks.find((x) => x.check === 'reachable')?.status, 'fail')
+  })
+  test('UI API version support', async () => {
+    const { versionSupport } = await import('../commands/doctor.js')
+    assert.equal(versionSupport('1.8.0', [1]).status, 'ok')
+    assert.equal(versionSupport('1.5.2', [1]).status, 'fail')
+    assert.equal(versionSupport('1.9.0', [1]).status, 'warn')
+    assert.equal(versionSupport('2.0.0', [2]).status, 'fail')
+  })
+})
+
 describe('local state', () => {
   test('a corrupt config.json is reported and left alone', async () => {
     const local = sandbox()

@@ -83,6 +83,7 @@ export async function startFakeServer(): Promise<FakeServer> {
       }
     }
     if (path === '/version') return send(res, 200, fixture('version'))
+    if (path === '/metaData/authentication') return send(res, 200, { type: 'OAUTH2', values: {} })
     if (!req.headers.authorization && !String(req.headers.cookie ?? '').includes('sessionUUID=')) return send(res, 401, errorFor(401))
     if (req.headers.authorization === 'Bearer expired') return send(res, 401, errorFor(401))
 
