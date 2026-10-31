@@ -167,12 +167,26 @@ export function childFilter(association: AssociationMeta, parentTable: TableMeta
 
 export class AssociationError extends Error {}
 
-/** The fields a child list shows: visible, not heavy, without the fields that point back at the parent, first six. */
+/**
+ * The fields a child list shows: visible, not heavy, without the fields that point back at the
+ * parent; the key first, then in section order by tier (as the record view), then the rest; capped.
+ */
 export function childListFields(childTable: TableMetaLike, bindingFields: string[] = [], cap = 6): string[] {
   const pk = childTable.primaryKeyField ?? 'id'
-  const names = Object.values(childTable.fields).filter((f) => !f.isHidden && !f.isHeavy && !bindingFields.includes(f.name)).map((f) => f.name)
-  const ordered = names.includes(pk) ? [pk, ...names.filter((n) => n !== pk)] : names
-  return ordered.slice(0, cap)
+  const usable = (name: string) => {
+    const field = childTable.fields[name]
+    return Boolean(field) && !field!.isHidden && !field!.isHeavy && !bindingFields.includes(name)
+  }
+  const order: string[] = usable(pk) ? [pk] : []
+  const sections = (childTable.sections ?? []).filter((s) => !s.isHidden)
+  for (const tier of ['T1', 'T2', 'T3', undefined]) {
+    for (const section of sections.filter((s) => (tier ? s.tier === tier : !['T1', 'T2', 'T3'].includes(String(s.tier))))) {
+      for (const name of section.fieldNames ?? []) if (!order.includes(name) && usable(name)) order.push(name)
+    }
+  }
+  const hiddenOnly = new Set((childTable.sections ?? []).filter((s) => s.isHidden).flatMap((s) => s.fieldNames ?? []))
+  for (const name of Object.keys(childTable.fields)) if (!order.includes(name) && usable(name) && !hiddenOnly.has(name)) order.push(name)
+  return order.slice(0, cap)
 }
 
 /** One child list of a record, with its place in the tree (`pets`, then `pets[Charlie].notes`). */
@@ -246,12 +260,15 @@ export interface ChildPage {
   count?: number
 }
 
-/** Reads one page of children through `queryTable` and their total through `countTable`. */
+/** Reads one page of children through `queryTable` (none with `limit: 0`) and their total through `countTable`. */
 export async function fetchChildren(options: { baseUrl: string; fetch: typeof fetch; parentTable: TableMetaLike; parent: RecordLike; childTable: TableMetaLike; association: AssociationMeta; limit?: number; skip?: number; count?: boolean }): Promise<ChildPage> {
   const filter = childFilter(options.association, options.parentTable, options.parent, options.childTable, { limit: options.limit, skip: options.skip })
-  const query = await callOperation(options.baseUrl, 'queryTable', { path: { tableName: options.childTable.name }, json: { filter } }, options.fetch)
-  const data = query.data as { records?: RecordLike[] } | RecordLike[]
-  const records = Array.isArray(data) ? data : data.records ?? []
+  let records: RecordLike[] = []
+  if (options.limit !== 0) {
+    const query = await callOperation(options.baseUrl, 'queryTable', { path: { tableName: options.childTable.name }, json: { filter } }, options.fetch)
+    const data = query.data as { records?: RecordLike[] } | RecordLike[]
+    records = Array.isArray(data) ? data : data.records ?? []
+  }
   let count: number | undefined
   if (options.count !== false) {
     const { skip: _skip, limit: _limit, orderBys: _orderBys, ...countFilter } = filter

@@ -85,6 +85,8 @@ test('find by association name or by child table; parent link values for a new c
 
 test('child list fields skip hidden, heavy and back-pointing fields', () => {
   assert.deepEqual(childListFields(pet, ['personId']), ['id', 'name'])
+  const sectioned: TableMetaLike = { ...pet, fields: { ...pet.fields, a: f('a'), b: f('b'), c: f('c') }, sections: [{ name: 'x', tier: 'T2', fieldNames: ['b', 'a'] }, { name: 'y', tier: 'T1', fieldNames: ['id', 'name'] }, { name: 'z', isHidden: true, fieldNames: ['c'] }] }
+  assert.deepEqual(childListFields(sectioned, ['personId']), ['id', 'name', 'b', 'a'], 'section order by tier; fields only in hidden sections left out')
 })
 
 test('fetchChildren queries one page and counts all children with the same criteria', async () => {
