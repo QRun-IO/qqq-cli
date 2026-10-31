@@ -12,7 +12,7 @@
 import type { Command } from 'commander'
 import {
   associationGroups, associationLabel, associationsOf, childListFields, fetchChildren, fileDownload, safeFileName, saveDownload, findAssociation, recordView, relationshipValues, tableViewHelp,
-  type RecordLike, type TableMetaLike, type WidgetMetaLike,
+  displayDateTime, type DisplayOptions, type RecordLike, type TableMetaLike, type WidgetMetaLike,
 } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch } from '../session.js'
@@ -55,7 +55,7 @@ export async function showRecord(c: Context, table: string, primaryKey: string, 
   const record = await getRecord(c, table, primaryKey, Boolean(options.associations)) as unknown as RecordLike
   const widgets = (metaData.widgets ?? {}) as Record<string, WidgetMetaLike>
   const tableNames = Object.keys(metaData.tables ?? {})
-  const sections = recordView(meta, record, { reveal: options.reveal, tableNames, widgets, helpContent: options.helpContent, tableName: table, primaryKey, empty: c.format === 'table' ? '--' : '' })
+  const sections = recordView(meta, record, { reveal: options.reveal, tableNames, widgets, helpContent: options.helpContent, tableName: table, primaryKey, empty: c.format === 'table' ? '--' : '', dateTime: c.dateTimeDisplay })
   const rows: Json[] = []
   for (const section of sections) {
     if (options.helpContent && section.help) rows.push({ section: section.label, field: '(help)', value: section.help })
@@ -105,7 +105,7 @@ export async function showRecord(c: Context, table: string, primaryKey: string, 
       const relationship = relationshipValues(group.association, parentTable, group.parent, childTable)
       const binding = 'error' in relationship ? [] : Object.keys(relationship.values)
       const fields = childListFields(childTable, binding)
-      const childRows = group.records.map((child) => Object.fromEntries(fields.map((f) => [f, valueOf(child, f)])))
+      const childRows = group.records.map((child) => Object.fromEntries(fields.map((f) => [f, valueOf(child, f, childTable, c.dateTimeDisplay)])))
       process.stdout.write(`\n${indent}${title} (${group.records.length})\n`)
       if (childRows.length) c.print({ data: group.records, rows: childRows, columns: fields, headers: fields.map((f) => childTable.fields[f]?.label ?? f) })
       else process.stdout.write(`${indent}  none\n`)
@@ -113,7 +113,8 @@ export async function showRecord(c: Context, table: string, primaryKey: string, 
   }
 }
 
-function valueOf(record: RecordLike, field: string): string {
+function valueOf(record: RecordLike, field: string, table?: TableMetaLike, display?: DisplayOptions): string {
+  if (table?.fields[field]?.type === 'DATE_TIME') return displayDateTime(record.values[field], record.displayValues?.[field], display)
   const value = record.displayValues?.[field] ?? record.values[field]
   return value === null || value === undefined ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
@@ -171,7 +172,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
       const label = associationLabel(meta, association, { widgets, childTable })
       c.print({
         data: { association: association.name, table: childTable.name, count, skip: first, records },
-        rows: records.map((r) => Object.fromEntries(fields.map((f) => [f, valueOf(r, f)]))),
+        rows: records.map((r) => Object.fromEntries(fields.map((f) => [f, valueOf(r, f, childTable, c.dateTimeDisplay)]))),
         columns: fields,
         headers: fields.map((f) => childTable.fields[f]?.label ?? f),
         footer: `${label} of ${parent.recordLabel ?? `${meta.label} ${primaryKey}`}: ${records.length ? `${first + 1}-${first + records.length}` : 'none'} of ${count ?? '?'}${!options.all && count !== undefined && first + records.length < count ? `; next: --skip ${first + records.length}` : ''}`,

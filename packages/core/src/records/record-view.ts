@@ -12,6 +12,7 @@
 
 import type { FieldMeta } from '../forms/fields.js'
 import { blocksToText, htmlToText, widgetToBlocks } from '../widgets/render-model.js'
+import { displayDateTime, type DisplayOptions } from '../forms/datetime.js'
 import type { RecordLike, SectionMeta, TableMetaLike } from './associations.js'
 
 export interface HelpContent {
@@ -164,6 +165,8 @@ export interface ValueOptions {
   widgets?: Record<string, unknown>
   /** Text placeholder for empty values (default empty). */
   empty?: string
+  /** DATE_TIME display: the viewer's zone (default), another zone, or the raw UTC instant (`--utc`). */
+  dateTime?: DisplayOptions
 }
 
 /** A field value rendered for a terminal. */
@@ -242,6 +245,8 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
   }
 
   if (value === null || value === undefined || value === '') return { text: empty }
+
+  if (field.type === 'DATE_TIME') return { text: displayDateTime(raw, display, options.dateTime) }
 
   if (field.type === 'BLOB' && typeof raw === 'string') {
     const bytes = Math.floor(raw.replace(/=+$/, '').length * 3 / 4)

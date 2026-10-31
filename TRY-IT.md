@@ -195,13 +195,27 @@ qqq table download fieldLab 1 blobValue -o copy.txt                            #
 qqq table get person 1 --help-content          # table, section and field help inline (this sample app declares none; qqq help show for help alone)
 ```
 
+DATE_TIME values are typed and shown in your zone (the `TZ` environment) and sent as UTC instants, as the web
+UI does; `--utc` shows the raw instants. A time skipped by a spring-forward change moves forward by the gap; a
+time repeated by a fall-back change means its first occurrence. In filters, a date alone on a DATE_TIME field
+means local midnight. Fields the server formats in a declared zone (fixed or per-record) keep its text.
+
+```sh
+TZ=America/Chicago qqq table create fieldLab --set name=tz --set dateTimeValue=2026-10-31T14:30   # stored 19:30Z
+qqq table get fieldLab 4                          # Date Time Value  2026-10-31 14:30:00 CDT
+qqq --utc table get fieldLab 4                    # Date Time Value  2026-10-31T19:30:00Z
+TZ=Asia/Tokyo qqq table get fieldLab 4            # 2026-11-01 04:30:00 GMT+9
+qqq table query fieldLab -w "dateTimeValue BETWEEN 2026-10-31,2026-10-31T23:59" --print-filter
+qqq process run fieldLab.bulkEdit -r 4 -v bulkEditEnabledFields=dateTimeValue -v dateTimeValue=2026-10-31T09:15 -v name=tz --validate
+```
+
 Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `lastPeriod(week)`,
 `startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
 the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views,
 column statistics, joins, variants, audits, jobs on a durable-jobs server,
-TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
+TABLE_BASED sign-in.
 
 ## Reporting what you find
 

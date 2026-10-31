@@ -77,8 +77,19 @@ export interface RunnerOptions {
 export const BACK: unique symbol = Symbol('qqq.process.back')
 
 export class ProcessError extends Error {
-  constructor(message: string, readonly processUUID?: string) {
+  /** The server marked the message as meant for the user (userFacingError). */
+  readonly userFacing: boolean
+  constructor(message: string, readonly processUUID?: string, options: { userFacing?: boolean } = {}) {
     super(message)
+    this.userFacing = options.userFacing ?? false
+  }
+
+  /**
+   * Whether the failure is about the input (exit 6 in the CLI): a user-facing message, or the
+   * server's "Missing required input" for inputs its metadata does not mark required.
+   */
+  get isInputError(): boolean {
+    return this.userFacing || /missing required input|is required/i.test(this.message)
   }
 }
 
@@ -231,7 +242,7 @@ export async function runProcess(options: RunnerOptions): Promise<RunOutcome> {
       checkAbort()
       current = (await callOperation(baseUrl, 'getProcessStatus', { path: { processName: meta.name, processUUID: current.processUUID, jobUUID: jobUUID! }, query }, fetchImpl)).data as StepResponse
     }
-    if (current.type === 'ERROR') throw new ProcessError(current.userFacingError ?? current.error ?? 'the process failed', current.processUUID)
+    if (current.type === 'ERROR') throw new ProcessError(current.userFacingError ?? current.error ?? 'the process failed', current.processUUID, { userFacing: Boolean(current.userFacingError) })
     return current
   }
 }

@@ -39,6 +39,7 @@ program
   .option('-Q, --query <jmespath>', 'reshape the output with a JMESPath expression, as `aws --query`')
   .option('--fields <names>', 'comma-separated columns to show in table, text and csv output')
   .option('-y, --yes', 'answer yes to confirmations (delete, cancel)')
+  .option('--utc', 'show DATE_TIME values as raw UTC instants instead of in the local zone (TZ)')
   .option('--trace', 'print stack traces for unexpected errors')
   .exitOverride()
   .configureOutput({ writeErr: (text) => process.stderr.write(text) })

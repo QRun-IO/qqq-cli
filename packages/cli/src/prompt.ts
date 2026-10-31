@@ -73,7 +73,7 @@ async function promptField(rl: Interface, out: NodeJS.WritableStream, session: F
       return
     }
     const current = state.displayValue ?? (isMissingValue(state.value) ? '' : String(state.value))
-    let hint = field.type.toLowerCase().replace('_', ' ')
+    let hint = field.type === 'DATE_TIME' ? `local date time YYYY-MM-DDTHH:MM, ${session.timeZone}` : field.type.toLowerCase().replace('_', ' ')
     if (session.hasChoices(field.name)) {
       const choices = await session.options(field.name, '', 12)
       if (choices.length) {

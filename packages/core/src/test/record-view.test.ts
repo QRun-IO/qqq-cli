@@ -89,3 +89,11 @@ test('help content: view roles first, then entries without roles; HTML and MARKD
   assert.deepEqual(tableViewHelp(table), [{ slot: 'header', text: 'table help' }])
   assert.equal(recordView(table, rec({ a: 1 }))[0]!.help, undefined, 'help only when asked')
 })
+
+test('DATE_TIME values show in the viewer\'s zone, or as the UTC instant with utc', () => {
+  const f = field('when', { type: 'DATE_TIME' })
+  const r = rec({ when: '2026-10-31T22:33:01Z' }, { when: '2026-10-31T22:33:01Z' })
+  assert.match(valueText(f, r, { dateTime: { timeZone: 'Asia/Tokyo' } }).text, /^2026-11-01 07:33:01 /)
+  assert.equal(valueText(f, r, { dateTime: { utc: true } }).text, '2026-10-31T22:33:01Z')
+  assert.equal(valueText(f, rec({ when: null }), { empty: '--' }).text, '--')
+})

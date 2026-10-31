@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
-import { BACK, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpText, isMissingValue, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, displayDateTime, formatValue, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpText, isMissingValue, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { ask, promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -122,7 +122,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
           stepTimeoutMillis: Number(options.timeout),
           always: Boolean(options.interactive),
           signal: abort.signal,
-          screen: { recordLimit: Number(options.recordLimit) },
+          screen: { recordLimit: Number(options.recordLimit), format: (field, value, shown) => (field.type === 'DATE_TIME' ? displayDateTime(value, shown, c.dateTimeDisplay) : formatValue(field, value)) },
           onProgress: (e) => {
             if (options.quiet) return
             if (e.phase === 'init') c.note(`${meta.label ?? name}: starting`)
@@ -144,6 +144,8 @@ export function registerProcess(program: Command, ctx: () => Context): void {
                 const answer = await ask('Validate fully before running, or skip validation? [v/S] ', { signal: abort.signal })
                 out.doFullValidation = /^v/i.test(answer) ? 'true' : 'false'
                 given.doFullValidation = out.doFullValidation
+              } else if (given.doFullValidation === undefined && values.validationSummary === undefined && review.supportsFullValidation && !canPrompt) {
+                throw new UsageError(`Step "${step.label ?? step.name}" is a validation review: pass --validate or --skip-validation (or run on a terminal to be asked).`)
               } else if (values.validationSummary !== undefined && canPrompt && !c.options.yes) {
                 const answer = await ask('Submit? [Y/n] ', { signal: abort.signal })
                 if (/^n/i.test(answer)) {
