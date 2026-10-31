@@ -88,6 +88,9 @@ qqq table export person -w "id <= 5" -o -id --fields id,firstName,email --format
 qqq table query person --search lair            # quick search: CONTAINS over the text fields, ANDed with -w/-g
 qqq table get country --key name=Canada         # Go To by a unique key (exit 5 none, exit 2 several)
 qqq table copy pet 1 --set name=Copycat         # copy a record (--dry-run shows the values first)
+qqq table developer person 1                    # developer view: associated scripts and panels (record security, ESB)
+qqq table apis person ; qqq table api-doc <t> <api> <version> [--out f]   # application APIs (none in the sample)
+qqq script list|show|store|logs <t> <pk> …      # associated scripts: show [--revision n], store --file f | --editor -m msg, logs <field> <revisionId>
 qqq apps show greetingsApp                      # an app's home: actions, reports, tables with record counts, widgets
 qqq report list                                 # the sample app has no reports
 qqq help show table person [field] ; qqq help show process greet   # help content from the metadata (none in the sample)
