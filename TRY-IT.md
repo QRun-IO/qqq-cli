@@ -110,6 +110,24 @@ Global options go anywhere: `--server`, `--output json|table|text|csv|yaml` (`-O
 0 ok, 1 error, 2 usage or bad filter, 3 auth, 4 server unreachable or rate limited, 5 not found,
 6 validation, 70 server error. `qqq job …` says this sample server has no jobs operations.
 
+Contingent fields (field 1 narrows field 2) are handled by the kernel's form session, for tables and process
+steps alike. The sample's Address book is country → state → city:
+
+```sh
+qqq table create placeAddress --set label=Home --set countryId=USA --set stateId=Missouri --set cityId="St. Louis"
+qqq table create placeAddress --set label=X --set stateId=Missouri      # exit 2: set Country first
+qqq table create placeAddress -i                                        # prompts; choices narrow after each answer
+qqq table update placeAddress 3 -i                                      # prompts with the current values
+qqq process run placeAddressPick                                        # asks for what the step lacks, same narrowing
+qqq process run placeAddressPick -v countryId=USA -v stateId=Illinois -v cityId=spring   # labels, ids or unique partials
+qqq table create pet --set name=Rex --set personId=1 --set speciesId=1 --set birthDate=2020-13-40   # exit 6, checked locally
+```
+
+Possible-value fields take an id, an exact label, or a partial label that matches one choice; an ambiguous partial
+lists the candidates. Validation (required, type, length, range, pattern) runs locally before the request, with the
+same codes and messages the server would give. Form adjusters (on-load and on-change rules an application declares)
+are called when the server has them; this sample app has none.
+
 Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `lastPeriod(week)`,
 `startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
 

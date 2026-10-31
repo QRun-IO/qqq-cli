@@ -5,9 +5,11 @@
 
 import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { buildFilter, printFilter, type QueryFilter } from '@qrun-io/qqq-core'
-import type { Context } from '../context.js'
-import { UsageError } from '../context.js'
+import { FormInputError, FormSession, buildFilter, printFilter, type FieldMeta, type QueryFilter } from '@qrun-io/qqq-core'
+import { UiApiError } from '@qrun-io/qqq-ui-api-client'
+import { promptForm } from '../prompt.js'
+import { authenticatedFetch } from '../session.js'
+import { UsageError, type Context } from '../context.js'
 import { defaultFields, labelsFor, parsePairs, readJson, valueText, type Json } from './shared.js'
 
 interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean }
@@ -132,45 +134,84 @@ export function registerTable(program: Command, ctx: () => Context): void {
       c.print({ data: record, rows, columns: ['field', 'value'], headers: ['Field', 'Value'], footer: String(record.recordLabel ?? `${meta.label} ${primaryKey}`) })
     })
 
+  /** Fills a form session from --set / --input-json, then prompts when asked or when required values are missing on a terminal. */
+  async function fillForm(c: Context, meta: Json, name: string, given: Json, options: { interactive?: boolean }, initial?: Json): Promise<FormSession> {
+    const fields = Object.values((meta.fields ?? {}) as Record<string, FieldMeta>)
+    for (const k of Object.keys(given)) if (!(meta.fields as Json)[k]) throw new UsageError(`No field "${k}" in ${name}; fields: ${Object.keys(meta.fields as Json).join(', ')}`)
+    const session = new FormSession({ baseUrl: c.server, fetch: authenticatedFetch(c.server), scope: { table: name }, fields, initialValues: initial, tableMeta: meta as never, exclude: initial ? [] : [String(meta.primaryKeyField)] })
+    await session.load()
+    for (const k of session.promptOrder(Object.keys(given))) {
+      try {
+        await session.set(k, given[k])
+      } catch (error) {
+        if (error instanceof FormInputError) throw new UsageError(error.message)
+        throw error
+      }
+    }
+    if (options.interactive) await promptForm(session, { skipSet: true })
+    return session
+  }
+
+  function validationError(session: FormSession, problems: Record<string, string>): never {
+    throw new UiApiError(400, { code: 'BAD_REQUEST', message: 'Validation failed before sending', fieldErrors: Object.entries(problems).map(([field, message]) => ({ field, message: `${session.fields[field]?.label ?? field} ${message}` })) })
+  }
+
   table.command('create <table>')
-    .description('Insert a record from --set name=value pairs or --input-json.')
+    .description('Insert a record from --set name=value pairs or --input-json; -i prompts for the rest. Possible-value fields take a label or an id.')
     .option('-s, --set <name=value...>', 'field values')
     .option('--input-json <json|file|->', 'the whole record as a JSON object of field values')
+    .option('-i, --interactive', 'prompt for fields on the terminal')
     .option('--generate-input-skeleton', 'print an empty JSON object with the editable fields and stop')
-    .action(async (name: string, options: { set?: string[]; inputJson?: string; generateInputSkeleton?: boolean }) => {
+    .action(async (name: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; generateInputSkeleton?: boolean }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
       const fields = (meta.fields ?? {}) as Record<string, Json>
       if (options.generateInputSkeleton) {
         const editable = Object.values(fields).filter((f) => f.isEditable !== false && !f.isHidden && f.name !== meta.primaryKeyField)
         c.print({ data: Object.fromEntries(editable.map((f) => [f.name, f.defaultValue ?? ''])) })
-        c.note(editable.map((f) => `${String(f.name).padEnd(24)} ${f.type}${f.isRequired ? ' required' : ''}${f.possibleValueSourceName ? ` (possible values: ${f.possibleValueSourceName})` : ''}`).join('\n'))
+        c.note(editable.map((f) => `${String(f.name).padEnd(24)} ${f.type}${f.isRequired ? ' required' : ''}${f.possibleValueSourceName ? ` (possible values: ${f.possibleValueSourceName}${Array.isArray(f.possibleValueSourceDependsOn) ? `, depends on ${(f.possibleValueSourceDependsOn as string[]).join(', ')}` : ''})` : ''}`).join('\n'))
         return
       }
-      const values = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
-      if (!Object.keys(values).length) throw new UsageError('Give field values with --set name=value or --input-json.')
-      for (const k of Object.keys(values)) if (!fields[k]) throw new UsageError(`No field "${k}" in ${name}; fields: ${Object.keys(fields).join(', ')}`)
-      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}', { params: { path: { tableName: name } }, body: values as never })) as Json
+      const given = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
+      if (!Object.keys(given).length && !options.interactive) throw new UsageError('Give field values with --set name=value or --input-json, or prompt with -i.')
+      const session = await fillForm(c, meta, name, given, options)
+      const problems = session.validate()
+      if (Object.keys(problems).length) validationError(session, problems)
+      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}', { params: { path: { tableName: name } }, body: session.submission() as never })) as Json
       const record = (result.record ?? result) as Json
       const pk = (record.values as Json | undefined)?.[String(meta.primaryKeyField)] ?? record[String(meta.primaryKeyField)] ?? ''
       c.print({ data: result, rows: [{ created: `${meta.label} ${pk}`, label: record.recordLabel ?? '' }], columns: ['created', 'label'] })
     })
 
   table.command('update <table> <primaryKey>')
-    .description('Update fields of a record from --set name=value pairs or --input-json.')
+    .description('Update fields of a record from --set name=value pairs or --input-json; -i prompts with the current values.')
     .option('-s, --set <name=value...>', 'field values (an empty value clears the field)')
     .option('--input-json <json|file|->', 'field values as a JSON object')
+    .option('-i, --interactive', 'prompt for every editable field, current values shown')
     .option('--expected-version <v>', 'optimistic locking: fail when the record changed')
-    .action(async (name: string, primaryKey: string, options: { set?: string[]; inputJson?: string; expectedVersion?: string }) => {
+    .action(async (name: string, primaryKey: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; expectedVersion?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
-      const fields = (meta.fields ?? {}) as Record<string, Json>
-      const values = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
-      if (!Object.keys(values).length) throw new UsageError('Give field values with --set name=value or --input-json.')
-      for (const k of Object.keys(values)) if (!fields[k]) throw new UsageError(`No field "${k}" in ${name}; fields: ${Object.keys(fields).join(', ')}`)
+      const given = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
+      if (!Object.keys(given).length && !options.interactive) throw new UsageError('Give field values with --set name=value or --input-json, or prompt with -i.')
+      let initial: Json | undefined
+      if (options.interactive) {
+        const existing = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: {} as never } })) as Json
+        initial = ((existing.record ?? existing) as Json).values as Json
+      }
+      const session = await fillForm(c, meta, name, given, { interactive: false }, initial)
+      if (options.interactive) await promptForm(session, { skipSet: false })
+      const touched = options.interactive ? session.editable.map((f) => f.name).filter((n) => String(session.values[n] ?? '') !== String(initial?.[n] ?? '')) : Object.keys(given)
+      if (!touched.length) {
+        c.note('Nothing changed.')
+        return
+      }
+      const problems = session.validate(touched)
+      if (Object.keys(problems).length) validationError(session, problems)
+      const values = Object.fromEntries(touched.map((n) => [n, session.values[n] ?? null]))
       const result = await c.unwrap(c.client.PATCH('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { expectedVersion: options.expectedVersion } as never }, body: values as never })) as Json
       const record = (result.record ?? result) as Json
-      c.print({ data: result, rows: [{ updated: `${meta.label} ${primaryKey}`, label: record.recordLabel ?? '', fields: Object.keys(values).join(', ') }], columns: ['updated', 'label', 'fields'] })
+      c.print({ data: result, rows: [{ updated: `${meta.label} ${primaryKey}`, label: record.recordLabel ?? '', fields: touched.join(', ') }], columns: ['updated', 'label', 'fields'] })
     })
 
   table.command('delete <table> <primaryKey>')

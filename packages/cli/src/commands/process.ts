@@ -4,33 +4,15 @@
  */
 
 import type { Command } from 'commander'
-import type { UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import type { Context } from '../context.js'
-import { UsageError } from '../context.js'
+import { UiApiError } from '@qrun-io/qqq-ui-api-client'
+import { FormInputError, FormSession, isMissingValue, runProcess, type FieldMeta, type ProcessMeta } from '@qrun-io/qqq-core'
+import { UsageError, type Context } from '../context.js'
+import { promptForm } from '../prompt.js'
+import { authenticatedFetch } from '../session.js'
 import { parsePairs, readJson, type Json } from './shared.js'
 
 async function processMeta(c: Context, name: string): Promise<Json> {
   return await c.unwrap(c.client.GET('/qqq/v1/metaData/process/{processName}', { params: { path: { processName: name } } })) as Json
-}
-
-/** Polls an asynchronous step (JOB_STARTED / RUNNING) until it completes, reporting progress on stderr. */
-async function waitForJob(c: Context, client: UiApiClient, processName: string, response: Json, quiet: boolean): Promise<Json> {
-  let current = response
-  let lastLine = ''
-  while (current.type === 'JOB_STARTED' || current.type === 'RUNNING') {
-    const jobUUID = String(current.jobUUID ?? response.jobUUID)
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    current = await c.unwrap(client.GET('/qqq/v1/processes/{processName}/{processUUID}/status/{jobUUID}', {
-      params: { path: { processName, processUUID: String(response.processUUID), jobUUID } },
-    })) as Json
-    if (current.type === 'RUNNING' && !quiet) {
-      const line = `  running${current.current !== undefined ? ` ${current.current}/${current.total ?? '?'}` : ''}${current.message ? ` ${current.message}` : ''}`
-      if (line !== lastLine) c.note(line)
-      lastLine = line
-    }
-    current = { ...current, jobUUID, processUUID: response.processUUID }
-  }
-  return current
 }
 
 export function registerProcess(program: Command, ctx: () => Context): void {
@@ -66,61 +48,76 @@ export function registerProcess(program: Command, ctx: () => Context): void {
     })
 
   proc.command('run <process>')
-    .description('Run a process to completion: init, then each step with the given values, polling asynchronous jobs.')
-    .option('-v, --values <name=value...>', 'input values for form fields (any step)')
+    .description('Run a process to completion: init, then each step with the given values, polling asynchronous jobs. On a terminal, missing values are asked for (-i asks for every field).')
+    .option('-v, --values <name=value...>', 'input values for form fields (any step); possible-value fields take a label or an id')
     .option('--values-json <json|file|->', 'input values as a JSON object')
     .option('-r, --records <ids>', 'comma-separated primary keys of the process table to run on')
     .option('--filter-json <json|file|->', 'a QueryFilter selecting the records to run on')
+    .option('-i, --interactive', 'prompt for every step field, not only missing required ones')
+    .option('--no-prompt', 'never prompt; fail when a required value is missing (for scripts)')
     .option('--timeout <ms>', 'how long each step may run before the server backgrounds it', '0')
     .option('--skip-validation', 'on a validation review step, skip full validation')
     .option('--validate', 'on a validation review step, run full validation first')
     .option('--quiet', 'no progress on stderr')
-    .action(async (name: string, options: { values?: string[]; valuesJson?: string; records?: string; filterJson?: string; timeout: string; skipValidation?: boolean; validate?: boolean; quiet?: boolean }) => {
+    .action(async (name: string, options: { values?: string[]; valuesJson?: string; records?: string; filterJson?: string; interactive?: boolean; prompt: boolean; timeout: string; skipValidation?: boolean; validate?: boolean; quiet?: boolean }) => {
       const c = ctx()
-      const client = c.client
-      const meta = await processMeta(c, name)
-      const steps = ((meta.frontendSteps ?? []) as Json[])
-      const stepNames = steps.map((s) => String(s.name))
-      const values: Json = { ...(options.valuesJson ? readJson(options.valuesJson, '--values-json') as Json : {}), ...parsePairs(options.values, '--values') }
+      const meta = await processMeta(c, name) as unknown as ProcessMeta
+      const given: Record<string, unknown> = { ...(options.valuesJson ? readJson(options.valuesJson, '--values-json') as Json : {}), ...parsePairs(options.values, '--values') }
       if (options.validate && options.skipValidation) throw new UsageError('--validate and --skip-validation exclude each other.')
-      if (options.validate) values.doFullValidation = 'true'
-      if (options.skipValidation) values.doFullValidation = 'false'
-      const form = (extra: Record<string, string>) => {
-        const data = new FormData()
-        data.append('values', JSON.stringify(values))
-        data.append('stepTimeoutMillis', options.timeout)
-        for (const [k, v] of Object.entries(extra)) data.append(k, v)
-        return data
-      }
-      const records: Record<string, string> = options.records ? { recordsParam: 'recordIds', recordIds: options.records }
-        : options.filterJson ? { recordsParam: 'filterJSON', filterJSON: JSON.stringify(readJson(options.filterJson, '--filter-json')) } : {}
-      let response = await c.unwrap(client.POST('/qqq/v1/processes/{processName}/init', {
-        params: { path: { processName: name } }, body: {} as never, bodySerializer: () => form(records),
-      })) as Json
-      if (!options.quiet) c.note(`${meta.label ?? name}: started (${response.processUUID})`)
-      for (let guard = 0; guard < 100; guard++) {
-        response = await waitForJob(c, client, name, response, Boolean(options.quiet))
-        if (response.type === 'ERROR' || response.error) throw new Error(String(response.userFacingError ?? response.error))
-        const next = response.nextStep as string | undefined
-        if (!next) break
-        const step = steps.find((s) => s.name === next)
-        const isLast = stepNames.indexOf(next) === stepNames.length - 1
-        if (!options.quiet) c.note(`  step ${next}${step?.label ? ` (${step.label})` : ''}${isLast ? ' - results' : ''}`)
-        if (isLast) break
-        const missing = ((step?.formFields ?? []) as Json[]).filter((f) => f.isRequired && values[String(f.name)] === undefined && (response.values as Json | undefined)?.[String(f.name)] === undefined)
-        if (missing.length) throw new UsageError(`Step "${next}" needs ${missing.map((f) => `--values ${f.name}=…`).join(' ')} (qqq process describe ${name} lists every field)`)
-        response = await c.unwrap(client.POST('/qqq/v1/processes/{processName}/{processUUID}/step/{stepName}', {
-          params: { path: { processName: name, processUUID: String(response.processUUID), stepName: next } }, body: {} as never, bodySerializer: () => form({}),
-        })) as Json
-      }
-      const out = (response.values ?? {}) as Json
+      if (options.validate) given.doFullValidation = 'true'
+      if (options.skipValidation) given.doFullValidation = 'false'
+      const canPrompt = options.prompt !== false && Boolean(process.stdin.isTTY)
+      const fetchImpl = authenticatedFetch(c.server)
+      const outcome = await runProcess({
+        baseUrl: c.server,
+        fetch: fetchImpl,
+        meta,
+        values: given,
+        records: options.records ? { ids: options.records.split(',').map((x) => x.trim()) } : options.filterJson ? { filter: readJson(options.filterJson, '--filter-json') } : undefined,
+        stepTimeoutMillis: Number(options.timeout),
+        always: Boolean(options.interactive),
+        onProgress: (e) => {
+          if (options.quiet) return
+          if (e.phase === 'init') c.note(`${meta.label ?? name}: starting`)
+          else if (e.phase === 'step') c.note(`  step ${e.step}`)
+          else if (e.phase === 'running') c.note(`  running${e.current !== undefined ? ` ${e.current}/${e.total ?? '?'}` : ''}${e.message ? ` ${e.message}` : ''}`)
+        },
+        provide: async ({ step, fields, values, missing }) => {
+          // every step's fields go through a form session: labels resolve, contingent fields clear and disable, values validate
+          const session = new FormSession({ baseUrl: c.server, fetch: fetchImpl, scope: { process: name }, fields, initialValues: values })
+          for (const n of session.promptOrder(fields.map((f) => f.name).filter((n) => given[n] !== undefined))) {
+            try {
+              await session.set(n, given[n])
+            } catch (error) {
+              if (error instanceof FormInputError) throw new UsageError(error.message)
+              throw error
+            }
+          }
+          if (!canPrompt) {
+            const still = missing.filter((f) => isMissingValue(session.values[f.name]))
+            if (still.length) throw new UsageError(`Step "${step.label ?? step.name}" needs ${still.map((f) => `--values ${f.name}=…`).join(' ')} (qqq process describe ${name} lists every field; run on a terminal to be asked)`)
+          } else {
+            if (!options.quiet) c.note(`  ${step.label ?? step.name}:`)
+            // ask for whatever the step still lacks (the server decides what is truly required); -i asks for everything
+            await promptForm(session, { skipSet: !options.interactive })
+          }
+          const problems = session.validate(fields.map((f) => f.name))
+          if (Object.keys(problems).length) throw new UiApiError(400, { code: 'BAD_REQUEST', message: `Step "${step.label ?? step.name}" has invalid values`, fieldErrors: Object.entries(problems).map(([field, message]) => ({ field, message: `${session.fields[field]?.label ?? field} ${message}` })) })
+          const out: Record<string, unknown> = {}
+          for (const f of fields) if (session.values[f.name] !== undefined) out[f.name] = session.values[f.name]
+          return out
+        },
+      })
+      const out = outcome.values
       const summary = (out.processResults ?? out.recordListSummary ?? []) as Json[]
+      const viewFields = (outcome.lastStep?.viewFields ?? []) as FieldMeta[]
       if (Array.isArray(summary) && summary.length) {
         const rows = summary.map((line) => ({ status: line.status ?? 'INFO', count: line.count ?? '', message: String(line.message ?? '').replace(/\s+/g, ' ').trim() }))
-        c.print({ data: response, rows, columns: ['status', 'count', 'message'] })
+        c.print({ data: outcome.response, rows, columns: ['status', 'count', 'message'] })
       } else {
-        const shown = Object.entries(out).filter(([, v]) => v !== null && typeof v !== 'object').slice(0, 30)
-        c.print({ data: response, rows: shown.map(([value, result]) => ({ value, result: String(result) })), columns: ['value', 'result'], footer: shown.length ? '' : 'Done.' })
+        const names = viewFields.length ? viewFields.map((f) => f.name) : Object.keys(out).filter((k) => out[k] !== null && typeof out[k] !== 'object').slice(0, 30)
+        const rows = names.map((k) => ({ value: viewFields.find((f) => f.name === k)?.label ?? k, result: String(out[k] ?? '') }))
+        c.print({ data: outcome.response, rows, columns: ['value', 'result'], footer: rows.length ? '' : 'Done.' })
       }
     })
 }
