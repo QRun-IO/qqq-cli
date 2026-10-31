@@ -1,0 +1,27 @@
+{
+    "version": "1.0.0-rc.1",
+    "description": "Command-line client for QQQ applications, built on the QQQ UI API",
+    "homepage": "https://github.com/QRun-IO/qqq-cli",
+    "license": "Apache-2.0",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v1.0.0-rc.1/qqq-windows-x64.exe",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+    },
+    "bin": [["qqq-windows-x64.exe", "qqq"]],
+    "checkver": {
+        "github": "https://github.com/QRun-IO/qqq-cli",
+        "regex": "cli-v([\\d.]+(?:-rc\\.\\d+)?)"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v$version/qqq-windows-x64.exe",
+                "hash": {
+                    "url": "$baseurl/SHA256SUMS"
+                }
+            }
+        }
+    }
+}
