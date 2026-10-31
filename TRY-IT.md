@@ -152,8 +152,10 @@ are called when the server has them; this sample app has none.
 Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `lastPeriod(week)`,
 `startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
 
-Still to come in M1: profiles and keyring, metadata cache and shell completion, the process engine with
-form adjusters (contingent fields) and bulk load, widgets and reports, preferences and help.
+Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
+the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views,
+column statistics, joins, variants, audits, record copy, help content display, jobs on a durable-jobs server,
+TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
 
 ## Reporting what you find
 
