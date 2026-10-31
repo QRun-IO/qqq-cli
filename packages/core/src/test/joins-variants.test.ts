@@ -62,3 +62,32 @@ test('variants: listed from the v1 route (wrapped or bare), resolved by id, name
   assert.deepEqual(variantBody(undefined), {})
   assert.deepEqual(variantBody({ id: '1', type: 'store' }), { tableVariant: { type: 'store', id: '1' } })
 })
+
+test('column statistics: availability needs QUERY_STATS and the process; local computation matches the process shape', async () => {
+  const { columnStatsAvailability, computeColumnStats, runColumnStats, statsFilter } = await import('../query/column-stats.js')
+  assert.match(columnStatsAvailability({ label: 'T', capabilities: ['TABLE_QUERY'] }, { processes: { columnStats: {} } }).reason!, /QUERY_STATS/)
+  assert.match(columnStatsAvailability({ capabilities: ['QUERY_STATS'] }, { processes: {} }).reason!, /no columnStats process/)
+  assert.match(columnStatsAvailability({ capabilities: ['QUERY_STATS'] }, { processes: { columnStats: { hasPermission: false } } }).reason!, /may not run/)
+  assert.deepEqual(columnStatsAvailability({ capabilities: ['QUERY_STATS'] }, { processes: { columnStats: {} } }), { available: true })
+  assert.deepEqual(statsFilter({ criteria: [], booleanOperator: 'AND', skip: 5, limit: 2, orderBys: [] }), { criteria: [], booleanOperator: 'AND' })
+  const records = [{ values: { n: 3 } }, { values: { n: 1 } }, { values: { n: 3 } }, { values: { n: null } }]
+  const stats = computeColumnStats(records, 'n', { type: 'INTEGER' })
+  assert.deepEqual(stats.stats.values, { count: 3, countDistinct: 2, sum: 7, average: 2.333333, min: 1, max: 3 })
+  assert.deepEqual(stats.valueCounts.map((r) => [r.values.n, r.values.count]), [[3, 2], [null, 1], [1, 1]])
+  assert.deepEqual(computeColumnStats(records, 'n', { type: 'INTEGER' }, 'n.asc').valueCounts.map((r) => r.values.n), [null, 1, 3])
+  assert.ok(!('sum' in computeColumnStats(records, 'n', { type: 'INTEGER', possibleValueSourceName: 'p' }).stats.values))
+  const hours = computeColumnStats([{ values: { t: '2026-01-01T10:15:00Z' } }, { values: { t: '2026-01-01T10:45:00Z' } }], 't', { type: 'DATE_TIME' })
+  assert.deepEqual(hours.valueCounts[0]!.values, { t: '2026-01-01T10:00:00Z', count: 2 })
+  let sent: FormData | undefined
+  let url = ''
+  const fetchImpl: typeof fetch = async (input, init) => {
+    url = String(input)
+    sent = init?.body as FormData
+    return new Response(JSON.stringify({ type: 'COMPLETE', values: { statsFields: [{ name: 'count', label: 'Count' }], statsRecord: { values: { count: 4 } }, valueCounts: [{ values: { n: 3, count: 2 }, displayValues: { n: 'three' } }] } }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }
+  const remote = await runColumnStats('http://h', fetchImpl, { table: 't', field: 'n', filter: { criteria: [], booleanOperator: 'AND', limit: 9 }, tableVariant: { type: 's', id: '1' } })
+  assert.match(url, /\/qqq\/v1\/processes\/columnStats\/init\?tableVariant=/)
+  assert.deepEqual(JSON.parse(String(sent!.get('values'))), { tableName: 't', fieldName: 'n', filterJSON: '{"criteria":[],"booleanOperator":"AND"}', orderBy: 'count.desc' })
+  assert.deepEqual(remote.fields, [{ name: 'count', label: 'Count' }])
+  assert.equal(remote.valueCounts[0]!.displayValues.n, 'three')
+})
