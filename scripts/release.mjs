@@ -12,12 +12,15 @@
  *   2. npm ci, then the steps the qqq-orb `cli` profile runs: npm run generate with no drift in
  *      packages/ui-api-client/src/schema.ts or packages/core/src/api/operations.ts, build, test;
  *      plus npm run lint (versions, headers) and the TUI's Bun tests and type check (npm run test:tui,
- *      typecheck:tui; the TUI is not published or bundled yet, but a release must not break it)
+ *      typecheck:tui; the TUI is not published, and is bundled only with --with-tui, but a release
+ *      must not break it)
  *   3. npm pack --dry-run for each published package
- *   4. the single-file binaries of the CLI only (scripts/build-binaries.mjs) and dist/SHA256SUMS
+ *   4. the single-file binaries (scripts/build-binaries.mjs; CLI only, or with the terminal UI
+ *      with --with-tui) and dist/SHA256SUMS
  *   5. prints the tag, GitHub release and npm publish commands
  *
- * Usage: node scripts/release.mjs [--allow-dirty] [--skip-binaries] [--skip-install]
+ * Usage: node scripts/release.mjs [--allow-dirty] [--skip-binaries] [--skip-install] [--with-tui]
+ *   --with-tui  build the binaries with the terminal UI bundled (scripts/build-binaries.mjs --with-tui)
  */
 
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -26,7 +29,7 @@ import { join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const argv = new Set(process.argv.slice(2))
-for (const a of argv) if (!['--allow-dirty', '--skip-binaries', '--skip-install'].includes(a)) fail(`unknown option ${a}`)
+for (const a of argv) if (!['--allow-dirty', '--skip-binaries', '--skip-install', '--with-tui'].includes(a)) fail(`unknown option ${a}`)
 const shell = process.platform === 'win32'
 
 /** Published packages, in publish order (each depends only on the ones before it). */
@@ -75,7 +78,7 @@ step('lint', 'npm', ['run', 'lint'])
 step('TUI tests', 'npm', ['run', 'test:tui'])
 step('TUI type check', 'npm', ['run', 'typecheck:tui'])
 for (const dir of PUBLISHED) step(`pack ${versions[dir].name}`, 'npm', ['pack', '--dry-run', '--silent', '-w', versions[dir].name])
-if (!argv.has('--skip-binaries')) step('binaries', 'node', ['scripts/build-binaries.mjs', '--no-build', '--musl'])
+if (!argv.has('--skip-binaries')) step('binaries', 'node', ['scripts/build-binaries.mjs', '--no-build', '--musl', ...(argv.has('--with-tui') ? ['--with-tui'] : [])])
 
 const registry = 'https://npm.pkg.github.com'
 console.log(`

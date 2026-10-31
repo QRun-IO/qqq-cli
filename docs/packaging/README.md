@@ -45,3 +45,30 @@ QRun-IO has one tap today, [`QRun-IO/homebrew-qctl`](https://github.com/QRun-IO/
   release standard, is a follow-up). Sign-ins use DPAPI through PowerShell. No Windows CI lane runs it
   yet; see `docs/ci-lanes.md`.
 - Binaries are 85 to 111 MB (the Bun runtime is embedded); about 37 to 53 MB gzipped.
+
+## The terminal UI (`qqq ui`)
+
+The TUI (`packages/tui`) runs on Bun only: OpenTUI loads a native Zig library through `bun:ffi`, and
+the React renderer sits on top. Three ways to ship it were tried on 2026-10-31 (Bun 1.4.4, OpenTUI
+0.8.1) against the sample server:
+
+| Option | Result |
+|---|---|
+| **One `qqq` binary with the UI** (`npm run binaries -- --with-tui`) | **Works.** Entry `scripts/binary-with-tui.ts`; `qqq ui` runs the bundled TUI in the same process. `bun build --compile` embeds OpenTUI's native library for the target (installed for every platform with `bun install --os='*' --cpu='*'`). The full tmux smoke (`packages/tui/scripts/smoke.sh`: home, grid, record paging, filter, contingent form, async process, menu, help, dashboard, quit) passed with the darwin-arm64 binary; `qqq ui table get person 3` opened the record in tmux in Docker with the linux-x64 (glibc, under emulation) and linux-arm64-musl binaries, and quit with exit 0. The CLI commands of the same binary behave as before. |
+| A second binary `qqq-ui` (entry `packages/tui/src/main.tsx`) | Works too (same smoke passed), 103 MB on darwin-arm64. It already contains the whole CLI program (the TUI's command line runs `runCli`), so a second binary is almost a second copy of the first. |
+| npm only, Bun as a prerequisite | Possible but the weakest: the TUI package is private today, `bun` must be installed, and OpenTUI's native package comes from the optional dependencies at install time. |
+
+Sizes, CLI only → with the UI: darwin-arm64 84.8 → 100.8 MB, darwin-x64 95.1 → 111.8 MB, linux-x64
+105.5 → 123.3 MB, linux-arm64 105.6 → 122.3 MB, windows-x64 111.4 → 129.5 MB, linux musl about 98 →
+122 to 125 MB. The UI adds 16 to 18 MB (the native library is 6.6 MB on darwin-arm64; the rest is React,
+OpenTUI and a second copy of the CLI program that the TUI imports from `@qrun-io/qqq-cli/program`).
+
+Not verified: the Windows and macOS x64 builds with the UI (cross-compiled, never run; Windows Terminal
+was never checked even for the spike), and Linux glibc arm64 with the UI.
+
+**Recommendation:** ship one `qqq` binary per platform with the UI bundled (`--with-tui`) as the 1.0
+artifact, from the same release, Homebrew formula, Scoop manifest and installer: one download, `qqq ui`
+just works, 16 to 18 MB more. The npm package stays CLI only for Node users and says how to get the UI.
+Before that: a Windows x64 lane that runs `qqq ui --check` and a scripted session, and point the TUI's
+`@qrun-io/qqq-cli/program` import at the source so the program is bundled once. `release.mjs --with-tui`
+builds that way today; the default stays CLI only until the decision is made.
