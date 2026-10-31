@@ -12,7 +12,8 @@ what it produces; the TUI draws it.
 | `forms/possible-values` | possible-value search with dependency values; resolution of typed text by id, exact label or unique partial |
 | `forms/adjuster` | form adjusters (`onLoad`, `onChange`; 404 means none) and how their output is applied |
 | `forms/form-session` | one form being filled: values, display values, clearing dependents, adjusters, validation, submission |
-| `process/runner` | init, step until complete, poll asynchronous jobs, apply metadata adjustments, ask a provider for each step's input |
+| `process/runner` | init, step until complete, poll asynchronous jobs, apply metadata adjustments, ask a provider for each step's input, go back (`BACK`), cancel on an abort signal (`POST …/cancel`), check min/max input records |
+| `process/screen` | each step's components as neutral screen blocks: help, HTML as text, view pairs, process records (paged), validation review, summary lines, downloads (`GET /download`), widgets |
 | `widgets/render-model` | any widget payload to neutral blocks (heading, stat, table, series, pairs, steps, alert, link, rule, children) and blocks to text |
 | `metadata/cache` | on-disk cache of `GET /metaData` and table definitions per server, with a TTL and offline reads |
 | `session/profiles`, `session/keyring` | named profiles and an OS keyring without native modules (Keychain, Secret Service, DPAPI, file) |

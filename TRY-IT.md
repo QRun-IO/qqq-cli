@@ -144,6 +144,25 @@ qqq process run placeAddressPick -v countryId=USA -v stateId=Illinois -v cityId=
 qqq table create pet --set name=Rex --set personId=1 --set speciesId=1 --set birthDate=2020-13-40   # exit 6, checked locally
 ```
 
+Processes show every screen as the web does, in component order: help text, HTML as text, `label: value` pairs
+(on every step, not only the last), the process records as a table (paged through `GET …/records`, `--record-limit`),
+the validation review (count, preview, then the validation lines), the summary lines, files to download (saved to
+`--out-dir` with the path printed) and widgets in steps. Intermediate screens go to stderr; the last screen is the
+command's output (`--output json` gives the raw response).
+
+```sh
+qqq process run greetInteractive -r 1,2,3 -v greetingPrefix=Hi       # results: values, then the greeted records
+qqq process run clonePeople -r 1,2                  # on a terminal: "Validate fully … or skip validation? [v/S]"
+qqq process run clonePeople -r 1,2 --validate       # validation lines, then "Submit? [Y/n]" (n cancels the run)
+qqq process run sleepInteractive -v sleepMillis=8000   # press Ctrl-C while it runs: POST …/cancel, exit 130
+qqq process describe person.bulkEdit                # steps, fields, and the process and step help
+```
+
+Ctrl-C during a run (while a job runs or at a prompt) asks the server to cancel it (`POST …/cancel`) and exits 130;
+a second Ctrl-C leaves at once. When a step reports a `backStep`, the terminal offers `b` to go back to it with the
+values entered so far (none of the sample's processes declares one). A process's `minInputRecords` and
+`maxInputRecords` are checked before `init` (a filter is counted first).
+
 Possible-value fields take an id, an exact label, or a partial label that matches one choice; an ambiguous partial
 lists the candidates. Validation (required, type, length, range, pattern) runs locally before the request, with the
 same codes and messages the server would give. Form adjusters (on-load and on-change rules an application declares)
@@ -154,7 +173,7 @@ Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `las
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
 the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views,
-column statistics, joins, variants, audits, record copy, help content display, jobs on a durable-jobs server,
+column statistics, joins, variants, audits, record copy, jobs on a durable-jobs server,
 TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
 
 ## Reporting what you find

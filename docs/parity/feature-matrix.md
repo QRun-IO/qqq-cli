@@ -12,7 +12,7 @@ The TUI column fills in during M3.
 | HLP | 6 | 1 | 4 | 0 | 1 |
 | INT | 14 | 5 | 0 | 0 | 9 |
 | NAV | 40 | 6 | 7 | 0 | 27 |
-| PRC | 60 | 24 | 24 | 0 | 12 |
+| PRC | 60 | 34 | 12 | 2 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
 | QRY | 70 | 25 | 22 | 0 | 23 |
 | REC | 65 | 27 | 26 | 0 | 12 |
@@ -20,7 +20,7 @@ The TUI column fills in during M3.
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 17 | 14 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 143 | 149 | 0 | 109 |
+| **all** | 401 | 153 | 137 | 2 | 109 |
 
 ## Rows
 
@@ -76,27 +76,27 @@ The TUI column fills in during M3.
 | PRC-003 | Zero-record runs from a filter that matches nothing | pass | todo |  |
 | PRC-004 | Processes launched from an app (no records) | pass | todo |  |
 | PRC-005 | Process launched from selected rows of a table query | n/a | todo | grid selection; use -r |
-| PRC-006 | Minimum and maximum input records | todo | todo | min/max input records enforced only by the server |
-| PRC-007 | Every declared component renders on one screen, in declared order, with one action bar | todo | todo | EDIT_FORM, VIEW_FORM, VALIDATION_REVIEW_SCREEN, PROCESS_SUMMARY_RESULTS; other components todo |
-| PRC-008 | HELP_TEXT with line breaks and previewText toggle | todo | todo | HELP_TEXT not printed yet |
+| PRC-006 | Minimum and maximum input records | pass | todo | checked before init (filters counted); the sample declares no limits, verified by tests |
+| PRC-007 | Every declared component renders on one screen, in declared order, with one action bar | pass | todo | every component in order as text (kernel screen model); bulk load forms belong to qqq bulk |
+| PRC-008 | HELP_TEXT with line breaks and previewText toggle | pass | todo | text with line breaks; previewText printed above it |
 | PRC-009 | EDIT_FORM field subsets (includeFieldNames), section labels and persisted input values | pass | todo | includeFieldNames and values kept across steps |
 | PRC-010 | Required input validation on screens and in the backend | pass | todo | required checked locally and by the server |
 | PRC-011 | Process possible-value fields | pass | todo | labels or ids, prompts list choices |
-| PRC-012 | VIEW_FORM labels and backend values | pass | todo | results as label: value |
-| PRC-013 | HTML component renders the step html value, sanitized | todo | todo | HTML component |
-| PRC-014 | DOWNLOAD_FORM delivers the generated file | todo | todo | DOWNLOAD_FORM |
-| PRC-015 | Step help content for process screens | todo | todo | step help |
-| PRC-016 | Back to the backend back step with entered values | todo | todo | back step |
+| PRC-012 | VIEW_FORM labels and backend values | pass | todo | label: value on every step |
+| PRC-013 | HTML component renders the step html value, sanitized | pass | todo | {step}.html as text (tags stripped) |
+| PRC-014 | DOWNLOAD_FORM delivers the generated file | pass | todo | GET /download/{file} saved to --out-dir; no sample process offers one, verified by tests |
+| PRC-015 | Step help content for process screens | pass | todo | step helpContents shown on the screen, process help at start and in describe; none in the sample |
+| PRC-016 | Back to the backend back step with entered values | partial | todo | b at the prompt when the step reports backStep (isStepBack=true); no sample process declares one, verified by tests |
 | PRC-017 | Dynamic step list from processMetaDataAdjustment.updatedFrontendStepList | pass | todo | updatedFrontendStepList followed |
 | PRC-018 | Updated field metadata from processMetaDataAdjustment.updatedFields | pass | todo | updatedFields applied |
 | PRC-019 | Async job progress in the live job view (message, N / M, determinate progress bar, elapsed) then continue | pass | todo | message, N/M, elapsed on stderr |
-| PRC-020 | Cancel from a screen and mid-job runs the cancel step and leaves | todo | todo | cancel on Ctrl-C |
+| PRC-020 | Cancel from a screen and mid-job runs the cancel step and leaves | pass | todo | Ctrl-C during a job or a prompt calls POST …/cancel, exit 130 |
 | PRC-021 | Step errors: user-facing messages directly, internal errors behind a detail toggle, Close | pass | todo | userFacingError shown |
 | PRC-022 | Retry after an error restarts with the original record selection | n/a | todo | retry is re-running the command |
 | PRC-023 | Completion: Next/Submit labels, Return on the last screen or when noMoreSteps | n/a | todo | screen labels |
 | PRC-024 | Linear stepper and step position | n/a | todo | stepper; step names printed |
-| PRC-025 | RECORD_LIST paging and page size over process records | todo | todo | RECORD_LIST paging |
-| PRC-026 | Validation review: input count, validate-or-skip choice, Next/Submit label, record preview | pass | todo | --validate / --skip-validation; prompt otherwise todo |
+| PRC-025 | RECORD_LIST paging and page size over process records | pass | todo | GET …/records paged into a table, --record-limit |
+| PRC-026 | Validation review: input count, validate-or-skip choice, Next/Submit label, record preview | pass | todo | count and preview; asks validate or skip on a terminal, --validate / --skip-validation; Submit? after validation |
 | PRC-027 | Full validation summary lines (OK, WARNING, ERROR) with record links | pass | todo | status, count, message lines |
 | PRC-028 | Process summary results after execution and persisted effects | pass | todo |  |
 | PRC-029 | Bulk edit: switched-on fields only, review and result | todo | todo | bulk edit |
@@ -105,9 +105,9 @@ The TUI column fills in during M3.
 | PRC-032 | Bulk load mapping validation and Back through mapping and upload | todo | todo |  |
 | PRC-033 | Bulk edit with a file matched by key fields | todo | todo |  |
 | PRC-034 | Upload instructions HTML with downloadable template | todo | todo |  |
-| PRC-035 | Named WIDGET fetched with the process UUID and values | todo | todo | WIDGET in steps |
-| PRC-036 | Named composite WIDGET seeded from process values | todo | todo |  |
-| PRC-037 | Ad hoc composite WIDGET: interpolation, conditional blocks, action buttons, submit-on-enter inputs | todo | todo |  |
+| PRC-035 | Named WIDGET fetched with the process UUID and values | pass | todo | named widget with the process UUID and values, kernel render model; none in the sample, verified by tests |
+| PRC-036 | Named composite WIDGET seeded from process values | pass | todo | seeded from the process value of the widget name |
+| PRC-037 | Ad hoc composite WIDGET: interpolation, conditional blocks, action buttons, submit-on-enter inputs | partial | todo | ad hoc blocks rendered with interpolation; buttons and inputs not offered |
 | PRC-038 | GOOGLE_DRIVE_SELECT_FOLDER screen keeps its other components working | n/a | n/a | Google Drive is web-only |
 | PRC-039 | Google Drive folder selection through the Google Picker | n/a | n/a | Google Drive is web-only |
 | PRC-040 | Reload mid-process starts a fresh run | n/a | todo | no reload |
