@@ -12,7 +12,8 @@ what it produces; the TUI draws it.
 | `forms/possible-values` | possible-value search with dependency values; resolution of typed text by id, exact label or unique partial |
 | `forms/adjuster` | form adjusters (`onLoad`, `onChange`; 404 means none) and how their output is applied |
 | `forms/form-session` | one form being filled: values, display values, clearing dependents, adjusters, validation, submission |
-| `process/runner` | init, step until complete, poll asynchronous jobs, apply metadata adjustments, ask a provider for each step's input |
+| `process/runner` | init, step until complete, poll asynchronous jobs, apply metadata adjustments, ask a provider for each step's input, go back (`BACK`), cancel on an abort signal (`POST …/cancel`), check min/max input records |
+| `process/screen` | each step's components as neutral screen blocks: help, HTML as text, view pairs, process records (paged), validation review, summary lines, downloads (`GET /download`), widgets |
 | `records/associations` | related records: association labels, the values binding a child to its parent (composite joins too), child-list filters, the association tree of a record read with `includeAssociations`, child pages with counts |
 | `records/record-view` | the record view as text: sections without hidden sections or fields, adornments (LINK, CHIP, REVEAL, RENDER_HTML, CODE_EDITOR, ERROR, FILE_DOWNLOAD, WIDGET, TOOLTIP), view-screen help by role |
 | `widgets/render-model` | any widget payload to neutral blocks (heading, stat, table, series, pairs, steps, alert, link, rule, children) and blocks to text |

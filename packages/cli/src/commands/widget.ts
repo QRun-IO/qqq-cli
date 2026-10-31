@@ -5,7 +5,7 @@
 
 import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { blocksToText, formatCsv, safeFileName, saveDownload, widgetRows, widgetToBlocks } from '@qrun-io/qqq-core'
+import { blocksToText, formatCsv, listReports, safeFileName, saveDownload, widgetRows, widgetToBlocks } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { parsePairs, type Json } from './shared.js'
 
@@ -50,7 +50,15 @@ export function registerWidget(program: Command, ctx: () => Context): void {
       process.stdout.write(blocksToText(blocks, { width: process.stdout.columns ?? 100, ascii: options.ascii }) + '\n')
     })
 
-  program.command('report').description('Reports: run.').command('run <report>')
+  const report = program.command('report').description('Reports: list, run.')
+  report.command('list')
+    .description('The reports you may run, with their table and app.')
+    .action(async () => {
+      const c = ctx()
+      const rows = listReports(await c.metaData() as unknown as Json)
+      c.print({ data: rows, columns: ['name', 'label', 'table', 'app'], footer: rows.length ? '' : '(no reports in this application)' })
+    })
+  report.command('run <report>')
     .description('Run a report and save its output (csv, xlsx, json, pdf as the report allows).')
     .option('--format <fmt>', 'output format', 'csv')
     .option('-o, --out <file>', 'output file (default: <report>.<format>, never overwriting)')

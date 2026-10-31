@@ -40,7 +40,7 @@ export function selectHelpContent(entries: unknown, roles: readonly string[] = V
 }
 
 /** Help content as plain text: TEXT as written, HTML and MARKDOWN through the server's rendered HTML. */
-export function helpText(entry: HelpContent | undefined): string {
+export function helpEntryText(entry: HelpContent | undefined): string {
   if (!entry) return ''
   const format = entry.format ?? 'TEXT'
   let text = entry.contentAsText?.trim() ? entry.contentAsText
@@ -53,15 +53,15 @@ export function helpText(entry: HelpContent | undefined): string {
 }
 
 /** Table help for a view: the table's `helpContent`, or its `helpContents` slots (every slot that has view help, by slot name). */
-export function tableHelp(table: TableMetaLike, roles: readonly string[] = VIEW_SCREEN_HELP_ROLES): Array<{ slot: string; text: string }> {
+export function tableViewHelp(table: TableMetaLike, roles: readonly string[] = VIEW_SCREEN_HELP_ROLES): Array<{ slot: string; text: string }> {
   const out: Array<{ slot: string; text: string }> = []
   const single = selectHelpContent(table.helpContent, roles)
-  if (single) out.push({ slot: 'table', text: helpText(single) })
+  if (single) out.push({ slot: 'table', text: helpEntryText(single) })
   const slots = table.helpContents
   if (slots && typeof slots === 'object' && !Array.isArray(slots)) {
     for (const [slot, entries] of Object.entries(slots as Record<string, unknown>)) {
       const entry = selectHelpContent(entries, roles)
-      if (entry) out.push({ slot, text: helpText(entry) })
+      if (entry) out.push({ slot, text: helpEntryText(entry) })
     }
   }
   return out
@@ -279,13 +279,13 @@ export function recordView(table: TableMetaLike, record: RecordLike, options: Va
   const pk = table.primaryKeyField ?? 'id'
   const entry = (name: string) => {
     const field = fields[name]!
-    const help = options.helpContent ? helpText(selectHelpContent(field.helpContents)) : ''
+    const help = options.helpContent ? helpEntryText(selectHelpContent(field.helpContents)) : ''
     return { field, value: valueText(field, record, { ...options, tableName: options.tableName ?? table.name, primaryKey: options.primaryKey ?? str(record.values[pk]) }), ...(help ? { help } : {}) }
   }
   for (const section of sections) {
     for (const name of section.fieldNames ?? []) placed.add(name)
     if (section.isHidden) continue
-    const help = options.helpContent ? helpText(selectHelpContent(section.helpContents)) : ''
+    const help = options.helpContent ? helpEntryText(selectHelpContent(section.helpContents)) : ''
     const names = (section.fieldNames ?? []).filter((n) => fields[n] && !fields[n]!.isHidden)
     if (!names.length && !section.widgetName) continue
     out.push({ name: section.name, label: section.label ?? section.name, ...(section.tier ? { tier: section.tier } : {}), ...(help ? { help } : {}), fields: names.map(entry), ...(section.widgetName ? { widgetName: section.widgetName } : {}) })

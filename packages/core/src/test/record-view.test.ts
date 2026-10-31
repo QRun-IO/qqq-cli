@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { MASK, fileDownload, recordView, relatedRecordTarget, selectHelpContent, helpText, tableHelp, valueText } from '../records/record-view.js'
+import { MASK, fileDownload, recordView, relatedRecordTarget, selectHelpContent, helpEntryText, tableViewHelp, valueText } from '../records/record-view.js'
 import type { RecordLike, TableMetaLike } from '../records/associations.js'
 import type { FieldMeta } from '../forms/fields.js'
 
@@ -79,13 +79,13 @@ test('record view: hidden sections and hidden fields are never shown; unplaced f
 
 test('help content: view roles first, then entries without roles; HTML and MARKDOWN as text', () => {
   const entries = [{ content: 'edit help', roles: ['EDIT_SCREEN'] }, { content: 'general' }, { content: '<p>view <b>help</b></p>', format: 'HTML', roles: ['READ_SCREENS'] }]
-  assert.equal(helpText(selectHelpContent(entries)), 'view help')
-  assert.equal(helpText(selectHelpContent([{ content: '# x', format: 'MARKDOWN', contentAsHtml: '<h1>x</h1>', links: [{ label: 'Docs', url: 'https://d' }] }])), 'x (Docs <https://d>)')
+  assert.equal(helpEntryText(selectHelpContent(entries)), 'view help')
+  assert.equal(helpEntryText(selectHelpContent([{ content: '# x', format: 'MARKDOWN', contentAsHtml: '<h1>x</h1>', links: [{ label: 'Docs', url: 'https://d' }] }])), 'x (Docs <https://d>)')
   assert.equal(selectHelpContent([{ content: 'e', roles: ['EDIT_SCREEN'] }]), undefined)
   const table: TableMetaLike = { name: 't', fields: { a: field('a', { helpContents: [{ content: 'field help' }] }) }, sections: [{ name: 's', label: 'S', fieldNames: ['a'], helpContents: [{ content: 'section help' }] }], helpContents: { header: [{ content: 'table help' }] } }
   const view = recordView(table, rec({ a: 1 }), { helpContent: true })
   assert.equal(view[0]!.help, 'section help')
   assert.equal(view[0]!.fields[0]!.help, 'field help')
-  assert.deepEqual(tableHelp(table), [{ slot: 'header', text: 'table help' }])
+  assert.deepEqual(tableViewHelp(table), [{ slot: 'header', text: 'table help' }])
   assert.equal(recordView(table, rec({ a: 1 }))[0]!.help, undefined, 'help only when asked')
 })

@@ -11,7 +11,7 @@
 
 import type { Command } from 'commander'
 import {
-  associationGroups, associationLabel, associationsOf, childListFields, fetchChildren, fileDownload, safeFileName, saveDownload, findAssociation, recordView, relationshipValues, tableHelp,
+  associationGroups, associationLabel, associationsOf, childListFields, fetchChildren, fileDownload, safeFileName, saveDownload, findAssociation, recordView, relationshipValues, tableViewHelp,
   type RecordLike, type TableMetaLike, type WidgetMetaLike,
 } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
@@ -75,7 +75,7 @@ export async function showRecord(c: Context, table: string, primaryKey: string, 
   if (structured) return
 
   if (options.helpContent) {
-    const help = tableHelp(meta)
+    const help = tableViewHelp(meta)
     if (help.length) c.print({ data: help, rows: help.map((h) => ({ slot: h.slot, help: h.text })), columns: ['slot', 'help'], headers: ['Table help', ''] })
   }
   if (options.links && links.length) {
