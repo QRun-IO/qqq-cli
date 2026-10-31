@@ -6,7 +6,8 @@
 
 /**
  * Builds single-file executables of the qqq CLI with `bun build --compile`: one per target, written
- * to dist/qqq-<os>-<arch>[.exe] with a SHA256SUMS file beside them.
+ * to dist/qqq-<os>-<arch>[.exe] with a SHA256SUMS file beside them (source maps go to dist/sourcemaps/,
+ * so the release glob dist/qqq-* does not upload them).
  *
  * The bundle is packages/cli/src/main.ts with the workspace packages (@qrun-io/qqq-ui-api-client and
  * @qrun-io/qqq-core, from their built dist) and every npm dependency inlined. The operations index
@@ -19,18 +20,24 @@
  * x64 targets use Bun's baseline (pre-AVX2) runtime so the binaries also run on older CPUs and
  * under Rosetta 2 or QEMU emulation.
  *
+ * With --with-tui the binary also carries the terminal UI (packages/tui: OpenTUI's native library and
+ * the React renderer): the entry is scripts/binary-with-tui.ts, `qqq ui` runs in the same process,
+ * and `qqq --version` says "with ui". OpenTUI's native package for every target is installed first
+ * (bun install --os='*' --cpu='*' in packages/tui); Linux targets pin OPENTUI_LIBC to their libc.
+ *
  * Usage: node scripts/build-binaries.mjs [--targets darwin-arm64,linux-x64,...] [--host] [--musl]
- *                                       [--no-build] [--out dist]
+ *                                       [--with-tui] [--no-build] [--out dist]
  *   --targets   comma-separated subset of the default targets (and the musl ones)
  *   --host      only the target of this machine
  *   --musl      also build linux-x64-musl and linux-arm64-musl (best effort)
+ *   --with-tui  bundle the terminal UI too
  *   --no-build  skip `npm run build` (the workspace packages must already be built)
  * Needs Bun 1.4 or later on the PATH; cross-compiling downloads each target's Bun runtime once.
  */
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
@@ -41,22 +48,29 @@ const TARGETS = {
   'linux-arm64': 'bun-linux-arm64',
   'windows-x64': 'bun-windows-x64-baseline',
 }
+/** OpenTUI's native package per target (only needed with --with-tui). */
+const OPENTUI_NATIVE = {
+  'darwin-arm64': 'core-darwin-arm64', 'darwin-x64': 'core-darwin-x64', 'linux-x64': 'core-linux-x64',
+  'linux-arm64': 'core-linux-arm64', 'windows-x64': 'core-win32-x64', 'linux-x64-musl': 'core-linux-x64-musl',
+  'linux-arm64-musl': 'core-linux-arm64-musl',
+}
 const MUSL_TARGETS = {
   'linux-x64-musl': 'bun-linux-x64-musl-baseline',
   'linux-arm64-musl': 'bun-linux-arm64-musl',
 }
 
 function parseArgs(argv) {
-  const args = { targets: undefined, host: false, musl: false, build: true, out: 'dist' }
+  const args = { targets: undefined, host: false, musl: false, tui: false, build: true, out: 'dist' }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--targets') args.targets = argv[++i].split(',').map((t) => t.trim()).filter(Boolean)
     else if (a === '--host') args.host = true
     else if (a === '--musl') args.musl = true
+    else if (a === '--with-tui') args.tui = true
     else if (a === '--no-build') args.build = false
     else if (a === '--out') args.out = argv[++i]
     else if (a === '-h' || a === '--help') {
-      console.log('Usage: node scripts/build-binaries.mjs [--targets a,b] [--host] [--musl] [--no-build] [--out dist]')
+      console.log('Usage: node scripts/build-binaries.mjs [--targets a,b] [--host] [--musl] [--with-tui] [--no-build] [--out dist]')
       process.exit(0)
     } else fail(`unknown option ${a}`)
   }
@@ -140,6 +154,15 @@ for (const entry of ['packages/ui-api-client/dist/index.js', 'packages/core/dist
   if (!existsSync(join(root, entry))) fail(`${entry} is missing; run npm run build`)
 }
 
+if (args.tui) {
+  // the TUI's own dependencies, with OpenTUI's native package for every platform
+  run('bun', ['install', '--frozen-lockfile', '--os=*', '--cpu=*'], { cwd: join(root, 'packages/tui'), stdio: ['ignore', 'ignore', 'inherit'] })
+  for (const name of names) {
+    const native = join(root, 'packages/tui/node_modules/@opentui', OPENTUI_NATIVE[name])
+    if (!existsSync(native)) fail(`OpenTUI's native package @opentui/${OPENTUI_NATIVE[name]} is missing for ${name}`)
+  }
+}
+
 const outDir = resolve(root, args.out)
 mkdirSync(outDir, { recursive: true })
 const built = []
@@ -147,13 +170,23 @@ for (const name of names) {
   const file = `qqq-${name}${name.startsWith('windows') ? '.exe' : ''}`
   const outfile = join(outDir, file)
   const started = Date.now()
+  const tuiDefines = !args.tui ? [] : [
+    '--define=QQQ_BUILD_UI=true',
+    ...(name.startsWith('linux') ? [`--define=process.env.OPENTUI_LIBC=${JSON.stringify(name.endsWith('-musl') ? 'musl' : 'glibc')}`] : []),
+  ]
   run('bun', [
-    'build', 'packages/cli/src/main.ts',
+    'build', args.tui ? 'scripts/binary-with-tui.ts' : 'packages/cli/src/main.ts',
     '--compile', `--target=${all[name]}`, `--outfile=${outfile}`,
     '--minify-syntax', '--minify-whitespace', '--sourcemap',
     `--define=QQQ_BUILD_SHA=${JSON.stringify(sha)}`,
     `--define=QQQ_BUILD_TARGET=${JSON.stringify(name)}`,
+    ...tuiDefines,
   ], { stdio: ['ignore', 'ignore', 'inherit'] })
+  // bun writes the source map beside the binary; keep it out of the release files (dist/qqq-*)
+  if (existsSync(`${outfile}.map`)) {
+    mkdirSync(join(outDir, 'sourcemaps'), { recursive: true })
+    renameSync(`${outfile}.map`, join(outDir, 'sourcemaps', `${file}.map`))
+  }
   const bytes = readFileSync(outfile)
   built.push({ file, size: statSync(outfile).size, sha256: createHash('sha256').update(bytes).digest('hex'), seconds: (Date.now() - started) / 1000 })
 }
