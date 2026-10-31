@@ -94,9 +94,10 @@ export class AppHomeScreen implements Screen {
         rows.push({ text: label, fg: t.acc, bold: true })
         rows.push({ text: `  ${data.error}`, fg: t.err })
       } else {
-        const lines = blockLines(data, width - 4)
-        if (lines[0] && !lines[0].bold) rows.push({ text: label, fg: t.acc, bold: true })
-        rows.push(...lines.map((l, i) => ({ ...l, text: (i === 0 && l.bold ? '' : '  ') + l.text })))
+        const heading = data[0]?.kind === 'heading' ? data[0] : undefined
+        rows.push({ text: heading ? heading.text : label, fg: t.acc, bold: true })
+        if (heading?.sub) rows.push({ text: `  ${heading.sub}`, fg: t.dim })
+        rows.push(...blockLines(heading ? data.slice(1) : data, width - 4).map((l) => ({ ...l, text: '  ' + l.text })))
       }
       rows.push({ text: g.rule.repeat(Math.min(width - 2, 80)), fg: t.border })
     }

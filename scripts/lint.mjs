@@ -14,7 +14,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const HEADER = 'Copyright 2026 QRun.IO, Inc.'
-const roots = ['packages/ui-api-client/src', 'packages/core/src', 'packages/conformance/src', 'packages/cli/src', 'scripts']
+const roots = ['packages/ui-api-client/src', 'packages/core/src', 'packages/conformance/src', 'packages/cli/src', 'packages/tui/src', 'packages/tui/test', 'packages/tui/scripts', 'scripts']
 const problems = []
 
 function walk(dir) {

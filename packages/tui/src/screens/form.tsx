@@ -213,7 +213,7 @@ export class FormEditor {
     const g = glyphs()
     const names = this.names
     const labelWidth = Math.min(28, Math.max(8, ...names.map((n) => this.session.fields[n]!.label.length + 2)))
-    const editorWidth = Math.max(10, Math.min(60, width - labelWidth - 6 - (this.options.bulkEdit ? 4 : 0)))
+    const editorWidth = Math.max(10, Math.min(60, width - labelWidth - 6 - (this.options.bulkEdit ? 4 : 0) - Math.min(36, Math.floor(width / 3))))
     const msgWidth = Math.max(0, width - labelWidth - editorWidth - 6 - (this.options.bulkEdit ? 4 : 0))
     const rows = Math.max(1, height - (this.formError ? 1 : 0))
     if (this.index < this.top) this.top = this.index

@@ -56,7 +56,7 @@ export function widgetToBlocks(data: unknown): RenderBlock[] {
     case 'multiStatistics':
       for (const group of ((w.statisticsGroupData ?? w.groups ?? []) as J[])) {
         if (group.header ?? group.label) blocks.push({ kind: 'text', text: String(group.header ?? group.label) })
-        for (const s of ((group.statisticsList ?? group.statistics ?? []) as J[])) blocks.push({ kind: 'stat', label: str(s.label), value: str(s.count ?? s.value), context: s.context ? String(s.context) : undefined })
+        for (const s of ((group.statisticsList ?? group.statisticList ?? group.statistics ?? []) as J[])) blocks.push({ kind: 'stat', label: str(s.label), value: str(s.count ?? s.value), context: s.context ? String(s.context) : undefined })
       }
       break
     case 'table':
