@@ -16,6 +16,7 @@ import { UI_API_VERSION } from '@qrun-io/qqq-ui-api-client'
 import { Context, EXIT, describeError } from './context.js'
 import { CLI_VERSION } from './session.js'
 import { registerApi } from './commands/api.js'
+import { registerAudit } from './commands/audit.js'
 import { registerAuth } from './commands/auth.js'
 import { registerCompletion } from './commands/completion.js'
 import { registerConfig } from './commands/config.js'
@@ -49,6 +50,7 @@ const ctx = () => (context ??= new Context(program))
 registerAuth(program, ctx)
 registerMisc(program, ctx)
 registerTable(program, ctx)
+registerAudit(program, ctx)
 registerProcess(program, ctx)
 registerSavedView(program, ctx)
 registerJob(program, ctx)
