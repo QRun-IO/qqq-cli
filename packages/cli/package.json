@@ -1,6 +1,6 @@
 {
   "name": "@qrun-io/qqq-cli",
-  "version": "0.1.0-rc.1",
+  "version": "0.2.0-dev",
   "description": "Reference command-line client for QQQ applications, built only on the QQQ UI API (/qqq/v1).",
   "license": "Apache-2.0",
   "type": "module",
@@ -24,7 +24,7 @@
     "test": "node --test \"dist/test/*.test.js\""
   },
   "dependencies": {
-    "@qrun-io/qqq-ui-api-client": "1.6.0-rc.1",
+    "@qrun-io/qqq-ui-api-client": "1.8.0-rc.1",
     "commander": "15.0.0"
   }
 }

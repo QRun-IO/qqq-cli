@@ -12,7 +12,7 @@
 
 import { Command } from 'commander'
 import {
-  UiApiError, decodeJwtClaims, deviceSignIn, openRealtimeStream, unwrap, UI_API_VERSION,
+  UiApiError, createSession, decodeJwtClaims, deviceSignIn, getAuthenticationMetaData, openRealtimeStream, unwrap, UI_API_VERSION,
 } from '@qrun-io/qqq-ui-api-client'
 import { CLIENT_CHANNEL, CLI_VERSION, clientFor, currentToken, getLogin, nativeConfig, removeLogin, resolveServer, saveLogin } from './session.js'
 import { formatTable, parseCriteria, parseValues, valueText } from './format.js'
@@ -40,16 +40,32 @@ function print(data: unknown, table?: () => string): void {
 }
 
 program.command('login')
-  .description('Sign in with the device-authorization grant (approve the code in any browser).')
-  .action(async () => {
+  .description('Sign in. OAUTH2 and AUTH_0 servers use the device-authorization grant (approve the code in any browser); MOCK and FULLY_ANONYMOUS servers get a server session.')
+  .option('--device', 'force the device-authorization grant')
+  .action(async (options: { device?: boolean }) => {
     const origin = server()
+    const auth = await getAuthenticationMetaData(origin)
+    const type = String(auth.type ?? '').toUpperCase()
+    if (!options.device && (type === 'MOCK' || type === 'FULLY_ANONYMOUS')) {
+      const session = await createSession(origin, {}, CLIENT_CHANNEL)
+      const user = (session.values.user ?? {}) as Record<string, unknown>
+      saveLogin(origin, { kind: 'session', authType: type, sessionUUID: session.sessionUUID, user, createdAt: new Date().toISOString() })
+      console.error(`Signed in to ${origin} (${type.toLowerCase()} authentication${user.name || user.email ? ` as ${user.name ?? user.email}` : ''}). The session is sent as a cookie.`)
+      return
+    }
+    if (!options.device && type === 'TABLE_BASED') {
+      throw new Error('TABLE_BASED sign-in (username and password) is not implemented yet; set QQQ_TOKEN to a session UUID for now.')
+    }
+    if (!options.device && type !== 'OAUTH2' && type !== 'AUTH_0') {
+      throw new Error(`Unknown authentication type "${auth.type}"; this CLI knows OAUTH2, AUTH_0, MOCK and FULLY_ANONYMOUS.`)
+    }
     const config = await nativeConfig(origin)
     const tokens = await deviceSignIn(config, (prompt) => {
       console.error(`To sign in to ${origin}, open:\n\n  ${prompt.verificationUriComplete ?? prompt.verificationUri}\n`)
       console.error(`and confirm the code ${prompt.userCode} (it expires in ${Math.round(prompt.expiresIn / 60)} minutes).`)
       console.error('Waiting for approval...')
     })
-    saveLogin(origin, { config, tokens })
+    saveLogin(origin, { kind: 'oauth', config, tokens })
     const claims = decodeJwtClaims(tokens.accessToken)
     console.error(`Signed in to ${origin} as ${claims.email ?? claims.preferred_username ?? claims.sub}.`)
   })
@@ -71,11 +87,13 @@ program.command('whoami')
     const claims = token && token.includes('.') ? decodeJwtClaims(token) : {}
     const metaData = await unwrap(client.GET('/qqq/v1/metaData', {})) as Json
     const login = getLogin(origin)
+    const sessionUser = login?.kind === 'session' ? login.user ?? {} : {}
     const result = {
       server: origin,
-      user: claims.email ?? claims.preferred_username ?? claims.sub,
-      name: claims.name,
-      tokenExpires: login ? new Date(login.tokens.expiresAt).toISOString() : undefined,
+      auth: login?.kind === 'session' ? `${login.authType.toLowerCase()} session (cookie)` : login ? 'oauth2 bearer' : process.env.QQQ_TOKEN ? 'QQQ_TOKEN' : 'none',
+      user: claims.email ?? claims.preferred_username ?? claims.sub ?? sessionUser.email ?? sessionUser.username ?? sessionUser.name,
+      name: claims.name ?? sessionUser.displayName ?? sessionUser.name,
+      tokenExpires: login && login.kind !== 'session' ? new Date(login.tokens.expiresAt).toISOString() : undefined,
       apiVersion: version.apiVersion,
       extensions: (version.extensions as Json[] | undefined)?.map((e) => `${e.name} ${e.version}`),
       apps: Object.keys((metaData.apps ?? {}) as Json).length,

@@ -74,15 +74,29 @@ What to look at:
 Known: typing in the same instant as Tab (paste, automation) lands in the previous field; a human does
 not hit this. Windows binary is cross-compiled and unverified.
 
-## Existing CLI (`@qrun-io/qqq-cli` 0.1.0-rc.1, UI API 1.6.0 client)
+## CLI (`qqq`, M1 in progress)
+
+`qqq` on your PATH runs the CLI from this checkout with Bun (no build step; the client package is rebuilt
+when its source changed). Sign in once per server; the mock sample server gets a server session that is
+sent as a cookie.
 
 ```sh
-npm install && npm run build
-node packages/cli/dist/main.js --help
+qqq login --server http://localhost:8077     # MOCK: server session. OAUTH2/AUTH_0: device flow.
+qqq whoami
+qqq apps
+qqq tables --app peopleApp
+qqq query person --where "lastName STARTS_WITH S" --order -id --limit 5
+qqq query person --where "birthDate GREATER_THAN 1990-06-01" --fields id,firstName,birthDate --json
+qqq get pet 3
+qqq run sleepInteractive -v sleepMillis=1500 --timeout 0   # async job, polled
+qqq tail                                                   # realtime stream, Ctrl-C to stop
+qqq --help ; qqq query --help
 ```
 
-It targets bearer auth, which the mock-auth sample server does not accept for async processes yet; use it
-against an OAuth2 server, or wait for M1 where the kernel adds the session-cookie fallback.
+`--server` or `QQQ_SERVER` picks the server; `--json` prints machine output. `qqq jobs` reports that
+this sample server has no jobs operations. Coming in M1: the noun-verb grammar (`qqq table query …`)
+with the current commands kept as aliases, `--output json|table|text|csv|yaml`, `--query` (JMESPath),
+create/update/delete, `qqq api <operationId>`, non-interactive process inputs, completion, keyring.
 
 ## Reporting what you find
 

@@ -17,14 +17,13 @@ import {
   type NativeSignInConfig, type TokenSet, type UiApiClient,
 } from '@qrun-io/qqq-ui-api-client'
 
-export const CLI_VERSION = '0.1.0-rc.1'
+export const CLI_VERSION = '0.2.0-dev'
 export const CLIENT_CHANNEL = `cli/qqq-cli ${CLI_VERSION}`
 
-/** What is stored per server. */
-export interface StoredLogin {
-  config: NativeSignInConfig
-  tokens: TokenSet
-}
+/** What is stored per server: OAuth2 tokens from the device flow, or a server session from manageSession. */
+export type StoredLogin =
+  | { kind?: 'oauth'; config: NativeSignInConfig; tokens: TokenSet }
+  | { kind: 'session'; authType: string; sessionUUID: string; user?: Record<string, unknown>; createdAt: string }
 
 interface Store {
   defaultServer?: string
@@ -95,6 +94,7 @@ export async function currentToken(server: string, force = false): Promise<strin
   if (process.env.QQQ_TOKEN) return process.env.QQQ_TOKEN
   const login = getLogin(server)
   if (!login) return undefined
+  if (login.kind === 'session') return login.sessionUUID
   if ((force || isExpiring(login.tokens)) && login.tokens.refreshToken) {
     const tokens = await refreshTokens(login.config, login.tokens.refreshToken)
     saveLogin(server, { config: login.config, tokens })
@@ -103,14 +103,23 @@ export async function currentToken(server: string, force = false): Promise<strin
   return login.tokens.accessToken
 }
 
+/** The stored server session of a server, when the sign-in was session-based (sent as a cookie). */
+export function sessionCookieFor(server: string): string | undefined {
+  if (process.env.QQQ_TOKEN) return undefined
+  const login = getLogin(server)
+  return login?.kind === 'session' ? login.sessionUUID : undefined
+}
+
 /** An authenticated UI API client for a server (refreshes once on 401). */
 export function clientFor(server: string): UiApiClient {
   return createUiApiClient({
     baseUrl: server,
     clientChannel: CLIENT_CHANNEL,
     token: () => currentToken(server),
+    sessionCookie: () => sessionCookieFor(server),
     onUnauthorized: async () => {
-      if (process.env.QQQ_TOKEN || !getLogin(server)?.tokens.refreshToken) return false
+      const login = getLogin(server)
+      if (process.env.QQQ_TOKEN || !login || login.kind === 'session' || !login.tokens.refreshToken) return false
       try {
         await currentToken(server, true)
         return true

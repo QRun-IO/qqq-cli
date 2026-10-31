@@ -196,3 +196,68 @@ function toTokenSet(body: Record<string, unknown>): TokenSet {
     scope: typeof body.scope === 'string' ? body.scope : undefined,
   }
 }
+
+/** The authentication metadata a server publishes before sign-in (GET /qqq/v1/metaData/authentication). */
+export interface AuthenticationMetaData {
+  /** OAUTH2, AUTH_0, TABLE_BASED, MOCK, FULLY_ANONYMOUS, or a type this client does not know. */
+  type: string
+  name?: string
+  branding?: { appName?: string; companyName?: string }
+  values?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+/**
+ * Reads the server's authentication metadata.
+ *
+ * @param baseUrl - Server origin.
+ */
+export async function getAuthenticationMetaData(baseUrl: string, fetchImpl: typeof fetch = fetch): Promise<AuthenticationMetaData> {
+  const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/qqq/v1/metaData/authentication`, { headers: { Accept: 'application/json' } })
+  if (!response.ok) throw new Error(`GET /qqq/v1/metaData/authentication failed: HTTP ${response.status}`)
+  return await response.json() as AuthenticationMetaData
+}
+
+/** What `manageSession` accepts: nothing (MOCK, FULLY_ANONYMOUS), a provider access token, or a PKCE code. */
+export interface ManageSessionRequest {
+  accessToken?: string
+  code?: string
+  codeVerifier?: string
+  redirectUri?: string
+  sessionUUID?: string
+}
+
+/** A session created by `manageSession`. */
+export interface ServerSession {
+  /** The session UUID, from the response body or the `sessionUUID` cookie the server set. */
+  sessionUUID: string
+  /** Application-defined values, including `user` (name, email or username, displayName, avatarUrl). */
+  values: Record<string, unknown>
+}
+
+/**
+ * Creates (or resumes) a server session with POST /qqq/v1/manageSession. The UUID is taken from the
+ * body when the server returns it, else from the `Set-Cookie` header (HttpOnly cookies are not in the body).
+ *
+ * @param baseUrl - Server origin.
+ * @param request - Credentials; `{}` for MOCK and FULLY_ANONYMOUS servers.
+ * @param clientChannel - X-QQQ-Client value.
+ */
+export async function createSession(baseUrl: string, request: ManageSessionRequest = {}, clientChannel?: string, fetchImpl: typeof fetch = fetch): Promise<ServerSession> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json' }
+  if (clientChannel) headers['X-QQQ-Client'] = clientChannel
+  const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/qqq/v1/manageSession`, { method: 'POST', headers, body: JSON.stringify(request) })
+  const text = await response.text()
+  let body: { uuid?: string; values?: Record<string, unknown>; message?: string } = {}
+  try {
+    body = text ? JSON.parse(text) as typeof body : {}
+  } catch {
+    // not JSON
+  }
+  if (!response.ok) throw new Error(`manageSession failed: HTTP ${response.status}${body.message ? ` ${body.message}` : ''}`)
+  const cookies: string[] = typeof response.headers.getSetCookie === 'function' ? response.headers.getSetCookie() : [response.headers.get('set-cookie') ?? '']
+  const fromCookie = cookies.map((c) => /(?:^|;\s*)sessionUUID=([^;]+)/.exec(c)?.[1]).find(Boolean)
+  const sessionUUID = body.uuid ?? fromCookie
+  if (!sessionUUID) throw new Error('manageSession returned neither a uuid nor a sessionUUID cookie')
+  return { sessionUUID, values: body.values ?? {} }
+}

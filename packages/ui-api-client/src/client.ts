@@ -16,6 +16,12 @@ export interface UiApiClientOptions {
   baseUrl: string
   /** Returns the bearer token (an OAuth2 access token or a session UUID) for each request. */
   token?: () => string | undefined | Promise<string | undefined>
+  /**
+   * Returns a session UUID to send as the `sessionUUID` cookie instead of a bearer token. Use it for
+   * sessions created by `manageSession` on servers where bearer sessions cannot continue asynchronous
+   * process steps (observed on QQQ 4.1.0-SNAPSHOT with MOCK authentication).
+   */
+  sessionCookie?: () => string | undefined | Promise<string | undefined>
   /** Called once on a 401; return true when it refreshed the token, to retry the request. */
   onUnauthorized?: () => boolean | Promise<boolean>
   /** The client channel (X-QQQ-Client), e.g. `cli/qqq-cli 0.1.0`. */
@@ -39,8 +45,13 @@ export function createUiApiClient(options: UiApiClientOptions): UiApiClient {
     const request = new Request(input as RequestInfo, init)
     const send = async (): Promise<Response> => {
       const attempt = request.clone()
-      const token = await options.token?.()
-      if (token) attempt.headers.set('Authorization', `Bearer ${token}`)
+      const session = await options.sessionCookie?.()
+      if (session) {
+        attempt.headers.set('Cookie', `sessionUUID=${session}`)
+      } else {
+        const token = await options.token?.()
+        if (token) attempt.headers.set('Authorization', `Bearer ${token}`)
+      }
       return baseFetch(attempt)
     }
     let response = await send()
