@@ -104,7 +104,7 @@ qqq table get country --key name=Canada         # Go To by a unique key (exit 5 
 qqq table copy pet 1 --set name=Copycat         # copy a record (--dry-run shows the values first)
 qqq apps show greetingsApp                      # an app's home: actions, reports, tables with record counts, widgets
 qqq report list                                 # the sample app has no reports
-qqq help show table person [field] ; qqq help show process greet   # help content from the metadata (none in the sample)
+qqq help show table person ; qqq help show table person firstName ; qqq help show process greet   # help content from the metadata (none in the sample)
 qqq table query person --join pet --select -l 4      # joins: exposed joins (none in the sample), else the table's associations
 qqq table query person --fields id,firstName,pet.name -w "pet.name STARTS_WITH C" -o pet.name
 qqq table count person --join pet                     # many-side join: count and distinctCount
@@ -112,7 +112,8 @@ qqq table get person 1 --join pet
 qqq table variants person                             # none in the sample; --variant <id|name|type:id> on table commands and process run
 qqq table stats person annualSalary --local -l 3     # column statistics; the sample has no columnStats process, --local computes them
 qqq saved-view list person ; qqq saved-view open person <view> ; qqq table query person --view <view> -w …   # saved views (none in the sample)
-qqq saved-view save person --name Mine -w "lastName = Sample" -o -id --fields id,firstName -l 50 ; saved-view rename|delete person Mine …
+qqq saved-view save person --name Mine -w "lastName = Sample" -o -id --fields id,firstName -l 50   # -l is the view's page size
+qqq saved-view rename person Mine Mine2 ; qqq saved-view delete person Mine2 --yes
 qqq audit list person 1                               # audit history (the sample audits nothing: exit 2 with the reason)
 qqq process list ; qqq process describe sleepInteractive
 qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
@@ -165,13 +166,39 @@ metadata cache):
 
 ```sh
 eval "$(qqq completion zsh)"      # or bash; fish: qqq completion fish | source; pwsh: see qqq completion pwsh
-qqq cache show | refresh | clear  # the metadata cache behind listings and completion (5 minutes, ~/.cache/qqq)
+qqq cache show ; qqq cache refresh ; qqq cache clear   # the metadata cache behind listings and completion (5 minutes, ~/.cache/qqq)
 ```
 
-Global options go anywhere: `--server`, `--output json|table|text|csv|yaml` (`-O`), `--json`, `--query` (`-Q`),
-`--fields`, `--yes`, `--trace`. Table on a terminal, JSON in a pipe, `QQQ_OUTPUT` overrides. Exit codes:
-0 ok, 1 error, 2 usage or bad filter, 3 auth, 4 server unreachable or rate limited, 5 not found,
-6 validation, 70 server error. `qqq job …` says this sample server has no jobs operations.
+Global options go anywhere: `--server`, `--profile` (`-p`), `--output json|table|text|csv|yaml` (`-O`), `--json`,
+`--query` (`-Q`), `--fields`, `--yes` (`-y`), `--utc`, `--trace`, `--version`. Table on a terminal, JSON in a pipe,
+`QQQ_OUTPUT` overrides. `--server` and `--path` have no short form (`-s` is `--set`, `-p` is `--profile`), and `-V`
+is `--view` on `table query` (the version is `--version`). The same option names mean the same thing on every noun:
+`--where/-w`, `--group/-g`, `--order/-o`, `--limit/-l`, `--skip`, `--fields/-f`, `--join/-j`, `--variant`,
+`--reveal`, `--yes`; numbers are checked before anything is sent (`-l many` exits 2). Every list ends with the same
+footer, `(3 records; joined: pet; more may exist: --limit, --skip or --all)`. Exit codes: 0 ok (also "Not deleted."
+and "Not submitted." after a no), 1 error, 2 usage or bad filter (also Ctrl-D at a question), 3 auth, 4 server
+unreachable, rate limited or a 502/503/504, 5 not found, 6 validation, 70 server error, 130 Ctrl-C (a run cancelled,
+`tail` stopped). `qqq job …` says this sample server has no jobs operations.
+
+Downloads (`table download`, `table export`, `report run`, `widget get --csv`, process files) go where `--out` or
+`--out-dir` says (`-` is stdout), else into the download directory when one is set, else the current directory;
+a default name never replaces a file (`name-1.ext`). The setting lives in the `ui` section of
+`~/.config/qqq/config.json`, which the TUI reads too:
+
+```sh
+qqq config set download-dir ~/Downloads/qqq     # created when missing; an empty value removes it
+qqq config get ; qqq config get download-dir    # also upload-dir and download-prompt
+qqq table export person                         # wrote ~/Downloads/qqq/person.csv
+```
+
+Is everything in order? `qqq doctor` checks the profile, the server (reachable, UI API version within 1.6.0 to
+1.8.0, authentication type, the sign-in accepted, extensions), the keyring and the metadata cache, and exits 1 with
+what failed. `--conformance` adds the read-only conformance checks. The terminal checks (tmux keys, colour, size,
+`--fix`) arrive with the TUI's kernel module; until then the report says `skip` for them.
+
+```sh
+qqq doctor ; qqq doctor --conformance
+```
 
 Contingent fields (field 1 narrows field 2) are handled by the kernel's form session, for tables and process
 steps alike. The sample's Address book is country → state → city:
@@ -180,6 +207,8 @@ steps alike. The sample's Address book is country → state → city:
 qqq table create placeAddress --set label=Home --set countryId=USA --set stateId=Missouri --set cityId="St. Louis"
 qqq table create placeAddress --set label=X --set stateId=Missouri      # exit 2: set Country first
 qqq table create placeAddress -i                                        # prompts; choices narrow after each answer
+qqq table update placeAddress 3 --set cityId="Kansas City"              # narrowed by the record's own state (Missouri), no -i needed
+qqq table update placeAddress 3 --set stateId=Illinois                  # clears and sends the city that depended on it
 qqq table update placeAddress 3 -i                                      # prompts with the current values
 qqq process run placeAddressPick                                        # asks for what the step lacks, same narrowing
 qqq process run placeAddressPick -v countryId=USA -v stateId=Illinois -v cityId=spring   # labels, ids or unique partials
@@ -224,9 +253,10 @@ qqq table children person 1 pets --limit 2 --skip 2    # one page of a child lis
 qqq table children pet 1 notes --all
 qqq table create pet --parent person=2 --set name=Rexley --set speciesId=Dog    # a child linked to its parent
 qqq table create petNote --parent pet=5 --set "note=Vet visit"                 # then: qqq table get person 2 --associations
-qqq table create fieldLab --set name=withfile --upload blobValue=./notes.txt   # multipart/form-data
+echo hello > notes.txt ; echo other > other.txt
+qqq table create fieldLab --set name=withfile --upload blobValue=./notes.txt   # multipart/form-data; note the id it prints
 qqq table update fieldLab 1 --upload blobValue=./other.txt ; qqq table update fieldLab 1 --set blobValue=   # replace, remove
-qqq table download fieldLab 1 blobValue -o copy.txt                            # -o - for stdout
+qqq table download fieldLab 1 blobValue -o copy.txt                            # -o - for stdout; without -o, the download directory
 qqq table get person 1 --help-content          # table, section and field help inline (this sample app declares none; qqq help show for help alone)
 ```
 
@@ -236,7 +266,7 @@ time repeated by a fall-back change means its first occurrence. In filters, a da
 means local midnight. Fields the server formats in a declared zone (fixed or per-record) keep its text.
 
 ```sh
-TZ=America/Chicago qqq table create fieldLab --set name=tz --set dateTimeValue=2026-10-31T14:30   # stored 19:30Z
+TZ=America/Chicago qqq table create fieldLab --set name=tz --set dateTimeValue=2026-10-31T14:30   # stored 19:30Z; use the id it prints below
 qqq table get fieldLab 4                          # Date Time Value  2026-10-31 14:30:00 CDT
 qqq --utc table get fieldLab 4                    # Date Time Value  2026-10-31T19:30:00Z
 TZ=Asia/Tokyo qqq table get fieldLab 4            # 2026-11-01 04:30:00 GMT+9
