@@ -76,27 +76,45 @@ not hit this. Windows binary is cross-compiled and unverified.
 
 ## CLI (`qqq`, M1 in progress)
 
-`qqq` on your PATH runs the CLI from this checkout with Bun (no build step; the client package is rebuilt
-when its source changed). Sign in once per server; the mock sample server gets a server session that is
-sent as a cookie.
+`qqq` on your PATH runs the CLI from this checkout with Bun (no build step; the client and kernel packages
+are rebuilt when their source changed). Grammar is `qqq <noun> <verb>`; the 0.1 flat commands (`apps`,
+`tables`, `query`, `get`, `run`, `jobs`, `tail`) still work as aliases.
 
 ```sh
-qqq login --server http://localhost:8077     # MOCK: server session. OAUTH2/AUTH_0: device flow.
+qqq login --server http://localhost:8077        # MOCK: server session (cookie). OAUTH2/AUTH_0: device flow.
 qqq whoami
 qqq apps
-qqq tables --app peopleApp
-qqq query person --where "lastName STARTS_WITH S" --order -id --limit 5
-qqq query person --where "birthDate GREATER_THAN 1990-06-01" --fields id,firstName,birthDate --json
-qqq get pet 3
-qqq run sleepInteractive -v sleepMillis=1500 --timeout 0   # async job, polled
-qqq tail                                                   # realtime stream, Ctrl-C to stop
-qqq --help ; qqq query --help
+qqq table list --app peopleApp
+qqq table describe person
+qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5
+qqq table query person -g "(firstName = Avery OR firstName = Blair) AND birthDate > now(-40y)"
+qqq table query person -w "annualSalary >= 300000" --count
+qqq table query person -w "createDate > thisPeriod(month)" --print-filter     # the QueryFilter JSON
+qqq table query person -l 2 --output csv --fields id,firstName,email
+qqq table query person --output yaml -Q '[].{id: values.id, name: recordLabel}'  # JMESPath, as aws --query
+qqq table get pet 3
+qqq table create pet --generate-input-skeleton
+qqq table create pet --set name=Pixel --set personId=2 --set speciesId=2
+qqq table update pet 7 --set name=Pixel2
+qqq table delete pet 7            # asks; --yes skips
+qqq table export person --format xlsx --out people.xlsx
+qqq process list ; qqq process describe sleepInteractive
+qqq process run sleepInteractive -v sleepMillis=1500     # async job, polled, progress on stderr
+qqq process run clonePeople -r 1,2                       # records by primary key
+qqq api --list ; qqq api getTableMetaData --path tableName=person -Q 'fields.*.label'
+qqq search Avery ; qqq tail
 ```
 
-`--server` or `QQQ_SERVER` picks the server; `--json` prints machine output. `qqq jobs` reports that
-this sample server has no jobs operations. Coming in M1: the noun-verb grammar (`qqq table query …`)
-with the current commands kept as aliases, `--output json|table|text|csv|yaml`, `--query` (JMESPath),
-create/update/delete, `qqq api <operationId>`, non-interactive process inputs, completion, keyring.
+Global options go anywhere: `--server`, `--output json|table|text|csv|yaml` (`-O`), `--json`, `--query` (`-Q`),
+`--fields`, `--yes`, `--trace`. Table on a terminal, JSON in a pipe, `QQQ_OUTPUT` overrides. Exit codes:
+0 ok, 1 error, 2 usage or bad filter, 3 auth, 4 server unreachable or rate limited, 5 not found,
+6 validation, 70 server error. `qqq job …` says this sample server has no jobs operations.
+
+Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `lastPeriod(week)`,
+`startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
+
+Still to come in M1: profiles and keyring, metadata cache and shell completion, the process engine with
+form adjusters (contingent fields) and bulk load, widgets and reports, preferences and help.
 
 ## Reporting what you find
 

@@ -5,3 +5,5 @@
 
 export * from './render/output.js'
 export * from './filter/grammar.js'
+export * from './api/operations.js'
+export * from './api/call.js'

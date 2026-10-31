@@ -277,8 +277,9 @@ export function buildFilter(options: { where?: string[]; group?: string[]; or?: 
   const criteria = (options.where ?? []).map((w) => parseCriterion(w, options.knownFields))
   const subFilters = (options.group ?? []).map((g) => parseFilter(g, options.knownFields))
   const orderBys = (options.order ?? []).map((o) => ({ fieldName: o.replace(/^-/, ''), isAscending: !o.startsWith('-') }))
-  const filter: QueryFilter = { criteria, booleanOperator: options.or ? 'OR' : 'AND' }
-  if (subFilters.length) filter.subFilters = subFilters
+  // one --group and no --where is the filter itself, not a wrapper around it
+  const filter: QueryFilter = criteria.length === 0 && subFilters.length === 1 && !options.or ? { ...subFilters[0]! } : { criteria, booleanOperator: options.or ? 'OR' : 'AND' }
+  if (subFilters.length && filter !== subFilters[0] && !(criteria.length === 0 && subFilters.length === 1 && !options.or)) filter.subFilters = subFilters
   if (orderBys.length) filter.orderBys = orderBys
   if (options.skip !== undefined) filter.skip = options.skip
   if (options.limit !== undefined) filter.limit = options.limit

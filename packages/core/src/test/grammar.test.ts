@@ -63,4 +63,7 @@ test('buildFilter assembles where, group, or, order, skip and limit', () => {
   assert.equal(filter.limit, 25)
   assert.equal(printFilter(filter), 'status EQUALS active AND ownerId EQUALS me() AND (x IS_BLANK OR y IS_BLANK)')
   assert.equal(buildFilter({ where: ['a = 1', 'b = 2'], or: true }).booleanOperator, 'OR')
+  const only = buildFilter({ group: ['(a = 1 OR b = 2) AND c IS_BLANK'] })
+  assert.equal(only.criteria.length, 1)
+  assert.equal(only.subFilters?.length, 1)
 })

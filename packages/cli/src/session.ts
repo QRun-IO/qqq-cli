@@ -129,3 +129,19 @@ export function clientFor(server: string): UiApiClient {
     },
   })
 }
+
+/** A fetch that adds this server's authentication and client channel, for calls outside the typed client. */
+export function authenticatedFetch(server: string): typeof fetch {
+  return async (input, init) => {
+    const request = new Request(input as RequestInfo, init)
+    request.headers.set('X-QQQ-Client', CLIENT_CHANNEL)
+    const session = sessionCookieFor(server)
+    if (session) {
+      request.headers.set('Cookie', `sessionUUID=${session}`)
+    } else {
+      const token = await currentToken(server)
+      if (token) request.headers.set('Authorization', `Bearer ${token}`)
+    }
+    return fetch(request)
+  }
+}
