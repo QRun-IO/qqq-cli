@@ -7,7 +7,7 @@ import type { Command } from 'commander'
 import { auditSource, getAudits } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch } from '../session.js'
-import type { Json } from './shared.js'
+import { countFooter, instantText, type Json } from './shared.js'
 
 export function registerAudit(program: Command, ctx: () => Context): void {
   program.command('audit').description('Audit history: list.').command('list <table> <primaryKey>')
@@ -21,11 +21,11 @@ export function registerAudit(program: Command, ctx: () => Context): void {
       const fields = (meta.fields ?? {}) as Record<string, Json>
       const { entries, total } = await getAudits(c.server, authenticatedFetch(c.target), source, table, primaryKey, { ascending: options.asc })
       const rows = entries.flatMap((e) => (e.changes.length ? e.changes : [undefined]).map((change, i) => ({
-        when: i ? '' : e.timestamp,
+        when: i ? '' : instantText(e.timestamp, c.dateTimeDisplay),
         user: i ? '' : e.user,
         action: i ? '' : e.action.toLowerCase(),
         change: change ? (change.message ?? `${String(fields[change.fieldName]?.label ?? change.fieldName)}: ${String(change.oldValue ?? '')} -> ${String(change.newValue ?? '')}`) : e.message,
       })))
-      c.print({ data: entries, rows, columns: ['when', 'user', 'action', 'change'], footer: `(${entries.length} audit${entries.length === 1 ? '' : 's'}${total !== null && total > entries.length ? ` of ${total}` : ''}; read through the ${source.kind === 'process' ? `${source.processName} process` : `${source.tableName} table`})` })
+      c.print({ data: entries, rows, columns: ['when', 'user', 'action', 'change'], footer: countFooter(entries.length, 'audit', [total !== null && total > entries.length && `of ${total}`, `read through the ${source.kind === 'process' ? `${source.processName} process` : `${source.tableName} table`}`]) })
     })
 }

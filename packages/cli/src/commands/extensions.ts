@@ -16,7 +16,8 @@ import type { Command } from 'commander'
 import { KNOWN_EXTENSIONS, OPERATIONS, operationsOf, type OperationInfo } from '@qrun-io/qqq-core'
 import type { Context } from '../context.js'
 import { runOperation, type OperationOptions } from './api.js'
-import type { Json } from './shared.js'
+import { countFooter, instantText, plural, type Json } from './shared.js'
+import type { DisplayOptions } from '@qrun-io/qqq-core'
 import { registerCollab } from './collab.js'
 
 /** The noun of each extension; the extension's own name unless it is long. */
@@ -57,11 +58,11 @@ export function addOperationCommands(noun: Command, extension: string, pathPrefi
     const args = op.pathParams.map((p) => ` [${p}]`).join('')
     const cmd = noun.command(`${name}${args}`)
       .description(`${op.summary || op.id} (${op.method} ${op.path.replace('/qqq/v1', '')}; operation ${op.id})`)
-      .option('-p, --path <name=value...>', 'path parameters (or give them as arguments)')
+      .option('--path <name=value...>', 'path parameters (or give them as arguments)')
       .option('-q, --param <name=value...>', `query parameters${op.queryParams.length ? `: ${op.queryParams.join(', ')}` : ''}`)
     if (op.bodyTypes.includes('application/json') || op.bodyTypes.length === 0) cmd.option('-b, --body-json <json|file|->', 'JSON request body (inline, a file, or - for stdin)')
     if (op.bodyTypes.includes('multipart/form-data')) cmd.option('-F, --form <name=value|name=@file...>', 'multipart form fields; @file uploads a file')
-    cmd.option('-o, --out <file>', 'write a binary response to a file')
+    cmd.option('-o, --out <file>', 'write a binary response to a file (- for stdout)')
     cmd.action(async (...actionArgs: unknown[]) => {
       const values = actionArgs.slice(0, op.pathParams.length) as (string | undefined)[]
       const options = actionArgs[op.pathParams.length] as OperationOptions
@@ -79,9 +80,9 @@ export async function requireExtension(c: Context, name: string): Promise<void> 
   ;(await c.extensions()).require(name)
 }
 
-function counters(destination: Json | undefined): Json {
+function counters(destination: Json | undefined, display?: DisplayOptions): Json {
   const c = (destination?.counters ?? {}) as Json
-  return { published: c.published ?? '', consumed: c.consumed ?? '', failed: c.failed ?? '', deadLettered: c.deadLettered ?? '', inFlight: c.inFlight ?? '', lastActivity: String(c.lastActivity ?? '').slice(0, 19) }
+  return { published: c.published ?? '', consumed: c.consumed ?? '', failed: c.failed ?? '', deadLettered: c.deadLettered ?? '', inFlight: c.inFlight ?? '', lastActivity: instantText(c.lastActivity ?? '', display) }
 }
 
 function registerEsb(noun: Command, ctx: () => Context): void {
@@ -91,14 +92,14 @@ function registerEsb(noun: Command, ctx: () => Context): void {
     return { c, data: (await c.call(id, { path, query })).data as Json }
   }
   const columns = ['role', 'destination', 'type', 'detail', 'state', 'published', 'consumed', 'failed', 'deadLettered', 'inFlight', 'lastActivity']
-  const linkRows = (data: Json) => [
+  const linkRows = (data: Json, display?: DisplayOptions) => [
     ...((data.publications ?? []) as Json[]).map((p) => {
       const d = p.destination as Json | undefined
-      return { role: 'publishes', destination: d?.name ?? '', type: d?.type ?? '', detail: ((p.events ?? []) as string[]).join(' '), state: '', ...counters(d) }
+      return { role: 'publishes', destination: d?.name ?? '', type: d?.type ?? '', detail: ((p.events ?? []) as string[]).join(' '), state: '', ...counters(d, display) }
     }),
     ...((data.subscribers ?? data.triggers ?? []) as Json[]).map((s) => {
       const d = s.destination as Json | undefined
-      return { role: 'trigger', destination: d?.name ?? '', type: d?.type ?? '', detail: s.processLabel ?? s.processName ?? s.name ?? '', state: s.state ?? '', ...counters(d) }
+      return { role: 'trigger', destination: d?.name ?? '', type: d?.type ?? '', detail: s.processLabel ?? s.processName ?? s.name ?? '', state: s.state ?? '', ...counters(d, display) }
     }),
   ]
 
@@ -106,25 +107,25 @@ function registerEsb(noun: Command, ctx: () => Context): void {
     .description('Broker connections and every destination with its publishers and triggers (needs ESB permission).')
     .action(async () => {
       const { c, data } = await run('getEsbOverview')
-      const rows = ((data.destinations ?? []) as Json[]).map((d) => ({ destination: d.name, type: d.type, provider: d.provider, publishers: ((d.publishers ?? []) as unknown[]).length, triggers: ((d.triggers ?? []) as unknown[]).length, ...counters(d) }))
-      c.print({ data, rows, columns: ['destination', 'type', 'provider', 'publishers', 'triggers', 'published', 'consumed', 'failed', 'deadLettered', 'lastActivity'], footer: `(${((data.providers ?? []) as unknown[]).length} providers, ${rows.length} destinations)` })
+      const rows = ((data.destinations ?? []) as Json[]).map((d) => ({ destination: d.name, type: d.type, provider: d.provider, publishers: ((d.publishers ?? []) as unknown[]).length, triggers: ((d.triggers ?? []) as unknown[]).length, ...counters(d, c.dateTimeDisplay) }))
+      c.print({ data, rows, columns: ['destination', 'type', 'provider', 'publishers', 'triggers', 'published', 'consumed', 'failed', 'deadLettered', 'lastActivity'], footer: countFooter(rows.length, 'destination', [plural(((data.providers ?? []) as unknown[]).length, 'provider')]) })
     })
 
   noun.command('table <table>')
     .description('What a table publishes and which processes it triggers.')
     .action(async (table: string) => {
       const { c, data } = await run('getEsbTableByTable', { table })
-      c.print({ data, rows: linkRows(data), columns })
+      c.print({ data, rows: linkRows(data, c.dateTimeDisplay), columns })
     })
 
   noun.command('process <process>')
     .description('What a process publishes and what triggers it.')
     .action(async (process: string) => {
       const { c, data } = await run('getEsbProcessByProcess', { process })
-      c.print({ data, rows: linkRows(data), columns })
+      c.print({ data, rows: linkRows(data, c.dateTimeDisplay), columns })
     })
 
-  const messageRows = (data: Json) => ((data.messages ?? []) as Json[]).map((m) => ({ messageId: m.messageId, timestamp: String(m.timestamp ?? '').slice(0, 19), deliveries: m.deliveryCount ?? '', event: m.event ?? '', body: String(m.rawBody ?? '').slice(0, 80) }))
+  const messageRows = (data: Json, display?: DisplayOptions) => ((data.messages ?? []) as Json[]).map((m) => ({ messageId: m.messageId, timestamp: instantText(m.timestamp ?? '', display), deliveries: m.deliveryCount ?? '', event: m.event ?? '', body: String(m.rawBody ?? '').slice(0, 80) }))
 
   noun.command('dead-letters <trigger>')
     .description("A trigger's dead letters.")
@@ -132,8 +133,8 @@ function registerEsb(noun: Command, ctx: () => Context): void {
     .option('--offset <n>', 'skip this many')
     .action(async (trigger: string, options: { limit: string; offset?: string }) => {
       const { c, data } = await run('getEsbDeadLettersByTrigger', { trigger }, { limit: options.limit, offset: options.offset })
-      const rows = messageRows(data)
-      c.print({ data, rows, columns: ['messageId', 'timestamp', 'deliveries', 'event', 'body'], footer: `(${rows.length} dead letters${data.hasMore ? ', more with --offset' : ''})` })
+      const rows = messageRows(data, c.dateTimeDisplay)
+      c.print({ data, rows, columns: ['messageId', 'timestamp', 'deliveries', 'event', 'body'], footer: countFooter(rows.length, 'dead letter', [Boolean(data.hasMore) && 'more with --offset']) })
     })
 
   noun.command('messages <destination>')
@@ -143,8 +144,8 @@ function registerEsb(noun: Command, ctx: () => Context): void {
     .option('--offset <n>', 'skip this many')
     .action(async (destination: string, options: { trigger?: string; limit: string; offset?: string }) => {
       const { c, data } = await run('getEsbMessagesByDestination', { destination }, { trigger: options.trigger, limit: options.limit, offset: options.offset })
-      const rows = messageRows(data)
-      c.print({ data, rows, columns: ['messageId', 'timestamp', 'deliveries', 'event', 'body'], footer: `(${rows.length} messages${data.hasMore ? ', more with --offset' : ''})` })
+      const rows = messageRows(data, c.dateTimeDisplay)
+      c.print({ data, rows, columns: ['messageId', 'timestamp', 'deliveries', 'event', 'body'], footer: countFooter(rows.length, 'message', [Boolean(data.hasMore) && 'more with --offset']) })
     })
 }
 

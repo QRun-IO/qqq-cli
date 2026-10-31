@@ -4,7 +4,9 @@
  */
 
 import type { Command } from 'commander'
-import { configDir, readConfig, removeProfile, upsertProfile } from '@qrun-io/qqq-core'
+import { homedir } from 'node:os'
+import { resolve } from 'node:path'
+import { configDir, readConfig, readUiSettings, removeProfile, upsertProfile, writeUiSettings, type UiSettings } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { getLogin, removeLogin, secretStoreKind } from '../session.js'
 
@@ -18,6 +20,46 @@ export function registerConfig(program: Command, ctx: () => Context): void {
     const login = await getLogin(t)
     c.print({ data: { configDir: configDir(), secretStore: secretStoreKind(), profile: t.name, chosenBy: t.source, server: t.server, signedIn: login ? (login.kind === 'session' ? `${login.authType.toLowerCase()} session` : 'oauth2') : 'no', defaultProfile: cfg.defaultProfile ?? '', profiles: Object.keys(cfg.profiles).length } })
   })
+
+  /** Local settings: the CLI name and the key in the `ui` section the TUI shares. */
+  const SETTINGS: Record<string, { key: keyof UiSettings & string; kind: 'dir' | 'boolean'; help: string }> = {
+    'download-dir': { key: 'defaultDownloadDir', kind: 'dir', help: 'where downloads go without --out / --out-dir (created when missing)' },
+    'upload-dir': { key: 'defaultUploadDir', kind: 'dir', help: 'where file pickers for uploads start' },
+    'download-prompt': { key: 'downloadPrompt', kind: 'boolean', help: 'whether the TUI asks before saving a download' },
+  }
+  const setting = (name: string) => {
+    const s = SETTINGS[name]
+    if (!s) throw new UsageError(`No setting "${name}"; settings: ${Object.keys(SETTINGS).join(', ')}`)
+    return s
+  }
+
+  config.command('get [setting]')
+    .description(`A local setting (${Object.keys(SETTINGS).join(', ')}), or all of them.`)
+    .action((name: string | undefined) => {
+      const c = ctx()
+      const ui = readUiSettings()
+      if (name) {
+        const value = ui[setting(name).key]
+        c.print({ data: value ?? null, rows: [{ setting: name, value: value ?? '' }], columns: ['setting', 'value'] })
+        return
+      }
+      c.print({ data: ui, rows: Object.entries(SETTINGS).map(([n, s]) => ({ setting: n, value: ui[s.key] ?? '', meaning: s.help })), columns: ['setting', 'value', 'meaning'] })
+    })
+
+  config.command('set <setting> <value>')
+    .description('Change a local setting (kept in the ui section of config.json, shared with the TUI); an empty value removes it.')
+    .action((name: string, raw: string) => {
+      const c = ctx()
+      const s = setting(name)
+      let value: string | boolean | undefined
+      if (raw === '') value = undefined
+      else if (s.kind === 'boolean') {
+        if (!/^(true|false|on|off|yes|no)$/i.test(raw)) throw new UsageError(`${name} takes true or false`)
+        value = /^(true|on|yes)$/i.test(raw)
+      } else value = resolve(raw.replace(/^~(?=$|[\\/])/, homedir()))
+      writeUiSettings({ [s.key]: value })
+      c.note(value === undefined ? `Removed ${name}.` : `${name}: ${String(value)}`)
+    })
 
   const profile = config.command('profile').description('Named servers: list, add, use, remove.')
   profile.command('list').description('The profiles.').action(async () => {
