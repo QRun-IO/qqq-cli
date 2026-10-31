@@ -19,6 +19,7 @@ import { registerAudit } from './commands/audit.js'
 import { registerAuth } from './commands/auth.js'
 import { registerCompletion } from './commands/completion.js'
 import { registerConfig } from './commands/config.js'
+import { registerDeveloper } from './commands/developer.js'
 import { registerExtensions } from './commands/extensions.js'
 import { registerHelp } from './commands/help.js'
 import { registerJob } from './commands/job.js'
@@ -55,6 +56,7 @@ export function createProgram(): Command {
   registerAuth(program, ctx)
   registerMisc(program, ctx)
   registerTable(program, ctx)
+  registerDeveloper(program, ctx)
   registerAudit(program, ctx)
   registerRelated(program, ctx)
   registerProcess(program, ctx)
