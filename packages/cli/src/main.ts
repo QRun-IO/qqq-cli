@@ -25,6 +25,7 @@ import { registerHelp } from './commands/help.js'
 import { registerJob } from './commands/job.js'
 import { registerMisc } from './commands/misc.js'
 import { registerProcess } from './commands/process.js'
+import { registerRelated } from './commands/related.js'
 import { registerTable } from './commands/table.js'
 import { registerWidget } from './commands/widget.js'
 
@@ -51,6 +52,7 @@ const ctx = () => (context ??= new Context(program))
 registerAuth(program, ctx)
 registerMisc(program, ctx)
 registerTable(program, ctx)
+registerRelated(program, ctx)
 registerProcess(program, ctx)
 registerJob(program, ctx)
 registerWidget(program, ctx)

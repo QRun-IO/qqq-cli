@@ -15,12 +15,12 @@ The TUI column fills in during M3.
 | PRC | 60 | 35 | 11 | 2 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
 | QRY | 70 | 28 | 19 | 0 | 23 |
-| REC | 65 | 30 | 23 | 0 | 12 |
-| REL | 9 | 4 | 5 | 0 | 0 |
+| REC | 65 | 31 | 10 | 13 | 11 |
+| REL | 9 | 6 | 0 | 3 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 17 | 14 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 163 | 122 | 7 | 109 |
+| **all** | 401 | 166 | 104 | 23 | 108 |
 
 ## Rows
 
@@ -201,17 +201,17 @@ The TUI column fills in during M3.
 | QRY-024 | Column configuration is reachable and usable by touch on phones and tablets | n/a | n/a | phone layout |
 | QRY-036 | Bulk actions launch from a phone card selection | n/a | n/a | phone layout |
 | QRY-055 | Saved views and export menus fit the phone and are touch-sized | n/a | n/a | phone layout |
-| REL-001 | Possible-value cells show the related record label and link to it | pass | todo | display values and labels |
-| REL-002 | Parent lists exactly its own children; View All opens the filtered child list | todo | todo | child lists: table get --associations partial |
-| REL-003 | Adding a child from its parent links it and shows it immediately | todo | todo | create child |
-| REL-004 | Three-level associations: each pet shows only its own notes | todo | todo |  |
-| REL-005 | Editing and deleting a child leaves no stale parent, list or unexpected rows | pass | todo | server |
-| REL-006 | Denied child reads show an unavailable panel without data or actions | pass | todo | server |
-| REL-007 | Aliased and composite associations bind to their widgets and list the right members | todo | todo |  |
-| REL-008 | Adding through a composite association stores every join value | todo | todo |  |
-| REL-009 | Deleting a parent removes associated children and leaves other parents intact | pass | todo | server |
+| REL-001 | Possible-value cells show the related record label and link to it | pass | todo | display values; table get shows the target (Avery Sample → person 1), --links lists them, --follow opens one |
+| REL-002 | Parent lists exactly its own children; View All opens the filtered child list | pass | todo | table get --associations lists exactly the record's children; table children pages a list with its count (View All) |
+| REL-003 | Adding a child from its parent links it and shows it immediately | pass | todo | table create <child> --parent table=pk; table get --associations shows it at once |
+| REL-004 | Three-level associations: each pet shows only its own notes | pass | todo | person > pets > notes: each pet lists only its own notes |
+| REL-005 | Editing and deleting a child leaves no stale parent, list or unexpected rows | pass | todo | records are never cached: update or delete a child, the next get/children shows the current rows |
+| REL-006 | Denied child reads show an unavailable panel without data or actions | partial | todo | unreadable child tables shown as unavailable without data; table children shows the server message; the sample has no denied child table (unit-tested) |
+| REL-007 | Aliased and composite associations bind to their widgets and list the right members | partial | todo | composite joins and widget-section labels in the kernel, unit-tested; the sample declares none |
+| REL-008 | Adding through a composite association stores every join value | partial | todo | --parent sets every join value of a composite association, unit-tested; the sample declares none |
+| REL-009 | Deleting a parent removes associated children and leaves other parents intact | pass | todo | table delete of a parent: its pets are gone, other parents keep theirs |
 | REC-001 | Record view shows the record label, tiered sections and backend-formatted values | pass | todo | table get by section and tier |
-| REC-002 | Empty values render a placeholder; hidden fields and hidden sections are never shown | todo | todo | hidden sections |
+| REC-002 | Empty values render a placeholder; hidden fields and hidden sections are never shown | partial | todo | empty values show --; hidden sections and fields are dropped by the kernel record view (unit-tested; the sample has none) |
 | REC-003 | Record view of a missing record shows Record Not Found and a way back | pass | todo | exit 5 |
 | REC-004 | Record view tabs and list view expose every visible section | n/a | todo | tabs |
 | REC-005 | Create form validates required fields in the browser before any request | pass | todo | validated locally before any request |
@@ -237,20 +237,20 @@ The TUI column fills in during M3.
 | REC-025 | Case and whitespace normalization on save | pass | todo | behaviors |
 | REC-026 | Numeric range policies: reject, exclusive reject, inclusive clip and exclusive clip | pass | todo | ranges checked locally |
 | REC-027 | Unique keys are enforced with the backend message on create and edit | pass | todo | server message |
-| REC-028 | LINK adornment: record links and URL links | todo | todo | adornments |
-| REC-029 | CHIP adornment colors and icons by value | todo | todo |  |
+| REC-028 | LINK adornment: record links and URL links | pass | todo | record links name table and key, --follow opens them; URL links show the URL |
+| REC-029 | CHIP adornment colors and icons by value | partial | todo | chip as [value]; colors and icons not shown (unit-tested; none in the sample) |
 | REC-030 | SIZE adornment sets the query grid column width | n/a | todo |  |
-| REC-031 | CODE_EDITOR adornment: code view with formatting and a code editor on forms | todo | todo |  |
-| REC-032 | RENDER_HTML adornment renders sanitized HTML | todo | todo |  |
-| REC-033 | REVEAL adornment masks, reveals and copies the value | todo | todo | reveal |
-| REC-034 | FILE_DOWNLOAD adornment links to the stored file with its name | todo | todo | file download |
-| REC-035 | FILE_UPLOAD adornment formats, replacing and removing a stored file | todo | todo | file upload |
-| REC-036 | TOOLTIP adornment shows its text on the value | n/a | todo |  |
-| REC-037 | WIDGET adornment renders the field value as the named widget | todo | todo |  |
-| REC-038 | ERROR adornment highlights the value | todo | todo |  |
-| REC-039 | Field help content follows screen roles and formats | todo | todo | help |
-| REC-040 | Section help content on the record view | todo | todo |  |
-| REC-041 | Table help content slots are delivered in table metadata | todo | todo |  |
+| REC-031 | CODE_EDITOR adornment: code view with formatting and a code editor on forms | partial | todo | raw code on view; no code editor (unit-tested) |
+| REC-032 | RENDER_HTML adornment renders sanitized HTML | partial | todo | HTML shown as text (unit-tested) |
+| REC-033 | REVEAL adornment masks, reveals and copies the value | partial | todo | masked until --reveal; no copy (unit-tested; none in the sample) |
+| REC-034 | FILE_DOWNLOAD adornment links to the stored file with its name | partial | todo | name plus qqq table download via the field route (unit-tested); live only for BLOB values, server finding 16 |
+| REC-035 | FILE_UPLOAD adornment formats, replacing and removing a stored file | partial | todo | create/update --upload field=path as multipart, replace and remove verified on a BLOB; FILE_UPLOAD formats not in the sample |
+| REC-036 | TOOLTIP adornment shows its text on the value | partial | todo | tooltip text in parentheses after the value (unit-tested) |
+| REC-037 | WIDGET adornment renders the field value as the named widget | partial | todo | value rendered through the widget render model as text (unit-tested) |
+| REC-038 | ERROR adornment highlights the value | partial | todo | value marked with ! (unit-tested) |
+| REC-039 | Field help content follows screen roles and formats | partial | todo | table get --help-content: view-screen roles, HTML/MARKDOWN as text (unit-tested; the sample has no help); qqq help show lists help alone |
+| REC-040 | Section help content on the record view | partial | todo | section help with --help-content (unit-tested) |
+| REC-041 | Table help content slots are delivered in table metadata | partial | todo | table helpContent and helpContents slots with --help-content (unit-tested) |
 | REC-042 | Audit history lists who changed what, newest first | todo | todo | audits |
 | REC-043 | Audit history without process permission reads the audit table | todo | todo |  |
 | REC-044 | Record label format is used for the record's title and dialogs | pass | todo | recordLabel |

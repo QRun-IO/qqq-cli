@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { Collaboration, ExtensionNotInstalledError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { Collaboration, ExtensionNotInstalledError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieFor, target, type Target } from './session.js'
 
@@ -158,7 +158,7 @@ export class UsageError extends Error {}
 
 /** Maps an error to its exit code and the stderr text. */
 export function describeError(error: unknown, trace = false): { code: number; text: string } {
-  if (error instanceof UsageError || error instanceof FilterSyntaxError) return { code: EXIT.usage, text: `Error: ${error.message}` }
+  if (error instanceof UsageError || error instanceof FilterSyntaxError || error instanceof UnsafeFileNameError) return { code: EXIT.usage, text: `Error: ${error.message}` }
   if (error instanceof ExtensionNotInstalledError) return { code: EXIT.notFound, text: `Error: ${error.message}` }
   if (error instanceof UiApiError) {
     const lines = [`Error: ${error.message} (${error.code}, HTTP ${error.status}${error.traceId ? `, trace ${error.traceId}` : ''})`]
