@@ -70,7 +70,10 @@ export function writeCachedMetaData(server: string, metaData: MetaDataDocument, 
 /** Removes the cache of one server, or of every server. */
 export function clearMetaDataCache(server?: string, options: MetaDataCacheOptions = {}): void {
   const dir = options.dir ?? defaultDir()
-  if (server) rmSync(fileFor(dir, server), { force: true })
+  if (server) {
+    rmSync(fileFor(dir, server), { force: true })
+    rmSync(versionFileFor(dir, server), { force: true })
+  }
   else rmSync(dir, { recursive: true, force: true })
 }
 
@@ -85,7 +88,8 @@ export async function getMetaData(server: string, fetchImpl: typeof fetch, optio
   if (options.offline && !cached) throw new Error('No cached metadata for this server; run any qqq command once to fill the cache.')
   let version: string | undefined
   try {
-    const v = (await callOperation(server, 'getVersion', {}, fetchImpl)).data as { apiVersion?: string }
+    const v = (await callOperation(server, 'getVersion', {}, fetchImpl)).data as ServerVersion
+    writeCachedVersion(server, v, options)
     version = v.apiVersion
   } catch (error) {
     if (cached) return cached.metaData
@@ -132,4 +136,51 @@ export async function getTableMetaData<T = unknown>(server: string, table: strin
   const metaData = (await callOperation(server, 'getTableMetaData', { path: { tableName: table } }, fetchImpl)).data as T
   writeCachedTableMeta(server, table, metaData, options)
   return metaData
+}
+
+/** GET /version: the API semver, core features, registered extensions and accepted client channels. */
+export interface ServerVersion {
+  apiVersion?: string
+  basePath?: string
+  supportedMajorVersions?: number[]
+  features?: string[]
+  extensions?: { name: string; version?: string; pathPrefix?: string; description?: string }[]
+  clientChannels?: string[]
+  [key: string]: unknown
+}
+
+function versionFileFor(dir: string, server: string): string {
+  return join(dir, `version-${server.replace(/[^A-Za-z0-9.-]+/g, '_')}.json`)
+}
+
+function writeCachedVersion(server: string, version: ServerVersion, options: MetaDataCacheOptions = {}): void {
+  const dir = options.dir ?? defaultDir()
+  mkdirSync(dir, { recursive: true, mode: 0o700 })
+  writeFileSync(versionFileFor(dir, server), JSON.stringify({ fetchedAt: new Date().toISOString(), version }), { mode: 0o600 })
+}
+
+/**
+ * The server's GET /version, cached next to its metadata with the same TTL (it is unsecured and
+ * small, but listings and completion should not wait for it). `offline` uses a stale copy.
+ */
+export async function getServerVersion(server: string, fetchImpl: typeof fetch, options: MetaDataCacheOptions & { offline?: boolean; refresh?: boolean } = {}): Promise<ServerVersion> {
+  const file = versionFileFor(options.dir ?? defaultDir(), server)
+  let cached: { fetchedAt: string; version: ServerVersion } | undefined
+  if (!options.refresh && existsSync(file)) {
+    try {
+      cached = JSON.parse(readFileSync(file, 'utf8')) as { fetchedAt: string; version: ServerVersion }
+    } catch {
+      cached = undefined
+    }
+  }
+  if (cached && (options.offline || Date.now() - Date.parse(cached.fetchedAt) < (options.ttlSeconds ?? 300) * 1000)) return cached.version
+  if (options.offline && !cached) throw new Error('No cached version for this server; run any qqq command once to fill the cache.')
+  try {
+    const version = (await callOperation(server, 'getVersion', {}, fetchImpl)).data as ServerVersion
+    writeCachedVersion(server, version, options)
+    return version
+  } catch (error) {
+    if (cached) return cached.version
+    throw error
+  }
 }
