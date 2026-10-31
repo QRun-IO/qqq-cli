@@ -108,7 +108,7 @@ export function registerCompletion(program: Command, ctx: () => Context): void {
           return undefined
         }
       }
-      const tableInWords = () => rest.find((w) => !w.startsWith('-')) ?? before.find((w, i) => i > 0 && !w.startsWith('-') && (before[i - 1] === 'query' || before[i - 1] === 'get' || before[i - 1] === 'create' || before[i - 1] === 'update' || before[i - 1] === 'count' || before[i - 1] === 'describe' || before[i - 1] === 'delete' || before[i - 1] === 'export'))
+      const tableInWords = () => rest.find((w) => !w.startsWith('-')) ?? before.find((w, i) => i > 0 && !w.startsWith('-') && (before[i - 1] === 'query' || before[i - 1] === 'get' || before[i - 1] === 'create' || before[i - 1] === 'update' || before[i - 1] === 'count' || before[i - 1] === 'describe' || before[i - 1] === 'delete' || before[i - 1] === 'export' || before[i - 1] === 'children' || before[i - 1] === 'download'))
       if (current.startsWith('-')) {
         add(command.options.flatMap((o) => [o.long, o.short].filter(Boolean) as string[]))
         add(program.options.flatMap((o) => [o.long].filter(Boolean) as string[]))
