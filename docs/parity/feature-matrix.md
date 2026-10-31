@@ -12,15 +12,15 @@ The TUI column fills in during M3.
 | HLP | 6 | 1 | 0 | 4 | 1 |
 | INT | 14 | 5 | 0 | 0 | 9 |
 | NAV | 40 | 9 | 3 | 1 | 27 |
-| PRC | 60 | 34 | 12 | 2 | 12 |
+| PRC | 60 | 35 | 11 | 2 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
-| QRY | 70 | 27 | 20 | 0 | 23 |
-| REC | 65 | 28 | 25 | 0 | 12 |
+| QRY | 70 | 28 | 19 | 0 | 23 |
+| REC | 65 | 30 | 23 | 0 | 12 |
 | REL | 9 | 4 | 5 | 0 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 17 | 14 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 159 | 126 | 7 | 109 |
+| **all** | 401 | 163 | 122 | 7 | 109 |
 
 ## Rows
 
@@ -128,7 +128,7 @@ The TUI column fills in during M3.
 | PRC-061 | Typed bulk load default values, searchable value mapping and the grouped, searchable Add Fields menu (Material | todo | todo |  |
 | PRC-062 | Composite INPUT_FIELD metadata editors share process validation and multipart submission | n/a | todo | composite editors |
 | PRC-063 | INPUT_FIELD autofocus and trimmed Enter values on subsequent process screens | n/a | todo |  |
-| PRC-064 | DATE_TIME process inputs display local time and submit UTC instants | todo | todo | DATE_TIME local to UTC |
+| PRC-064 | DATE_TIME process inputs display local time and submit UTC instants | pass | todo | process values typed local, sent UTC; screens show the local zone |
 | PRC-065 | Configured Google Drive shared-folder selection and process submission | n/a | n/a | Google Drive |
 | PRC-066 | INPUT_FIELD case behaviors preserve caret and submitted process values | pass | todo | field behaviors applied before submit |
 | QRY-090 | Column menu sorts, pins, opens a field filter and hides a column | n/a | todo | saved views and column UI |
@@ -148,7 +148,7 @@ The TUI column fills in during M3.
 | QRY-010 | Text operators match Material labels and backend semantics | pass | todo | all operators and shorthand |
 | QRY-011 | Number operators including ranges and lists | pass | todo | BETWEEN, IN lists |
 | QRY-012 | Date operators and relative date expressions | pass | todo | now(), now(-7d), thisPeriod(), startOf() |
-| QRY-013 | Date-time operators convert local input to UTC and support relative values | todo | todo | DATE_TIME local to UTC conversion |
+| QRY-013 | Date-time operators convert local input to UTC and support relative values | pass | todo | --where/--group DATE_TIME values local to UTC (a date is local midnight); expressions as before |
 | QRY-014 | Boolean, blob and long-text operators | pass | todo | IS_BLANK, TRUE, FALSE |
 | QRY-015 | Possible-value selectors for table and enum sources show labels and send ids | todo | todo | filters take ids; labels in filters todo |
 | QRY-016 | AND/OR and nested groups combine as declared | pass | todo | --group with parentheses |
@@ -227,7 +227,7 @@ The TUI column fills in during M3.
 | REC-015 | INTEGER, LONG and DECIMAL editors keep exact values | pass | todo |  |
 | REC-016 | BOOLEAN editor applies the metadata default and saves true/false | pass | todo | defaults applied |
 | REC-017 | DATE and TIME editors round-trip values and clearing | pass | todo |  |
-| REC-018 | DATE_TIME is entered and shown in the viewer's time zone and stored in UTC | todo | todo | DATE_TIME local to UTC |
+| REC-018 | DATE_TIME is entered and shown in the viewer's time zone and stored in UTC | pass | todo | typed and shown in TZ, stored UTC, --utc for raw; DST edges tested |
 | REC-019 | Zoned DATE_TIME display behaviors (fixed zone and per-record zone) | n/a | todo | display zones |
 | REC-020 | HTML field edits in the rich-text editor and renders sanitized | todo | todo | raw HTML; $EDITOR todo |
 | REC-021 | PASSWORD is masked on read and never overwritten by the mask | pass | todo | server masks |
@@ -274,7 +274,7 @@ The TUI column fills in during M3.
 | REC-060 | Material table and field form adjusters and field rules operate against the real QQQ sample server | todo | todo | adjusters wired, no sample to test |
 | REC-064 | Record sections render qualified fields from readable exposed joins | todo | todo | joins |
 | REC-063 | Record view, edit and copy load from the table variant selected on the query screen | todo | todo | variants |
-| REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | todo | todo |  |
+| REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | pass | todo | an unchanged wall-clock time keeps the original instant and its precision |
 | SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | todo |  |
 | SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | todo | disabled tables listed with a reason |
 | SEC-003 | Insert permission denied: create not offered, create link refused, backend writes nothing | pass | todo |  |

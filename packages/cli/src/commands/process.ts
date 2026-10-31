@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
-import { BACK, alternativeNames, safeDownloadName, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpText, isMissingValue, processHelpText, runProcess, screenToText, summaryLines, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, displayDateTime, formatValue, alternativeNames, safeDownloadName, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpText, isMissingValue, processHelpText, runProcess, screenToText, summaryLines, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { ask, promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -122,7 +122,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
           stepTimeoutMillis: Number(options.timeout),
           always: Boolean(options.interactive),
           signal: abort.signal,
-          screen: { recordLimit: Number(options.recordLimit) },
+          screen: { recordLimit: Number(options.recordLimit), format: (field, value, shown) => (field.type === 'DATE_TIME' ? displayDateTime(value, shown, c.dateTimeDisplay) : formatValue(field, value)) },
           onProgress: (e) => {
             if (options.quiet) return
             if (e.phase === 'init') c.note(`${meta.label ?? name}: starting`)

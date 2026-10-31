@@ -5,7 +5,7 @@
 
 import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { FormInputError, FormSession, buildFilter, combineWithQuickSearch, copyRecordValues, findRecordByKey, gotoKeys, isGotoKey, printFilter, quickSearchFields, quickSearchFilter, type FieldMeta, type QueryFilter } from '@qrun-io/qqq-core'
+import { FormInputError, FormSession, buildFilter, combineWithQuickSearch, copyRecordValues, filterDateTimesToUtc, findRecordByKey, gotoKeys, isGotoKey, printFilter, quickSearchFields, quickSearchFilter, type FieldMeta, type QueryFilter } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -31,8 +31,9 @@ async function tableMeta(c: Context, table: string): Promise<Json> {
 }
 
 function filterFrom(options: QueryOptions, meta: Json, columns?: string[]): QueryFilter {
+  // --where / --group values on DATE_TIME fields are local times (or dates: local midnight), sent as UTC instants; --filter-json is sent as given
   const filter = options.filterJson ? readJson(options.filterJson, '--filter-json') as QueryFilter
-    : buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields: Object.keys((meta.fields ?? {}) as Json) })
+    : filterDateTimesToUtc(buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields: Object.keys((meta.fields ?? {}) as Json) }), (meta.fields ?? {}) as Record<string, FieldMeta>)
   if (options.search === undefined) return filter
   // quick search as the web UI does it: CONTAINS on each shown string field, ORed, ANDed onto the filter
   const fields = quickSearchFields(meta, columns)
@@ -126,7 +127,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
         skip += limit
       }
       const fields = columnsFrom(c, options) ?? defaultFields(meta)
-      const rows = records.map((r) => Object.fromEntries(fields.map((f) => [f, valueText(r, f)])))
+      const rows = records.map((r) => Object.fromEntries(fields.map((f) => [f, valueText(r, f, meta, c.dateTimeDisplay)])))
       c.print({ data: records, rows, columns: fields, headers: labelsFor(meta, fields), footer: `(${records.length} record${records.length === 1 ? '' : 's'}${filter.criteria?.length || filter.subFilters?.length ? `; filter: ${printFilter(filter)}` : ''}${!options.all && records.length === limit ? '; more may exist: --limit, --skip or --all' : ''})` })
     })
 
@@ -167,7 +168,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const result = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { includeAssociations: options.associations ? true : undefined } as never } })) as Json
       const record = (result.record ?? result) as Json
       const fieldMeta = (meta.fields ?? {}) as Record<string, Json>
-      const rows = defaultFields(meta, 1000).map((f) => ({ field: String(fieldMeta[f]?.label ?? f), value: valueText(record, f) }))
+      const rows = defaultFields(meta, 1000).map((f) => ({ field: String(fieldMeta[f]?.label ?? f), value: valueText(record, f, meta, c.dateTimeDisplay) }))
       c.print({ data: record, rows, columns: ['field', 'value'], headers: ['Field', 'Value'], footer: String(record.recordLabel ?? `${meta.label} ${primaryKey}`) })
     })
 
@@ -234,7 +235,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const copied = copyRecordValues(meta, sourceRecord)
       const given = parsePairs(options.set, '--set')
       const session = await fillForm(c, meta, name, given, { interactive: false }, copied, [String(meta.primaryKeyField)])
-      for (const [field, label] of Object.entries((sourceRecord.displayValues ?? {}) as Json)) if (copied[field] !== undefined && given[field] === undefined && session.values[field] === copied[field]) session.displayValues[field] = String(label)
+      for (const [field, label] of Object.entries((sourceRecord.displayValues ?? {}) as Json)) if (((meta.fields as Record<string, Json>)[field])?.type !== 'DATE_TIME' && copied[field] !== undefined && given[field] === undefined && session.values[field] === copied[field]) session.displayValues[field] = String(label)
       if (options.interactive) await promptForm(session, { skipSet: false })
       const problems = session.validate()
       if (Object.keys(problems).length) validationError(session, problems)

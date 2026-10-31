@@ -69,8 +69,8 @@ export interface ScreenOptions {
   /** Records previewed on a validation review screen; default 10 (0: none). */
   previewLimit?: number
   pageSize?: number
-  /** Formats a value for display (DATE_TIME in the local zone, etc.); default {@link formatValue}. */
-  format?: (field: FieldMeta, value: unknown) => string
+  /** Formats a value for display (DATE_TIME in the local zone, etc.), given the server's display value when there is one; default {@link formatValue}. */
+  format?: (field: FieldMeta, value: unknown, displayValue?: unknown) => string
   tableVariant?: string
 }
 
@@ -176,7 +176,7 @@ export function processHelpText(meta: { helpContents?: Record<string, ScreenStep
   return Object.values(meta.helpContents ?? {}).flatMap((entries) => helpText(entries))
 }
 
-function recordTable(fields: FieldMeta[], records: Array<Record<string, unknown>>, format: (f: FieldMeta, v: unknown) => string): { columns: string[]; headers: string[]; rows: Row[] } {
+function recordTable(fields: FieldMeta[], records: Array<Record<string, unknown>>, format: (f: FieldMeta, v: unknown, d?: unknown) => string): { columns: string[]; headers: string[]; rows: Row[] } {
   const shown = fields.filter((f) => !f.isHidden)
   const columns = shown.length ? shown.map((f) => f.name) : Object.keys((records[0]?.values ?? {}) as Record<string, unknown>).slice(0, 8)
   const byName = Object.fromEntries(shown.map((f) => [f.name, f]))
@@ -185,8 +185,8 @@ function recordTable(fields: FieldMeta[], records: Array<Record<string, unknown>
     const display = (r.displayValues ?? {}) as Record<string, unknown>
     return Object.fromEntries(columns.map((c) => {
       const field = byName[c] ?? { name: c, label: c, type: 'STRING' }
-      // the server's display value wins, except for DATE_TIME, which the client shows in the local zone
-      const text = field.type !== 'DATE_TIME' && display[c] !== undefined && display[c] !== null ? String(display[c]) : format(field, values[c])
+      // the server's display value wins, except for DATE_TIME, which the formatter shows in the local zone (or the server's declared zone)
+      const text = field.type !== 'DATE_TIME' && display[c] !== undefined && display[c] !== null ? String(display[c]) : format(field, values[c], display[c])
       return [c, text]
     }))
   })
