@@ -15,7 +15,7 @@
 import { Command, CommanderError } from 'commander'
 import { UI_API_VERSION } from '@qrun-io/qqq-ui-api-client'
 import { Context, EXIT, describeError } from './context.js'
-import { CLI_VERSION } from './session.js'
+import { CLI_VERSION, importLegacyCredentials } from './session.js'
 import { registerApi } from './commands/api.js'
 import { registerAudit } from './commands/audit.js'
 import { registerAuth } from './commands/auth.js'
@@ -89,7 +89,7 @@ alias('query', 'table', 'query', 'Query a table')
 alias('get', 'table', 'get', 'View one record')
 alias('run', 'process', 'run', 'Run a process')
 
-program.parseAsync().catch((error: unknown) => {
+importLegacyCredentials().then(() => program.parseAsync()).catch((error: unknown) => {
   if (error instanceof CommanderError) {
     process.exitCode = error.exitCode === 0 ? 0 : EXIT.usage
     return

@@ -64,7 +64,8 @@ export function registerAuth(program: Command, ctx: () => Context): void {
       const c = ctx()
       const t = c.target
       const origin = t.server
-      const login = await getLogin(t)
+      // an unreadable stored sign-in is still removed (that is how it gets replaced)
+      const login = await getLogin(t).catch(() => undefined)
       if (options.providerLogout && login && login.kind !== 'session') {
         try {
           const revoked = login.tokens.refreshToken ? await revokeToken(login.config, login.tokens.refreshToken) : false
