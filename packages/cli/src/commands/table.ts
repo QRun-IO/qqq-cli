@@ -3,14 +3,16 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
 import type { Command } from 'commander'
-import { FormInputError, FormSession, JoinError, buildFilter, combineWithQuickSearch, copyRecordValues, SavedViewError, associationJoin, columnStatsAvailability, findSavedView, listSavedViews, savedViewProcesses, viewToQuery, computeColumnStats, runColumnStats, defaultJoinColumns, exposedJoins, fieldLabel, findRecordByKey, gotoKeys, isGotoKey, joinFieldNames, planJoins, printFilter, quickSearchFields, quickSearchFilter, resolveField, listTableVariants, variantBody, variantParam, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin } from '@qrun-io/qqq-core'
+import { withJoinFields, AssociationError, associationJoin, buildFilter, columnStatsAvailability, combineWithQuickSearch, computeColumnStats, copyRecordValues, defaultJoinColumns, exposedJoins, fieldLabel, filterDateTimesToUtc, findRecordByKey, findSavedView, FormInputError, FormSession, gotoKeys, isGotoKey, JoinError, joinFieldNames, listSavedViews, listTableVariants, parentLinkValues, planJoins, printFilter, quickSearchFields, quickSearchFilter, relatedRecordTarget, resolveField, runColumnStats, safeFileName, saveDownload, SavedViewError, savedViewProcesses, variantBody, variantParam, viewToQuery, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin, type RecordLike, type TableMetaLike } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
 import { UsageError, type Context } from '../context.js'
 import { defaultFields, parsePairs, readJson, valueText, type Json } from './shared.js'
+import { getRecord, showRecord } from './related.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
 interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit?: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean; view?: string }
@@ -43,8 +45,9 @@ async function tableMeta(c: Context, table: string): Promise<Json> {
 
 function filterFrom(options: QueryOptions, meta: Json, columns?: string[], joins: ExposedJoin[] = []): QueryFilter {
   const knownFields = [...Object.keys((meta.fields ?? {}) as Json), ...joinFieldNames(joins)]
+  // --where / --group values on DATE_TIME fields are local times (or dates: local midnight), sent as UTC instants; --filter-json is sent as given
   const filter = options.filterJson ? readJson(options.filterJson, '--filter-json') as QueryFilter
-    : buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields })
+    : filterDateTimesToUtc(buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields }), (meta.fields ?? {}) as Record<string, FieldMeta>)
   if (options.search === undefined) return filter
   // quick search as the web UI does it: CONTAINS on each shown string field, ORed, ANDed onto the filter
   const fields = quickSearchFields(meta, columns)
@@ -203,7 +206,8 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const selected = used.filter((j) => joins?.find((q) => q.joinTable === j.table)?.select || options.select)
       const fields = given ?? [...defaultFields(meta), ...selected.flatMap((j) => defaultJoinColumns(j))]
       const joinsShown = used.map((j) => j.table)
-      const rows = records.map((r) => Object.fromEntries(fields.map((f) => [f, valueText(r, f)])))
+      const shownMeta = withJoinFields(meta, used)
+      const rows = records.map((r) => Object.fromEntries(fields.map((f) => [f, valueText(r, f, shownMeta, c.dateTimeDisplay)])))
       c.print({ data: records, rows, columns: fields, headers: fields.map((f) => fieldLabel(meta, used, f)), footer: `(${records.length} record${records.length === 1 ? '' : 's'}${joinsShown.length ? `; joined: ${joinsShown.join(', ')}${includeDistinct ? ' (many-side: rows may repeat a record; --count gives the distinct count)' : ''}` : ''}${variant ? `; variant ${variant.name ?? `${variant.type}:${variant.id}`}` : ''}${saved ? `; view ${saved.label}` : ''}${filter.criteria?.length || filter.subFilters?.length ? `; filter: ${printFilter(filter)}` : ''}${!options.all && records.length === limit ? '; more may exist: --limit, --skip or --all' : ''})` })
     })
 
@@ -283,12 +287,16 @@ export function registerTable(program: Command, ctx: () => Context): void {
     })
 
   table.command('get <table> [primaryKey]')
-    .description('View one record, with field labels and display values: by primary key, or by a unique key with --key field=value (the web UI\'s Go To).')
-    .option('--associations', 'include associated records')
+    .description('View one record by section, values through their adornments (links, chips, masked values, files): by primary key, or by a unique key with --key field=value (the web UI\'s Go To); --associations adds the child records.')
+    .option('--associations', 'list every association (child records, all levels) as tables')
     .option('-k, --key <field=value...>', 'find the record by key fields instead of the primary key (one match required)')
+    .option('--follow <field>', 'open the record a link or possible-value field points at, instead of this one')
+    .option('--links', 'list the related records this record links to (fields, tables, keys)')
+    .option('--reveal', 'show REVEAL (masked) values')
+    .option('--help-content', 'show table, section and field help content')
     .option('-j, --join <table...>', 'include fields of these exposed joins (table.field)')
     .option(...VARIANT_OPTION)
-    .action(async (name: string, primaryKeyArg: string | undefined, options: { associations?: boolean; key?: string[]; join?: string[]; variant?: string }) => {
+    .action(async (name: string, primaryKeyArg: string | undefined, options: { associations?: boolean; key?: string[]; follow?: string; links?: boolean; reveal?: boolean; helpContent?: boolean; join?: string[]; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
       const variant = await chooseVariant(c, meta, options.variant)
@@ -305,11 +313,18 @@ export function registerTable(program: Command, ctx: () => Context): void {
         primaryKey = found.primaryKey
       }
       if (primaryKey === undefined) throw new UsageError('Give a primary key, or --key field=value.')
-      const result = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { includeAssociations: options.associations ? true : undefined, queryJoins: plan.joins ? JSON.stringify(plan.joins) : undefined, tableVariant: variantParam(variant) } as never } })) as Json
-      const record = (result.record ?? result) as Json
-      const shown = [...defaultFields(meta, 1000), ...plan.used.flatMap((j) => defaultJoinColumns(j, 1000))]
-      const rows = shown.map((f) => ({ field: fieldLabel(meta, plan.used, f), value: valueText(record, f) }))
-      c.print({ data: record, rows, columns: ['field', 'value'], headers: ['Field', 'Value'], footer: String(record.recordLabel ?? `${meta.label} ${primaryKey}`) })
+      const show = { associations: options.associations, links: options.links, reveal: options.reveal, helpContent: options.helpContent }
+      if (options.follow) {
+        const field = ((meta.fields ?? {}) as Record<string, FieldMeta>)[options.follow]
+        if (!field) throw new UsageError(`No field "${options.follow}" in ${name}`)
+        const record = await getRecord(c, name, primaryKey, false, { tableVariant: variantParam(variant) })
+        const target = relatedRecordTarget(field, record as unknown as RecordLike, Object.keys((await c.metaData()).tables ?? {}))
+        if (!target) throw new UsageError(`${meta.label} ${primaryKey}: ${field.label} links to no record (empty, or not a link or possible-value field)`)
+        c.note(`${field.label} → ${target.tableName} ${target.primaryKey}`)
+        await showRecord(c, target.tableName, target.primaryKey, show)
+        return
+      }
+      await showRecord(c, name, primaryKey, { ...show, query: { queryJoins: plan.joins ? JSON.stringify(plan.joins) : undefined, tableVariant: variantParam(variant) }, joined: plan.used })
     })
 
   /** Fills a form session from --set / --input-json, then prompts when asked or when required values are missing on a terminal. */
@@ -334,14 +349,44 @@ export function registerTable(program: Command, ctx: () => Context): void {
     throw new UiApiError(400, { code: 'BAD_REQUEST', message: 'Validation failed before sending', fieldErrors: Object.entries(problems).map(([field, message]) => ({ field, message: `${session.fields[field]?.label ?? field} ${message}` })) })
   }
 
+  /** `--upload field=path` pairs as files, checked against the table's fields. */
+  function readUploads(meta: Json, pairs: string[] | undefined): Record<string, File> {
+    const out: Record<string, File> = {}
+    const fields = (meta.fields ?? {}) as Record<string, Json>
+    for (const [field, path] of Object.entries(parsePairs(pairs, '--upload'))) {
+      if (!fields[field]) throw new UsageError(`No field "${field}" in ${String(meta.name)}`)
+      let bytes: Uint8Array
+      try {
+        bytes = new Uint8Array(readFileSync(path))
+      } catch (error) {
+        throw new UsageError(`--upload ${field}: cannot read ${path} (${error instanceof Error ? error.message : String(error)})`)
+      }
+      out[field] = new File([bytes as BlobPart], basename(path))
+    }
+    return out
+  }
+
+  /** The multipart record body (the Next UI's recordFormData): text fields as strings, null as an empty value (a clear), files as parts. */
+  function multipartRecord(values: Json, files: Record<string, File>): Record<string, string | Blob> {
+    const form: Record<string, string | Blob> = {}
+    for (const [key, value] of Object.entries(values)) {
+      if (value === undefined || files[key]) continue
+      form[key] = value === null ? '' : Array.isArray(value) || typeof value === 'object' ? JSON.stringify(value) : String(value)
+    }
+    return { ...form, ...files }
+  }
+
   table.command('create <table>')
     .description('Insert a record from --set name=value pairs or --input-json; -i prompts for the rest. Possible-value fields take a label or an id.')
     .option('-s, --set <name=value...>', 'field values')
     .option('--input-json <json|file|->', 'the whole record as a JSON object of field values')
     .option('-i, --interactive', 'prompt for fields on the terminal')
     .option('--generate-input-skeleton', 'print an empty JSON object with the editable fields and stop')
+    .option('--parent <table=primaryKey>', 'create a child record linked to this parent (through the parent table\'s association)')
+    .option('--association <name>', 'with --parent: the association, when the parent has several to this table')
+    .option('-u, --upload <field=path...>', 'a file for a file field (sent as multipart/form-data)')
     .option(...VARIANT_OPTION)
-    .action(async (name: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; generateInputSkeleton?: boolean; variant?: string }) => {
+    .action(async (name: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; generateInputSkeleton?: boolean; parent?: string; association?: string; upload?: string[]; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
       const fields = (meta.fields ?? {}) as Record<string, Json>
@@ -351,16 +396,40 @@ export function registerTable(program: Command, ctx: () => Context): void {
         c.note(editable.map((f) => `${String(f.name).padEnd(24)} ${f.type}${f.isRequired ? ' required' : ''}${f.possibleValueSourceName ? ` (possible values: ${f.possibleValueSourceName}${Array.isArray(f.possibleValueSourceDependsOn) ? `, depends on ${(f.possibleValueSourceDependsOn as string[]).join(', ')}` : ''})` : ''}`).join('\n'))
         return
       }
-      const given = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
-      if (!Object.keys(given).length && !options.interactive) throw new UsageError('Give field values with --set name=value or --input-json, or prompt with -i.')
+      const given: Json = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
+      const uploads = readUploads(meta, options.upload)
+      let parentNote = ''
+      if (options.parent) {
+        const at = options.parent.indexOf('=')
+        if (at < 1) throw new UsageError(`--parent takes table=primaryKey: ${options.parent}`)
+        const parentName = options.parent.slice(0, at)
+        const parentKey = options.parent.slice(at + 1)
+        const parentMeta = await c.tableMeta<TableMetaLike>(parentName)
+        const parent = await getRecord(c, parentName, parentKey, false) as unknown as RecordLike
+        let link: ReturnType<typeof parentLinkValues>
+        try {
+          link = parentLinkValues(parentMeta, parent, meta as unknown as TableMetaLike, options.association)
+        } catch (error) {
+          if (error instanceof AssociationError) throw new UsageError(error.message)
+          throw error
+        }
+        for (const [field, value] of Object.entries(link.values)) {
+          if (given[field] !== undefined && String(given[field]) !== String(value)) throw new UsageError(`--set ${field}=${String(given[field])} contradicts --parent ${options.parent} (${field} is ${String(value)})`)
+          given[field] = String(value)
+        }
+        parentNote = `${parentMeta.label ?? parentName} ${parentKey}${parent.recordLabel ? ` (${parent.recordLabel})` : ''}, association ${link.association.name}`
+      }
+      if (!Object.keys(given).length && !Object.keys(uploads).length && !options.interactive) throw new UsageError('Give field values with --set name=value or --input-json, or prompt with -i.')
       const variant = await chooseVariant(c, meta, options.variant, { write: true })
       const session = await fillForm(c, meta, name, given, options)
-      const problems = session.validate()
+      const problems = session.validate(Object.keys(uploads).length ? Object.keys(session.fields).filter((n) => !uploads[n]) : undefined)
       if (Object.keys(problems).length) validationError(session, problems)
-      const result = await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}', { params: { path: { tableName: name }, query: { tableVariant: variantParam(variant) } as never }, body: session.submission() as never })) as Json
+      const result = Object.keys(uploads).length
+        ? (await c.call('insertRecord', { path: { tableName: name }, query: { tableVariant: variantParam(variant) }, form: multipartRecord(session.submission(), uploads) })).data as Json
+        : await c.unwrap(c.client.POST('/qqq/v1/table/{tableName}', { params: { path: { tableName: name }, query: { tableVariant: variantParam(variant) } as never }, body: session.submission() as never })) as Json
       const record = (result.record ?? result) as Json
       const pk = (record.values as Json | undefined)?.[String(meta.primaryKeyField)] ?? record[String(meta.primaryKeyField)] ?? ''
-      c.print({ data: result, rows: [{ created: `${meta.label} ${pk}`, label: record.recordLabel ?? '' }], columns: ['created', 'label'] })
+      c.print({ data: result, rows: [{ created: `${meta.label} ${pk}`, label: record.recordLabel ?? '', ...(parentNote ? { parent: parentNote } : {}) }], columns: parentNote ? ['created', 'label', 'parent'] : ['created', 'label'] })
     })
 
   table.command('copy <table> <primaryKey>')
@@ -379,7 +448,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const copied = copyRecordValues(meta, sourceRecord)
       const given = parsePairs(options.set, '--set')
       const session = await fillForm(c, meta, name, given, { interactive: false }, copied, [String(meta.primaryKeyField)])
-      for (const [field, label] of Object.entries((sourceRecord.displayValues ?? {}) as Json)) if (copied[field] !== undefined && given[field] === undefined && session.values[field] === copied[field]) session.displayValues[field] = String(label)
+      for (const [field, label] of Object.entries((sourceRecord.displayValues ?? {}) as Json)) if (((meta.fields as Record<string, Json>)[field])?.type !== 'DATE_TIME' && copied[field] !== undefined && given[field] === undefined && session.values[field] === copied[field]) session.displayValues[field] = String(label)
       if (options.interactive) await promptForm(session, { skipSet: false })
       const problems = session.validate()
       if (Object.keys(problems).length) validationError(session, problems)
@@ -400,13 +469,15 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--input-json <json|file|->', 'field values as a JSON object')
     .option('-i, --interactive', 'prompt for every editable field, current values shown')
     .option('--expected-version <v>', 'optimistic locking: fail when the record changed')
+    .option('-u, --upload <field=path...>', 'replace a file field with this file (multipart/form-data); --set field= removes the file')
     .option(...VARIANT_OPTION)
-    .action(async (name: string, primaryKey: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; expectedVersion?: string; variant?: string }) => {
+    .action(async (name: string, primaryKey: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; expectedVersion?: string; upload?: string[]; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
       const variant = await chooseVariant(c, meta, options.variant, { write: true })
       const given = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
-      if (!Object.keys(given).length && !options.interactive) throw new UsageError('Give field values with --set name=value or --input-json, or prompt with -i.')
+      const uploads = readUploads(meta, options.upload)
+      if (!Object.keys(given).length && !Object.keys(uploads).length && !options.interactive) throw new UsageError('Give field values with --set name=value or --input-json, or prompt with -i.')
       let initial: Json | undefined
       if (options.interactive) {
         const existing = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { tableVariant: variantParam(variant) } as never } })) as Json
@@ -415,16 +486,18 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const session = await fillForm(c, meta, name, given, { interactive: false }, initial)
       if (options.interactive) await promptForm(session, { skipSet: false })
       const touched = options.interactive ? session.editable.map((f) => f.name).filter((n) => String(session.values[n] ?? '') !== String(initial?.[n] ?? '')) : Object.keys(given)
-      if (!touched.length) {
+      if (!touched.length && !Object.keys(uploads).length) {
         c.note('Nothing changed.')
         return
       }
       const problems = session.validate(touched)
       if (Object.keys(problems).length) validationError(session, problems)
       const values = Object.fromEntries(touched.map((n) => [n, session.values[n] ?? null]))
-      const result = await c.unwrap(c.client.PATCH('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { expectedVersion: options.expectedVersion, tableVariant: variantParam(variant) } as never }, body: values as never })) as Json
+      const result = Object.keys(uploads).length
+        ? (await c.call('updateRecord', { path: { tableName: name, primaryKey }, query: { expectedVersion: options.expectedVersion, tableVariant: variantParam(variant) }, form: multipartRecord(values, uploads) })).data as Json
+        : await c.unwrap(c.client.PATCH('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { expectedVersion: options.expectedVersion, tableVariant: variantParam(variant) } as never }, body: values as never })) as Json
       const record = (result.record ?? result) as Json
-      c.print({ data: result, rows: [{ updated: `${meta.label} ${primaryKey}`, label: record.recordLabel ?? '', fields: touched.join(', ') }], columns: ['updated', 'label', 'fields'] })
+      c.print({ data: result, rows: [{ updated: `${meta.label} ${primaryKey}`, label: record.recordLabel ?? '', fields: [...touched, ...Object.keys(uploads)].join(', ') }], columns: ['updated', 'label', 'fields'] })
     })
 
   table.command('delete <table> <primaryKey>')
@@ -452,7 +525,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--format <fmt>', 'csv, xlsx, json or tsv (default: from the --out extension, else csv)')
     .option('-f, --fields <names>', 'comma-separated fields to include, in column order (default: the server\'s)')
     .option('-l, --limit <n>', 'most records')
-    .option('--out <file>', 'output file, or - for stdout (default: <table>.<format>)')
+    .option('--out <file>', 'output file, or - for stdout (default: <table>.<format>; name-1.<format> when taken)')
     .option('--no-header', 'leave out the header row (csv, tsv, xlsx)')
     .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
     .option(...VARIANT_OPTION)
@@ -470,15 +543,15 @@ export function registerTable(program: Command, ctx: () => Context): void {
       if (options.limit !== undefined && !(Number(options.limit) > 0)) throw new UsageError('--limit must be a positive number')
       const filter = filterFrom(options, meta, columns, available)
       const variant = await chooseVariant(c, meta, options.variant)
-      const out = options.out ?? `${name}.${format}`
+      const out = options.out ?? safeFileName(`${name}.${format}`)
       const result = await c.call('exportTable', { path: { tableName: name }, json: { format, filter, fieldNames: columns, limit: options.limit ? Number(options.limit) : undefined, ...(options.header === false ? { includeHeaderRow: false } : {}), ...variantBody(variant) } })
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
       if (out === '-') {
         process.stdout.write(bytes)
         return
       }
-      writeFileSync(out, bytes)
-      c.note(`wrote ${out} (${bytes.length} bytes, ${result.contentType})`)
+      const written = saveDownload(out, bytes, { explicit: options.out !== undefined })
+      c.note(`wrote ${written} (${bytes.length} bytes, ${result.contentType})`)
     })
 
   // flat aliases, kept from 0.1

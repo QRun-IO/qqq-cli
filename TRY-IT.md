@@ -160,18 +160,72 @@ qqq process run placeAddressPick -v countryId=USA -v stateId=Illinois -v cityId=
 qqq table create pet --set name=Rex --set personId=1 --set speciesId=1 --set birthDate=2020-13-40   # exit 6, checked locally
 ```
 
+Processes show every screen as the web does, in component order: help text, HTML as text, `label: value` pairs
+(on every step, not only the last), the process records as a table (paged through `GET …/records`, `--record-limit`),
+the validation review (count, preview, then the validation lines), the summary lines, files to download (saved to
+`--out-dir` with the path printed) and widgets in steps. Intermediate screens go to stderr; the last screen is the
+command's output (`--output json` gives the raw response).
+
+```sh
+qqq process run greetInteractive -r 1,2,3 -v greetingPrefix=Hi       # results: values, then the greeted records
+qqq process run clonePeople -r 1,2                  # on a terminal: "Validate fully … or skip validation? [v/S]"
+qqq process run clonePeople -r 1,2 --validate       # validation lines, then "Submit? [Y/n]" (n cancels the run)
+qqq process run sleepInteractive -v sleepMillis=8000   # press Ctrl-C while it runs: POST …/cancel, exit 130
+qqq process describe person.bulkEdit                # steps, fields, and the process and step help
+```
+
+Ctrl-C during a run (while a job runs or at a prompt) asks the server to cancel it (`POST …/cancel`) and exits 130;
+a second Ctrl-C leaves at once. When a step reports a `backStep`, the terminal offers `b` to go back to it with the
+values entered so far (none of the sample's processes declares one). A process's `minInputRecords` and
+`maxInputRecords` are checked before `init` (a filter is counted first).
+
 Possible-value fields take an id, an exact label, or a partial label that matches one choice; an ambiguous partial
 lists the candidates. Validation (required, type, length, range, pattern) runs locally before the request, with the
 same codes and messages the server would give. Form adjusters (on-load and on-change rules an application declares)
 are called when the server has them; this sample app has none.
 
+Related records and the record view. `table get` shows sections in metadata order (hidden sections and fields never),
+empty values as `--`, and adornments as text: a record link names its table and key (`Avery Sample → person 1`),
+a chip is `[value]`, a REVEAL value is masked until `--reveal`, an error value starts with `!`, a tooltip follows in
+parentheses, HTML is shown as text, a stored file shows its size or name and the download command.
+
+```sh
+qqq table get person 1 --associations          # every association as tables, all levels: Pet [pets], then each pet's notes
+qqq table get pet 1 --links                    # the records this one links to, with the command that opens each
+qqq table get pet 1 --follow personId          # open the related record (LINK adornment or possible-value table)
+qqq table children person 1                    # the record's associations and how many children each has
+qqq table children person 1 pets --limit 2 --skip 2    # one page of a child list, with the count and the next --skip
+qqq table children pet 1 notes --all
+qqq table create pet --parent person=2 --set name=Rexley --set speciesId=Dog    # a child linked to its parent
+qqq table create petNote --parent pet=5 --set "note=Vet visit"                 # then: qqq table get person 2 --associations
+qqq table create fieldLab --set name=withfile --upload blobValue=./notes.txt   # multipart/form-data
+qqq table update fieldLab 1 --upload blobValue=./other.txt ; qqq table update fieldLab 1 --set blobValue=   # replace, remove
+qqq table download fieldLab 1 blobValue -o copy.txt                            # -o - for stdout
+qqq table get person 1 --help-content          # table, section and field help inline (this sample app declares none; qqq help show for help alone)
+```
+
+DATE_TIME values are typed and shown in your zone (the `TZ` environment) and sent as UTC instants, as the web
+UI does; `--utc` shows the raw instants. A time skipped by a spring-forward change moves forward by the gap; a
+time repeated by a fall-back change means its first occurrence. In filters, a date alone on a DATE_TIME field
+means local midnight. Fields the server formats in a declared zone (fixed or per-record) keep its text.
+
+```sh
+TZ=America/Chicago qqq table create fieldLab --set name=tz --set dateTimeValue=2026-10-31T14:30   # stored 19:30Z
+qqq table get fieldLab 4                          # Date Time Value  2026-10-31 14:30:00 CDT
+qqq --utc table get fieldLab 4                    # Date Time Value  2026-10-31T19:30:00Z
+TZ=Asia/Tokyo qqq table get fieldLab 4            # 2026-11-01 04:30:00 GMT+9
+qqq table query fieldLab -w "dateTimeValue BETWEEN 2026-10-31,2026-10-31T23:59" --print-filter
+qqq process run fieldLab.bulkEdit -r 4 -v bulkEditEnabledFields=dateTimeValue -v dateTimeValue=2026-10-31T09:15 -v name=tz --validate
+```
+
 Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `lastPeriod(week)`,
 `startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
 
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
-the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), saved views on a server that has them,
-server-side column statistics (no columnStats process in the sample), audits on an audited table (none in the sample), a variant-backed table to verify variants against (the sample has none), jobs on a durable-jobs server,
-TABLE_BASED sign-in, DATE_TIME local-to-UTC conversion.
+the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), jobs on a
+durable-jobs server, TABLE_BASED sign-in. Built but not verifiable against this sample, which has none of them:
+saved views, server-side column statistics (columnStats), audits, a variant-backed table, exposed joins (joins were
+checked through an association join instead); node tests and a local stub server cover those.
 
 ## Reporting what you find
 

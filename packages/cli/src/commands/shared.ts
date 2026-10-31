@@ -4,6 +4,7 @@
  */
 
 import { readFileSync } from 'node:fs'
+import { displayDateTime, type DisplayOptions } from '@qrun-io/qqq-core'
 import { UsageError } from '../context.js'
 
 export type Json = Record<string, unknown>
@@ -29,11 +30,15 @@ export function readJson(source: string, flag: string): unknown {
   }
 }
 
-/** A record's value as text: its display value when the server sent one. */
-export function valueText(record: Json, field: string): string {
-  const display = (record.displayValues as Json | undefined)?.[field]
+/**
+ * A record's value as text: its display value when the server sent one. With the table's
+ * metadata, DATE_TIME values are shown in the local zone (or raw with `display.utc`).
+ */
+export function valueText(record: Json, field: string, meta?: Json, display?: DisplayOptions): string {
+  const shown = (record.displayValues as Json | undefined)?.[field]
   const raw = (record.values as Json | undefined)?.[field]
-  const value = display ?? raw
+  if ((((meta?.fields ?? {}) as Record<string, Json>)[field])?.type === 'DATE_TIME') return displayDateTime(raw, shown, display)
+  const value = shown ?? raw
   if (value === null || value === undefined) return ''
   return typeof value === 'object' ? JSON.stringify(value) : String(value)
 }

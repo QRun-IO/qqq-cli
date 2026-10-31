@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { JoinError, associationJoin, defaultJoinColumns, exposedJoins, fieldLabel, filterFieldNames, joinFieldNames, planJoins, resolveField } from '../query/joins.js'
+import { JoinError, withJoinFields, associationJoin, defaultJoinColumns, exposedJoins, fieldLabel, filterFieldNames, joinFieldNames, planJoins, resolveField } from '../query/joins.js'
 import { VariantError, listTableVariants, resolveVariant, variantBody, variantParam } from '../records/variants.js'
 
 const order = {
@@ -28,6 +28,7 @@ test('exposed joins: readable ones, with join names for one-hop paths; path tabl
   assert.equal(fieldLabel(order, joins, 'orderLine.sku'), 'Lines: SKU')
   assert.equal(fieldLabel(order, joins, 'total'), 'Total')
   assert.deepEqual(defaultJoinColumns(joins[0]!), ['customer.name'])
+  assert.equal(((withJoinFields(order, joins).fields as Record<string, { name: string }>)['orderLine.sku'])!.name, 'orderLine.sku')
 })
 
 test('planJoins joins named and referenced joins, selects shown ones, and asks for distinct counts on many-side joins', () => {

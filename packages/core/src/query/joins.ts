@@ -160,3 +160,11 @@ export function associationJoin(association: J, joinedTableMeta: J): ExposedJoin
     tableMeta: joinedTableMeta,
   }
 }
+
+/** The table metadata with each join's fields added under their qualified names (for value formatting). */
+export function withJoinFields(tableMeta: J, joins: ExposedJoin[]): J {
+  if (!joins.length) return tableMeta
+  const fields: J = { ...((tableMeta.fields ?? {}) as J) }
+  for (const join of joins) for (const [name, field] of Object.entries((join.tableMeta.fields ?? {}) as J)) fields[`${join.table}.${name}`] = { ...(field as J), name: `${join.table}.${name}` }
+  return { ...tableMeta, fields }
+}

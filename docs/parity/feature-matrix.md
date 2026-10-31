@@ -12,15 +12,15 @@ The TUI column fills in during M3.
 | HLP | 6 | 1 | 0 | 4 | 1 |
 | INT | 14 | 5 | 0 | 0 | 9 |
 | NAV | 40 | 9 | 3 | 1 | 27 |
-| PRC | 60 | 24 | 24 | 0 | 12 |
+| PRC | 60 | 35 | 11 | 2 | 12 |
 | PRF | 5 | 4 | 1 | 0 | 0 |
-| QRY | 70 | 29 | 7 | 13 | 21 |
-| REC | 65 | 28 | 21 | 4 | 12 |
-| REL | 9 | 4 | 5 | 0 | 0 |
+| QRY | 70 | 30 | 6 | 13 | 21 |
+| REC | 65 | 31 | 6 | 17 | 11 |
+| REL | 9 | 6 | 0 | 3 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 |
 | SEC | 43 | 17 | 14 | 0 | 12 |
 | WID | 69 | 29 | 27 | 0 | 13 |
-| **all** | 401 | 151 | 121 | 22 | 107 |
+| **all** | 401 | 168 | 87 | 40 | 106 |
 
 ## Rows
 
@@ -76,27 +76,27 @@ The TUI column fills in during M3.
 | PRC-003 | Zero-record runs from a filter that matches nothing | pass | todo |  |
 | PRC-004 | Processes launched from an app (no records) | pass | todo |  |
 | PRC-005 | Process launched from selected rows of a table query | n/a | todo | grid selection; use -r |
-| PRC-006 | Minimum and maximum input records | todo | todo | min/max input records enforced only by the server |
-| PRC-007 | Every declared component renders on one screen, in declared order, with one action bar | todo | todo | EDIT_FORM, VIEW_FORM, VALIDATION_REVIEW_SCREEN, PROCESS_SUMMARY_RESULTS; other components todo |
-| PRC-008 | HELP_TEXT with line breaks and previewText toggle | todo | todo | HELP_TEXT not printed yet |
+| PRC-006 | Minimum and maximum input records | pass | todo | checked before init (filters counted); the sample declares no limits, verified by tests |
+| PRC-007 | Every declared component renders on one screen, in declared order, with one action bar | pass | todo | every component in order as text (kernel screen model); bulk load forms belong to qqq bulk |
+| PRC-008 | HELP_TEXT with line breaks and previewText toggle | pass | todo | text with line breaks; previewText printed above it |
 | PRC-009 | EDIT_FORM field subsets (includeFieldNames), section labels and persisted input values | pass | todo | includeFieldNames and values kept across steps |
 | PRC-010 | Required input validation on screens and in the backend | pass | todo | required checked locally and by the server |
 | PRC-011 | Process possible-value fields | pass | todo | labels or ids, prompts list choices |
-| PRC-012 | VIEW_FORM labels and backend values | pass | todo | results as label: value |
-| PRC-013 | HTML component renders the step html value, sanitized | todo | todo | HTML component |
-| PRC-014 | DOWNLOAD_FORM delivers the generated file | todo | todo | DOWNLOAD_FORM |
-| PRC-015 | Step help content for process screens | todo | todo | step help |
-| PRC-016 | Back to the backend back step with entered values | todo | todo | back step |
+| PRC-012 | VIEW_FORM labels and backend values | pass | todo | label: value on every step |
+| PRC-013 | HTML component renders the step html value, sanitized | pass | todo | {step}.html as text (tags stripped) |
+| PRC-014 | DOWNLOAD_FORM delivers the generated file | pass | todo | GET /download/{file} saved to --out-dir; no sample process offers one, verified by tests |
+| PRC-015 | Step help content for process screens | pass | todo | step helpContents shown on the screen, process help at start and in describe; none in the sample |
+| PRC-016 | Back to the backend back step with entered values | partial | todo | b at the prompt when the step reports backStep (isStepBack=true); no sample process declares one, verified by tests |
 | PRC-017 | Dynamic step list from processMetaDataAdjustment.updatedFrontendStepList | pass | todo | updatedFrontendStepList followed |
 | PRC-018 | Updated field metadata from processMetaDataAdjustment.updatedFields | pass | todo | updatedFields applied |
 | PRC-019 | Async job progress in the live job view (message, N / M, determinate progress bar, elapsed) then continue | pass | todo | message, N/M, elapsed on stderr |
-| PRC-020 | Cancel from a screen and mid-job runs the cancel step and leaves | todo | todo | cancel on Ctrl-C |
+| PRC-020 | Cancel from a screen and mid-job runs the cancel step and leaves | pass | todo | Ctrl-C during a job or a prompt calls POST …/cancel, exit 130 |
 | PRC-021 | Step errors: user-facing messages directly, internal errors behind a detail toggle, Close | pass | todo | userFacingError shown |
 | PRC-022 | Retry after an error restarts with the original record selection | n/a | todo | retry is re-running the command |
 | PRC-023 | Completion: Next/Submit labels, Return on the last screen or when noMoreSteps | n/a | todo | screen labels |
 | PRC-024 | Linear stepper and step position | n/a | todo | stepper; step names printed |
-| PRC-025 | RECORD_LIST paging and page size over process records | todo | todo | RECORD_LIST paging |
-| PRC-026 | Validation review: input count, validate-or-skip choice, Next/Submit label, record preview | pass | todo | --validate / --skip-validation; prompt otherwise todo |
+| PRC-025 | RECORD_LIST paging and page size over process records | pass | todo | GET …/records paged into a table, --record-limit |
+| PRC-026 | Validation review: input count, validate-or-skip choice, Next/Submit label, record preview | pass | todo | count and preview; asks validate or skip on a terminal, --validate / --skip-validation; Submit? after validation |
 | PRC-027 | Full validation summary lines (OK, WARNING, ERROR) with record links | pass | todo | status, count, message lines |
 | PRC-028 | Process summary results after execution and persisted effects | pass | todo |  |
 | PRC-029 | Bulk edit: switched-on fields only, review and result | todo | todo | bulk edit |
@@ -105,9 +105,9 @@ The TUI column fills in during M3.
 | PRC-032 | Bulk load mapping validation and Back through mapping and upload | todo | todo |  |
 | PRC-033 | Bulk edit with a file matched by key fields | todo | todo |  |
 | PRC-034 | Upload instructions HTML with downloadable template | todo | todo |  |
-| PRC-035 | Named WIDGET fetched with the process UUID and values | todo | todo | WIDGET in steps |
-| PRC-036 | Named composite WIDGET seeded from process values | todo | todo |  |
-| PRC-037 | Ad hoc composite WIDGET: interpolation, conditional blocks, action buttons, submit-on-enter inputs | todo | todo |  |
+| PRC-035 | Named WIDGET fetched with the process UUID and values | pass | todo | named widget with the process UUID and values, kernel render model; none in the sample, verified by tests |
+| PRC-036 | Named composite WIDGET seeded from process values | pass | todo | seeded from the process value of the widget name |
+| PRC-037 | Ad hoc composite WIDGET: interpolation, conditional blocks, action buttons, submit-on-enter inputs | partial | todo | ad hoc blocks rendered with interpolation; buttons and inputs not offered |
 | PRC-038 | GOOGLE_DRIVE_SELECT_FOLDER screen keeps its other components working | n/a | n/a | Google Drive is web-only |
 | PRC-039 | Google Drive folder selection through the Google Picker | n/a | n/a | Google Drive is web-only |
 | PRC-040 | Reload mid-process starts a fresh run | n/a | todo | no reload |
@@ -128,7 +128,7 @@ The TUI column fills in during M3.
 | PRC-061 | Typed bulk load default values, searchable value mapping and the grouped, searchable Add Fields menu (Material | todo | todo |  |
 | PRC-062 | Composite INPUT_FIELD metadata editors share process validation and multipart submission | n/a | todo | composite editors |
 | PRC-063 | INPUT_FIELD autofocus and trimmed Enter values on subsequent process screens | n/a | todo |  |
-| PRC-064 | DATE_TIME process inputs display local time and submit UTC instants | todo | todo | DATE_TIME local to UTC |
+| PRC-064 | DATE_TIME process inputs display local time and submit UTC instants | pass | todo | process values typed local, sent UTC; screens show the local zone |
 | PRC-065 | Configured Google Drive shared-folder selection and process submission | n/a | n/a | Google Drive |
 | PRC-066 | INPUT_FIELD case behaviors preserve caret and submitted process values | pass | todo | field behaviors applied before submit |
 | QRY-090 | Column menu sorts, pins, opens a field filter and hides a column | n/a | todo | saved views and column UI |
@@ -148,7 +148,7 @@ The TUI column fills in during M3.
 | QRY-010 | Text operators match Material labels and backend semantics | pass | todo | all operators and shorthand |
 | QRY-011 | Number operators including ranges and lists | pass | todo | BETWEEN, IN lists |
 | QRY-012 | Date operators and relative date expressions | pass | todo | now(), now(-7d), thisPeriod(), startOf() |
-| QRY-013 | Date-time operators convert local input to UTC and support relative values | todo | todo | DATE_TIME local to UTC conversion |
+| QRY-013 | Date-time operators convert local input to UTC and support relative values | pass | todo | --where/--group DATE_TIME values local to UTC (a date is local midnight); expressions as before |
 | QRY-014 | Boolean, blob and long-text operators | pass | todo | IS_BLANK, TRUE, FALSE |
 | QRY-015 | Possible-value selectors for table and enum sources show labels and send ids | todo | todo | filters take ids; labels in filters todo |
 | QRY-016 | AND/OR and nested groups combine as declared | pass | todo | --group with parentheses |
@@ -201,17 +201,17 @@ The TUI column fills in during M3.
 | QRY-024 | Column configuration is reachable and usable by touch on phones and tablets | n/a | n/a | phone layout |
 | QRY-036 | Bulk actions launch from a phone card selection | n/a | n/a | phone layout |
 | QRY-055 | Saved views and export menus fit the phone and are touch-sized | n/a | n/a | phone layout |
-| REL-001 | Possible-value cells show the related record label and link to it | pass | todo | display values and labels |
-| REL-002 | Parent lists exactly its own children; View All opens the filtered child list | todo | todo | child lists: table get --associations partial |
-| REL-003 | Adding a child from its parent links it and shows it immediately | todo | todo | create child |
-| REL-004 | Three-level associations: each pet shows only its own notes | todo | todo |  |
-| REL-005 | Editing and deleting a child leaves no stale parent, list or unexpected rows | pass | todo | server |
-| REL-006 | Denied child reads show an unavailable panel without data or actions | pass | todo | server |
-| REL-007 | Aliased and composite associations bind to their widgets and list the right members | todo | todo |  |
-| REL-008 | Adding through a composite association stores every join value | todo | todo |  |
-| REL-009 | Deleting a parent removes associated children and leaves other parents intact | pass | todo | server |
+| REL-001 | Possible-value cells show the related record label and link to it | pass | todo | display values; table get shows the target (Avery Sample → person 1), --links lists them, --follow opens one |
+| REL-002 | Parent lists exactly its own children; View All opens the filtered child list | pass | todo | table get --associations lists exactly the record's children; table children pages a list with its count (View All) |
+| REL-003 | Adding a child from its parent links it and shows it immediately | pass | todo | table create <child> --parent table=pk; table get --associations shows it at once |
+| REL-004 | Three-level associations: each pet shows only its own notes | pass | todo | person > pets > notes: each pet lists only its own notes |
+| REL-005 | Editing and deleting a child leaves no stale parent, list or unexpected rows | pass | todo | records are never cached: update or delete a child, the next get/children shows the current rows |
+| REL-006 | Denied child reads show an unavailable panel without data or actions | partial | todo | unreadable child tables shown as unavailable without data; table children shows the server message; the sample has no denied child table (unit-tested) |
+| REL-007 | Aliased and composite associations bind to their widgets and list the right members | partial | todo | composite joins and widget-section labels in the kernel, unit-tested; the sample declares none |
+| REL-008 | Adding through a composite association stores every join value | partial | todo | --parent sets every join value of a composite association, unit-tested; the sample declares none |
+| REL-009 | Deleting a parent removes associated children and leaves other parents intact | pass | todo | table delete of a parent: its pets are gone, other parents keep theirs |
 | REC-001 | Record view shows the record label, tiered sections and backend-formatted values | pass | todo | table get by section and tier |
-| REC-002 | Empty values render a placeholder; hidden fields and hidden sections are never shown | todo | todo | hidden sections |
+| REC-002 | Empty values render a placeholder; hidden fields and hidden sections are never shown | partial | todo | empty values show --; hidden sections and fields are dropped by the kernel record view (unit-tested; the sample has none) |
 | REC-003 | Record view of a missing record shows Record Not Found and a way back | pass | todo | exit 5 |
 | REC-004 | Record view tabs and list view expose every visible section | n/a | todo | tabs |
 | REC-005 | Create form validates required fields in the browser before any request | pass | todo | validated locally before any request |
@@ -227,7 +227,7 @@ The TUI column fills in during M3.
 | REC-015 | INTEGER, LONG and DECIMAL editors keep exact values | pass | todo |  |
 | REC-016 | BOOLEAN editor applies the metadata default and saves true/false | pass | todo | defaults applied |
 | REC-017 | DATE and TIME editors round-trip values and clearing | pass | todo |  |
-| REC-018 | DATE_TIME is entered and shown in the viewer's time zone and stored in UTC | todo | todo | DATE_TIME local to UTC |
+| REC-018 | DATE_TIME is entered and shown in the viewer's time zone and stored in UTC | pass | todo | typed and shown in TZ, stored UTC, --utc for raw; DST edges tested |
 | REC-019 | Zoned DATE_TIME display behaviors (fixed zone and per-record zone) | n/a | todo | display zones |
 | REC-020 | HTML field edits in the rich-text editor and renders sanitized | todo | todo | raw HTML; $EDITOR todo |
 | REC-021 | PASSWORD is masked on read and never overwritten by the mask | pass | todo | server masks |
@@ -237,20 +237,20 @@ The TUI column fills in during M3.
 | REC-025 | Case and whitespace normalization on save | pass | todo | behaviors |
 | REC-026 | Numeric range policies: reject, exclusive reject, inclusive clip and exclusive clip | pass | todo | ranges checked locally |
 | REC-027 | Unique keys are enforced with the backend message on create and edit | pass | todo | server message |
-| REC-028 | LINK adornment: record links and URL links | todo | todo | adornments |
-| REC-029 | CHIP adornment colors and icons by value | todo | todo |  |
+| REC-028 | LINK adornment: record links and URL links | pass | todo | record links name table and key, --follow opens them; URL links show the URL |
+| REC-029 | CHIP adornment colors and icons by value | partial | todo | chip as [value]; colors and icons not shown (unit-tested; none in the sample) |
 | REC-030 | SIZE adornment sets the query grid column width | n/a | todo |  |
-| REC-031 | CODE_EDITOR adornment: code view with formatting and a code editor on forms | todo | todo |  |
-| REC-032 | RENDER_HTML adornment renders sanitized HTML | todo | todo |  |
-| REC-033 | REVEAL adornment masks, reveals and copies the value | todo | todo | reveal |
-| REC-034 | FILE_DOWNLOAD adornment links to the stored file with its name | todo | todo | file download |
-| REC-035 | FILE_UPLOAD adornment formats, replacing and removing a stored file | todo | todo | file upload |
-| REC-036 | TOOLTIP adornment shows its text on the value | n/a | todo |  |
-| REC-037 | WIDGET adornment renders the field value as the named widget | todo | todo |  |
-| REC-038 | ERROR adornment highlights the value | todo | todo |  |
-| REC-039 | Field help content follows screen roles and formats | todo | todo | help |
-| REC-040 | Section help content on the record view | todo | todo |  |
-| REC-041 | Table help content slots are delivered in table metadata | todo | todo |  |
+| REC-031 | CODE_EDITOR adornment: code view with formatting and a code editor on forms | partial | todo | raw code on view; no code editor (unit-tested) |
+| REC-032 | RENDER_HTML adornment renders sanitized HTML | partial | todo | HTML shown as text (unit-tested) |
+| REC-033 | REVEAL adornment masks, reveals and copies the value | partial | todo | masked until --reveal; no copy (unit-tested; none in the sample) |
+| REC-034 | FILE_DOWNLOAD adornment links to the stored file with its name | partial | todo | name plus qqq table download via the field route (unit-tested); live only for BLOB values, server finding 16 |
+| REC-035 | FILE_UPLOAD adornment formats, replacing and removing a stored file | partial | todo | create/update --upload field=path as multipart, replace and remove verified on a BLOB; FILE_UPLOAD formats not in the sample |
+| REC-036 | TOOLTIP adornment shows its text on the value | partial | todo | tooltip text in parentheses after the value (unit-tested) |
+| REC-037 | WIDGET adornment renders the field value as the named widget | partial | todo | value rendered through the widget render model as text (unit-tested) |
+| REC-038 | ERROR adornment highlights the value | partial | todo | value marked with ! (unit-tested) |
+| REC-039 | Field help content follows screen roles and formats | partial | todo | table get --help-content: view-screen roles, HTML/MARKDOWN as text (unit-tested; the sample has no help); qqq help show lists help alone |
+| REC-040 | Section help content on the record view | partial | todo | section help with --help-content (unit-tested) |
+| REC-041 | Table help content slots are delivered in table metadata | partial | todo | table helpContent and helpContents slots with --help-content (unit-tested) |
 | REC-042 | Audit history lists who changed what, newest first | partial | todo | qqq audit list <t> <pk> [--asc]: entries newest first with field changes; the sample audits no table, verified with node tests and a local stub server |
 | REC-043 | Audit history without process permission reads the audit table | partial | todo | without the audit process the audit table is queried with its auditTable and auditDetail joins (node tests) |
 | REC-044 | Record label format is used for the record's title and dialogs | pass | todo | recordLabel |
@@ -273,8 +273,8 @@ The TUI column fills in during M3.
 | REC-062 | Inline enum possible values filter by label prefix without a lookup request; CHIP adornments style options and | pass | todo | inline enums |
 | REC-060 | Material table and field form adjusters and field rules operate against the real QQQ sample server | todo | todo | adjusters wired, no sample to test |
 | REC-064 | Record sections render qualified fields from readable exposed joins | partial | todo | table get --join adds joined fields (queryJoins); verified with an association join |
-| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | todo | get, copy and update -i read with --variant; v1 writes ignore it (server finding #13) |
-| REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | todo | todo |  |
+| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | todo | get, copy and update -i read with --variant; v1 writes ignore it (server finding #18) |
+| REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | pass | todo | an unchanged wall-clock time keeps the original instant and its precision |
 | SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | todo |  |
 | SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | todo | disabled tables listed with a reason |
 | SEC-003 | Insert permission denied: create not offered, create link refused, backend writes nothing | pass | todo |  |
