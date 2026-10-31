@@ -23,6 +23,7 @@ import { registerHelp } from './commands/help.js'
 import { registerJob } from './commands/job.js'
 import { registerMisc } from './commands/misc.js'
 import { registerProcess } from './commands/process.js'
+import { registerSavedView } from './commands/saved-view.js'
 import { registerTable } from './commands/table.js'
 import { registerWidget } from './commands/widget.js'
 
@@ -49,6 +50,7 @@ registerAuth(program, ctx)
 registerMisc(program, ctx)
 registerTable(program, ctx)
 registerProcess(program, ctx)
+registerSavedView(program, ctx)
 registerJob(program, ctx)
 registerWidget(program, ctx)
 registerApi(program, ctx)

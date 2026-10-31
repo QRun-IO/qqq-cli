@@ -5,7 +5,7 @@
 
 import { writeFileSync } from 'node:fs'
 import type { Command } from 'commander'
-import { FormInputError, FormSession, JoinError, buildFilter, combineWithQuickSearch, copyRecordValues, associationJoin, columnStatsAvailability, computeColumnStats, runColumnStats, defaultJoinColumns, exposedJoins, fieldLabel, findRecordByKey, gotoKeys, isGotoKey, joinFieldNames, planJoins, printFilter, quickSearchFields, quickSearchFilter, resolveField, listTableVariants, variantBody, variantParam, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin } from '@qrun-io/qqq-core'
+import { FormInputError, FormSession, JoinError, buildFilter, combineWithQuickSearch, copyRecordValues, SavedViewError, associationJoin, columnStatsAvailability, findSavedView, listSavedViews, savedViewProcesses, viewToQuery, computeColumnStats, runColumnStats, defaultJoinColumns, exposedJoins, fieldLabel, findRecordByKey, gotoKeys, isGotoKey, joinFieldNames, planJoins, printFilter, quickSearchFields, quickSearchFilter, resolveField, listTableVariants, variantBody, variantParam, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -13,7 +13,7 @@ import { UsageError, type Context } from '../context.js'
 import { defaultFields, parsePairs, readJson, valueText, type Json } from './shared.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
-interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean }
+interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit?: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean; view?: string }
 
 /** The formats the export route writes. */
 const EXPORT_FORMATS = ['csv', 'xlsx', 'json', 'tsv']
@@ -68,6 +68,33 @@ function printCount(c: Context, result: Json, includeDistinct: boolean): void {
   const row: Json = { count: result.count }
   if (includeDistinct) row.distinctCount = result.distinctCount ?? ''
   c.print({ data: result, rows: [row], columns: Object.keys(row) })
+}
+
+/** Opens a saved view for a query: the view's filter, columns and page size, with Material's reconcile warnings on stderr. */
+async function openSavedView(c: Context, meta: Json, idOrName: string): Promise<{ label: string; filter: QueryFilter; columns: string[]; rowsPerPage?: number }> {
+  const metaData = await c.metaData() as unknown as Json
+  const processes = savedViewProcesses(meta, metaData)
+  try {
+    const view = findSavedView(await listSavedViews(c.server, authenticatedFetch(c.target), processes, String(meta.name)), idOrName)
+    const joins = await availableJoins(c, meta, { filterJson: JSON.stringify(view.view) })
+    const opened = viewToQuery(meta, joins, view.view)
+    for (const warning of opened.warnings) c.note(`warning: ${warning}`)
+    return { label: view.label, ...opened }
+  } catch (error) {
+    if (error instanceof SavedViewError) throw new UsageError(error.message)
+    throw error
+  }
+}
+
+/** ANDs the command's criteria onto a view's filter; the command's sort replaces the view's. */
+function withSavedView(view: QueryFilter | undefined, given: QueryFilter): QueryFilter {
+  if (!view) return given
+  const { orderBys: viewOrder, ...viewRest } = view
+  const { orderBys: givenOrder, ...givenRest } = given
+  const orderBys = givenOrder?.length ? givenOrder : viewOrder
+  const empty = (f: Partial<QueryFilter>) => !f.criteria?.length && !f.subFilters?.length
+  const base: QueryFilter = empty(givenRest) ? viewRest as QueryFilter : empty(viewRest) ? givenRest as QueryFilter : { criteria: [], booleanOperator: 'AND', subFilters: [viewRest as QueryFilter, givenRest as QueryFilter] }
+  return orderBys?.length ? { ...base, orderBys } : base
 }
 
 /** --fields of the command (or the global one), as a list. */
@@ -131,7 +158,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses, e.g. "(a = 1 AND b = 2) OR c IS_BLANK"')
     .option('--or', 'OR the --where criteria instead of AND')
     .option('-o, --order <field...>', 'order by fields; prefix - for descending')
-    .option('-l, --limit <n>', 'most records to return', '25')
+    .option('-l, --limit <n>', 'most records to return (default: the view\'s page size, else 25)')
     .option('--skip <n>', 'records to skip')
     .option('--all', 'fetch every page (with --page-size)')
     .option('--page-size <n>', 'page size for --all', '500')
@@ -140,15 +167,17 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--print-filter', 'print the QueryFilter JSON the options produced and stop')
     .option('--count', 'print only the count of matching records')
     .option('-S, --search <text>', 'quick search: records whose text fields contain this, ANDed with the filter (as the web UI search box)')
+    .option('-V, --view <id|name>', 'start from a saved view: its filter, sort, columns and page size (--where and --search are ANDed on, --order and --fields replace)')
     .option('-j, --join <table...>', 'join exposed joins (by joined table name or label); joined fields are named table.field in --fields, --where and --order')
     .option('--select', 'select the --join tables\' fields (shown columns from a join select it anyway)')
     .option(...VARIANT_OPTION)
     .action(async (name: string, options: QueryOptions) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
-      const given = columnsFrom(c, options)
-      const available = await availableJoins(c, meta, options, given)
-      const filter = filterFrom(options, meta, given, available)
+      const saved = options.view !== undefined ? await openSavedView(c, meta, options.view) : undefined
+      const given = columnsFrom(c, options) ?? (saved?.columns.length ? saved.columns : undefined)
+      const available = await availableJoins(c, meta, { ...options, filterJson: `${options.filterJson ?? ''} ${saved ? JSON.stringify(saved.filter) : ''}` }, given)
+      const filter = withSavedView(saved?.filter, filterFrom(options, meta, given, available))
       const { joins, used, includeDistinct } = joinsFrom(options, available, given, filter)
       if (options.printFilter) {
         c.print({ data: joins ? { filter, joins } : filter })
@@ -161,7 +190,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
         return
       }
       const records: Json[] = []
-      const limit = options.all ? Number(options.pageSize) : Number(options.limit)
+      const limit = options.all ? Number(options.pageSize) : Number(options.limit ?? saved?.rowsPerPage ?? 25)
       let skip = Number(options.skip ?? 0)
       for (;;) {
         const body = { filter: { ...filter, skip, limit } as never, ...(joins ? { joins: joins as never } : {}), ...variantBody(variant) }
@@ -175,7 +204,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const fields = given ?? [...defaultFields(meta), ...selected.flatMap((j) => defaultJoinColumns(j))]
       const joinsShown = used.map((j) => j.table)
       const rows = records.map((r) => Object.fromEntries(fields.map((f) => [f, valueText(r, f)])))
-      c.print({ data: records, rows, columns: fields, headers: fields.map((f) => fieldLabel(meta, used, f)), footer: `(${records.length} record${records.length === 1 ? '' : 's'}${joinsShown.length ? `; joined: ${joinsShown.join(', ')}${includeDistinct ? ' (many-side: rows may repeat a record; --count gives the distinct count)' : ''}` : ''}${variant ? `; variant ${variant.name ?? `${variant.type}:${variant.id}`}` : ''}${filter.criteria?.length || filter.subFilters?.length ? `; filter: ${printFilter(filter)}` : ''}${!options.all && records.length === limit ? '; more may exist: --limit, --skip or --all' : ''})` })
+      c.print({ data: records, rows, columns: fields, headers: fields.map((f) => fieldLabel(meta, used, f)), footer: `(${records.length} record${records.length === 1 ? '' : 's'}${joinsShown.length ? `; joined: ${joinsShown.join(', ')}${includeDistinct ? ' (many-side: rows may repeat a record; --count gives the distinct count)' : ''}` : ''}${variant ? `; variant ${variant.name ?? `${variant.type}:${variant.id}`}` : ''}${saved ? `; view ${saved.label}` : ''}${filter.criteria?.length || filter.subFilters?.length ? `; filter: ${printFilter(filter)}` : ''}${!options.all && records.length === limit ? '; more may exist: --limit, --skip or --all' : ''})` })
     })
 
   table.command('stats <table> <field>')
