@@ -19,6 +19,8 @@ what it produces; the TUI draws it.
 | `records/record-view` | the record view as text: sections without hidden sections or fields, adornments (LINK, CHIP, REVEAL, RENDER_HTML, CODE_EDITOR, ERROR, FILE_DOWNLOAD, WIDGET, TOOLTIP), view-screen help by role |
 | `widgets/render-model` | any widget payload to neutral blocks (heading, stat, table, series, pairs, steps, alert, link, rule, children) and blocks to text |
 | `metadata/cache` | on-disk cache of `GET /metaData` and table definitions per server, with a TTL and offline reads |
+| `extensions/registry` | every extension the client document carries (operations, documented minimum version, realtime channels), joined with the server's `GET /version`: `has`, `require` (typed `ExtensionNotInstalledError`), unknown extensions kept; see `src/extensions/README.md` |
+| `extensions/collaboration` | the collaboration qbit: live presence (`joinPresence`, a no-op without the extension), comments, favorites, recents, follow, people, my work |
 | `session/profiles`, `session/keyring` | named profiles and an OS keyring without native modules (Keychain, Secret Service, DPAPI, file) |
 
 Rules the kernel keeps for both heads: every call is a spec operation named by `operationId`; text comes from the

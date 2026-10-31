@@ -123,6 +123,7 @@ qqq widget get SampleStackedBarChartWidget --output json      # the raw payload
 qqq prefs list ; qqq prefs get regional ; qqq prefs set regional --set weekStartsOn=MONDAY
 qqq help-search person ; qqq report run <name> --format xlsx
 qqq search Avery ; qqq tail
+qqq extensions ; qqq esb table person           # extensions (qbits): see "Extensions (qbits)" below
 ```
 
 Profiles name servers, as `aws --profile`; sign-ins live in the OS keyring (macOS Keychain here, Secret Service on
@@ -226,6 +227,67 @@ the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-fi
 durable-jobs server, TABLE_BASED sign-in. Built but not verifiable against this sample, which has none of them:
 saved views, server-side column statistics (columnStats), audits, a variant-backed table, exposed joins (joins were
 checked through an association join instead); node tests and a local stub server cover those.
+
+## Extensions (qbits)
+
+An extension is a qbit or module that adds UI API operations. The CLI knows every extension whose
+document was merged into the client (13 today, listed in `docs/extensions.md`); a server installs
+some of them and lists them in `GET /version`. Each has a noun:
+
+| Noun | Extension | First-class verbs | Generated verbs (one per operation) |
+|---|---|---|---|
+| `qqq esb` | esb (qqq) | `overview`, `table <t>`, `process <p>`, `dead-letters <trigger>`, `messages <destination> [--trigger t]` | `get-overview`, `get-table`, ... |
+| `qqq collab` | collaboration | `presence <table> [pk] [--watch\|--observe]`, `comments list\|add`, `favorites list\|add\|remove`, `recents`, `follow [--status]`, `unfollow`, `my-work`, `people [q]` | `get-records-timeline <table> <pk>`, `get-records-tags`, `put-records-assignment`, ... (45) |
+| `qqq health`, `alerts`, `assistant`, `data-analysis`, `db-performance`, `edi`, `qa-capture`, `quick-search`, `release-notes`, `secured-data`, `sql-workbench` | the qbit of that name | none yet | every operation, e.g. `qqq sql-workbench get-capabilities` |
+
+Generated verbs are the method plus the literal path segments after the extension's prefix. They take
+path parameters as arguments or `--path name=value`, plus `--param`, `--body-json`, `--form` and `--out`.
+`qqq <noun> --help` lists them with the operation behind each.
+
+What happens:
+
+- **Installed.** The command runs. `qqq whoami` and `qqq extensions` show it with its version.
+- **Not installed.** Every verb of the noun, and `qqq api <operation>` for any of its operations, stops
+  before calling the server, with exit 5: `extension collaboration is not installed on this server
+  (installed: esb 1.1.0)`.
+- **Installed below the minimum the client needs** (esb, health and collaboration need 1.1.0): exit 5,
+  `this client needs extension esb 1.1.0 or later; this server has 1.0.0`.
+- **Installed but unknown to this client** (a newer qbit): listed by `qqq whoami` and `qqq extensions`
+  as `unknown to this client`, never dropped. It has no noun until the client document is regenerated.
+
+The installed list comes from `GET /version`, cached with the metadata for five minutes (`qqq cache
+refresh` rereads it). `QQQ_EXTENSION_CHECK=off` skips the check, for a Prism mock whose `/version` is
+only an example.
+
+```sh
+qqq extensions                                   # known vs installed, versions, minimums, operations
+qqq api --list --extension collaboration         # an extension's operations (the list has an extension column)
+qqq esb table person                             # sample server: what person publishes, which processes it triggers
+qqq esb process syncPerson ; qqq esb messages personEvents --trigger syncPerson.personEvents
+qqq collab presence person 1                     # sample server: exit 5, collaboration is not installed
+```
+
+Collaboration needs a server with qbit-collaboration. Its repo has a demo server (memory backend, MOCK
+users alice, bob and admin); it runs on port 8098 beside the sample server:
+
+```sh
+cd ../qbit-collaboration && ./mvnw -q test-compile dependency:build-classpath -Dmdep.includeScope=test -Dmdep.outputFile=target/demo-classpath.txt
+mkdir -p /tmp/fe/next-dashboard && echo '<html></html>' > /tmp/fe/next-dashboard/index.html   # it insists on a Next export
+java -Dqqq.javalin.frontend=next -Dcollab.dev.port=8098 -cp "target/test-classes:target/classes:$(cat target/demo-classpath.txt):/tmp/fe" \
+  com.kingsrook.qbits.collaboration.devserver.CollaborationDevServer
+
+qqq login --server http://localhost:8098 --profile collab        # alice
+qqq --profile collab collab presence person 1 --watch            # join; prints each change until Ctrl+C
+qqq --profile collab collab presence person --observe            # watch the table without appearing
+qqq --profile collab collab comments list person 1 ; qqq --profile collab collab comments add person 1 "Looks right"
+qqq --profile collab collab favorites list ; qqq --profile collab collab favorites add person 4
+qqq --profile collab collab follow person 2 --comments off ; qqq --profile collab collab my-work
+```
+
+To see someone else, open `http://localhost:8098/?createMockSession=true&user=bob` in a browser on a
+person (needs a real Next export), or hold a lease as bob with curl (`POST /qqq/v1/qbit/collaboration/presence?user=bob`).
+Presence lists everyone holding a lease on the record or table, you included while you `--watch`;
+`since` is when the CLI first saw them.
 
 ## Reporting what you find
 

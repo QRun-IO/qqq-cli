@@ -51,7 +51,7 @@ export async function chooseVariant(c: Context, meta: Json, typed: string | unde
   } else {
     throw new UsageError(`${meta.label} needs a ${label}: --variant <id|name>${variants.length ? ` (${variants.slice(0, 10).map((v) => `${v.name ?? v.id} (${v.id})`).join(', ')}${variants.length > 10 ? ', …' : ''})` : '; the server lists none'}`)
   }
-  // UI API 1.8.0 reads tableVariant on query, count, get, export and processes only (docs/server-findings.md #18)
-  if (options.write) c.note(`note: the server may ignore the ${label} on inserts, updates and deletes (UI API ${'1.8.0'}); see docs/server-findings.md #18`)
+  // UI API 1.8.0 reads tableVariant on query, count, get, export and processes only (docs/server-findings.md #19)
+  if (options.write) c.note(`note: the server may ignore the ${label} on inserts, updates and deletes (UI API ${'1.8.0'}); see docs/server-findings.md #19`)
   return chosen
 }

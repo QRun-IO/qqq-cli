@@ -273,7 +273,7 @@ The TUI column fills in during M3.
 | REC-062 | Inline enum possible values filter by label prefix without a lookup request; CHIP adornments style options and | pass | todo | inline enums |
 | REC-060 | Material table and field form adjusters and field rules operate against the real QQQ sample server | todo | todo | adjusters wired, no sample to test |
 | REC-064 | Record sections render qualified fields from readable exposed joins | partial | todo | table get --join adds joined fields (queryJoins); verified with an association join |
-| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | todo | get, copy and update -i read with --variant; v1 writes ignore it (server finding #18) |
+| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | todo | get, copy and update -i read with --variant; v1 writes ignore it (server finding #19) |
 | REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | pass | todo | an unchanged wall-clock time keeps the original instant and its precision |
 | SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | todo |  |
 | SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | todo | disabled tables listed with a reason |
