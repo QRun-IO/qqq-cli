@@ -15,7 +15,7 @@ import { defaultFields, labelsFor, parsePairs, readJson, valueText, type Json } 
 interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean }
 
 async function tableMeta(c: Context, table: string): Promise<Json> {
-  return await c.unwrap(c.client.GET('/qqq/v1/metaData/table/{tableName}', { params: { path: { tableName: table } } })) as Json
+  return c.tableMeta<Json>(table)
 }
 
 function filterFrom(options: QueryOptions, meta: Json): QueryFilter {
@@ -31,7 +31,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-a, --app <name>', 'only tables in this app')
     .action(async (options: { app?: string }) => {
       const c = ctx()
-      const metaData = await c.unwrap(c.client.GET('/qqq/v1/metaData', {})) as Json
+      const metaData = await c.metaData() as unknown as Json
       let tables = Object.values((metaData.tables ?? {}) as Record<string, Json>).filter((t) => !t.isHidden && t.readPermission !== false)
       if (options.app) {
         const app = (metaData.apps as Record<string, Json> | undefined)?.[options.app]

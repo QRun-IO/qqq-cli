@@ -17,6 +17,7 @@ import { Context, EXIT, describeError } from './context.js'
 import { CLI_VERSION } from './session.js'
 import { registerApi } from './commands/api.js'
 import { registerAuth } from './commands/auth.js'
+import { registerCompletion } from './commands/completion.js'
 import { registerJob } from './commands/job.js'
 import { registerMisc } from './commands/misc.js'
 import { registerProcess } from './commands/process.js'
@@ -48,6 +49,7 @@ registerProcess(program, ctx)
 registerJob(program, ctx)
 registerWidget(program, ctx)
 registerApi(program, ctx)
+registerCompletion(program, ctx)
 
 /** Flat aliases from 0.1: forward to the noun-verb commands with the same options. */
 function alias(flat: string, noun: string, verb: string, description: string): void {

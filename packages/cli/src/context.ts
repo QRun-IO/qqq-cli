@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { FilterSyntaxError, OUTPUT_FORMATS, applyQuery, callOperation, defaultFormat, render, type CallInput, type CallResult, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { FilterSyntaxError, OUTPUT_FORMATS, applyQuery, callOperation, defaultFormat, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { authenticatedFetch, clientFor, resolveServer } from './session.js'
 
 /** Exit codes, as in the design doc (KofTwentyTwo ADR-0031 shape). */
@@ -69,6 +69,16 @@ export class Context {
   /** Reshapes data with --query without printing (for callers that print themselves). */
   shape<T>(data: T): unknown {
     return applyQuery(data, this.options.query)
+  }
+
+  /** The server's metadata, from the on-disk cache when fresh. */
+  metaData(options: { refresh?: boolean } = {}): Promise<MetaDataDocument> {
+    return getMetaData(this.server, authenticatedFetch(this.server), options)
+  }
+
+  /** A table's definition, cached for five minutes (fields, sections, capabilities). */
+  tableMeta<T = Record<string, unknown>>(table: string, options: { refresh?: boolean } = {}): Promise<T> {
+    return getTableMetaData<T>(this.server, table, authenticatedFetch(this.server), options)
   }
 
   /** Calls an operation by id (the generic escape hatch). */

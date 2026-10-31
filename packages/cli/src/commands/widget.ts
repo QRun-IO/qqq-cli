@@ -16,7 +16,7 @@ export function registerWidget(program: Command, ctx: () => Context): void {
     .description('List the widgets the application declares.')
     .action(async () => {
       const c = ctx()
-      const metaData = await c.unwrap(c.client.GET('/qqq/v1/metaData', {})) as Json
+      const metaData = await c.metaData() as unknown as Json
       const rows = Object.values((metaData.widgets ?? {}) as Record<string, Json>).map((w) => ({ name: w.name, type: w.type, label: w.label ?? '' })).sort((a, b) => String(a.name).localeCompare(String(b.name)))
       c.print({ data: rows, columns: ['name', 'type', 'label'] })
     })

@@ -24,7 +24,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
     .option('-t, --table <name>', 'only processes of this table')
     .action(async (options: { all?: boolean; table?: string }) => {
       const c = ctx()
-      const metaData = await c.unwrap(c.client.GET('/qqq/v1/metaData', {})) as Json
+      const metaData = await c.metaData() as unknown as Json
       const rows = Object.values((metaData.processes ?? {}) as Record<string, Json>)
         .filter((p) => (options.all || !p.isHidden) && (!options.table || p.tableName === options.table))
         .map((p) => ({ name: p.name, label: p.label, table: p.tableName ?? '', hidden: p.isHidden ? 'yes' : '' }))

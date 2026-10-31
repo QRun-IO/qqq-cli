@@ -109,6 +109,14 @@ qqq help-search person ; qqq report run <name> --format xlsx
 qqq search Avery ; qqq tail
 ```
 
+Shell completion (nouns, verbs, options, and table, process, widget, field and operation names from the local
+metadata cache):
+
+```sh
+eval "$(qqq completion zsh)"      # or bash; fish: qqq completion fish | source; pwsh: see qqq completion pwsh
+qqq cache show | refresh | clear  # the metadata cache behind listings and completion (5 minutes, ~/.cache/qqq)
+```
+
 Global options go anywhere: `--server`, `--output json|table|text|csv|yaml` (`-O`), `--json`, `--query` (`-Q`),
 `--fields`, `--yes`, `--trace`. Table on a terminal, JSON in a pipe, `QQQ_OUTPUT` overrides. Exit codes:
 0 ok, 1 error, 2 usage or bad filter, 3 auth, 4 server unreachable or rate limited, 5 not found,

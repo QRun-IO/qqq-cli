@@ -14,7 +14,7 @@ export function registerMisc(program: Command, ctx: () => Context): void {
     .description('List the apps you may use.')
     .action(async () => {
       const c = ctx()
-      const metaData = await c.unwrap(c.client.GET('/qqq/v1/metaData', {})) as Json
+      const metaData = await c.metaData() as unknown as Json
       const apps = Object.values((metaData.apps ?? {}) as Record<string, Json>)
         .map((a) => ({ name: a.name, label: a.label, items: (a.children as unknown[] | undefined)?.length ?? 0 }))
         .sort((a, b) => String(a.label).localeCompare(String(b.label)))
