@@ -3,6 +3,8 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
+import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { FormInputError, FormSession, isMissingValue, runProcess, type FieldMeta, type ProcessMeta } from '@qrun-io/qqq-core'
@@ -53,13 +55,14 @@ export function registerProcess(program: Command, ctx: () => Context): void {
     .option('--values-json <json|file|->', 'input values as a JSON object')
     .option('-r, --records <ids>', 'comma-separated primary keys of the process table to run on')
     .option('--filter-json <json|file|->', 'a QueryFilter selecting the records to run on')
+    .option('-F, --file <field=path...>', 'a file for a BLOB input field (uploads, bulk load)')
     .option('-i, --interactive', 'prompt for every step field, not only missing required ones')
     .option('--no-prompt', 'never prompt; fail when a required value is missing (for scripts)')
     .option('--timeout <ms>', 'how long each step may run before the server backgrounds it', '0')
     .option('--skip-validation', 'on a validation review step, skip full validation')
     .option('--validate', 'on a validation review step, run full validation first')
     .option('--quiet', 'no progress on stderr')
-    .action(async (name: string, options: { values?: string[]; valuesJson?: string; records?: string; filterJson?: string; interactive?: boolean; prompt: boolean; timeout: string; skipValidation?: boolean; validate?: boolean; quiet?: boolean }) => {
+    .action(async (name: string, options: { values?: string[]; valuesJson?: string; records?: string; filterJson?: string; file?: string[]; interactive?: boolean; prompt: boolean; timeout: string; skipValidation?: boolean; validate?: boolean; quiet?: boolean }) => {
       const c = ctx()
       const meta = await processMeta(c, name) as unknown as ProcessMeta
       const given: Record<string, unknown> = { ...(options.valuesJson ? readJson(options.valuesJson, '--values-json') as Json : {}), ...parsePairs(options.values, '--values') }
@@ -74,6 +77,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
         meta,
         values: given,
         records: options.records ? { ids: options.records.split(',').map((x) => x.trim()) } : options.filterJson ? { filter: readJson(options.filterJson, '--filter-json') } : undefined,
+        files: Object.fromEntries(Object.entries(parsePairs(options.file, '--file')).map(([field, path]) => [field, { name: basename(path), bytes: new Uint8Array(readFileSync(path)) }])),
         stepTimeoutMillis: Number(options.timeout),
         always: Boolean(options.interactive),
         onProgress: (e) => {
@@ -84,7 +88,8 @@ export function registerProcess(program: Command, ctx: () => Context): void {
         },
         provide: async ({ step, fields, values, missing }) => {
           // every step's fields go through a form session: labels resolve, contingent fields clear and disable, values validate
-          const session = new FormSession({ baseUrl: c.server, fetch: fetchImpl, scope: { process: name }, fields, initialValues: values })
+          const fileFields = new Set(Object.keys(parsePairs(options.file, '--file')))
+          const session = new FormSession({ baseUrl: c.server, fetch: fetchImpl, scope: { process: name }, fields: fields.filter((f) => !(f.type === 'BLOB' && fileFields.has(f.name))), initialValues: values })
           for (const n of session.promptOrder(fields.map((f) => f.name).filter((n) => given[n] !== undefined))) {
             try {
               await session.set(n, given[n])
@@ -101,7 +106,7 @@ export function registerProcess(program: Command, ctx: () => Context): void {
             // ask for whatever the step still lacks (the server decides what is truly required); -i asks for everything
             await promptForm(session, { skipSet: !options.interactive })
           }
-          const problems = session.validate(fields.map((f) => f.name))
+          const problems = session.validate(fields.map((f) => f.name).filter((n) => !fileFields.has(n)))
           if (Object.keys(problems).length) throw new UiApiError(400, { code: 'BAD_REQUEST', message: `Step "${step.label ?? step.name}" has invalid values`, fieldErrors: Object.entries(problems).map(([field, message]) => ({ field, message: `${session.fields[field]?.label ?? field} ${message}` })) })
           const out: Record<string, unknown> = {}
           for (const f of fields) if (session.values[f.name] !== undefined) out[f.name] = session.values[f.name]

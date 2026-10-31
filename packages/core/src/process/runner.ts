@@ -45,6 +45,8 @@ export interface RunnerOptions {
   /** Values known up front (flags, a saved profile). */
   values?: FieldValues
   records?: { ids: string[] } | { filter: unknown }
+  /** Files for BLOB fields, by field name: sent as multipart parts with the first step that asks for the field. */
+  files?: Record<string, { name: string; bytes: Uint8Array; type?: string }>
   tableVariant?: string
   /** How long the server may run a step before backgrounding it (0: always background). */
   stepTimeoutMillis?: number
@@ -83,7 +85,18 @@ export async function runProcess(options: RunnerOptions): Promise<RunOutcome> {
   const poll = options.pollMillis ?? 500
   const timeout = String(options.stepTimeoutMillis ?? 0)
 
-  const form = (values: FieldValues, extra: Record<string, string> = {}): Record<string, string> => ({ values: JSON.stringify(values), stepTimeoutMillis: timeout, ...extra })
+  const pendingFiles = { ...(options.files ?? {}) }
+  const form = (values: FieldValues, extra: Record<string, string> = {}, fileFields: string[] = []): Record<string, string | Blob> => {
+    const out: Record<string, string | Blob> = { values: JSON.stringify(values), stepTimeoutMillis: timeout, ...extra }
+    for (const name of fileFields) {
+      const file = pendingFiles[name]
+      if (file) {
+        out[name] = new File([file.bytes as BlobPart], file.name, file.type ? { type: file.type } : undefined)
+        delete pendingFiles[name]
+      }
+    }
+    return out
+  }
   const records: Record<string, string> = options.records && 'ids' in options.records ? { recordsParam: 'recordIds', recordIds: options.records.ids.join(',') }
     : options.records && 'filter' in options.records ? { recordsParam: 'filterJSON', filterJSON: JSON.stringify(options.records.filter) } : {}
   const query = options.tableVariant ? { tableVariant: options.tableVariant } : undefined
@@ -104,7 +117,7 @@ export async function runProcess(options: RunnerOptions): Promise<RunOutcome> {
     if (isLast && !hasInputs(step)) return { response, values: { ...response.values, ...known }, processUUID, steps, lastStep: step }
     const fields = inputFields(step, response)
     const current: FieldValues = { ...(response.values ?? {}), ...known }
-    const missing = fields.filter((f) => f.isRequired && isUnset(current[f.name]))
+    const missing = fields.filter((f) => f.isRequired && isUnset(current[f.name]) && !(f.type === 'BLOB' && pendingFiles[f.name]))
     let values: FieldValues = { ...known }
     if (options.provide && (options.always || missing.length || fields.length)) {
       values = { ...values, ...(await options.provide({ step, fields, values: current, missing, response })) }
@@ -113,7 +126,9 @@ export async function runProcess(options: RunnerOptions): Promise<RunOutcome> {
       throw new ProcessError(`step "${step.label ?? step.name}" needs ${missing.map((f) => f.name).join(', ')}`, processUUID)
     }
     if (isLast) return { response, values: { ...response.values, ...known }, processUUID, steps, lastStep: step }
-    response = (await callOperation(baseUrl, 'stepProcess', { path: { processName: meta.name, processUUID, stepName: next }, query, form: form(values) }, fetchImpl)).data as StepResponse
+    const fileFields = fields.filter((f) => f.type === 'BLOB' && pendingFiles[f.name]).map((f) => f.name)
+    for (const name of fileFields) delete values[name]
+    response = (await callOperation(baseUrl, 'stepProcess', { path: { processName: meta.name, processUUID, stepName: next }, query, form: form(values, {}, fileFields) }, fetchImpl)).data as StepResponse
     response = await settle(response)
     if (response.type !== 'COMPLETE') throw new ProcessError(`unexpected ${response.type} after step ${next}`, processUUID)
   }
