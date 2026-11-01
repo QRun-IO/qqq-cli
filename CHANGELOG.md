@@ -408,6 +408,11 @@ candidate's, plus the changes since it listed first.
   starting with `:` in a server link is shown, never run. Only links the TUI builds itself (ESB destination
   rows, keyed so that server JSON cannot forge them) run commands; the command is shown in the status line
   first, server names in it are quoted as single arguments, and a command that changes data asks first.
+- `scripts/enterprise-server.sh` keeps its MinIO credentials, pid file, log and data in a private state
+  directory (`${XDG_STATE_HOME:-~/.local/state}/qqq-enterprise`, mode 0700) instead of the shared temp
+  directory, uses an existing file only if you own it, it is not a symlink and the credentials are 0600,
+  checks that a pid file holds a number before signalling it, and parses the credentials file for its two
+  keys instead of sourcing it. Files from an earlier version in `$TMPDIR` are not migrated.
 
 Fixes for the 19 CodeQL alerts raised on the release pull request:
 
