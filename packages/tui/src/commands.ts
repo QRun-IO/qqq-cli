@@ -262,6 +262,18 @@ export class Commands implements CommandsLike {
           if (screen?.kind === 'record') return screen.openTags?.()
           return fail(':tags works on a record (qqq collab tags list <table> shows a vocabulary)')
         }
+        case 'views': {
+          const screen = s.screen as { kind?: string; savedViews?: () => void } | undefined
+          if (screen?.kind === 'table') return screen.savedViews?.()
+          return fail(':views works on a table grid')
+        }
+        case 'share': {
+          const screen = s.screen as { kind?: string; shareEntry?: () => MenuEntry[] } | undefined
+          const entry = screen?.kind === 'record' ? screen.shareEntry?.()[0] : undefined
+          if (!entry) return fail(':share works on a record of a shareable table (saved reports, saved views)')
+          if (entry.disabled) return fail(entry.disabled)
+          return entry.run?.()
+        }
         case 'actions': {
           if (s.screen) return actionsOverlay(s, s.screen)
           return
@@ -430,20 +442,50 @@ export class Commands implements CommandsLike {
 
   signOut(): void {
     const s = this.store
-    s.confirm(`Sign out of ${s.target?.server}?`, () => {
-      const deps = s.signInDeps
-      const target = s.target
-      if (!deps || !target) return
-      s.client?.call('logout').catch(() => undefined)
+    const deps = s.signInDeps
+    const target = s.target
+    if (!deps || !target) return
+    const finish = (note: string) => {
       import('@qrun-io/qqq-core').then(({ deleteLogin }) => deleteLogin(deps.secrets(), target)).finally(() => {
         s.dispose()
         s.client = undefined
         s.meta = undefined
         s.sidebar = undefined
         while (s.routes.length) s.routes.pop()
-        s.push(new SignInScreen(s, deps, target, 'signed out'))
+        s.push(new SignInScreen(s, deps, target, note))
       })
-    })
+    }
+    import('@qrun-io/qqq-core').then(({ readLogin }) => readLogin(deps.secrets(), target)).then((login) => {
+      if (login?.kind === 'oauth') {
+        type How = 'here' | 'provider'
+        s.open(new ChoiceOverlay<How>(s, `Sign out of ${target.server}`, [
+          { label: 'Sign out here', value: 'here', detail: 'forget the sign-in' },
+          { label: 'Sign out and end the provider session', value: 'provider', detail: 'revoke, end-session in the browser' },
+        ], (how) => {
+          if (how === 'here') return finish('signed out')
+          void (async () => {
+            const { revokeToken, endSessionUrl } = await import('@qrun-io/qqq-ui-api-client')
+            let note = 'signed out'
+            try {
+              if (login.tokens.refreshToken) await revokeToken(login.config, login.tokens.refreshToken)
+            } catch (e) {
+              note = `signed out; revoking at the provider failed: ${errorText(e)}`
+            }
+            const url = await endSessionUrl(login.config, { idToken: login.tokens.idToken }).catch(() => undefined)
+            if (url) {
+              const { openInBrowser } = await import('@qrun-io/qqq-cli/browser-login')
+              if (process.env.QQQ_UI_NO_BROWSER !== '1') openInBrowser(url)
+              note += `; ending the provider session in the browser (${url})`
+            } else note += '; the provider publishes no end-session address'
+            finish(note)
+          })()
+        }))
+        return
+      }
+      s.confirm(`Sign out of ${target.server}?`, () => {
+        s.client?.call('logout').catch(() => undefined).finally(() => finish('signed out'))
+      })
+    }).catch((e) => s.error(e))
   }
 
   connectionText(): string {

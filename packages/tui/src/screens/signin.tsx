@@ -4,10 +4,10 @@
  */
 
 import { UiApiError, decodeJwtClaims, deviceSignIn, getAuthenticationMetaData, getNativeSignInConfig } from '@qrun-io/qqq-ui-api-client'
-import { loginFetch, profileNameForServer, readConfig, readLogin, signInWithSession, writeLogin, type SecretStore } from '@qrun-io/qqq-core'
+import { PasswordRefusedError, loginFetch, profileNameForServer, readConfig, readLogin, signInWithPassword, signInWithSession, writeLogin, type SecretStore } from '@qrun-io/qqq-core'
 import { TUI_CHANNEL, TuiClient } from '../client'
 import type { Key } from '../keys'
-import { PromptOverlay } from '../overlays/basic'
+import { ChoiceOverlay, PromptOverlay } from '../overlays/basic'
 import type { AppStore, Target } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, Screen } from '../types'
@@ -28,7 +28,13 @@ export async function connect(store: AppStore, target: Target, deps: SignInDeps)
   const store_ = deps.secrets()
   const login = await readLogin(store_, target)
   if (!login && !process.env.QQQ_TOKEN) throw new NeedsSignIn()
-  const fetchImpl = loginFetch({ store: store_, target, clientChannel: TUI_CHANNEL, fetch: deps.fetch })
+  const signedIn = loginFetch({ store: store_, target, clientChannel: TUI_CHANNEL, fetch: deps.fetch })
+  // a 401 after the sign-in was refreshed (or for a session) means it expired: sign in again in place
+  const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await signedIn(input, init)
+    if (response.status === 401 && store.screen && !/manageSession|\/logout$/.test(String(input instanceof Request ? input.url : input))) store.sessionExpired()
+    return response
+  }) as typeof fetch
   const client = new TuiClient({ server: target.server, fetch: fetchImpl })
   store.target = target
   store.status.profile = target.name
@@ -72,11 +78,19 @@ export class SignInScreen implements Screen {
   readonly list = new ListModel()
   status = ''
   device?: { url: string; code: string; expires: number }
+  /** The browser sign-in's address while it waits for the redirect. */
+  browserUrl?: string
   connecting = false
+  private abort?: AbortController
 
-  constructor(private store: AppStore, private deps: SignInDeps, private initial?: Target, note?: string) {
+  /**
+   * With `resume`, the session expired mid-use: signing in again keeps every screen and returns to
+   * the one that was open (it refreshes); without it, signing in shows the home screen.
+   */
+  constructor(private store: AppStore, private deps: SignInDeps, private initial?: Target, note?: string, readonly resumeMode = false) {
     this.status = note ?? ''
     this.build()
+    if (resumeMode && initial) queueMicrotask(() => this.choose(initial))
   }
 
   title(): string {
@@ -125,6 +139,22 @@ export class SignInScreen implements Screen {
     this.connecting = true
     this.status = `connecting to ${target.server}…`
     this.store.bump()
+    if (this.resumeMode) {
+      this.signIn(target).then(() => {
+        const i = this.store.routes.indexOf(this)
+        if (i >= 0) this.store.routes.splice(i, 1)
+        this.store.screen?.refresh?.()
+        this.store.flash('signed in again')
+      }).catch((e) => {
+        this.status = errorText(e)
+      }).finally(() => {
+        this.connecting = false
+        this.device = undefined
+        this.browserUrl = undefined
+        this.store.bump()
+      })
+      return
+    }
     connect(this.store, target, this.deps).catch(async (e) => {
       if (!(e instanceof NeedsSignIn)) throw e
       await this.signIn(target)
@@ -134,8 +164,18 @@ export class SignInScreen implements Screen {
     }).finally(() => {
       this.connecting = false
       this.device = undefined
+      this.browserUrl = undefined
       this.store.bump()
     })
+  }
+
+  /** Asks on the screen: resolves with the answer, rejects when the dialog is cancelled. */
+  private ask(title: string, hint: string, masked = false): Promise<string> {
+    return new Promise((resolve, reject) => this.store.open(new PromptOverlay(this.store, title, hint, resolve, '', { masked, onCancel: () => reject(new Error('sign-in cancelled')) })))
+  }
+
+  private choice<T>(title: string, choices: Array<{ label: string; value: T; detail?: string }>): Promise<T> {
+    return new Promise((resolve, reject) => this.store.open(new ChoiceOverlay(this.store, title, choices, resolve, '', 0, () => reject(new Error('sign-in cancelled')))))
   }
 
   async signIn(target: Target): Promise<void> {
@@ -150,6 +190,31 @@ export class SignInScreen implements Screen {
     }
     if (type === 'OAUTH2' || type === 'AUTH_0') {
       const config = await getNativeSignInConfig(target.server, this.deps.fetch)
+      const how = process.env.QQQ_UI_SIGN_IN === 'device' ? 'device' : process.env.QQQ_UI_SIGN_IN === 'browser' ? 'browser' : await this.choice<'browser' | 'device'>(`Sign in to ${target.server}`, [
+        { label: 'In the browser (authorization code with PKCE)', value: 'browser', detail: 'opens your browser' },
+        { label: 'With a code on another device (device flow)', value: 'device', detail: 'no browser here' },
+      ])
+      if (how === 'browser') {
+        try {
+          const { browserSignIn } = await import('@qrun-io/qqq-cli/browser-login')
+          this.abort = new AbortController()
+          this.status = 'waiting for the browser…'
+          const tokens = await browserSignIn(config, {
+            open: process.env.QQQ_UI_NO_BROWSER !== '1',
+            signal: this.abort.signal,
+            note: (text) => {
+              this.browserUrl = /https?:\/\/\S+/.exec(text)?.[0]
+              this.store.bump()
+            },
+          })
+          await writeLogin(secrets, target, { kind: 'oauth', config, tokens })
+          return
+        } catch (e) {
+          if (!/authorization_endpoint/.test(errorText(e))) throw e
+          this.status = 'the provider offers no browser sign-in: using the device flow'
+          this.browserUrl = undefined
+        }
+      }
       const tokens = await deviceSignIn(config, (prompt) => {
         this.device = { url: prompt.verificationUriComplete ?? prompt.verificationUri, code: prompt.userCode, expires: Date.now() + prompt.expiresIn * 1000 }
         this.status = 'waiting for approval in the browser…'
@@ -158,18 +223,42 @@ export class SignInScreen implements Screen {
       await writeLogin(secrets, target, { kind: 'oauth', config, tokens })
       return
     }
-    if (type === 'TABLE_BASED') throw new Error('TABLE_BASED sign-in (username and password) is not supported yet; set QQQ_TOKEN to a session UUID.')
+    if (type === 'TABLE_BASED') {
+      const branding = String(auth.values && typeof auth.values === 'object' ? (auth.values as Record<string, unknown>).appName ?? '' : '') || target.server
+      const username = await this.ask(`Sign in to ${branding}`, 'Your username.')
+      const password = await this.ask(`Password for ${username}`, 'Sent once to the server; never stored.', true)
+      this.status = 'signing in…'
+      this.store.bump()
+      try {
+        await signInWithPassword(secrets, target, username, password, TUI_CHANNEL, this.deps.fetch)
+      } catch (e) {
+        if (e instanceof PasswordRefusedError) throw new Error(`${e.message} Enter tries again.`)
+        throw e
+      }
+      return
+    }
     throw new Error(`unknown authentication type "${auth.type}"`)
   }
 
   onKey(key: Key): boolean {
-    if (key.name === 'escape') return true
+    if (key.name === 'escape') {
+      if (this.abort) {
+        this.abort.abort()
+        this.abort = undefined
+      }
+      return true
+    }
     return this.list.onKey(key)
   }
 
   render(width: number, height: number, focused: boolean) {
     const t = theme()
     const extra: React.ReactNode[] = []
+    if (this.browserUrl) {
+      extra.push(<text flexShrink={0} wrapMode="none" key="b1" fg={t.acc}>{pad(' Sign in in your browser (opened); if it did not open, visit:', width - 2)}</text>)
+      extra.push(<text flexShrink={0} wrapMode="none" key="b2" fg={t.fg}><strong>{pad(`   ${this.browserUrl}`, width - 2)}</strong></text>)
+      extra.push(<text flexShrink={0} wrapMode="none" key="b3" fg={t.dim}>{pad(' Esc cancels', width - 2)}</text>)
+    }
     if (this.device) {
       const left = Math.max(0, Math.round((this.device.expires - Date.now()) / 1000))
       extra.push(<text flexShrink={0} wrapMode="none" key="d1" fg={t.acc}>{pad(' Open this address in a browser:', width - 2)}</text>)

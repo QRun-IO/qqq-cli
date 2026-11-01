@@ -7,6 +7,7 @@
 
 import { accRoute } from './fake-acc'
 import { bulkProcessesMeta, bulkRoute } from './fake-bulk'
+import { shareRoute } from './fake-share'
 
 type J = Record<string, unknown>
 
@@ -70,10 +71,23 @@ const wideMeta = {
 /** Rows 1-20 are short; rows 21-40 have much longer values (column widths must not move). */
 export const WIDE = Array.from({ length: 40 }, (_, i) => ({ id: i + 1, name: i < 20 ? `n${i + 1}` : `a-much-longer-name-number-${i + 1}-xxxxxxxxxxxx`, note: i < 20 ? 'short' : 'y'.repeat(70) }))
 
-export interface FakeLog { requests: Array<{ method: string; path: string; body?: unknown }> }
+export interface FakeLog { requests: Array<{ method: string; path: string; body?: unknown; auth?: string; cookie?: string }> }
+
+/**
+ * Sign-in behaviour of the fake: the authentication type, TABLE_BASED users, and `expire` (the
+ * next data request answers 401 once, as an expired session does).
+ */
+export interface FakeAuth {
+  type: string
+  users?: Record<string, string>
+  expire?: boolean
+  sessions: Set<string>
+  /** values of the authentication metadata (OAUTH2: nativeClientId, baseUrl). */
+  values?: Record<string, unknown>
+}
 
 /** A fetch answering the operations the TUI uses. */
-export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): typeof fetch {
+export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown, auth?: FakeAuth): typeof fetch {
   let statusPolls = 0
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input as RequestInfo, init)
@@ -85,18 +99,46 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): t
       if (type.includes('json')) body = await request.json()
       else if (type.includes('form')) body = Object.fromEntries((await request.formData()).entries())
     }
-    log.requests.push({ method: request.method, path, body })
+    log.requests.push({ method: request.method, path, body, auth: request.headers.get('authorization') ?? undefined, cookie: request.headers.get('cookie') ?? undefined })
+    if (auth) {
+      if (path === '/metaData/authentication') return json({ type: auth.type, name: auth.type.toLowerCase(), values: { appName: 'Fake Corp', ...auth.values } })
+      if (path === '/manageSession') {
+        const basic = request.headers.get('authorization') ?? ''
+        if (auth.type === 'TABLE_BASED') {
+          const [user, password] = Buffer.from(basic.replace(/^Basic /, ''), 'base64').toString('utf8').split(':')
+          if (!user || auth.users?.[user] !== password) return json({ message: 'Unable to authenticate' }, 401)
+          const uuid = `s-${auth.sessions.size + 1}`
+          auth.sessions.add(uuid)
+          return json({ uuid, values: { user: { username: user, name: user } } })
+        }
+        const uuid = `s-${auth.sessions.size + 1}`
+        auth.sessions.add(uuid)
+        return json({ uuid, values: { user: { name: 'Tester' } } })
+      }
+      if (path === '/logout') {
+        const uuid = /sessionUUID=([^;]+)/.exec(request.headers.get('cookie') ?? '')?.[1]
+        if (uuid) auth.sessions.delete(uuid)
+        return json({})
+      }
+      if (auth.expire && path.startsWith('/table/')) {
+        auth.expire = false
+        auth.sessions.clear()
+        return json({ message: 'Session expired' }, 401)
+      }
+    }
     const acc = await accRoute(path, request.method, body, url)
     if (acc) return acc
     const bulk = await bulkRoute(path, request.method, body)
     if (bulk) return bulk
+    const share = await shareRoute(path, request.method, body)
+    if (share) return share
     if (path === '/version') return json({ apiVersion: '1.8.0', features: ['metaData', 'tables', 'processes'], extensions: [] })
     if (path === '/metaData' && bigMeta) return json(bigMeta)
     if (path === '/metaData') {
       return json({
         apps: { people: { name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] } },
         appTree: [{ type: 'APP', name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] }],
-        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, order: { name: 'order', label: 'Order' }, acc: { name: 'acc', label: 'Acc', insertPermission: true }, part: { name: 'part', label: 'Part', insertPermission: true }, scriptRevisionFile: { name: 'scriptRevisionFile', label: 'Files' }, line: { name: 'line', label: 'Order Line' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true }, blk: { name: 'blk', label: 'Blk', insertPermission: true } },
+        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, order: { name: 'order', label: 'Order' }, acc: { name: 'acc', label: 'Acc', insertPermission: true }, part: { name: 'part', label: 'Part', insertPermission: true }, scriptRevisionFile: { name: 'scriptRevisionFile', label: 'Files' }, line: { name: 'line', label: 'Order Line' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true }, blk: { name: 'blk', label: 'Blk', insertPermission: true }, savedReport: { name: 'savedReport', label: 'Saved Report' }, savedView: { name: 'savedView', label: 'Saved View', isHidden: true } },
         processes: { ...bulkProcessesMeta, sleeper: { name: 'sleeper', label: 'Sleeper', tableName: 'person' }, scanner: { name: 'scanner', label: 'Scanner' }, wizard: { name: 'wizard', label: 'Wizard' }, GetAuditsForRecord: { name: 'GetAuditsForRecord', label: 'Audits', isHidden: true }, columnStats: { name: 'columnStats', label: 'Stats', isHidden: true }, querySavedView: { name: 'querySavedView', label: 'q', isHidden: true } },
         reports: { streamReport: { name: 'streamReport', label: 'Stream report' }, wizReport: { name: 'wizReport', label: 'Wizard report', processName: 'wizard' } },
         widgets: { ctxWidget: { name: 'ctxWidget', label: 'Context' }, stepWidget: { name: 'stepWidget', label: 'Step widget' }, payloadWidget: { name: 'payloadWidget', label: 'Payload' } }, branding: { appName: 'Fake' },

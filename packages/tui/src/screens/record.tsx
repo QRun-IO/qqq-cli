@@ -4,6 +4,7 @@
  */
 
 import { ResultCursor, associationGroups, childFilter, childListFields, exposedJoins, formatSize, helpEntryText, selectHelpContent, planJoins, readViewSettings, withJoinFields, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { openShareDialog, shareState } from '../overlays/share'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
@@ -474,9 +475,23 @@ export class RecordScreen implements Screen {
       case 'A': this.openAudits(); return true
       case 't': if (collaborationOf(this.store)) { this.openTags(); return true } return false
       case 'D': this.openDeveloper(); return true
+      case 'Z': {
+        const entry = this.shareEntry()[0]
+        if (!entry) return false
+        if (entry.disabled) this.store.flash(entry.disabled, 'error')
+        else entry.run?.()
+        return true
+      }
       case 'a': actionsOverlay(this.store, this); return true
       default: return false
     }
+  }
+
+  /** Share (shareable tables): only the owner may share; others see why. */
+  shareEntry(): MenuEntry[] {
+    const state = shareState(this.store, this.meta as never, this.record as never)
+    if (!state.offered) return []
+    return [{ section: 'Context', label: 'Share with users and groups', key: 'Z', command: 'share', disabled: state.disabled, run: () => openShareDialog(this.store, this.meta as never, this.primaryKey!, this.title()) }]
   }
 
   menu(): MenuEntry[] {
@@ -488,6 +503,7 @@ export class RecordScreen implements Screen {
       { section: 'Context', label: 'Next record', key: 'PgDn ] Ctrl+N', disabled: this.cursor ? undefined : 'not opened from a list', run: () => this.step(1) },
       { section: 'Context', label: 'Previous record', key: 'PgUp [ Ctrl+P', disabled: this.cursor ? undefined : 'not opened from a list', run: () => this.step(-1) },
       { section: 'Context', label: 'Refresh', key: 'F5 r', run: () => this.refresh() },
+      ...this.shareEntry(),
       { section: 'Context', label: 'View settings (columns, label width)', key: 'v', run: () => { const o = this.viewSettings(); if (o) this.store.open(o) } },
       { section: 'Context', label: 'Copy as a CLI command', detail: `qqq ${this.cliEquivalent()}`, run: () => this.store.message(`qqq ${this.cliEquivalent()}`, 'info', 'CLI equivalent') },
     ]

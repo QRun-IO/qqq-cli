@@ -13,6 +13,7 @@ import { ChoiceOverlay, PromptOverlay } from '../overlays/basic'
 import { FilterOverlay } from '../overlays/filter'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
+import { openShareDialog, shareState } from '../overlays/share'
 import { TableApisScreen } from './developer'
 import { GridViewSettingsOverlay } from '../overlays/view-settings'
 import type { AppStore } from '../store'
@@ -216,14 +217,17 @@ export class TableScreen implements Screen {
     const c = this.store.client!
     const procs = savedViewProcesses(meta as never, this.store.meta as never)
     if (!procs.query) return this.store.message('Saved views are not available for this table.', 'info', 'Saved views')
-    this.store.run(listSavedViews(c.server, c.fetch, procs, this.tableName), (views) => {
-      type Pick = { kind: 'open' | 'delete' | 'rename' | 'update'; v: (typeof views)[number] } | { kind: 'save' }
-      const choices: Array<{ label: string; value: Pick; detail?: string }> = [
+    const shareMeta = this.store.meta?.tables?.savedView ? c.tableMeta('savedView').catch(() => undefined) : Promise.resolve(undefined)
+    this.store.run(Promise.all([listSavedViews(c.server, c.fetch, procs, this.tableName), shareMeta]), ([views, savedViewMeta]) => {
+      type Pick = { kind: 'open' | 'delete' | 'rename' | 'update' | 'share'; v: (typeof views)[number] } | { kind: 'save' }
+      const sharing = savedViewMeta ? shareState(this.store, savedViewMeta as never, { values: {} }) : { offered: false }
+      const choices: Array<{ label: string; value: Pick; detail?: string; disabled?: string }> = [
         ...views.map((v) => ({ label: v.label, value: { kind: 'open' as const, v }, detail: v.type ?? '' })),
         ...(procs.store ? [{ label: '+ Save the current query as a view…', value: { kind: 'save' as const } }] : []),
         ...(procs.store ? views.map((v) => ({ label: `Rename "${v.label}"…`, value: { kind: 'rename' as const, v } })) : []),
         ...(procs.store ? views.map((v) => ({ label: `Update "${v.label}" with the current query`, value: { kind: 'update' as const, v } })) : []),
         ...(procs.delete ? views.map((v) => ({ label: `Delete "${v.label}"`, value: { kind: 'delete' as const, v } })) : []),
+        ...(sharing.offered ? views.map((v) => ({ label: `Share "${v.label}"…`, value: { kind: 'share' as const, v }, disabled: v.userId && this.store.status.userId && v.userId !== this.store.status.userId ? 'only the owner may share it' : undefined })) : []),
       ]
       const overlay = new ChoiceOverlay<Pick>(this.store, `Saved views · ${this.title()}`, choices, (choice) => {
         if (choice.kind === 'open') {
@@ -244,6 +248,8 @@ export class TableScreen implements Screen {
         } else if (choice.kind === 'update') {
           const v = choice.v
           this.store.run(storeSavedView(c.server, c.fetch, procs, { table: this.tableName, label: v.label, id: v.id, view: buildViewJson({ filter: this.fullFilter(), columns: this.fields().map((f) => f.name), allColumns: Object.keys(meta.fields), rowsPerPage: this.pageSize, base: v.view }) }), (x) => this.store.flash(`updated ${x.label}`))
+        } else if (choice.kind === 'share') {
+          openShareDialog(this.store, savedViewMeta as never, String(choice.v.id), choice.v.label)
         } else if (choice.kind === 'delete') {
           const v = choice.v
           this.store.confirm(`Delete the saved view "${v.label}"?`, () => this.store.run(deleteSavedView(c.server, c.fetch, procs, v.id), () => this.store.flash(`deleted view ${v.label}`)))

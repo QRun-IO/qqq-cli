@@ -237,6 +237,20 @@ export class AppStore {
     this.open(new ConfirmOverlay(this, text, onYes, onNo))
   }
 
+  /**
+   * The server answered 401 mid-use: the sign-in screen opens on top of the current screens and,
+   * once signed in again, the screen that was open refreshes (nothing typed in a form is lost).
+   */
+  sessionExpired(): void {
+    if (!this.target || !this.signInDeps || this.routes.some((r) => r.kind === 'signin')) return
+    const target = this.target
+    const deps = this.signInDeps
+    void import('./screens/signin').then(({ SignInScreen }) => {
+      if (this.routes.some((r) => r.kind === 'signin')) return
+      this.push(new SignInScreen(this, deps, target, 'your session expired: sign in again to continue where you were', true))
+    })
+  }
+
   error(error: unknown): void {
     this.message(errorText(error), 'error')
   }
