@@ -191,6 +191,20 @@ describe('doctor', () => {
     assert.equal(versionSupport('1.9.0', [1]).status, 'warn')
     assert.equal(versionSupport('2.0.0', [2]).status, 'fail')
   })
+  test('doctor words the supported UI API range exactly as --version does', async () => {
+    const { versionSupport } = await import('../commands/doctor.js')
+    const { UI_API_RANGE } = await import('../version.js')
+    assert.equal(UI_API_RANGE, '>=1.6.0 <2.0.0')
+    const version = await runCli(['--version'], box.env)
+    assert.match(version.stdout, new RegExp(`servers UI API ${UI_API_RANGE}`))
+    for (const [server, status] of [['1.6.0', 'ok'], ['1.8.0', 'ok'], ['1.9.0', 'warn'], ['1.5.2', 'fail']] as const) {
+      const result = versionSupport(server, [1])
+      assert.equal(result.status, status, server)
+      assert.ok(result.detail.includes(UI_API_RANGE), `${server}: ${result.detail}`)
+      assert.ok(!/supports \d+\.\d+\.\d+ to /.test(result.detail), `${server}: ${result.detail}`)
+    }
+    assert.match(versionSupport('1.9.0', [1]).detail, /^1\.9\.0; supported \(/)
+  })
 })
 
 describe('merged with the TUI stream', () => {

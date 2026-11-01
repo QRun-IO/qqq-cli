@@ -18,7 +18,7 @@ import { appendTmuxConf, applyLiveFix, callOperation, checkEnvironment, formatRe
 import { EXIT, type Context } from '../context.js'
 import { CLI_VERSION, authenticatedFetch, currentToken, getLogin, secretStoreKind } from '../session.js'
 import type { Json } from './shared.js'
-import { UI_API_MIN_VERSION, buildDescription } from '../version.js'
+import { UI_API_MIN_VERSION, UI_API_RANGE, buildDescription } from '../version.js'
 
 /** The oldest UI API this client works with. */
 export const MIN_UI_API = UI_API_MIN_VERSION
@@ -38,9 +38,9 @@ export function versionSupport(apiVersion: string | undefined, supportedMajors: 
   if (!apiVersion) return { status: 'warn', detail: 'the server does not say its UI API version' }
   const clientMajor = Number.parseInt(UI_API_VERSION, 10)
   if (supportedMajors?.length && !supportedMajors.includes(clientMajor)) return { status: 'fail', detail: `${apiVersion}; the server supports major ${supportedMajors.join(', ')}, this client speaks ${clientMajor}` }
-  if (compareVersions(apiVersion, MIN_UI_API) < 0) return { status: 'fail', detail: `${apiVersion}; this client needs ${MIN_UI_API} or later` }
-  if (compareVersions(apiVersion, UI_API_VERSION) > 0) return { status: 'warn', detail: `${apiVersion}; newer than this client (${UI_API_VERSION}): new operations need a newer qqq` }
-  return { status: 'ok', detail: `${apiVersion} (this client: ${UI_API_VERSION}, supports ${MIN_UI_API} to ${UI_API_VERSION})` }
+  if (compareVersions(apiVersion, MIN_UI_API) < 0) return { status: 'fail', detail: `${apiVersion}; this client supports UI API ${UI_API_RANGE}` }
+  if (compareVersions(apiVersion, UI_API_VERSION) > 0) return { status: 'warn', detail: `${apiVersion}; supported (${UI_API_RANGE}), newer than this client's document (${UI_API_VERSION}): its new operations need a newer qqq` }
+  return { status: 'ok', detail: `${apiVersion} (supported: ${UI_API_RANGE}; this client's document: ${UI_API_VERSION})` }
 }
 
 /** The connectivity checks, in order; a check that cannot run says why. */

@@ -23,8 +23,14 @@ export const CLI_VERSION = '1.0.0'
 /** The oldest UI API a server may serve for this CLI (operationIds, clientCapabilities and traceId since 1.6.0). */
 export const UI_API_MIN_VERSION = '1.6.0'
 
-/** The supported range: from UI_API_MIN_VERSION up to, not including, the next major version. */
-export const UI_API_RANGE = `>=${UI_API_MIN_VERSION} <2.0.0`
+/** The first UI API version this CLI does not support: the next major version. */
+export const UI_API_MAX_EXCLUSIVE = '2.0.0'
+
+/**
+ * The supported range: from UI_API_MIN_VERSION up to, not including, UI_API_MAX_EXCLUSIVE. The one
+ * wording of it, printed by `qqq --version` and `qqq doctor`.
+ */
+export const UI_API_RANGE = `>=${UI_API_MIN_VERSION} <${UI_API_MAX_EXCLUSIVE}`
 
 export const BUILD_SHA = typeof QQQ_BUILD_SHA === 'string' ? QQQ_BUILD_SHA : undefined
 export const BUILD_TARGET = typeof QQQ_BUILD_TARGET === 'string' ? QQQ_BUILD_TARGET : undefined
