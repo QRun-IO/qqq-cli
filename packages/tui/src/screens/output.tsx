@@ -10,7 +10,7 @@ import { structuredLines } from '../structured'
 import type { AppStore } from '../store'
 import { theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Screen } from '../types'
-import { pad } from '../util/text'
+import { pad, hintLine } from '../util/text'
 import { Panel } from './list'
 
 /** The output of a `:` command run through the CLI in-process (runCli), scrollable. */
@@ -111,7 +111,7 @@ export class OutputScreen implements Screen {
     return (
       <Panel title={`qqq ${this.command}`} width={width} height={height} focused={focused}>
         {rows}
-        <text flexShrink={0} wrapMode="none" fg={this.code ? t.err : t.dim}>{pad(` ${status}`, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={this.code ? t.err : t.dim}>{hintLine(status, width - 2)}</text>
       </Panel>
     )
   }

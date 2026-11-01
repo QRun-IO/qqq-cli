@@ -106,5 +106,7 @@ keys F10
 expect 14-quit-confirm 'Quit qqq?' 'Reset: go to the home screen'
 keys Enter
 sleep 1
+# no text outside its container on any captured screen (overflow-sweep.sh covers every size)
+if bun run "$here/overflow-check.ts" "$w" "$h" "$out"/[0-9]*.txt; then echo "ok   overflow (every capture inside its borders)"; else fails=$((fails + 1)); fi
 echo "captures in $out"
 [[ $fails == 0 ]] && echo "smoke: ok" || { echo "smoke: $fails failed"; exit 1; }

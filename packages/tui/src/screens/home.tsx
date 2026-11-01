@@ -24,7 +24,7 @@ import { glyphs, isAscii, theme } from '../theme'
 import { iconGlyph } from '../icons'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
 import { WidgetView } from '../widget-view'
-import { errorText, num, pad, trunc } from '../util/text'
+import { cellWidth, errorText, fitKeyLine, fitSegments, num, pad, trunc } from '../util/text'
 import { blockLines, type StyledLine } from '../widgets'
 
 /** Counts the tables, processes and reports under an app node, recursively. */
@@ -393,7 +393,8 @@ export class HomeScreen implements Screen {
       if (f.activeRow !== undefined) activeLine = lines.length + f.activeRow
       lines.push(...f.rows)
     }
-    lines.push([{ text: ' type to search · Tab panels · arrows move · Enter opens · PgUp PgDn scroll · F9 menu · : command line', fg: t.dim }])
+    const keyLine = fitKeyLine([{ text: 'type to search', drop: 1 }, { text: 'Tab panels' }, { text: 'arrows move', drop: 1 }, { text: 'Enter opens' }, { text: 'PgUp PgDn scroll', drop: 2 }, { text: 'F9 menu', drop: 1 }, { text: ': command line', drop: 2 }], inner - 2, 1)[0] ?? ''
+    lines.push([{ text: ` ${keyLine}`, fg: t.dim }])
     // keep the selection in view
     const view = height - 2
     if (activeLine < this.scroll) this.scroll = Math.max(0, activeLine - 1)
@@ -403,14 +404,17 @@ export class HomeScreen implements Screen {
     while (shown.length < view) shown.push([{ text: '' }])
     return (
       <box flexDirection="column" overflow="hidden" width={width} height={height} border borderColor={focused ? t.focusBorder : t.border} {...(g.border ? { customBorderChars: g.border } : {})} title={` ${brand} `}>
-        {shown.map((segs, i) => {
-          const used = segs.reduce((a, x) => a + x.text.length, 0)
+        {shown.map((line, i) => {
+          // every line cut to the pane (ellipsis at the cut), measured in terminal cells
+          const segs = fitSegments(line, inner)
+          const used = segs.reduce((a, x) => a + cellWidth(x.text), 0)
           // the mouse: the item under the pointer (segments laid end to end)
           const hitAt = (x: number) => {
             let at = 0
             for (const seg of segs) {
-              if (x >= at && x < at + seg.text.length) return seg.hit
-              at += seg.text.length
+              const w = cellWidth(seg.text)
+              if (x >= at && x < at + w) return seg.hit
+              at += w
             }
             return undefined
           }

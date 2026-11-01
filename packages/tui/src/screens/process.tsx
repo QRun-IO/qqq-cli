@@ -13,7 +13,7 @@ import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Screen } from '../types'
 import { wrap } from '../overlays/basic'
-import { cell, errorText, pad, trunc } from '../util/text'
+import { cell, errorText, pad, trunc, hintLine } from '../util/text'
 import { FormEditor } from './form'
 import { Panel } from './list'
 
@@ -481,7 +481,7 @@ export class ProcessScreen implements Screen {
     }
     if (this.phase === 'error') {
       lines.push({ text: 'The process failed', fg: t.err, bold: true })
-      for (const l of wrap(this.error ?? '', inner)) lines.push({ text: l, fg: t.err })
+      for (const l of wrap(this.error ?? '', inner - 2)) lines.push({ text: l, fg: t.err })
       lines.push({ text: '' })
       lines.push({ text: 'Esc closes · F5 or r runs it again', fg: t.dim })
     }
@@ -509,7 +509,7 @@ export class ProcessScreen implements Screen {
       used++
       const formHeight = Math.max(3, height - 2 - used - 1)
       body.push(<box key="form" flexDirection="column" height={formHeight}>{this.editor.render(inner, formHeight, focused)}</box>)
-      body.push(<text flexShrink={0} wrapMode="none" key="ft" fg={t.dim}>{pad(this.editor.saving ? ' sending…' : ' Ctrl+S continues · Esc cancels · Tab ↓ next · Enter or typing opens a picker', inner)}</text>)
+      body.push(<text flexShrink={0} wrapMode="none" key="ft" fg={t.dim}>{hintLine(this.editor.saving ? 'sending…' : 'Ctrl+S continues · Esc cancels · Tab ↓ next · Enter or typing opens a picker', inner)}</text>)
     } else {
       for (const l of lines.slice(0, Math.max(0, height - 2 - used - 4))) body.push(<text flexShrink={0} wrapMode="none" key={`l${body.length}`} fg={l.fg ?? t.fg}>{l.bold ? <strong>{pad(` ${l.text}`, inner)}</strong> : pad(` ${l.text}`, inner)}</text>)
       const logRows = Math.max(0, Math.min(this.log.length, height - 2 - body.length - 1))

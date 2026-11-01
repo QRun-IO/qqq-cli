@@ -24,7 +24,7 @@ import { Zone } from '../mouse/zone'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
-import { errorText, fieldCell, num, pad, padLeft, shellQuote, trunc } from '../util/text'
+import { cellWidth, errorText, fieldCell, num, pad, padLeft, shellQuote, trunc, hintLine } from '../util/text'
 import { Panel } from './list'
 import { startBulk, type BulkKind } from './bulk'
 
@@ -60,8 +60,9 @@ export function layoutColumns(fields: FieldMetaData[], rows: QueryRecord[], avai
   const gap = 1
   const cols = fields.map((f) => {
     const numeric = ['INTEGER', 'LONG', 'DECIMAL'].includes(f.type) && !f.possibleValueSourceName
-    const longest = Math.max(f.label.length + 1, ...rows.map((r) => fieldCell(r, f).length), 3)
-    const saved = view.widths?.[f.name]
+    const longest = Math.max(cellWidth(f.label) + 1, ...rows.map((r) => cellWidth(fieldCell(r, f))), 3)
+    // a saved width never exceeds the grid, so a column's heading and values always show (cut with …)
+    const saved = view.widths?.[f.name] === undefined ? undefined : Math.max(3, Math.min(view.widths[f.name]!, available))
     return { name: f.name, label: f.label, type: f.type, adornments: f.adornments, numeric, longest, width: saved ?? Math.min(40, longest) }
   })
   const total = () => cols.reduce((a, c) => a + c.width + gap, 0)
@@ -200,6 +201,15 @@ export class TableScreen implements Screen {
     const target = relatedRecordTarget(f as never, rec as never, Object.keys(this.store.meta?.tables ?? {}))
     if (!target) return this.store.flash(`${f.label} does not link to a record`)
     openRecord(this.store, target.tableName, target.primaryKey)
+  }
+
+  /** The whole value of the cell under the cursor in a dialog (grid cells are cut with … to their width). */
+  showCell(): void {
+    const f = this.fields()[this.colCursor]
+    const rec = this.currentRecord
+    if (!f || !rec) return
+    const text = fieldCell(rec, f)
+    this.store.message(text === '' ? '(empty)' : text, 'info', f.label)
   }
 
   quickSearch(): void {
@@ -706,6 +716,7 @@ export class TableScreen implements Screen {
       case 'a': actionsOverlay(this.store, this); return true
       case 'q': this.quickSearch(); return true
       case 'l': this.followCell(); return true
+      case 'V': this.showCell(); return true
       case 'S': this.columnStats(); return true
       case 'p': printScreen(this.store); return true
       case 'D': this.store.push(new TableDeveloperScreen(this.store, this.tableName)); return true
@@ -758,6 +769,7 @@ export class TableScreen implements Screen {
     out.push({ section: 'Context', label: 'Developer: ESB events, metadata, JSON and APIs of this table', key: 'D', command: 'dev', run: () => this.store.push(new TableDeveloperScreen(this.store, this.tableName)) })
     out.push({ section: 'Context', label: 'Saved views: open, save, delete', command: 'views', run: () => this.savedViews() })
     out.push({ section: 'Context', label: `Column statistics: ${this.fields()[this.colCursor]?.label ?? ''}`, key: 'S', run: () => this.columnStats() })
+    out.push({ section: 'Context', label: `Whole value: ${this.fields()[this.colCursor]?.label ?? ''}`, key: 'V', run: () => this.showCell() })
     out.push({ section: 'Context', label: 'Quick search', key: 'q', detail: this.quick || undefined, run: () => this.quickSearch() })
     if (this.meta && usesVariants(this.meta as never)) out.push({ section: 'Context', label: `Change ${variantLabel(this.meta as never)}`, detail: this.variant?.name ?? this.variant?.id, run: () => this.chooseVariant(0) })
     return out
@@ -832,10 +844,10 @@ export class TableScreen implements Screen {
           const label = trunc(c.label, c.width - mark.length) + mark
           return <span key={c.name} fg={hot && focused ? t.acc2 : t.acc}>{(i === 0 ? '  ' : ' ') + (c.numeric ? padLeft(label, c.width) : pad(label, c.width))}</span>
         })}
-        <span>{' '.repeat(Math.max(0, inner - header.length))}</span>
+        <span>{' '.repeat(Math.max(0, inner - cellWidth(header)))}</span>
       </text></Zone>,
     )
-    if (headerRule) lines.push(<text flexShrink={0} wrapMode="none" key="r" fg={t.border}>{pad(g.rule.repeat(Math.min(inner, header.length)), inner)}</text>)
+    if (headerRule) lines.push(<text flexShrink={0} wrapMode="none" key="r" fg={t.border}>{pad(g.rule.repeat(Math.min(inner, cellWidth(header))), inner)}</text>)
     const pk = this.meta?.primaryKeyField ?? 'id'
     this.rows.forEach((r, i) => {
       const sel = i === this.rowIndex
@@ -852,7 +864,7 @@ export class TableScreen implements Screen {
     }
     if (this.selection.size || this.selectAll) {
       const what = this.selectAll?.kind === 'all' ? `all ${this.cursor?.total !== undefined ? num(this.cursor.total) : ''} records of the result` : this.selectAll?.kind === 'first' ? `the first ${this.selectAll.n} records` : `${this.selection.size} selected`
-      lines.push(<text flexShrink={0} wrapMode="none" key="bulk" fg={t.selFg} bg={t.acc}>{pad(` ${what} · b run a process on them · Ctrl+A select menu · Space toggle · Esc clear`, inner)}</text>)
+      lines.push(<text flexShrink={0} wrapMode="none" key="bulk" fg={t.selFg} bg={t.acc}>{hintLine(`${what} · b run a process on them · Ctrl+A select menu · Space toggle · Esc clear`, inner)}</text>)
     }
     const c = this.cursor
     // the column under the cursor: its help for query screens (field helpContents by role)
@@ -862,7 +874,7 @@ export class TableScreen implements Screen {
     lines.push(<text flexShrink={0} wrapMode="none" key="f" fg={t.dim}>{pad(` ${filterText}`, inner)}</text>)
     const status = c ? `${c.total === undefined ? '…' : num(c.total)} ${c.distinct !== undefined ? `rows (${num(c.distinct)} distinct)` : 'records'} · row ${num(c.index + 1)} · page ${this.rowsPage + 1}/${c.pageCount}${this.sort ? ` · sort ${this.sort.field} ${this.sort.asc ? 'asc' : 'desc'}` : ''} · col ${this.colCursor + 1}/${cols.length}${this.fetchMs !== undefined ? ` · ${this.fetchMs.toFixed(0)} ms` : ''}${this.loading ? ' · loading' : ''}` : 'loading…'
     const hint = this.store.singleKeys ? ' · a actions · s sort · f filter · q search · S stats · v view · x export · Space select' : ''
-    lines.push(<text flexShrink={0} wrapMode="none" key="s" fg={t.dim}>{pad(` ${status}${hint}`, inner)}</text>)
+    lines.push(<text flexShrink={0} wrapMode="none" key="s" fg={t.dim}>{hintLine(`${status}${hint}`, inner)}</text>)
     return <Panel title={this.title()} width={width} height={height} focused={focused}>{lines}</Panel>
   }
 }

@@ -10,13 +10,30 @@ import { charOf } from '../keys'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { Overlay } from '../types'
-import { pad } from '../util/text'
+import { KEY_SEP, fitKeyLine, pad, type KeyToken } from '../util/text'
 import { ChoiceOverlay, EditorLine, PromptOverlay, overlayId } from './basic'
 import { LineEditor } from '../line-editor'
 import { defaultColumns } from '../screens/table'
 import { Frame, Line } from './frame'
 import { pickRow } from '../mouse/keys'
 import { Zone } from '../mouse/zone'
+
+/** Most columns that can be pinned on the left. */
+const MAX_PINNED = 3
+
+/** The dialog's key help; a higher `drop` goes first when the width cannot fit all of it in three lines. */
+export const VIEW_SETTINGS_KEYS: KeyToken[] = [
+  { text: 'Space on/off', drop: 0 },
+  { text: 'Shift+↑↓ or +/- move', drop: 1 },
+  { text: '←→ width', drop: 1 },
+  { text: 'w width', drop: 3 },
+  { text: 'a auto', drop: 3 },
+  { text: '/ search', drop: 2 },
+  { text: '* changed from the default', drop: 4 },
+  { text: 'r reset to defaults', drop: 2 },
+  { text: 'Enter saves for this table', drop: 0 },
+  { text: 'Esc cancels', drop: 0 },
+]
 
 /**
  * How a grid is shown, saved per table in the local config file: which columns and in what order,
@@ -41,17 +58,25 @@ export class GridViewSettingsOverlay implements Overlay {
     this.visible = new Set(current)
   }
 
-  options(): Array<{ label: string; value: string; toggle: () => void }> {
+  /** The grid options below the columns: the value cell holds only the value, `help` explains the selected one. */
+  options(): Array<{ label: string; value: string; help: string; toggle: () => void; step?: (delta: number) => void }> {
     const t = theme()
     const sort = this.view.sort as { field: string; asc: boolean } | undefined
+    const pinned = Number(this.view.pinned ?? 0)
     return [
-      { label: 'Sort', value: sort ? `${this.meta.fields[sort.field]?.label ?? sort.field} ${sort.asc ? 'ascending' : 'descending'}` : 'default order', toggle: () => this.chooseSort() },
-      { label: 'Pinned columns', value: `${Number(this.view.pinned ?? 0)} (stay left while scrolling; +/- on this line)`, toggle: () => { this.view.pinned = (Number(this.view.pinned ?? 0) + 1) % 4 } },
-      { label: 'Width use', value: this.view.fit === 'fill' ? 'fill the terminal width' : 'fit to content', toggle: () => { this.view.fit = this.view.fit === 'fill' ? 'content' : 'fill' } },
-      { label: 'Zebra stripes', value: (this.view.zebra ?? t.zebraByDefault) ? 'on' : 'off', toggle: () => { this.view.zebra = !(this.view.zebra ?? t.zebraByDefault) } },
-      { label: 'Header rule', value: (this.view.headerRule ?? true) ? 'on' : 'off', toggle: () => { this.view.headerRule = !(this.view.headerRule ?? true) } },
-      { label: 'Density', value: this.view.density === 'comfortable' ? 'comfortable (blank line between rows)' : 'compact', toggle: () => { this.view.density = this.view.density === 'comfortable' ? 'compact' : 'comfortable' } },
+      { label: 'Sort', value: sort ? `${this.meta.fields[sort.field]?.label ?? sort.field} ${sort.asc ? 'ascending' : 'descending'}` : 'default order', help: 'the order rows load in · Space chooses the field and direction', toggle: () => this.chooseSort() },
+      { label: 'Pinned columns', value: String(pinned), help: 'columns that stay left while scrolling · +/- changes', toggle: () => { this.view.pinned = (pinned + 1) % (MAX_PINNED + 1) }, step: (delta) => { this.view.pinned = Math.max(0, Math.min(MAX_PINNED, pinned + delta)) } },
+      { label: 'Width use', value: this.view.fit === 'fill' ? 'fill' : 'fit to content', help: 'fit sizes columns to their values, fill stretches them to the width · Space toggles', toggle: () => { this.view.fit = this.view.fit === 'fill' ? 'content' : 'fill' } },
+      { label: 'Zebra stripes', value: (this.view.zebra ?? t.zebraByDefault) ? 'on' : 'off', help: 'shades every other row · Space toggles', toggle: () => { this.view.zebra = !(this.view.zebra ?? t.zebraByDefault) } },
+      { label: 'Header rule', value: (this.view.headerRule ?? true) ? 'on' : 'off', help: 'the line under the column headings · Space toggles', toggle: () => { this.view.headerRule = !(this.view.headerRule ?? true) } },
+      { label: 'Density', value: this.view.density === 'comfortable' ? 'comfortable' : 'compact', help: 'comfortable puts a blank line between rows · Space toggles', toggle: () => { this.view.density = this.view.density === 'comfortable' ? 'compact' : 'comfortable' } },
     ]
+  }
+
+  /** The explanation for the selected row, shown above the key line. */
+  rowHelp(): string {
+    if (this.row < this.order.length) return 'Space shows or hides this column · Shift+↑↓ or +/- moves it · ←→ or w sets its width · a auto width'
+    return this.options()[this.row - this.order.length]?.help ?? ''
   }
 
   chooseSort(): void {
@@ -125,7 +150,9 @@ export class GridViewSettingsOverlay implements Overlay {
         if (this.visible.has(name)) this.visible.delete(name)
         else this.visible.add(name)
       } else opts[this.row - this.order.length]?.toggle()
-    } else if (ch === '+' || ch === ']') move(1)
+    } else if ((ch === '+' || ch === ']') && !onColumn) opts[this.row - this.order.length]?.step?.(1)
+    else if ((ch === '-' || ch === '[') && !onColumn) opts[this.row - this.order.length]?.step?.(-1)
+    else if (ch === '+' || ch === ']') move(1)
     else if (ch === '-' || ch === '[') move(-1)
     else if (ch === '>' || key.name === 'right') width(1)
     else if (ch === '<' || key.name === 'left') width(-1)
@@ -170,13 +197,17 @@ export class GridViewSettingsOverlay implements Overlay {
       items.push({ text: `${changed(n, i) ? '*' : ' '}${this.visible.has(n) ? g.check : g.uncheck} ${pad(this.meta.fields[n]!.label, 30)} ${this.view.widths?.[n] ? `width ${this.view.widths[n]}` : 'auto width'}`, idx: i })
     })
     items.push(
-      ...opts.map((o, i) => ({ text: `    ${pad(o.label, 28)} ${o.value}`, idx: this.order.length + i })),
+      ...opts.map((o, i) => ({ text: `    ${pad(o.label, 31)} ${o.value}`, idx: this.order.length + i })),
     )
-    const rows = Math.max(5, Math.min(items.length, sh - 11))
+    const keys = fitKeyLine(VIEW_SETTINGS_KEYS, inner - 2, 3)
+    const searchLine = this.searching || this.search.value ? 1 : 0
+    // border 2 + blank 1 + row help 1 + key lines + search line, and one screen row above and below
+    const chrome = 4 + keys.length + searchLine
+    const rows = Math.max(3, Math.min(items.length, sh - chrome - 4))
     const selAt = Math.max(0, items.findIndex((it) => it.idx === this.row))
     const top = Math.max(0, Math.min(selAt - Math.floor(rows / 2), items.length - rows))
     return (
-      <Frame title={`View settings · ${this.meta.label} · ${this.visible.size} of ${this.order.length} columns shown`} width={width} height={rows + 5} screenWidth={sw} screenHeight={sh}>
+      <Frame title={`View settings · ${this.meta.label} · ${this.visible.size} of ${this.order.length} columns shown`} width={width} height={rows + chrome} screenWidth={sw} screenHeight={sh}>
         {this.searching || this.search.value ? <box paddingLeft={1}><EditorLine editor={this.search} width={inner - 2} focused={this.searching} placeholder="search columns" /></box> : null}
         {items.slice(top, top + rows).map((it) => {
           const sel = it.idx === this.row
@@ -185,8 +216,8 @@ export class GridViewSettingsOverlay implements Overlay {
           return <Zone key={it.idx} {...pickRow(() => { this.row = it.idx }, () => this.onKey({ name: 'space', sequence: ' ' }))}><text flexShrink={0} wrapMode="none" fg={sel ? t.selFg : isOpt ? t.acc : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${it.text}`, inner)}</text></Zone>
         })}
         <Line text="" width={inner} />
-        <Line text=" Space on/off · / search · Shift+↑↓ or +/- move · ←→ width · w width · a auto · * changed from the default" width={inner} fg={t.dim} />
-        <Line text=" r reset to defaults · Enter saves (kept for this table) · Esc cancels" width={inner} fg={t.dim} />
+        <Line text={` ${fitKeyLine(this.rowHelp().split(KEY_SEP), inner - 2, 1)[0] ?? ''}`} width={inner} fg={t.acc} />
+        {keys.map((k, i) => <Line key={`k${i}`} text={` ${k}`} width={inner} fg={t.dim} />)}
       </Frame>
     )
   }

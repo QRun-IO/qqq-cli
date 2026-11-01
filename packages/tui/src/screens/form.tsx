@@ -20,7 +20,7 @@ import { PickerOverlay } from '../overlays/picker'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, Screen } from '../types'
-import { errorText, pad, trunc } from '../util/text'
+import { errorText, pad, trunc, hintLine } from '../util/text'
 import { Panel } from './list'
 import { committedText, DateEditor, dateProblem, storedTextOf } from '../controls/date-editor'
 import { DateFieldLine, dateEditorFor, dateFieldHelp, handleDateFieldKey, opensPicker } from '../controls/date-picker'
@@ -554,7 +554,7 @@ export class FormScreen implements Screen {
       <Panel title={this.title()} width={width} height={height} focused={focused}>
         {this.error ? <text flexShrink={0} wrapMode="none" fg={t.err}>{pad(` ${this.error}`, width - 2)}</text> : this.editor ? this.editor.render(width - 2, height - 3, focused) : <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(' loading…', width - 2)}</text>}
         {this.error || !this.editor ? Array.from({ length: Math.max(0, height - 4) }, (_, i) => <text flexShrink={0} wrapMode="none" key={i}>{''}</text>) : null}
-        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(footer, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{hintLine(footer, width - 2)}</text>
       </Panel>
     )
   }

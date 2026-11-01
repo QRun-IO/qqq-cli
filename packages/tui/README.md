@@ -252,6 +252,13 @@ follow the sections, and a child's own child lists come last. The row count is a
 (`v`, saved as `childRows` in `ui.views.record:<table>`), defaulting to `ui.childRows` of the profile, else
 the global `ui.childRows`, else 5.
 
+Nothing is drawn outside its container: every line is cut to the cells it has (measured in terminal cells,
+so wide characters count double) and a cut ends in `…`; dialogs never extend past the screen, and key help
+lines break between keys (at ` · `), dropping the least important keys first when they do not fit. Long
+values in grid cells and record fields are cut with `…` to the column; `V` on the grid (or "Whole value" in
+`a` / F9) shows the whole value of the cell under the cursor, wrapped in a dialog; the record view (Enter)
+gives each field more room (up to 100 cells in one column). A column width saved wider than the terminal is held to the grid's width.
+
 Widgets (home, app homes, record sections) have their actions on Enter: reload, the payload's dropdowns
 (possible values or a date; kept per widget when it asks), export CSV, run a process widget, data bag
 versions, script revisions, and on a saved report the filter/columns and pivot setup editors (API-versioned
@@ -481,6 +488,7 @@ packages/tui/scripts/smoke.sh        # tmux against a running server (profile "s
 packages/tui/scripts/mouse-smoke.sh  # the mouse in tmux: SGR 1006 clicks, drags and wheel written into the pane
 packages/tui/scripts/smoke-widths.sh # fixed grid widths across pages (fake large-instance server)
 packages/tui/scripts/smoke-sql.sh [server]  # SQL Runner at 80x24 and 120x36 (default the enterprise server on 8078)
+packages/tui/scripts/overflow-sweep.sh [server]  # every screen and dialog at 80/100/120/200 x 24/50: no text past a border
 packages/tui/scripts/perf-large-table.sh  # PRF-001: 10,000 rows x 40 columns, timings against a 2 s budget
 packages/tui/scripts/soak.sh [server] [minutes]  # random keys for 10 min; fails on an exit or an error boundary
 ```

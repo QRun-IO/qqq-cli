@@ -399,6 +399,16 @@ candidate's, plus the changes since it listed first.
   (the sample's sales order "Lines" and "Tags"): it now shows once, in the widget section's place and under
   its label, with the widget's columns (Next's binding: `manageAssociationName`, or the association's
   `joinName`).
+- No text in the UI runs outside its container. Lines are cut to the cells they have, measured in terminal
+  cells (wide characters count double), with `…` at the cut; dialogs are held inside the screen and their
+  lines default to the dialog's inner width. View settings shows only the value in each row (Pinned columns
+  `0`, not the explanation) and explains the selected row on a help line; its key help breaks between keys
+  in at most three lines, dropping the least important first; `+`/`-` change Pinned columns as the help
+  said. Screen footers drop whole keys instead of cutting one in the middle. The help's key table switches
+  to one column when two would cut it, developer panels and process errors wrap to the pane, the home
+  screen's header lines end in `…`, and a column width saved wider than the terminal is held to the grid.
+  `V` on the grid shows a cell's whole value. `packages/tui/scripts/overflow-sweep.sh` checks every screen
+  and dialog at 80/100/120/200 columns by 24/50 rows, and `smoke.sh` checks its captures the same way.
 
 ### Security
 

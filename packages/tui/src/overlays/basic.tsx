@@ -21,16 +21,25 @@ export function overlayId(kind: string): string {
   return `${kind}:${++ids}`
 }
 
-/** Wraps text into lines of a width. */
+/** Wraps text into lines of a width; a word longer than the width is broken across lines, never lost. */
 export function wrap(text: string, width: number): string[] {
   const out: string[] = []
+  const w = Math.max(1, width)
   for (const para of text.split('\n')) {
     let line = ''
-    for (const word of para.split(/\s+/)) {
-      if (!word) continue
-      if ((line + ' ' + word).trim().length > width) {
+    for (const raw of para.split(/\s+/)) {
+      if (!raw) continue
+      let word = raw
+      while (word.length > w) {
         if (line) out.push(line)
-        line = word.length > width ? word.slice(0, width) : word
+        line = ''
+        out.push(word.slice(0, w))
+        word = word.slice(w)
+      }
+      if (!word) continue
+      if ((line + ' ' + word).trim().length > w) {
+        if (line) out.push(line)
+        line = word
       } else {
         line = (line + ' ' + word).trim()
       }

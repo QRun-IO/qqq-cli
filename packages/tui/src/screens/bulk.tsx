@@ -25,7 +25,7 @@ import { DatePromptOverlay } from '../controls/date-picker'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Screen } from '../types'
-import { errorText, pad, trunc } from '../util/text'
+import { errorText, pad, trunc, hintLine } from '../util/text'
 import { ListModel, Panel, type Row } from './list'
 
 export type BulkKind = 'insert' | 'editWithFile' | 'edit' | 'delete'
@@ -489,7 +489,10 @@ export class BulkScreen implements Screen {
       case 'other': {
         const session = this.session!
         if (this.phase === 'other') for (const l of this.screenLines.filter(Boolean)) add(l)
-        if (this.phase === 'edit') add('Switch on the fields to change (Space); Enter sets the value. Fields left off keep their values.', t.dim)
+        if (this.phase === 'edit') {
+          add('Switch on the fields to change (Space); Enter sets the value.', t.dim)
+          add('Fields left off keep their values.', t.dim)
+        }
         for (const name of session.order) {
           const f = session.fields[name]!
           const on = this.phase === 'other' || this.enabled.has(name)
@@ -650,7 +653,7 @@ export class BulkScreen implements Screen {
       <Panel title={this.title()} width={width} height={height} focused={focused}>
         {this.list.view(width - 2, height - (help ? 4 : 3), focused)}
         {help ? <text flexShrink={0} wrapMode="none" fg={t.acc2}>{pad(` ${trunc(help, width - 4)}`, width - 2)}</text> : null}
-        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(` ${this.hint()}`, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{hintLine(this.hint(), width - 2)}</text>
       </Panel>
     )
   }

@@ -14,7 +14,7 @@ import type { Key } from '../keys'
 import type { AppStore } from '../store'
 import { theme } from '../theme'
 import type { FKeyLabels, Screen } from '../types'
-import { pad } from '../util/text'
+import { hintLine } from '../util/text'
 import { FormEditor } from './form'
 import { Panel } from './list'
 
@@ -93,7 +93,7 @@ export class FieldsFormScreen implements Screen {
     return (
       <Panel title={this.heading} width={width} height={height} focused={focused}>
         {this.editor.render(width - 2, height - 3, focused)}
-        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(this.editor.saving ? ' saving…' : ' Ctrl+S save · Esc cancel · Tab ↓ next · ↑ previous · * required', width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{hintLine(this.editor.saving ? 'saving…' : 'Ctrl+S save · Esc cancel · Tab ↓ next · ↑ previous · * required', width - 2)}</text>
       </Panel>
     )
   }

@@ -7,7 +7,7 @@ import type { Key } from '../keys'
 import type { AppStore } from '../store'
 import { theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Screen } from '../types'
-import { errorText, pad } from '../util/text'
+import { errorText, hintLine } from '../util/text'
 import { ListModel, Panel, type Row } from './list'
 
 /**
@@ -20,6 +20,8 @@ export abstract class LinesScreen implements Screen {
   readonly list = new ListModel()
   loading = true
   error?: string
+  /** Cells inside the panel at the last render (0 before the first). */
+  protected width = 0
 
   constructor(protected store: AppStore, readonly heading: string) {
     this.id = `${heading}:${Date.now()}`
@@ -60,13 +62,25 @@ export abstract class LinesScreen implements Screen {
     return 'Enter opens · PgUp PgDn page · F5 refresh · Esc back'
   }
 
+  /** Rebuilds rows that were wrapped to the old width (the screen was resized); a no-op by default. */
+  protected rewrap(): void {}
+
+  /** Width to wrap text rows to: the panel's inside, before the first render the terminal's. */
+  protected wrapWidth(): number {
+    return Math.max(20, (this.width || this.store.width) - 2)
+  }
+
   render(width: number, height: number, focused: boolean) {
     const t = theme()
+    if (width - 2 !== this.width) {
+      this.width = width - 2
+      if (!this.loading) this.rewrap()
+    }
     if (this.loading && !this.list.rows.length) this.list.setRows([{ text: 'loading…', fg: t.dim }])
     return (
       <Panel title={this.heading} width={width} height={height} focused={focused}>
         {this.list.view(width - 2, height - 3, focused)}
-        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(` ${this.hint()}`, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{hintLine(this.hint(), width - 2)}</text>
       </Panel>
     )
   }
