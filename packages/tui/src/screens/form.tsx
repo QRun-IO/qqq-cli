@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { FormInputError, FormSession, ResultCursor, copyRecordValues, dateTimesToUtc, formatSize, defaultTimeZone, isInstant, isMissingValue, utcToLocalInput, validateValue, type FieldMeta, type FieldValues } from '@qrun-io/qqq-core'
+import { FormInputError, FormSession, ResultCursor, copyRecordValues, dateTimesToUtc, formatSize, helpEntryText, selectHelpContent, defaultTimeZone, isInstant, isMissingValue, utcToLocalInput, validateValue, type FieldMeta, type FieldValues } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
@@ -302,7 +302,8 @@ export class FormEditor {
         const pickGlyph = (this.session.hasChoices(name) || isFileField(f)) && !disabled ? ' ▾' : ''
         editor = <text flexShrink={0} wrapMode="none" fg={disabled ? t.dim : sel ? t.selFg : t.inputFg} bg={disabled ? undefined : sel ? t.selBg : t.inputBg}>{pad(trunc(shown, editorWidth - pickGlyph.length) + pickGlyph, editorWidth)}</text>
       }
-      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : idx === this.index ? (isFileField(f) ? 'Enter chooses a file · Backspace clears' : this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : hintFor(f)) : ''
+      const fieldHelp = idx === this.index ? helpEntryText(selectHelpContent(f.helpContents, ['INSERT_SCREEN', 'EDIT_SCREEN', 'WRITE_SCREENS', 'ALL_SCREENS'])) : ''
+      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : fieldHelp ? fieldHelp : idx === this.index ? (isFileField(f) ? 'Enter chooses a file · Backspace clears' : this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : hintFor(f)) : ''
       return (
         <box key={name} flexDirection="row" height={1}>
           <text flexShrink={0} wrapMode="none" fg={sel ? t.acc2 : disabled ? t.dim : t.fg}>{`${sel ? g.pointer : ' '}${bulk}${pad(f.label, labelWidth - 1)}${required} `}</text>
@@ -387,6 +388,10 @@ export class FormScreen implements Screen {
   title(): string {
     const verb = this.options.mode === 'create' ? 'New' : this.options.mode === 'edit' ? 'Edit' : 'Copy'
     return `${verb} ${this.meta?.label ?? this.tableName}${this.options.mode === 'edit' ? ` ${this.options.primaryKey}` : ''}`
+  }
+
+  helpTopic() {
+    return { kind: 'table' as const, name: this.tableName }
   }
 
   presenceScope(): string | undefined {

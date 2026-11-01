@@ -118,25 +118,52 @@ export class AppHomeScreen implements Screen {
     const meta = this.store.meta
     const rows: Row[] = []
     const width = this.width
-    for (const w of this.widgetOrder()) {
+    // widgets in rows of twelfths (gridColumns), side by side when the terminal is wide enough
+    const order = this.widgetOrder()
+    const gridOf = (w: string) => Math.max(1, Math.min(12, Number((meta?.widgets as Record<string, { gridColumns?: number }> | undefined)?.[w]?.gridColumns ?? 12)))
+    const widgetRows = (w: string, colWidth: number): Row[] => {
       const data = this.widgets.get(w)
       const label = (meta?.widgets as Record<string, { label?: string }> | undefined)?.[w]?.label ?? w
       // widget headings are selectable (Enter reloads it), so the cursor starts at the top and only visible widgets load
       const reload = () => { this.widgets.delete(w); this.started.delete(`w:${w}`); this.build(); this.store.bump() }
+      const out: Row[] = []
       if (!data) {
-        this.widgetTask(w, rows.length)
-        rows.push({ text: label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
-        rows.push({ text: '  loading…', fg: t.dim })
+        out.push({ text: label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
+        out.push({ text: '  loading…', fg: t.dim })
       } else if ('error' in data) {
-        rows.push({ text: label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
-        rows.push({ text: `  ${data.error}`, fg: t.err })
+        out.push({ text: label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
+        out.push({ text: `  ${data.error}`, fg: t.err })
       } else {
         const heading = data[0]?.kind === 'heading' ? data[0] : undefined
-        rows.push({ text: heading ? heading.text : label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
-        if (heading?.sub) rows.push({ text: `  ${heading.sub}`, fg: t.dim })
-        rows.push(...blockLines(heading ? data.slice(1) : data, width - 4).map((l) => ({ ...l, text: '  ' + l.text })))
+        out.push({ text: heading ? heading.text : label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
+        if (heading?.sub) out.push({ text: `  ${heading.sub}`, fg: t.dim })
+        out.push(...blockLines(heading ? data.slice(1) : data, colWidth - 4).map((l) => ({ ...l, text: '  ' + l.text })))
       }
-      rows.push({ text: g.rule.repeat(Math.min(width - 2, 80)), fg: t.border })
+      return out
+    }
+    const sideBySide = width >= 120
+    let i = 0
+    while (i < order.length) {
+      const group: string[] = []
+      let used = 0
+      while (i < order.length && (group.length === 0 || (sideBySide && used + gridOf(order[i]!) <= 12))) {
+        used += gridOf(order[i]!)
+        group.push(order[i]!)
+        i++
+      }
+      for (const w of group) if (!this.widgets.get(w)) this.widgetTask(w, rows.length)
+      if (group.length === 1 || !sideBySide) {
+        for (const w of group) rows.push(...widgetRows(w, width))
+      } else {
+        const widths = group.map((w) => Math.floor(((width - 2) * gridOf(w)) / Math.max(12, used)))
+        const parts = group.map((w, k) => widgetRows(w, widths[k]!))
+        const n = Math.max(...parts.map((p) => p.length))
+        for (let r = 0; r < n; r++) {
+          const first = parts.find((p) => p[r]?.action)?.[r]
+          rows.push({ text: parts.map((p, k) => pad(p[r]?.text ?? '', widths[k]! - 1) + ' ').join(''), fg: parts.some((p) => p[r]?.bold) ? t.acc : t.fg, bold: parts.some((p) => p[r]?.bold), ...(first ? { key: first.key, action: first.action } : {}) })
+        }
+      }
+      rows.push({ text: g.rule.repeat(Math.min(width - 2, 120)), fg: t.border })
     }
     const sections = this.app?.sections?.length ? this.app.sections : [{ name: this.appName, label: this.title(), tables: this.app?.children?.filter((c) => c.type === 'TABLE').map((c) => c.name), processes: this.app?.children?.filter((c) => c.type === 'PROCESS').map((c) => c.name) }]
     for (const s of sections) {

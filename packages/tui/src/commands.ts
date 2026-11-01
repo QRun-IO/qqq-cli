@@ -11,7 +11,7 @@
 
 import { runCli } from '@qrun-io/qqq-cli/program'
 import { THEMES } from './theme'
-import { applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
+import { helpEntryText, helpText, processHelpText, selectHelpContent, tableViewHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
 import type { AppTreeNode } from './client'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
@@ -75,12 +75,29 @@ export class Commands implements CommandsLike {
     })
     s.open(overlay)
     if (topic?.kind === 'table' && s.client) {
+      // table, section and field help for this screen's roles (kernel record-view helpers)
+      const roles = screen?.kind === 'form' ? ['INSERT_SCREEN', 'EDIT_SCREEN', 'WRITE_SCREENS', 'ALL_SCREENS'] : screen?.kind === 'table' ? ['QUERY_SCREEN', 'READ_SCREENS', 'ALL_SCREENS'] : ['VIEW_SCREEN', 'READ_SCREENS', 'ALL_SCREENS']
       s.client.tableMeta(topic.name).then((m) => {
-        for (const h of m.helpContents ?? []) if (h.contentAsText) topicHelp.push(h.contentAsText)
-        for (const f of Object.values(m.fields)) for (const h of f.helpContents ?? []) if (h.contentAsText) topicHelp.push(`${f.label}: ${h.contentAsText}`)
+        for (const h of tableViewHelp(m as never, roles)) topicHelp.push(h.slot === 'table' ? h.text : `${h.slot}: ${h.text}`)
+        for (const sec of m.sections ?? []) { const t = helpEntryText(selectHelpContent((sec as { helpContents?: unknown }).helpContents, roles)); if (t) topicHelp.push(`${sec.label}: ${t}`) }
+        for (const f of Object.values(m.fields)) { const t = helpEntryText(selectHelpContent(f.helpContents, roles)); if (t) topicHelp.push(`${f.label}: ${t}`) }
         if (!topicHelp.length) topicHelp.push(`${m.label}: no help content on this server. Fields: ${Object.values(m.fields).map((f) => f.label).join(', ')}.`)
         s.bump()
       }).catch(() => undefined)
+    }
+    if (topic?.kind === 'process' && s.client) {
+      s.client.processMeta(topic.name).then((p) => {
+        for (const t of processHelpText(p as never)) topicHelp.push(t)
+        for (const step of p.frontendSteps ?? []) for (const t of helpText((step as { helpContents?: never }).helpContents)) topicHelp.push(`${step.label ?? step.name}: ${t}`)
+        if (!topicHelp.length) topicHelp.push(`${p.label ?? p.name}: no help content on this server.`)
+        s.bump()
+      }).catch(() => undefined)
+    }
+    if (topic?.kind === 'app') {
+      const app = (s.meta?.apps as Record<string, { label?: string; helpContents?: unknown; widgets?: string[] }> | undefined)?.[topic.name]
+      const t = helpEntryText(selectHelpContent(app?.helpContents))
+      if (t) topicHelp.push(t)
+      for (const w of app?.widgets ?? []) { const wt = helpEntryText(selectHelpContent((s.meta?.widgets as Record<string, { helpContents?: unknown; label?: string }> | undefined)?.[w]?.helpContents)); if (wt) topicHelp.push(`${(s.meta?.widgets as Record<string, { label?: string }>)[w]?.label ?? w}: ${wt}`) }
     }
   }
 

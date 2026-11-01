@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { BACK, FormSession, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, FormSession, fetchProcessRecords, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
 import { blockLines, tableLines } from '../widgets'
 import type { Key } from '../keys'
@@ -182,6 +182,35 @@ export class ProcessScreen implements Screen {
 
   /** Turns the kernel's screen blocks into lines (tables aligned, widgets drawn) and notes downloads. */
   showScreen(blocks: ScreenBlock[]): void {
+    this.blocks = blocks
+    this.recordsSkip = 0
+    this.recordsPage = 0
+    this.renderScreen()
+  }
+
+  /** The current step's blocks, and the RECORD_LIST page shown (n / p page through the run's records). */
+  blocks: ScreenBlock[] = []
+  recordsSkip = 0
+  recordsPage = 0
+
+  pageRecords(direction: 1 | -1): void {
+    const block = this.blocks.find((b): b is Extract<ScreenBlock, { kind: 'records' }> => b.kind === 'records')
+    if (!block || !this.processUUID) return this.store.flash('this step has no record list')
+    const size = Math.max(1, this.recordsPage || block.rows.length || 50)
+    this.recordsPage = size
+    const skip = Math.max(0, this.recordsSkip + direction * size)
+    if (skip >= block.total) return this.store.flash('last page of records')
+    const c = this.store.client!
+    this.store.run(fetchProcessRecords(c.server, c.fetch, this.processName, this.processUUID, skip, size, this.options.tableVariant), (page) => {
+      this.recordsSkip = skip
+      block.rows = page.records.map((r) => Object.fromEntries(block.columns.map((col) => [col, cell(r as never, col)])))
+      block.total = page.totalRecords
+      this.renderScreen()
+    })
+  }
+
+  renderScreen(): void {
+    const blocks = this.blocks
     const width = 100
     this.downloads = blocks.filter((b): b is Extract<ScreenBlock, { kind: 'download' }> => b.kind === 'download').map((b) => ({ fileName: b.fileName, query: b.query }))
     const visible = blocks.filter((b) => b.kind !== 'form' && b.kind !== 'review' && b.kind !== 'summary')
@@ -190,6 +219,8 @@ export class ProcessScreen implements Screen {
       widget: (w) => blockLines(w, width).map((l) => l.text).join('\n'),
     })
     this.screenLines = text ? text.split('\n') : []
+    const rec = blocks.find((b) => b.kind === 'records') as Extract<ScreenBlock, { kind: 'records' }> | undefined
+    if (rec && rec.total > rec.rows.length) this.screenLines.unshift(`records ${this.recordsSkip + 1}-${this.recordsSkip + rec.rows.length} of ${rec.total} · n next page · p previous page`)
     this.store.bump()
   }
 
@@ -294,6 +325,10 @@ export class ProcessScreen implements Screen {
       this.pending = undefined
       this.phase = 'running'
       pending.resolve(BACK as unknown as FieldValues)
+      return true
+    }
+    if ((charOf(key) === 'n' || charOf(key) === 'p') && this.phase !== 'form' && this.blocks.some((b) => b.kind === 'records')) {
+      this.pageRecords(charOf(key) === 'n' ? 1 : -1)
       return true
     }
     if (charOf(key) === 'w' && this.downloads.length && this.phase !== 'form') {
