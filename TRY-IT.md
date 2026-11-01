@@ -1,10 +1,12 @@
-# Try the terminal clients as they are built
+# Try qqq against the sample server
 
-Updated with every milestone. Each entry says what exists today and the one command that runs it.
+A hands-on walkthrough of qqq 1.0.0 (the CLI and `qqq ui`) from a source checkout, against a local QQQ
+sample server. Each section says what exists and the command that runs it. To install a release instead,
+see [Install](README.md#install) in the README; every command below works the same with an installed `qqq`.
 
 ## Prerequisites (once)
 
-- Java 21 and Maven (for the sample server), Bun 1.4+ (`brew install bun`), Node 20+ (existing CLI).
+- Java 21 and Maven (for the sample server), Bun 1.4+ (`brew install bun`), Node 20+.
 - A `qqq` checkout on `develop` at `../.worktrees/qqq-develop` (relative to this repo's parent), or set
   `QQQ_DEV_WORKTREE`. Then `qqq-sample-server build` once (about two minutes), and after every pull of qqq.
 - Launchers: `scripts/dev/sample-server.sh` and `scripts/dev/tui-spike.sh` are linked as
@@ -48,7 +50,7 @@ qqq-sample-server status | log | restart | stop
 
 Data resets on every restart. Mock auth means no sign-in; `POST /qqq/v1/manageSession` gives a session.
 
-## TUI (`qqq ui`, M3)
+## TUI (`qqq ui`)
 
 ```sh
 qqq ui                         # default profile; qqq --profile sample ui
@@ -88,7 +90,7 @@ your terminal or tmux may take (`qqq ui --check` finds them).
 
 The M0 spike (`qqq-tui-spike`, `packages/tui-spike`) stays in the repo for reference.
 
-## CLI (`qqq`, M1 in progress)
+## CLI (`qqq`)
 
 `qqq` on your PATH runs the CLI from this checkout with Bun (no build step; the client and kernel packages
 are rebuilt when their source changed). Grammar is `qqq <noun> <verb>`; the 0.1 flat commands (`apps`,
