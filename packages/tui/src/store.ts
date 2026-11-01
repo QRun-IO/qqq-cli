@@ -16,7 +16,7 @@ import { TUI_CHANNEL, TuiClient, type VersionInfo } from './client'
 import { charOf, isPrintable, type Key } from './keys'
 import { ChoiceOverlay, ConfirmOverlay, CliCommandOverlay, MessageOverlay } from './overlays/basic'
 import { Extensions } from './extensions'
-import { PrintTracker } from './printing'
+import { PrintTracker, printScreen } from './printing'
 import { collaborationPresence, presenceSource, setPresenceSource } from './presence'
 import { realtimeEvents } from './saver/model'
 import { setAscii, setTheme, theme } from './theme'
@@ -92,6 +92,8 @@ export class AppStore {
   status: Status
   /** Print jobs queued from this session, followed until they end. */
   readonly printTracker: PrintTracker
+  /** The screen as drawn, as text (set by main.tsx from the renderer; tests set the test frame). */
+  captureScreen?: () => string
   flashText?: { text: string; kind: 'info' | 'error'; at: number }
   /** The screen saver or lock, when shown. */
   lock?: Overlay
@@ -335,6 +337,9 @@ export class AppStore {
     }
     const screen = this.screen
     if (this.focus === 'content' && screen?.claimsKey?.(key) && screen.onKey(key)) return
+    // Ctrl+P prints what you see on every screen; Print Screen too when the terminal passes it on
+    // (kitty keyboard protocol); F8 prints where the screen has no Delete for it
+    if ((key.ctrl && key.name === 'p') || key.name === 'printscreen' || (key.name === 'f8' && this.fkeys().find((k) => k.n === 8)?.label === 'Print')) return printScreen(this)
     if (key.name === 'f1') return this.commands().help()
     if (this.backslash && charOf(key) === '?') {
       this.backslash = false
@@ -592,7 +597,9 @@ export class AppStore {
     const overrides: FKeyLabels = this.screen?.fkeys?.() ?? { 3: null, 4: null, 6: null, 7: null, 8: null }
     return Object.entries(defaults).map(([n, label]) => {
       const k = Number(n)
-      return { n: k, label: k in overrides ? overrides[k]! : label, global: label }
+      const shown = k in overrides ? overrides[k]! : label
+      // F8 prints on screens that have no Delete for it
+      return { n: k, label: k === 8 && shown === null ? 'Print' : shown, global: label }
     })
   }
 

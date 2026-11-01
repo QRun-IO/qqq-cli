@@ -13,7 +13,7 @@ import { TagOverlay, collaborationOf } from '../overlays/tags'
 import { RecordCollaboration, summaryText, uploadBlocked, viewingText, type CollabSummary } from '../collab'
 import { CollabScreen, sharePreview, toggleFollow, uploadAttachment, type CollabView } from './collab'
 import { presenceSource } from '../presence'
-import { canPrintTable, openPrintDialog, printUnavailable } from '../printing'
+import { canPrintTable, printScreen } from '../printing'
 import { AuditScreen } from './audits'
 import { DeveloperScreen } from './developer'
 import type { FieldMetaData, SectionMetaData, TableMetaData } from '../client'
@@ -674,7 +674,7 @@ export class RecordScreen implements Screen {
       else this.list.onKey({ name: 'pagedown', sequence: '' })
       return true
     }
-    if (key.name === 'pageup' || ch === '[' || (key.ctrl && key.name === 'p')) {
+    if (key.name === 'pageup' || ch === '[') {
       if (this.cursor) this.step(-1)
       else this.list.onKey({ name: 'pageup', sequence: '' })
       return true
@@ -715,15 +715,9 @@ export class RecordScreen implements Screen {
         return true
       }
       case 'a': actionsOverlay(this.store, this); return true
-      case 'p': if (canPrintTable(this.store, this.tableName)) { this.print(); return true } return false
+      case 'p': printScreen(this.store); return true
       default: return false
     }
-  }
-
-  /** Print… this record: the printer picker, then the job is followed in the status line. */
-  print(): void {
-    if (this.primaryKey === undefined) return
-    openPrintDialog(this.store, this.tableName, [String(this.primaryKey)], `${this.meta?.label ?? this.tableName} ${this.title()}`)
   }
 
   /** Share (shareable tables): only the owner may share; others see why. */
@@ -740,7 +734,7 @@ export class RecordScreen implements Screen {
       { section: 'Context', label: 'Delete this record', key: 'F8 d', disabled: permits(this.meta as never, 'delete') ? undefined : 'you may not delete records of this table', run: () => this.deleteRecord() },
       { section: 'Context', label: `New ${this.meta?.label ?? this.tableName}`, key: 'F7 n', run: () => openForm(this.store, this.tableName, { mode: 'create' }) },
       { section: 'Context', label: 'Next record', key: 'PgDn ] Ctrl+N', disabled: this.cursor ? undefined : 'not opened from a list', run: () => this.step(1) },
-      { section: 'Context', label: 'Previous record', key: 'PgUp [ Ctrl+P', disabled: this.cursor ? undefined : 'not opened from a list', run: () => this.step(-1) },
+      { section: 'Context', label: 'Previous record', key: 'PgUp [', disabled: this.cursor ? undefined : 'not opened from a list', run: () => this.step(-1) },
       { section: 'Context', label: 'Refresh', key: 'F5 r', run: () => this.refresh() },
       ...this.shareEntry(),
       { section: 'Context', label: 'View settings (columns, label width, child list rows)', key: 'v', run: () => { const o = this.viewSettings(); if (o) this.store.open(o) } },
@@ -771,7 +765,7 @@ export class RecordScreen implements Screen {
       if (v.masked) out.push({ section: 'Context', label: `Reveal ${f.label}`, run: () => this.follow([f]) })
     }
     for (const p of this.recordProcesses()) out.push({ section: 'Context', label: `Run ${p.label} on this record`, run: () => openProcess(this.store, p.name, { recordIds: [String(this.primaryKey)] }) })
-    if (this.store.extensions.has('printing')) out.push({ section: 'Context', label: 'Print…', key: 'p', command: this.primaryKey !== undefined ? `print ${this.tableName} ${this.primaryKey}` : undefined, disabled: printUnavailable(this.store, this.tableName), run: () => this.print() })
+    out.push({ section: 'Context', label: this.store.extensions.has('printing') ? 'Print… (a record sheet)' : 'Print… (saves the screen as a file: no printing on this server)', key: 'p Ctrl+P', command: 'print', run: () => printScreen(this.store) })
     if (this.store.extensions.has('collaboration')) out.push({ section: 'Context', label: 'Tags…', key: 't', command: 'tags', detail: this.tags?.map((x) => x.label).join(', '), run: () => this.openTags() })
     out.push(...this.collabEntries())
     out.push({ section: 'Context', label: 'Audit history', key: 'A', command: 'audits', run: () => this.openAudits() })

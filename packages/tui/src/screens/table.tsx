@@ -17,7 +17,7 @@ import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { openShareDialog, shareState } from '../overlays/share'
 import { TableDeveloperScreen } from './developer'
-import { canPrintTable, openPrintDialog, printUnavailable } from '../printing'
+import { canPrintTable, printScreen, type GridPrintSpec } from '../printing'
 import { GridViewSettingsOverlay } from '../overlays/view-settings'
 import { GridMouse } from '../mouse/grid'
 import { Zone } from '../mouse/zone'
@@ -707,19 +707,35 @@ export class TableScreen implements Screen {
       case 'q': this.quickSearch(); return true
       case 'l': this.followCell(); return true
       case 'S': this.columnStats(); return true
-      case 'p': if (canPrintTable(this.store, this.tableName)) { this.print(); return true } return false
+      case 'p': printScreen(this.store); return true
       case 'D': this.store.push(new TableDeveloperScreen(this.store, this.tableName)); return true
       default: return false
     }
   }
 
   /** Print… the selection (Space), else the record under the cursor. */
-  print(): void {
-    if (this.selectAll) return this.store.flash('Print works on records selected with Space (or the record under the cursor), not on a whole result.', 'error')
-    const ids = this.selection.size ? [...this.selection] : [this.keyOf(this.currentRecord)].filter((k): k is string => k !== undefined)
-    const label = this.meta?.label ?? this.tableName
-    const what = ids.length === 1 ? `${label} ${this.selection.size ? ids[0] : this.currentRecord?.recordLabel ?? ids[0]}` : `${ids.length} ${label} records`
-    openPrintDialog(this.store, this.tableName, ids, what)
+  /**
+   * What Ctrl+P prints from this grid: its visible columns with the widths drawn, the query filter
+   * with sort and quick search, the filter as text, the total, the page and the Space selection.
+   */
+  printSpec(): GridPrintSpec | undefined {
+    if (!this.meta || !this.cursor) return undefined
+    const widths = new Map((this.frozen?.cols ?? []).map((c) => [c.name, c.width]))
+    const filterText = [printFilter(this.filter), this.quick ? `quick "${this.quick}"` : ''].filter(Boolean).join(' · ')
+    return {
+      table: this.tableName,
+      label: this.meta.label ?? this.tableName,
+      primaryKeyField: this.meta.primaryKeyField,
+      columns: this.fields().map((f) => ({ name: f.name, width: widths.get(f.name) })),
+      filter: this.fullFilter() as unknown as Record<string, unknown>,
+      filterText,
+      total: this.cursor.total,
+      pageIndex: Math.max(0, this.cursor.pageOf(this.cursor.index)),
+      pageSize: this.pageSize,
+      pageRows: this.rows.length,
+      selected: [...this.selection],
+      selectAll: Boolean(this.selectAll),
+    }
   }
 
   menu(): MenuEntry[] {
@@ -738,7 +754,7 @@ export class TableScreen implements Screen {
     for (const f of ['csv', 'xlsx', 'json', 'tsv']) out.push({ section: 'Context', label: `Export as ${f}`, key: f === 'csv' ? 'x' : undefined, command: `export ${f}`, run: () => this.exportAs(f) })
     out.push(...this.bulkEntries())
     for (const p of this.tableProcesses()) out.push({ section: 'Context', label: `Run ${p.label}`, detail: this.selection.size ? `${this.selection.size} selected` : 'cursor record', disabled: p.parked, run: () => this.runProcess(p.name) })
-    if (this.store.extensions.has('printing')) out.push({ section: 'Context', label: this.selection.size ? `Print ${this.selection.size} selected…` : 'Print the record under the cursor…', key: 'p', disabled: printUnavailable(this.store, this.tableName), run: () => this.print() })
+    out.push({ section: 'Context', label: this.store.extensions.has('printing') ? 'Print… (all rows, this page or the selection)' : 'Print… (saves the list as a file: no printing on this server)', key: 'p Ctrl+P', command: 'print', run: () => printScreen(this.store) })
     out.push({ section: 'Context', label: 'Developer: ESB events, metadata, JSON and APIs of this table', key: 'D', command: 'dev', run: () => this.store.push(new TableDeveloperScreen(this.store, this.tableName)) })
     out.push({ section: 'Context', label: 'Saved views: open, save, delete', command: 'views', run: () => this.savedViews() })
     out.push({ section: 'Context', label: `Column statistics: ${this.fields()[this.colCursor]?.label ?? ''}`, key: 'S', run: () => this.columnStats() })

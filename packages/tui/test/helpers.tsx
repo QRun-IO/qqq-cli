@@ -53,6 +53,7 @@ export async function startTui(width = 120, height = 36, options: { metaData?: u
   const store = boot({ args: parseArgs(['--profile', 'fake']), quit: () => undefined, build: 'test', secrets: options.secrets ?? sessionSecrets, fetch: fakeFetch(log, options.metaData, options.auth) })
   const setup = await testRender(<App store={store} />, { width, height })
   const h: Harness = { setup, store, log, frame: () => setup.captureCharFrame() }
+  store.captureScreen = () => setup.captureCharFrame()
   if ((options.until ?? 'home') === 'home') await waitFor(h, (f) => f.includes('Apps') && h.store.screen?.kind === 'home')
   else await waitFor(h, () => h.store.screen?.kind === 'signin')
   return h

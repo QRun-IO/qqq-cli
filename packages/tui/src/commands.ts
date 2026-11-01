@@ -34,7 +34,8 @@ import type { PopupItem } from './overlays/popup'
 import { openSqlRunner, sqlCommand, sqlMenuEntries } from './sql/entry'
 import { isRunnerWidget } from './sql/apps'
 import { errorText, shellSplit } from './util/text'
-import { openPrintJobs } from './printing'
+import { openPrintJobs, printScreen } from './printing'
+import { withPrintEntry } from './overlays/actions'
 
 const NOUNS: Record<string, string[]> = {
   table: ['list', 'describe', 'query', 'count', 'get', 'create', 'update', 'delete', 'export'],
@@ -49,7 +50,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates']
 
 /** One line on each TUI command, for the `:` line's completion popup. */
 export const TUI_COMMAND_HELP: Record<string, string> = {
@@ -57,7 +58,7 @@ export const TUI_COMMAND_HELP: Record<string, string> = {
   audits: 'audits of this record', dev: 'developer view (record scripts, table APIs)', actions: 'actions of this screen', back: 'back one screen', help: 'keys and help',
   menu: 'the F9 menu', goto: 'search anything', view: 'view settings of this screen', theme: 'switch the theme', ascii: 'ASCII glyphs on or off', linear: 'linear layout on or off',
   shortcuts: 'single-key shortcuts on or off', lock: 'lock the screen', pin: 'set or remove the lock PIN', idle: 'screen saver after idle minutes', refresh: 'reload this screen',
-  filter: 'filter the grid (grammar)', export: 'export the grid or result', jobs: 'your jobs', printjobs: 'print jobs', profile: 'switch profile', servers: 'saved servers (Ctrl+O)',
+  filter: 'filter the grid (grammar)', export: 'export the grid or result', jobs: 'your jobs', printjobs: 'print jobs', print: 'print what you see (or :print <printer>)', profile: 'switch profile', servers: 'saved servers (Ctrl+O)',
   server: 'connect to a server URL', signout: 'sign out', connection: 'connection details', open: 'open a table', record: 'open a record by key', app: 'open an app',
   sql: 'SQL Runner (statement to run, open <notebook id>)', saver: 'the screen saver', doctor: 'check the terminal', views: 'saved views of this table', share: 'share this record', helpkeys: 'help-authoring mode',
 }
@@ -360,6 +361,13 @@ export class Commands implements CommandsLike {
         }
         case 'jobs': return this.jobs()
         case 'printjobs': return openPrintJobs(s)
+        case 'print': {
+          // `:print` and `:print <printer>` print what you see; `:print person 1 2`, `:print job list`
+          // and the other CLI forms run the CLI command as before
+          const cliForm = rest[0] !== undefined && (rest[0] === 'job' || rest[0] === 'record' || rest[0] === 'list' || rest[0] === 'text' || (Boolean(s.meta?.tables?.[rest[0]]) && rest.length > 1))
+          if (!cliForm) return printScreen(s, rest.length ? rest.join(' ') : undefined)
+          break
+        }
         case 'audits': case 'audit': {
           const screen = s.screen as { kind?: string; openAudits?: () => void; tableName?: string } | undefined
           if (screen?.kind === 'record') return screen.openAudits?.()
@@ -679,7 +687,7 @@ export class Commands implements CommandsLike {
   entries(filterText = ''): MenuEntry[] {
     const s = this.store
     const meta = s.meta
-    const out: MenuEntry[] = [...(s.screen?.menu?.() ?? [])]
+    const out: MenuEntry[] = withPrintEntry(s, [...(s.screen?.menu?.() ?? [])])
     out.push({ section: 'Context', label: 'Back', key: 'Esc', command: 'back', run: () => s.back() })
     // Go to
     out.push({ section: 'Go to', label: 'Reset: go to the home screen', key: 'F10', command: 'reset', detail: 'refreshes metadata, keeps the session', run: () => s.reset() })

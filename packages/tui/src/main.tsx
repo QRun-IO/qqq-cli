@@ -110,4 +110,8 @@ store.copyText = (text: string) => {
   return renderer.isOsc52Supported() && renderer.copyToClipboardOSC52(text) ? 'OSC 52' : undefined
 }
 
+// Ctrl+P on a screen without a record or a grid prints the screen as drawn
+const frameDecoder = new TextDecoder()
+store.captureScreen = () => frameDecoder.decode(renderer.currentRenderBuffer.getRealCharBytes(true))
+
 createRoot(renderer).render(<App store={store} />)

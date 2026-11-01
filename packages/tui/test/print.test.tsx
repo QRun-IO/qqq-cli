@@ -4,14 +4,18 @@
  */
 
 import { afterEach, beforeAll, beforeEach, expect, test } from 'bun:test'
+import { KeyCodes } from '@opentui/core/testing'
 import { printerOf, readRememberedPrinter, writeRememberedPrinter } from '@qrun-io/qqq-core'
-import { printerChoices } from '../src/printing'
+import { captureScreenText, printTargetOf, printerChoices } from '../src/printing'
 import { printing } from './fake-print'
 import { command, isolate, press, startTui, waitFor, type Harness } from './helpers'
 
 let h: Harness | undefined
 beforeAll(() => isolate())
-beforeEach(() => printing.reset())
+beforeEach(() => {
+  printing.reset()
+  writeRememberedPrinter('fake', undefined)
+})
 afterEach(() => {
   h?.store.dispose()
   h?.setup.renderer.destroy()
@@ -25,6 +29,8 @@ const arrow = (d: 'up' | 'down') => press(h!, () => h!.setup.mockInput.pressArro
 
 /** Polls the print tracker once (the tests run without timers) and repaints. */
 const poll = () => press(h!, () => h!.store.printTracker.poll())
+const esc = () => press(h!, () => h!.setup.mockInput.pressEscape(), 120)
+const ctrlP = () => press(h!, () => h!.setup.mockInput.pressKey('p', { ctrl: true }))
 
 test('picker rows: unprintable ones are disabled with the reason; the remembered one is preselected', () => {
   const printers = [
@@ -50,7 +56,7 @@ test('record: p opens the printer picker, Enter prints, the job is followed in t
   await command(h, 'table get person 2')
   await waitFor(h, (f) => f.includes('First2 Odd'))
   const labels = () => (h!.store.screen?.menu?.() ?? []).map((e) => e.label)
-  expect(labels()).toContain('Print…')
+  expect(labels()).toContain('Print… (a record sheet)')
   expect(labels()).not.toContain('Run Print on this record')
   await key('p')
   let f = await waitFor(h, (x) => x.includes('Print Person First2 Odd on…'))
@@ -78,7 +84,7 @@ test('record: p opens the printer picker, Enter prints, the job is followed in t
   expect(readRememberedPrinter('fake')).toEqual({ id: 'p1', name: 'Virtual PDF printer' })
 })
 
-test('grid: Space selects records, p prints the selection on the remembered printer (preselected)', async () => {
+test('grid: Space selects records, p, "a record sheet for each selected row" prints them on the remembered printer (preselected)', async () => {
   printing.enabled = true
   writeRememberedPrinter('fake', { id: 'p3', name: 'Back office laser' })
   h = await startTui(120, 36)
@@ -86,9 +92,13 @@ test('grid: Space selects records, p prints the selection on the remembered prin
   await waitFor(h, (f) => f.includes('First1'))
   await key(' ')
   await key(' ')
-  expect((h.store.screen?.menu?.() ?? []).map((e) => e.label)).toContain('Print 2 selected…')
+  expect((h.store.screen?.menu?.() ?? []).map((e) => e.label)).toContain('Print… (all rows, this page or the selection)')
   await key('p')
-  const f = await waitFor(h, (x) => x.includes('Print 2 Person records on…'))
+  let f = await waitFor(h, (x) => x.includes('Print Person: what?'))
+  expect(f).toContain('Selected rows (2) as a list')
+  await press(h, () => h!.setup.mockInput.typeText('record sheet'))
+  await enter()
+  f = await waitFor(h, (x) => x.includes('Print 2 Person records on…'))
   expect(f).toContain('Back office laser  (last used)')
   await enter()
   await waitFor(h, () => printing.runs.length === 1)
@@ -110,13 +120,115 @@ test(':printjobs lists the recent print jobs', async () => {
   expect(f).toContain('SPOOLER_COMPLETED')
 })
 
-test('without the printing extension: no Print action, p does nothing, :printjobs says what is missing', async () => {
+test('without the printing extension: Ctrl+P saves instead (the grid export, else the screen as text); :printjobs says what is missing', async () => {
   h = await startTui(120, 36)
   await command(h, 'table get person 2')
   await waitFor(h, (f) => f.includes('First2 Odd'))
-  expect((h.store.screen?.menu?.() ?? []).map((e) => e.label)).not.toContain('Print…')
-  await key('p')
-  expect(h.store.overlays.map((o) => o.id)).toEqual([])
+  expect((h.store.screen?.menu?.() ?? []).map((e) => e.label)).toContain('Print… (saves the screen as a file: no printing on this server)')
+  await ctrlP()
+  await waitFor(h, (x) => x.includes('Save the screen as text'))
+  await esc()
+  await command(h, 'table query person')
+  await waitFor(h, (f) => f.includes('First1'))
+  await ctrlP()
+  await waitFor(h, (x) => x.includes('save the list as a file instead'))
+  expect(printing.listRuns).toEqual([])
+  await esc()
   await command(h, 'printjobs')
   await waitFor(h, (x) => x.includes('Print jobs need the printing extension'))
+})
+
+test('Ctrl+P on a grid: all rows first (small grid), the printer picker, then a table list with the grid columns, widths, filter and sort', async () => {
+  printing.enabled = true
+  h = await startTui(140, 40)
+  await command(h, 'table query person -w "lastName = Odd" -o -id')
+  await waitFor(h, (f) => f.includes('First30'))
+  await ctrlP()
+  let f = await waitFor(h, (x) => x.includes('Print Person: what?'))
+  const all = f.indexOf('All 15 rows (current filter and sort)')
+  expect(all).toBeGreaterThan(-1)
+  expect(all).toBeLessThan(f.indexOf('This page (rows 1-15)'))
+  await enter()
+  f = await waitFor(h, (x) => x.includes('Print Person: 15 rows on…'))
+  await enter()
+  await waitFor(h, () => printing.listRuns.length === 1 && printing.listRuns[0]!.values.printingPrinterId !== undefined)
+  const run = printing.listRuns[0]!
+  expect(run.process).toBe('printingPrintTableList')
+  expect(run.values.tableName).toBe('person')
+  expect(run.values.scope).toBe('ALL')
+  expect(String(run.values.columns).split(',')).toContain('firstName')
+  expect(String(run.values.columnWidths).split(',').length).toBe(String(run.values.columns).split(',').length)
+  const filter = JSON.parse(String(run.values.filterJSON))
+  expect(filter.criteria[0]).toMatchObject({ fieldName: 'lastName', values: ['Odd'] })
+  expect(filter.orderBys).toEqual([{ fieldName: 'id', isAscending: false }])
+  expect(filter.skip).toBeUndefined()
+  expect(run.values.filterDescription).toContain('lastName')
+  expect(run.values.title).toBe('Person')
+  await waitFor(h, (x) => x.includes('Queued a print job for Person: 15 rows on Back office laser'))
+  await poll()
+  await poll()
+  f = await poll()
+  expect(f).toContain('Printed Person: 15 rows on Back office laser.')
+})
+
+test('Ctrl+P on a large unfiltered grid offers this page first; choosing it prints the page (skip/limit)', async () => {
+  printing.enabled = true
+  h = await startTui(140, 40)
+  await command(h, 'table query person')
+  await waitFor(h, (f) => f.includes('First1'))
+  const target = printTargetOf(h.store.screen)
+  expect(target.kind).toBe('list')
+  // 30 rows is small: all rows first; a large result puts this page first (kernel listScopeChoices)
+  await ctrlP()
+  await waitFor(h, (x) => x.includes('Print Person: what?'))
+  await press(h, () => h!.setup.mockInput.typeText('This page'))
+  await enter()
+  await waitFor(h, (x) => x.includes('Print Person: page 1 on…'))
+  await enter()
+  await waitFor(h, () => printing.listRuns.at(-1)?.values.printingPrinterId !== undefined)
+  const run = printing.listRuns.at(-1)!
+  expect(run.values.scope).toBe('PAGE')
+  expect(JSON.parse(String(run.values.filterJSON))).toMatchObject({ skip: 0 })
+})
+
+test('Ctrl+P on a record prints its record sheet; F8 says Print where there is no Delete, and prints the screen as text', async () => {
+  printing.enabled = true
+  h = await startTui(120, 36)
+  await command(h, 'table get person 2')
+  await waitFor(h, (f) => f.includes('First2 Odd'))
+  expect(printTargetOf(h.store.screen)).toEqual({ kind: 'record', table: 'person', ids: ['2'], what: 'Person First2 Odd' })
+  await ctrlP()
+  await waitFor(h, (x) => x.includes('Print Person First2 Odd on…'))
+  await esc()
+  await command(h, 'home')
+  let f = await waitFor(h, () => h!.store.screen?.kind === 'home')
+  expect(h.store.fkeys().find((k) => k.n === 8)?.label).toBe('Print')
+  expect(f).toContain('8Print')
+  expect(printTargetOf(h.store.screen)).toEqual({ kind: 'text', title: h.store.screen!.title() })
+  await press(h, () => h!.setup.mockInput.pressKey(KeyCodes.F8))
+  f = await waitFor(h, (x) => x.includes('Print this screen'))
+  await enter()
+  await waitFor(h, () => printing.listRuns.at(-1)?.values.printingPrinterId !== undefined)
+  const run = printing.listRuns.at(-1)!
+  expect(run.process).toBe('printingPrintText')
+  expect(String(run.values.text)).toContain('Apps')
+  expect(String(run.values.text)).not.toContain('1Help')
+})
+
+test('Print Screen (when the terminal passes it on) and :print <printer> print without the picker', async () => {
+  printing.enabled = true
+  h = await startTui(120, 36)
+  await press(h, () => h!.store.handleKey({ name: 'printscreen', sequence: '' } as never))
+  await waitFor(h, (x) => x.includes('Print this screen'))
+  await esc()
+  await command(h, 'print back office')
+  await waitFor(h, () => printing.listRuns.length === 1 && printing.listRuns[0]!.values.printingPrinterId === 'p3')
+  await command(h, 'print zebra')
+  await waitFor(h, (x) => x.includes('"Zebra" cannot print now: it does not take PDF'))
+})
+
+test('the screen capture drops the status line and the function-key bar and trims the right edge', () => {
+  const store = { captureScreen: () => ' Title bar   \n body line   \n\n status line \n 1Help 2Go to \n\n' } as never
+  expect(captureScreenText(store)).toBe(' Title bar\n body line')
+  expect(captureScreenText({} as never)).toBe('')
 })

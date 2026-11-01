@@ -53,7 +53,7 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 | Ctrl+C | quit at once (the terminal is restored) | `c` | copy a record |
 | `a` | actions here (the F9 Context entries) | `A`, `D` | audits, developer view (record or grid) |
 | `t` | tags of a record (collaboration extension) | Esc then 1..0, Ctrl+1..0 | F1..F10 when the terminal takes the F-keys |
-| `p` | Print… a record, or the grid's selection (printing extension) | | |
+| Ctrl+P, `p`, PrtSc | print what you see: record sheet, table list (all rows or this page), or the screen (printing extension; else save as a file) | | |
 
 Keys on one screen:
 
@@ -71,15 +71,31 @@ Keys on one screen:
 | Command line | ↑↓ history, Ctrl+R search the history, Tab complete, Enter run, Esc close |
 | Filter (F6) | ↑↓ rows, ←→ Tab cells, Enter or typing edits the focused cell (text and numbers in place, choices from a list, Space cycles true/false), Backspace clears it to `(any)`, Ctrl+N add, Ctrl+D remove, Ctrl+O AND/OR, Ctrl+G group, F2 Advanced (grammar, cheat sheet, caret under errors), F10 apply, Esc cancel; see [docs/filter-dialog.md](docs/filter-dialog.md) |
 
-Printing (printing extension, qbit-printing 2.x): on a table the server enabled Print for, `p` (or
-Print… in `a` and F9) on a record, or on a grid with records selected with Space (else the record under
-the cursor), opens the printer picker. Printers that can take a record print now (approved, exposed by a
-connected print agent, PDF) come first; the others are listed with the reason and cannot be picked. The
-printer chosen is remembered per profile and preselected next time, marked "(last used)". The records are
-queued as one job each; the title bar and status line show `print 1/3 RECEIVED` while they run, and a
-flash says when they have printed (or which state stopped them). `:printjobs` (F9 › Work › Print jobs)
-lists the recent print jobs; Enter shows one. Without the extension there is no Print action and
-`:printjobs` says what is missing. The qbit's own Print process is not listed again under Run.
+Printing: **Ctrl+P prints what you see, on every screen** (also `p` on records and grids, Print… in `a`
+and F9, F8 where the screen has no Delete for it, `:print`, and the Print Screen key where the terminal
+passes it on — most do not, so Ctrl+P is the key to rely on):
+
+- a record view prints its **record sheet** (the record's sections in tier order and a summary of each
+  child list);
+- a grid prints a **table list** with the columns, widths, filter and sort you see. It asks what: **all N
+  rows (current filter and sort)** — the first choice when the grid is filtered or has at most 2,000 rows —
+  or **this page**, and with a Space selection the **selected rows as a list** or **a record sheet for each
+  selected row**. The server prints up to 10,000 rows (more prints the first 10,000 and says so), repeats
+  the header on every page, turns the page landscape when the columns need it and puts the table, filter,
+  sort, row count, user and time in the header and footer;
+- any other screen (home, dashboards, the developer view, SQL results, process results, output) prints the
+  **screen as text**: a monospace PDF of what is drawn, without the status line and F-key bar, sized so a
+  wide terminal keeps its lines.
+
+Then the printer picker: printers that can print now (approved, exposed by a connected print agent, PDF)
+come first, the others are listed with the reason and cannot be picked; the printer chosen is remembered
+per profile and preselected next time, marked "(last used)". `:print <printer>` skips the picker (name,
+unique prefix or id). The title bar and status line show `print 1/3 RECEIVED` while jobs run, and a flash
+says when they have printed (or which state stopped them, or the row-limit note). `:printjobs` (F9 › Work ›
+Print jobs) lists recent jobs. Without the printing extension (or on a server older than printing 2.1 for
+lists and screens) Ctrl+P saves instead: a grid opens its export, other screens save their text as a file.
+The CLI forms still work on the command line: `:print person 1 2`, `:print job list`. Record sheets and
+table lists need qbit-printing 2.1 (`registerAll` puts Print on every table).
 
 Single-key shortcuts follow the server preference `keyboard.singleKeyShortcuts` and can be switched in F9
 Settings; every F-key action is also in the F9 menu and on the `:` line.
