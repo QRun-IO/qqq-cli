@@ -21,6 +21,7 @@ import type { Key } from '../keys'
 import { charOf } from '../keys'
 import { openForm, openProcess, openRecord, permits } from '../nav'
 import { ChoiceOverlay } from '../overlays/basic'
+import { RecordViewSettingsOverlay } from '../overlays/record-view-settings'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
@@ -322,7 +323,7 @@ export class RecordScreen implements Screen {
     }
     const inner = this.listWidth()
     const view = this.view()
-    const labelWidth = view.labelWidth ?? Math.min(28, Math.max(8, ...Object.values({ ...meta.fields, ...Object.fromEntries((meta.sections ?? []).flatMap((x) => x.fieldNames ?? []).filter((n) => this.fullMeta?.fields[n]).map((n) => [n, this.fullMeta!.fields[n]!])) }).map((f) => f.label.length + 1)))
+    const labelWidth = view.labelWidth ?? this.autoLabelWidth()
     rows.push({ text: `${rec.recordLabel ?? this.primaryKey}${this.cursor ? `   (${this.cursor.describe()})` : ''}`, fg: t.fg, bold: true })
     // collaboration (tags, comments, who is here) lives in the strip above the key line and the side panel, not here
     const tables: Record<string, TableMetaLike | undefined> = Object.fromEntries([...this.childMeta].map(([k, v]) => [k, v as unknown as TableMetaLike]))
@@ -808,33 +809,15 @@ export class RecordScreen implements Screen {
     return out
   }
 
+  /** The label width when none is saved: the longest label of the shown fields, 8 to 28 cells. */
+  autoLabelWidth(): number {
+    const meta = this.meta
+    if (!meta) return 20
+    return Math.min(28, Math.max(8, ...Object.values({ ...meta.fields, ...Object.fromEntries((meta.sections ?? []).flatMap((x) => x.fieldNames ?? []).filter((n) => this.fullMeta?.fields[n]).map((n) => [n, this.fullMeta!.fields[n]!])) }).map((f) => f.label.length + 1)))
+  }
+
   viewSettings(): Overlay | undefined {
-    const key = `record:${this.tableName}`
-    const v = readViewSettings(key)
-    const choices = [
-      { label: 'Automatic columns (two when there is room)', value: 'auto' },
-      { label: 'One column', value: '1' },
-      { label: 'Two columns', value: '2' },
-      { label: 'Label width: narrower (-4)', value: 'narrow' },
-      { label: 'Label width: wider (+4)', value: 'wide' },
-      ...[3, 5, 8, 10, 15].map((n) => ({ label: `Child list rows: ${n}${v.childRows === n ? ' (current)' : ''}`, value: `rows:${n}` })),
-      { label: `Child list rows: profile default (${readChildRows(this.store.status.profile || undefined)})`, value: 'rows:default' },
-      // the side panel only exists with the collaboration extension
-      ...(this.store.extensions.has('collaboration') ? (['auto', 'on', 'off'] as const).map((p) => ({ label: `Collaboration panel: ${p}${p === 'auto' ? ' (140 columns or more)' : ''}${(v.collabPanel ?? 'auto') === p ? ' (current)' : ''}`, value: `panel:${p}` })) : []),
-      { label: 'Reset record view settings', value: 'reset' },
-    ]
-    return new ChoiceOverlay(this.store, `Record view settings · ${this.meta?.label ?? this.tableName}`, choices, (value) => {
-      const next = { ...v }
-      if (value === 'auto') delete next.recordColumns
-      else if (value === '1' || value === '2') next.recordColumns = Number(value) as 1 | 2
-      else if (value === 'rows:default') delete next.childRows
-      else if (value === 'panel:auto') delete next.collabPanel
-      else if (value.startsWith('panel:')) next.collabPanel = value.slice(6) as 'on' | 'off'
-      else if (value.startsWith('rows:')) next.childRows = Number(value.slice(5))
-      else if (value === 'narrow' || value === 'wide') next.labelWidth = Math.max(6, Math.min(40, (v.labelWidth ?? 20) + (value === 'wide' ? 4 : -4)))
-      writeViewSettings(key, value === 'reset' ? undefined : next)
-      this.build()
-    })
+    return new RecordViewSettingsOverlay(this.store, this.meta?.label ?? this.tableName, `record:${this.tableName}`, this.autoLabelWidth(), readChildRows(this.store.status.profile || undefined), this.store.extensions.has('collaboration'), () => this.build())
   }
 
   /** The whole value of the field(s) on the row under the cursor, wrapped in a dialog (field rows cut values with …). */

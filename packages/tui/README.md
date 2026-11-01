@@ -249,9 +249,12 @@ on a list, PgDn/PgUp scroll it a box at a time and Down/Up (`j`/`k`) a row at it
 still step records; Enter opens the child under the cursor. A section whose `childRecordList` widget lists
 an association (by `manageAssociationName` or the association's `joinName`, as the Next UI binds it) shows
 that association there, once, under the section's label and with the widget's columns; other associations
-follow the sections, and a child's own child lists come last. The row count is a per-table view setting
-(`v`, saved as `childRows` in `ui.views.record:<table>`), defaulting to `ui.childRows` of the profile, else
-the global `ui.childRows`, else 5.
+follow the sections, and a child's own child lists come last. The record view settings (`v`) are a form
+like the grid's View settings, saved per table in `ui.views.record:<table>`: Columns (auto, 1, 2 with Space or
+←→), Label width (`labelWidth`, 8 to 60: type digits, `+`/`-` or ←→ step by one, Backspace returns to auto),
+Child list rows (`childRows`, 1 to 50, the same keys; Backspace returns to the default, `ui.childRows` of the
+profile, else the global `ui.childRows`, else 5), the Collaboration panel when the extension is present, and
+Reset to defaults (`r`, with a confirm). `*` marks a value changed from the default; Enter saves, Esc cancels.
 
 Nothing is drawn outside its container: every line is cut to the cells it has (measured in terminal cells,
 so wide characters count double) and a cut ends in `…`; dialogs never extend past the screen, and key help
@@ -288,7 +291,7 @@ fit, timeline and the follow state go first, the viewers and the tags last. On t
 more a Collaboration panel on the right (36 columns) shows the tags, the latest two comments (author, age,
 first line), the open tasks and the next due date, the files, the followers and everyone viewing now with
 what they are doing; the strip is then the keys only. The panel is a record view setting (`v`:
-Collaboration panel auto, on or off; on shows it whenever the record keeps 60 columns). Presence changes
+Collaboration panel row: auto, on or off; on shows it whenever the record keeps 60 columns). Presence changes
 redraw the strip and the panel live. Every strip segment and panel row is a click zone that presses its key
 (`t` `C` `P` `K` `T` `W`; the panel's heading lists everything, a viewer shows who is here). `a` and F9 list
 comments (list, add, reply), follow or stop following, attachments (list, download, upload, delete), the

@@ -368,7 +368,10 @@ in parentheses mark the changes made after the candidate.
 - The UI's record view keeps its layout when paging record to record: each child list is a box of fixed
   height (5 data rows by default, padded when shorter, scrolled inside with "rows 1-5 of 12" when longer),
   empty lists still draw their box, fields and columns are placed from the metadata, and the row count is a
-  per-table view setting (`v`, `childRows`) with a default in `ui.childRows`. An association a section's
+  per-table view setting (`v`, `childRows`) with a default in `ui.childRows`. The `v` dialog is a settings
+  form like the grid's View settings: Columns cycles auto, 1, 2; Label width (8-60) and Child list rows (1-50) take typed
+  digits or +/- and Backspace returns them to auto or the profile default; one Collaboration panel row cycles auto, on,
+  off; `r` resets with a confirm; `*` marks values changed from the default An association a section's
   `childRecordList` widget lists shows once, in the widget's place and under its label (0f7f536).
 - The UI's filter dialog reads escaped quotes like core's grammar (213c605); before the redesign a
   true/false quick filter could be set to true but not changed from the quick row (067d97c).

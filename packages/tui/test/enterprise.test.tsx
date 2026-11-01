@@ -14,6 +14,7 @@ import { RecordCollaboration } from '../src/collab'
 import type { RecordScreen } from '../src/screens/record'
 import { readViewSettings } from '@qrun-io/qqq-core'
 import { COLLABORATION, QUICK_SEARCH, collabState, fakeExtensions, resetCollab } from './fake-collab'
+import type { RecordViewSettingsOverlay } from '../src/overlays/record-view-settings'
 import { fakeFetch } from './fake-server'
 import { command, isolate, press, startTui, waitFor, type Harness } from './helpers'
 
@@ -214,13 +215,18 @@ test('record view at 160 columns: the collaboration panel (tags, latest comments
   await waitFor(h, () => h!.store.overlays.length > 0)
   await escape()
   // the view setting (v): off hides the panel at 160 columns, the full strip comes back, and it is saved
-  h.store.open(screen.viewSettings()!)
-  await type('panel: off')
+  const settings = screen.viewSettings() as RecordViewSettingsOverlay
+  h.store.open(settings)
+  settings.row = settings.kinds().indexOf('collabPanel')
+  await press(h, () => h!.setup.mockInput.typeText(' '))
+  await press(h, () => h!.setup.mockInput.typeText(' '))
   await enter()
   f = await waitFor(h, (x) => x.includes('Tags: rush, vip (t) · 1 comment (C)') && !x.includes('Viewing now'))
   expect(readViewSettings('record:person').collabPanel).toBe('off')
-  h.store.open(screen.viewSettings()!)
-  await type('panel: auto')
+  const again = screen.viewSettings() as RecordViewSettingsOverlay
+  h.store.open(again)
+  again.row = again.kinds().indexOf('collabPanel')
+  await press(h, () => h!.setup.mockInput.typeText(' '))
   await enter()
   await waitFor(h, (x) => x.includes('Viewing now'))
   expect(readViewSettings('record:person').collabPanel).toBeUndefined()
