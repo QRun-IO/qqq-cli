@@ -36,10 +36,14 @@ export async function connect(store: AppStore, target: Target, deps: SignInDeps)
   if (login?.kind === 'session') {
     const u = login.user ?? {}
     store.status.user = String(u.displayName ?? u.name ?? u.email ?? u.username ?? '')
+    const id = u.email ?? u.idReference ?? u.username
+    if (id !== undefined && id !== null && id !== '') store.status.userId = String(id)
     store.status.auth = `${login.authType.toLowerCase()} session`
   } else if (login) {
     const claims = decodeJwtClaims(login.tokens.accessToken)
     store.status.user = String(claims.email ?? claims.preferred_username ?? claims.sub ?? '')
+    const id = claims.email ?? claims.preferred_username ?? claims.sub
+    if (id !== undefined && id !== null && id !== '') store.status.userId = String(id)
     store.status.auth = 'oauth2'
   } else {
     store.status.auth = 'QQQ_TOKEN'

@@ -6,6 +6,7 @@
 /** A fake UI API server for in-memory TUI tests: a person table with pets, a contingent address form, a process. */
 
 import { accRoute } from './fake-acc'
+import { bulkProcessesMeta, bulkRoute } from './fake-bulk'
 
 type J = Record<string, unknown>
 
@@ -87,14 +88,16 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): t
     log.requests.push({ method: request.method, path, body })
     const acc = await accRoute(path, request.method, body, url)
     if (acc) return acc
+    const bulk = await bulkRoute(path, request.method, body)
+    if (bulk) return bulk
     if (path === '/version') return json({ apiVersion: '1.8.0', features: ['metaData', 'tables', 'processes'], extensions: [] })
     if (path === '/metaData' && bigMeta) return json(bigMeta)
     if (path === '/metaData') {
       return json({
         apps: { people: { name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] } },
         appTree: [{ type: 'APP', name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] }],
-        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, order: { name: 'order', label: 'Order' }, acc: { name: 'acc', label: 'Acc', insertPermission: true }, part: { name: 'part', label: 'Part', insertPermission: true }, scriptRevisionFile: { name: 'scriptRevisionFile', label: 'Files' }, line: { name: 'line', label: 'Order Line' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true } },
-        processes: { sleeper: { name: 'sleeper', label: 'Sleeper', tableName: 'person' }, scanner: { name: 'scanner', label: 'Scanner' }, wizard: { name: 'wizard', label: 'Wizard' }, GetAuditsForRecord: { name: 'GetAuditsForRecord', label: 'Audits', isHidden: true }, columnStats: { name: 'columnStats', label: 'Stats', isHidden: true }, querySavedView: { name: 'querySavedView', label: 'q', isHidden: true } },
+        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, order: { name: 'order', label: 'Order' }, acc: { name: 'acc', label: 'Acc', insertPermission: true }, part: { name: 'part', label: 'Part', insertPermission: true }, scriptRevisionFile: { name: 'scriptRevisionFile', label: 'Files' }, line: { name: 'line', label: 'Order Line' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true }, blk: { name: 'blk', label: 'Blk', insertPermission: true } },
+        processes: { ...bulkProcessesMeta, sleeper: { name: 'sleeper', label: 'Sleeper', tableName: 'person' }, scanner: { name: 'scanner', label: 'Scanner' }, wizard: { name: 'wizard', label: 'Wizard' }, GetAuditsForRecord: { name: 'GetAuditsForRecord', label: 'Audits', isHidden: true }, columnStats: { name: 'columnStats', label: 'Stats', isHidden: true }, querySavedView: { name: 'querySavedView', label: 'q', isHidden: true } },
         reports: { streamReport: { name: 'streamReport', label: 'Stream report' }, wizReport: { name: 'wizReport', label: 'Wizard report', processName: 'wizard' } },
         widgets: { ctxWidget: { name: 'ctxWidget', label: 'Context' }, stepWidget: { name: 'stepWidget', label: 'Step widget' }, payloadWidget: { name: 'payloadWidget', label: 'Payload' } }, branding: { appName: 'Fake' },
       })

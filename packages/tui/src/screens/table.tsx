@@ -4,7 +4,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { ResultCursor, buildViewJson, filterDateTimesToUtc, relatedRecordTarget, planJoins, withJoinFields, type ExposedJoin, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
+import { ResultCursor, bulkProcesses, uploadTemplates, safeFileName, saveDownload, buildViewJson, filterDateTimesToUtc, relatedRecordTarget, planJoins, withJoinFields, type ExposedJoin, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
@@ -20,6 +20,7 @@ import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
 import { errorText, fieldCell, num, pad, padLeft, shellQuote, trunc } from '../util/text'
 import { Panel } from './list'
+import { startBulk, type BulkKind } from './bulk'
 
 export interface GridColumn {
   name: string
@@ -387,11 +388,83 @@ export class TableScreen implements Screen {
     })
   }
 
-  /** Table processes for the bulk bar and the menu (bulk-load file processes are parked). */
+  /** The table's bulk processes (kernel bulkProcesses: client capabilities, else the standard names). */
+  bulk(): Partial<Record<BulkKind, string>> {
+    if (!this.meta || !this.store.meta) return {}
+    const b = bulkProcesses(this.meta as never, this.store.meta as never)
+    return { insert: b.insert, editWithFile: b.editWithFile, edit: b.edit, delete: b.delete }
+  }
+
+  /** Table processes for the bulk bar and the menu (the bulk processes run in the bulk wizard). */
   tableProcesses(): Array<{ name: string; label: string; parked?: string }> {
-    const procs = Object.values(this.store.meta?.processes ?? {}).filter((p) => p.tableName === this.tableName)
-    return procs.map((p) => ({ name: p.name, label: p.label, parked: /bulkInsert|bulkEditWithFile|bulkLoad/i.test(p.name) ? 'parked: bulk load needs file uploads' : undefined }))
+    const bulkNames = new Set(Object.values(this.bulk()).filter(Boolean))
+    const procs = Object.values(this.store.meta?.processes ?? {}).filter((p) => p.tableName === this.tableName && !bulkNames.has(p.name) && !(p as { isHidden?: boolean }).isHidden)
+    return procs.map((p) => ({ name: p.name, label: p.label, parked: (p as { hasPermission?: boolean }).hasPermission === false ? 'you may not run it' : undefined }))
       .sort((a, b) => Number(Boolean(a.parked)) - Number(Boolean(b.parked)) || a.label.localeCompare(b.label))
+  }
+
+  /** The bulk actions with what they work on (the selection, the result, or a file). */
+  bulkEntries(): MenuEntry[] {
+    const b = this.bulk()
+    const what = this.selectAll?.kind === 'all' ? 'the full result' : this.selectAll?.kind === 'first' ? `the first ${this.selectAll.n}` : this.selection.size ? `${this.selection.size} selected` : 'choose the records'
+    const out: MenuEntry[] = []
+    if (b.edit) out.push({ id: 'bulk:edit', section: 'Context', label: 'Bulk edit', detail: what, command: `table bulk-edit ${this.tableName} -r <ids> --set <field=value>`, run: () => this.withRecords('Bulk edit', (records) => startBulk(this.store, this.tableName, b.edit!, { kind: 'edit', records, tableVariant: variantParam(this.variant), onDone: () => this.afterBulk(false) })) })
+    if (b.delete) out.push({ id: 'bulk:delete', section: 'Context', label: 'Bulk delete', detail: what, command: `table bulk-delete ${this.tableName} -r <ids>`, run: () => this.withRecords('Bulk delete', (records) => startBulk(this.store, this.tableName, b.delete!, { kind: 'delete', records, tableVariant: variantParam(this.variant), onDone: () => this.afterBulk(true) })) })
+    if (b.insert) out.push({ id: 'bulk:insert', section: 'Context', label: 'Bulk insert from a file', detail: 'CSV or XLSX', command: `table bulk-insert ${this.tableName} --file <file>`, run: () => startBulk(this.store, this.tableName, b.insert!, { kind: 'insert', tableVariant: variantParam(this.variant), onDone: () => this.afterBulk(false) }) })
+    if (b.insert) out.push({ id: 'bulk:template', section: 'Context', label: 'Save the bulk insert template file', run: () => this.saveTemplate(b.insert!) })
+    if (b.editWithFile) out.push({ id: 'bulk:editWithFile', section: 'Context', label: 'Bulk edit with a file', detail: 'rows found by key fields', command: `table bulk-edit ${this.tableName} --file <file> --key <field>`, run: () => startBulk(this.store, this.tableName, b.editWithFile!, { kind: 'editWithFile', tableVariant: variantParam(this.variant), onDone: () => this.afterBulk(false) }) })
+    return out
+  }
+
+  /** After a bulk run: reload the grid; a delete drops the selection (those records are gone). */
+  afterBulk(deleted: boolean): void {
+    if (deleted) {
+      this.selection.clear()
+      this.selectAll = undefined
+    }
+    this.load(true)
+  }
+
+  /** The records an action runs on: the selection, the full result, its first N, or (asked) the cursor record. */
+  withRecords(label: string, then: (records: { ids: string[] } | { filter: QueryFilter }) => void): void {
+    const ids = [...this.selection]
+    if (this.selectAll?.kind === 'all') return then({ filter: this.fullFilter() })
+    if (this.selectAll?.kind === 'first') return then({ filter: { ...this.fullFilter(), limit: this.selectAll.n } })
+    if (ids.length) return then({ ids })
+    const key = this.keyOf(this.currentRecord)
+    const total = this.cursor?.total
+    type Scope = 'cursor' | 'all' | 'first'
+    const choices: Array<{ label: string; value: Scope; detail?: string }> = [
+      ...(key !== undefined ? [{ label: `The record under the cursor (${key})`, value: 'cursor' as const }] : []),
+      { label: `Every record of the result${total !== undefined ? ` (${num(total)})` : ''}`, value: 'all', detail: 'the filter is sent' },
+      { label: 'The first N records of the result…', value: 'first', detail: 'filter with a limit' },
+    ]
+    this.store.open(new ChoiceOverlay<Scope>(this.store, `${label}: which records?`, choices, (scope) => {
+      if (scope === 'cursor') then({ ids: [key!] })
+      else if (scope === 'all') then({ filter: this.fullFilter() })
+      else this.store.open(new PromptOverlay(this.store, 'How many records?', 'The first N records of the result, in its sort order.', (n) => {
+        const limit = Number(n)
+        if (!Number.isInteger(limit) || limit < 1) return this.store.flash('a whole number above 0', 'error')
+        then({ filter: { ...this.fullFilter(), limit } })
+      }, '10'))
+    }))
+  }
+
+  /** The upload instructions' template file (a data: link in the upload step), saved through the save dialog. */
+  saveTemplate(processName: string): void {
+    const c = this.store.client!
+    const work = (async () => {
+      const init = (await c.call('initProcess', { path: { processName }, form: { values: JSON.stringify({ tableName: this.tableName }), stepTimeoutMillis: '60000' } })).data as Record<string, unknown>
+      const values = (init.values ?? {}) as Record<string, unknown>
+      if (init.processUUID) await c.call('cancelProcess', { path: { processName, processUUID: String(init.processUUID) } }).catch(() => undefined)
+      return uploadTemplates(Object.entries(values).find(([k]) => k.endsWith('.html'))?.[1])
+    })()
+    this.store.run(work, (templates) => {
+      if (!templates.length) return this.store.flash('the upload instructions offer no template file')
+      const save = (tpl: { name: string; bytes: Uint8Array }) => saveFile(this.store, `Save ${tpl.name}`, safeFileName(tpl.name), (path) => this.store.message(`Saved ${saveDownload(path, tpl.bytes, { explicit: true })} (${tpl.bytes.length} bytes).`))
+      if (templates.length === 1) return save(templates[0]!)
+      this.store.open(new ChoiceOverlay(this.store, 'Template', templates.map((tpl) => ({ label: tpl.name, value: tpl })), save))
+    })
   }
 
   /** The selection menu: this page, the full result, the first N, or clear. */
@@ -445,9 +518,10 @@ export class TableScreen implements Screen {
 
   bulkActions(): void {
     const procs = this.tableProcesses()
-    if (!procs.length) return this.store.flash('this table has no processes')
+    if (!procs.length && !this.bulkEntries().length) return this.store.flash('this table has no processes')
     const what = this.selectAll?.kind === 'all' ? 'the full result' : this.selectAll?.kind === 'first' ? `the first ${this.selectAll.n}` : this.selection.size ? `${this.selection.size} selected` : 'the record under the cursor'
-    this.store.open(new ChoiceOverlay(this.store, `Run on ${what}`, procs.map((p) => ({ label: p.label, value: p.name, detail: p.name, disabled: p.parked })), (name) => this.runProcess(name)))
+    const bulk = this.bulkEntries().filter((e) => e.id !== 'bulk:template' && e.id !== 'bulk:insert' && e.id !== 'bulk:editWithFile')
+    this.store.open(new ChoiceOverlay<() => void>(this.store, `Run on ${what}`, [...bulk.map((e) => ({ label: e.label, value: e.run!, detail: 'bulk wizard' })), ...procs.map((p) => ({ label: p.label, value: () => this.runProcess(p.name), detail: p.name, disabled: p.parked }))], (run) => run()))
   }
 
   exportDialog(): void {
@@ -591,6 +665,7 @@ export class TableScreen implements Screen {
       { section: 'Context', label: 'Copy as a CLI command', detail: this.cliEquivalent(), run: () => this.store.message(`qqq ${this.cliEquivalent()}`, 'info', 'CLI equivalent') },
     ]
     for (const f of ['csv', 'xlsx', 'json', 'tsv']) out.push({ section: 'Context', label: `Export as ${f}`, key: f === 'csv' ? 'x' : undefined, command: `export ${f}`, run: () => this.exportAs(f) })
+    out.push(...this.bulkEntries())
     for (const p of this.tableProcesses()) out.push({ section: 'Context', label: `Run ${p.label}`, detail: this.selection.size ? `${this.selection.size} selected` : 'cursor record', disabled: p.parked, run: () => this.runProcess(p.name) })
     out.push({ section: 'Context', label: 'Developer: application APIs of this table', key: 'D', command: 'dev', run: () => this.store.push(new TableApisScreen(this.store, this.tableName)) })
     out.push({ section: 'Context', label: 'Saved views: open, save, delete', command: 'views', run: () => this.savedViews() })

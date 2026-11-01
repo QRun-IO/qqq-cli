@@ -248,6 +248,29 @@ TUI.update({
  'HLP-002': (P, 'table, field and section help by screen role in F1 (unit-tested only; the sample has none)'),
 })
 
+# Batch: the bulk wizard (kernel runBulkProcess) and reports.
+TUI.update({
+ 'QRY-034': (P, 'a lists bulk insert, bulk edit with a file, bulk edit, bulk delete, the template and the table processes, with each CLI command; live'),
+ 'QRY-031': (P, 'bulk edit on the checked records sends their ids; live: 2 person records edited and verified'),
+ 'QRY-032': (P, 'bulk delete of the selected/full result sends the filter; live: 2 person records deleted'),
+ 'PRC-016': (P, 'F4 goes back to the backend back step (process screen and bulk wizard); live'),
+ 'PRC-029': (P, 'bulk edit: Space switches fields on, Enter sets typed values (picker, yes/no), review, result; live on person'),
+ 'PRC-030': (P, 'bulk delete: review with count and preview, validation choice, confirm, result; live on person'),
+ 'PRC-031': (P, 'bulk insert: file navigator upload, column mapping grid, value mapping, review preview, result; live: 2 person rows from CSV (then deleted)'),
+ 'PRC-032': (P, 'mapping checked before Ctrl+S (kernel checkMapping), F4 back through mapping and upload (unit-tested only)'),
+ 'PRC-033': (P, 'bulk edit with a file: key fields (k) from the server, mapping, review, result (unit-tested only)'),
+ 'PRC-034': (P, 'a: save the bulk insert template file(s) from the upload instructions; live on person (3 templates)'),
+ 'PRC-046': (P, 'P on the mapping screen: use, save, update, delete saved profiles (unit-tested only; the sample has none)'),
+ 'PRC-058': (P, 'update a saved profile after a confirm listing the changes (kernel diffMappings), new profile, delete (unit-tested only)'),
+ 'PRC-059': (P, 'profiles listed as yours or shared by their owner; update and delete only for the owner (unit-tested only)'),
+ 'PRC-060': (P, 'mapping grid: field help of the row, column previews, required marks, repeated-header warnings, header row toggle h; live'),
+ 'PRC-061': (P, 'typed defaults (picker for possible values, yes/no), searchable value mapping picker, searchable field source menu (unit-tested)'),
+ 'NAV-028': (P, 'reports listed under their app and in the tree, palette and F9; Enter runs one (format chosen, process screens, file saved) (unit-tested only; the sample has no reports)'),
+ 'RPT-008': (P, 'reports appear in app navigation and run from there (unit-tested only)'),
+ 'RPT-011': (P, 'a report without a process streams from GET /reports/{name}?format= into the save dialog (unit-tested only)'),
+ 'RPT-020': (P, 'report files download from the report route and the process DOWNLOAD_FORM (unit-tested only)'),
+})
+
 rows = []
 for line in open(SRC, encoding='utf-8', errors='replace'):
     m = re.match(r'^\|\s*([A-Z]{3}-\d{3})\s*\|\s*(.*?)\s*\|', line)

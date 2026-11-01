@@ -28,16 +28,16 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 |---|---|---|---|---|---|---|
 | HLP | 6 | 2 | 4 | 0 | 0 | 0 |
 | INT | 14 | 10 | 0 | 0 | 0 | 4 |
-| NAV | 40 | 19 | 0 | 1 | 1 | 19 |
-| PRC | 60 | 44 | 1 | 1 | 1 | 13 |
+| NAV | 40 | 20 | 0 | 0 | 1 | 19 |
+| PRC | 60 | 53 | 1 | 1 | 1 | 4 |
 | PRF | 5 | 4 | 0 | 1 | 0 | 0 |
-| QRY | 70 | 59 | 0 | 1 | 1 | 9 |
+| QRY | 70 | 60 | 0 | 0 | 1 | 9 |
 | REC | 65 | 58 | 1 | 0 | 0 | 6 |
 | REL | 9 | 9 | 0 | 0 | 0 | 0 |
-| RPT | 20 | 0 | 20 | 0 | 0 | 0 |
+| RPT | 20 | 3 | 17 | 0 | 0 | 0 |
 | SEC | 43 | 7 | 23 | 1 | 0 | 12 |
 | WID | 69 | 15 | 43 | 0 | 0 | 11 |
-| **all** | 401 | 227 | 92 | 5 | 3 | 74 |
+| **all** | 401 | 241 | 89 | 3 | 3 | 65 |
 
 ## Rows
 
@@ -70,7 +70,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | NAV-025 | Header search, '/' search dialog and search page jump to navigation targets and recently viewed records by lab | pass | pass | qqq search; TUI: the palette (F2, /, ., Ctrl+K) jumps to navigation targets and recently viewed records; live |
 | NAV-026 | Mobile navigation drawer opens from the header, navigates and closes | n/a | n/a | browser shell |
 | NAV-027 | Developer page reports the backend metadata counts and the running framework versions | pass | pass | qqq whoami: apiVersion, features, counts; TUI: F9 › Connection: UI API version, features, extensions, metadata generation and age, client build; live |
-| NAV-028 | Reports in the app tree are listed under their app (sidebar and app home Reports group) and open the report pa | partial | partial | qqq report list (reports with their app); the sample app has no reports to verify; TUI: reports listed in the tree, Home and palette; run through :report run |
+| NAV-028 | Reports in the app tree are listed under their app (sidebar and app home Reports group) and open the report pa | partial | pass | qqq report list (reports with their app); the sample app has no reports to verify; TUI: reports listed under their app and in the tree, palette and F9; Enter runs one (format chosen, process screens, file saved) (unit-tested only; the sample has no reports) |
 | NAV-029 | A user who may access no apps sees the Dashboard entry and the no-apps message (Material NoApps parity) | n/a | n/a | browser shell |
 | NAV-030 | Global search (header box, '/' dialog, search page) lists the records a backend record search (POST /qqq/v1/se | pass | blocked | qqq search over POST /search; TUI: the palette calls POST /search; the sample lists recordSearch with no provider (server finding 21) |
 | NAV-031 | Record search respects table read permissions and record security locks, in the UI and the API | pass | pass | server-enforced; refusals shown; TUI: server-enforced; the palette shows only what the server returns |
@@ -103,7 +103,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRC-013 | HTML component renders the step html value, sanitized | pass | pass | {step}.html as text (tags stripped); TUI: HTML component as text from the kernel screen |
 | PRC-014 | DOWNLOAD_FORM delivers the generated file | pass | pass | GET /download/{file} saved to --out-dir, else the download directory; no sample process offers one, verified by tests; TUI: w saves the DOWNLOAD_FORM file through the save dialog (unit-tested only) |
 | PRC-015 | Step help content for process screens | pass | pass | step helpContents shown on the screen, process help at start and in describe; none in the sample; TUI: step and process help in the screen |
-| PRC-016 | Back to the backend back step with entered values | pass | pass | b at a prompt when the step reports backStep (isStepBack=true); verified live: bulk insert -i back from the mapping to the upload and from the review to the mapping; TUI: F4 goes back to the backend back step with the entered values (isStepBack; unit-tested only) |
+| PRC-016 | Back to the backend back step with entered values | pass | pass | b at a prompt when the step reports backStep (isStepBack=true); verified live: bulk insert -i back from the mapping to the upload and from the review to the mapping; TUI: F4 goes back to the backend back step (process screen and bulk wizard); live |
 | PRC-017 | Dynamic step list from processMetaDataAdjustment.updatedFrontendStepList | pass | pass | updatedFrontendStepList followed; TUI: kernel runner |
 | PRC-018 | Updated field metadata from processMetaDataAdjustment.updatedFields | pass | pass | updatedFields applied; TUI: kernel runner |
 | PRC-019 | Async job progress in the live job view (message, N / M, determinate progress bar, elapsed) then continue | pass | pass | message, N/M, elapsed on stderr; TUI: bar, N/M, message, elapsed |
@@ -116,12 +116,12 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRC-026 | Validation review: input count, validate-or-skip choice, Next/Submit label, record preview | pass | pass | count and preview; asks validate or skip on a terminal, --validate / --skip-validation; Submit? after validation; TUI: validate or skip, then run |
 | PRC-027 | Full validation summary lines (OK, WARNING, ERROR) with record links | pass | pass | status, count, message lines; TUI: summary lines colored by status |
 | PRC-028 | Process summary results after execution and persisted effects | pass | pass |  |
-| PRC-029 | Bulk edit: switched-on fields only, review and result | pass | pass | qqq table bulk-edit <t> -r ids/-w ... --set f=v --clear f (-i chooses fields): only the switched-on fields are sent (bulkEditEnabledFields), review, result; verified live on person; TUI: Ctrl+T marks fields; bulkEditEnabledFields |
-| PRC-030 | Bulk delete: review, validation and result | pass | pass | qqq table bulk-delete <t> -r ids/-w ...: review with count and preview, validation, result; asks unless --yes (exit 2 without a terminal); verified live; TUI: Person Bulk Delete from the bulk bar runs through review and result |
-| PRC-031 | Bulk insert: upload, column mapping, value mapping, profile, review preview and result | pass | n/a | qqq table bulk-insert <t> --file x.csv: upload, column mapping (server suggestion cleaned per finding 11, --mapping document, --column/--default, -i), value mapping, review preview and validation, result; FLAT and TALL verified live; TUI: bulk load parked |
-| PRC-032 | Bulk load mapping validation and Back through mapping and upload | pass | n/a | mapping checked before submit (unmapped field, unknown column, layout, WIDE repetition, key fields, repeated header); Back from mapping to upload and from review to mapping verified live with -i; TUI: bulk load parked |
-| PRC-033 | Bulk edit with a file matched by key fields | pass | n/a | qqq table bulk-edit <t> --file x.csv --key id [--mapping]: rows matched by the key, value mapping; verified live on person; TUI: bulk load parked |
-| PRC-034 | Upload instructions HTML with downloadable template | pass | n/a | upload instructions printed as text; --template [flat/tall/wide] [--out] saves the data: templates; verified live; TUI: bulk load parked for the TUI |
+| PRC-029 | Bulk edit: switched-on fields only, review and result | pass | pass | qqq table bulk-edit <t> -r ids/-w ... --set f=v --clear f (-i chooses fields): only the switched-on fields are sent (bulkEditEnabledFields), review, result; verified live on person; TUI: bulk edit: Space switches fields on, Enter sets typed values (picker, yes/no), review, result; live on person |
+| PRC-030 | Bulk delete: review, validation and result | pass | pass | qqq table bulk-delete <t> -r ids/-w ...: review with count and preview, validation, result; asks unless --yes (exit 2 without a terminal); verified live; TUI: bulk delete: review with count and preview, validation choice, confirm, result; live on person |
+| PRC-031 | Bulk insert: upload, column mapping, value mapping, profile, review preview and result | pass | pass | qqq table bulk-insert <t> --file x.csv: upload, column mapping (server suggestion cleaned per finding 11, --mapping document, --column/--default, -i), value mapping, review preview and validation, result; FLAT and TALL verified live; TUI: bulk insert: file navigator upload, column mapping grid, value mapping, review preview, result; live: 2 person rows from CSV (then deleted) |
+| PRC-032 | Bulk load mapping validation and Back through mapping and upload | pass | pass | mapping checked before submit (unmapped field, unknown column, layout, WIDE repetition, key fields, repeated header); Back from mapping to upload and from review to mapping verified live with -i; TUI: mapping checked before Ctrl+S (kernel checkMapping), F4 back through mapping and upload (unit-tested only) |
+| PRC-033 | Bulk edit with a file matched by key fields | pass | pass | qqq table bulk-edit <t> --file x.csv --key id [--mapping]: rows matched by the key, value mapping; verified live on person; TUI: bulk edit with a file: key fields (k) from the server, mapping, review, result (unit-tested only) |
+| PRC-034 | Upload instructions HTML with downloadable template | pass | pass | upload instructions printed as text; --template [flat/tall/wide] [--out] saves the data: templates; verified live; TUI: a: save the bulk insert template file(s) from the upload instructions; live on person (3 templates) |
 | PRC-035 | Named WIDGET fetched with the process UUID and values | pass | pass | named widget with the process UUID and values, kernel render model; none in the sample, verified by tests; TUI: named WIDGET fetched with the process UUID and values, drawn from the kernel screen (unit-tested only) |
 | PRC-036 | Named composite WIDGET seeded from process values | pass | pass | seeded from the process value of the widget name; TUI: composite widget blocks seeded from process values drawn as text (kernel screen; unit-tested only) |
 | PRC-037 | Ad hoc composite WIDGET: interpolation, conditional blocks, action buttons, submit-on-enter inputs | partial | partial | ad hoc blocks rendered with interpolation; buttons and inputs not offered; TUI: ad hoc widget blocks drawn; no action buttons |
@@ -133,16 +133,16 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRC-043 | Default process values from the link (defaultProcessValues) | pass | pass | -v values seed every step; TUI: :process run P -v name=value seeds the values |
 | PRC-044 | Scanner-format screens: no heading or action bar, input blocks submit | n/a | pass | scanner screens are interactive; TUI: scanner-format steps: no heading or step list, Enter in the input submits (unit-tested only; no sample scanner process) |
 | PRC-045 | State-machine step flow: repeated screens, no linear stepper | pass | pass | the runner follows nextStep whatever the flow; TUI: the runner follows nextStep whatever the flow |
-| PRC-046 | Saved bulk load profiles: save, choose for a later load, delete | pass | n/a | qqq bulk-profile list/show/save/rename/delete <t> [--edit], bulk-insert --saved <name> and --save-profile; unit-tested and stub-server CLI tests: the sample has no saved-profile processes; TUI: bulk load parked for the TUI |
+| PRC-046 | Saved bulk load profiles: save, choose for a later load, delete | pass | pass | qqq bulk-profile list/show/save/rename/delete <t> [--edit], bulk-insert --saved <name> and --save-profile; unit-tested and stub-server CLI tests: the sample has no saved-profile processes; TUI: P on the mapping screen: use, save, update, delete saved profiles (unit-tested only; the sample has none) |
 | PRC-047 | A run with no frontend screens completes with a completion screen | pass | pass | completes on init |
 | PRC-048 | Process-field possible values load and search through the v1 API | pass | pass | searchProcessPossibleValues |
 | PRC-049 | Processes run on the v1 process routes (upload, step, back step, records, metadata) | pass | pass | v1 routes only; TUI: v1 process routes through the kernel |
 | PRC-050 | Processes the instance adds to every query and record screen (Material processNamesToAddToAllQueryAndViewScree | n/a | pass | Material-specific; TUI: every process the metadata gives the table is in the bulk bar and F9 |
 | PRC-051 | Dependent possible values on a process screen: the choices follow the screen's other values | pass | pass | dependent choices narrow after each answer; TUI: contingent picker narrows |
-| PRC-058 | Saved bulk load profile menu (Material SavedBulkLoadProfiles): new profile, update after the confirm, rename,  | pass | n/a | bulk-profile save --replace prints the changes and asks (--yes), rename, delete; stub-server CLI tests (the sample has no saved-profile processes); TUI: bulk load parked |
-| PRC-059 | Saved bulk load profile ownership: yours vs shared with you, and only the owner may save, rename or delete a p | pass | n/a | profiles listed as yours, then shared by their owner; save over, rename and delete refused for a profile you do not own; stub-server CLI tests; TUI: bulk load parked |
-| PRC-060 | Bulk load file mapping form fidelity: field help, column tooltips, repeated-header warning, header-row toggle  | pass | n/a | -i lists columns with preview values and the step's field help, asks for the header row (--no-header), warns on repeated headers (only the first is read); header toggle and previews verified live, help and repeated headers unit-tested; TUI: bulk load parked |
-| PRC-061 | Typed bulk load default values, searchable value mapping and the grouped, searchable Add Fields menu (Material | pass | n/a | defaults typed per field (--default f=label resolves possible values; yes/no booleans), value mapping by label or id with choices listed, -i add-fields list grouped by table; verified live (Dog/Cat to species ids, yes/no to booleans); TUI: bulk load parked |
+| PRC-058 | Saved bulk load profile menu (Material SavedBulkLoadProfiles): new profile, update after the confirm, rename,  | pass | pass | bulk-profile save --replace prints the changes and asks (--yes), rename, delete; stub-server CLI tests (the sample has no saved-profile processes); TUI: update a saved profile after a confirm listing the changes (kernel diffMappings), new profile, delete (unit-tested only) |
+| PRC-059 | Saved bulk load profile ownership: yours vs shared with you, and only the owner may save, rename or delete a p | pass | pass | profiles listed as yours, then shared by their owner; save over, rename and delete refused for a profile you do not own; stub-server CLI tests; TUI: profiles listed as yours or shared by their owner; update and delete only for the owner (unit-tested only) |
+| PRC-060 | Bulk load file mapping form fidelity: field help, column tooltips, repeated-header warning, header-row toggle  | pass | pass | -i lists columns with preview values and the step's field help, asks for the header row (--no-header), warns on repeated headers (only the first is read); header toggle and previews verified live, help and repeated headers unit-tested; TUI: mapping grid: field help of the row, column previews, required marks, repeated-header warnings, header row toggle h; live |
+| PRC-061 | Typed bulk load default values, searchable value mapping and the grouped, searchable Add Fields menu (Material | pass | pass | defaults typed per field (--default f=label resolves possible values; yes/no booleans), value mapping by label or id with choices listed, -i add-fields list grouped by table; verified live (Dog/Cat to species ids, yes/no to booleans); TUI: typed defaults (picker for possible values, yes/no), searchable value mapping picker, searchable field source menu (unit-tested) |
 | PRC-062 | Composite INPUT_FIELD metadata editors share process validation and multipart submission | n/a | todo | composite editors; TUI: composite INPUT_FIELD editors |
 | PRC-063 | INPUT_FIELD autofocus and trimmed Enter values on subsequent process screens | n/a | pass | TUI: the first field has focus; behaviors trim on set |
 | PRC-064 | DATE_TIME process inputs display local time and submit UTC instants | pass | pass | process values typed local, sent UTC; screens show the local zone; TUI: step DATE_TIME inputs edited in the local zone, sent as UTC (kernel datetime) |
@@ -177,10 +177,10 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | QRY-022 | Column statistics aggregate the filtered rows | partial | pass | qqq table stats <t> <field> [-w …] through the columnStats process; the sample has neither QUERY_STATS nor the process, so --local (same figures from the matching rows) is what was verified; TUI: S: kernel column statistics of the column under the cursor with the filter (unit-tested only; no sample QUERY_STATS table) |
 | QRY-023 | Tables without QUERY_STATS offer no column statistics | pass | pass | without QUERY_STATS (or the process) table stats exits 2 with the reason; --local is an explicit opt-in; TUI: the refusal says why |
 | QRY-030 | Selection menu: this page, full query result, first N, clear | pass | pass | -r ids, --filter-json, --limit; TUI: Ctrl+A: this page, the full result, the first N, clear (unit-tested) |
-| QRY-031 | Bulk Edit launches with the checked record ids | pass | pass | table bulk-edit -r ids; verified live |
-| QRY-032 | Bulk Delete of the full query result sends the whole filter | pass | pass | table bulk-delete -w ... (or --filter-json, --all-records) sends the whole filter; verified live; TUI: with the full result selected, bulk delete gets the whole filter (unit-tested) |
+| QRY-031 | Bulk Edit launches with the checked record ids | pass | pass | table bulk-edit -r ids; verified live; TUI: bulk edit on the checked records sends their ids; live: 2 person records edited and verified |
+| QRY-032 | Bulk Delete of the full query result sends the whole filter | pass | pass | table bulk-delete -w ... (or --filter-json, --all-records) sends the whole filter; verified live; TUI: bulk delete of the selected/full result sends the filter; live: 2 person records deleted |
 | QRY-033 | First-N selection under a filter launches with that limit | pass | pass | process run --filter-json with limit; TUI: run a table process on the first N records of the result (filter with a limit; unit-tested only) |
-| QRY-034 | Actions menu offers bulk load, bulk processes and table processes | pass | partial | qqq table actions <t>: bulk load, bulk edit/delete and the table processes with the command for each; verified live; TUI: F9 and b list table processes; bulk load parked |
+| QRY-034 | Actions menu offers bulk load, bulk processes and table processes | pass | pass | qqq table actions <t>: bulk load, bulk edit/delete and the table processes with the command for each; verified live; TUI: a lists bulk insert, bulk edit with a file, bulk edit, bulk delete, the template and the table processes, with each CLI command; live |
 | QRY-035 | Viewers get no create, bulk or process actions and the backend refuses them | pass | pass | server refuses; exit 3; TUI: F-keys and entries hidden without permission; the server refuses |
 | QRY-040 | CSV export has visible columns in order and exactly the filtered, sorted rows | pass | pass | table export: filtered (--where, --group, --search), sorted (--order), --fields in column order, --limit, --out -; TUI: x: visible columns, filter and sort, file dialog |
 | QRY-041 | XLSX and JSON exports carry the same rows | pass | pass | csv, xlsx, json, tsv; format from --out extension; --no-header; bad format or field exit 2 before the request |
@@ -417,10 +417,10 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | RPT-005 | PIVOT report produces a native pivot table in XLSX | todo | todo |  |
 | RPT-006 | report input fields: required validation and the value filters the rows | todo | todo | report inputs |
 | RPT-007 | report permissions: restricted report denied in UI and by the server | pass | todo | server |
-| RPT-008 | reports appear in app navigation and open their run page | todo | todo | report list |
+| RPT-008 | reports appear in app navigation and open their run page | todo | pass | report list; TUI: reports appear in app navigation and run from there (unit-tested only) |
 | RPT-009 | saved report view shows its filter/columns and pivot setup | todo | todo | saved reports, schedules, sharing |
 | RPT-010 | saved report renders through renderSavedReport and downloads the saved columns and rows | todo | todo | saved reports, schedules, sharing |
-| RPT-011 | streaming report route for reports without a process | todo | todo | saved reports, schedules, sharing |
+| RPT-011 | streaming report route for reports without a process | todo | pass | saved reports, schedules, sharing; TUI: a report without a process streams from GET /reports/{name}?format= into the save dialog (unit-tested only) |
 | RPT-012 | scheduled report: create a schedule for a saved report and view its cron schedule | todo | todo | saved reports, schedules, sharing |
 | RPT-013 | sharing: the owner shares a saved report with a user (Read-Only) | todo | todo | saved reports, schedules, sharing |
 | RPT-014 | sharing: change a share's scope to Read and Edit | todo | todo | saved reports, schedules, sharing |
@@ -435,7 +435,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | WID-068 | table widget Material extras: typed cells (numbers with separators, html, htmlAndTooltip, image, composite), h | todo | todo |  |
 | WID-069 | chart widget Material extras: theme color names, legend toggles, single-series legends (horizontal bars, line  | n/a | n/a | theme colors |
 | RPT-019 | render report input step shows only its fields; a report without variables adds no no-fields message | todo | todo | saved reports, schedules, sharing |
-| RPT-020 | Report files download from the v1 download and report routes | todo | todo |  |
+| RPT-020 | Report files download from the v1 download and report routes | todo | pass | TUI: report files download from the report route and the process DOWNLOAD_FORM (unit-tested only) |
 | WID-074 | Standalone composite scalar controls and metadata editors | todo | todo | developer and editor widgets |
 | WID-075 | Standalone DATE_TIME blocks localize seeded instants without losing seconds | todo | todo | developer and editor widgets |
 | HLP-001 | App and widget help | partial | todo | qqq help show app/widget/instance; the sample carries no help content |

@@ -34,6 +34,8 @@ export interface Status {
   server: string
   profile: string
   user: string
+  /** The id saved records carry for their owner (email, id reference, user name or subject). */
+  userId?: string
   auth: string
   apiVersion: string
   pingMs: number | null
