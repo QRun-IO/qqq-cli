@@ -12,6 +12,9 @@ read from `qqq-orb` at v0.8.32, identical to `develop`). That profile generates 
 4. a Prism smoke: `prism mock` on the merged document, `GET /qqq/v1/version` and `/metaData/authentication`
 5. on a tag `v<client version>` with `publish.release: true`: `npm publish --tag rc` of
    `@qrun-io/qqq-ui-api-client`, `@qrun-io/qqq-ui-api-conformance` and `@qrun-io/qqq-cli` to GitHub Packages
+   (in orb 0.8.32; qqq-orb PR #165 adds `@qrun-io/qqq-core` and publishes as `latest` when all four
+   versions are final, as 1.0.0's are. Until that orb release is out, the release runbook's step 5 does
+   both by hand.)
 
 Checked on 2026-10-31 by running the orb's own `cli_verify.sh` in Docker on the release branch, plus
 `npm run prepublishOnly` and `npm run lint`:
@@ -39,8 +42,9 @@ Gaps in the profile, to fix in the orb:
 
 ## Proposal for James: two orb changes
 
-Ready to send as is. Nothing has been opened or pushed; both changes are in `kingsrook/qqq-orb` and
-need an orb release (0.8.x patch) before this repository picks them up.
+Written before 1.0.0-rc.1 and kept as sent; part 1b became qqq-orb PR #165. The changes are in
+`kingsrook/qqq-orb` and need an orb release (0.8.x patch) before this repository picks them up; the
+release runbook's checklist tracks what is still open for 1.0.0.
 
 > **Subject: qqq-orb `cli` profile: publish @qrun-io/qqq-core, and opt-in macOS/Windows lanes**
 >
@@ -82,7 +86,7 @@ need an orb release (0.8.x patch) before this repository picks them up.
 > Windows executors cost more credits and need the plan to include `m4pro.medium` and
 > `windows.medium`. A repository without the key gets exactly today's pipeline.
 >
-> Details and the job YAML: `docs/ci-lanes.md` in qqq-cli (branch `feat/m5-cli-release`).
+> Details and the job YAML: `docs/ci-lanes.md` in qqq-cli.
 
 ## Platform lanes in detail
 

@@ -21,7 +21,7 @@ conformance 1.6.0 as finals beside CLI and core 1.0.0, under the tags `v1.8.0` (
 `cli-v1.0.0` (GitHub release). `release.mjs` refuses a final CLI version while any of the four is still a
 prerelease (the readiness gate's "package versions" line).
 | Homebrew formula `qqq` | 1.0.0 | `QRun-IO/homebrew-tap` | `scripts/update-packaging.mjs`, then a PR |
-| Scoop manifest `qqq` | 1.0.0 | a QRun-IO Scoop bucket | `scripts/update-packaging.mjs`, then a PR |
+| Scoop manifest `qqq` | 1.0.0 | `QRun-IO/scoop-bucket` | `scripts/update-packaging.mjs`, then a PR |
 
 ## Checklist: what needs James
 
@@ -44,12 +44,12 @@ Nobody else can do these; each says what happens without it.
 - [ ] **Create `QRun-IO/homebrew-tap`** by copying `docs/packaging/homebrew-tap/` into a new public
       repository (main branch) and following it in CircleCI (the qqq-orb `homebrew-tap` profile is
       already in `.qqq-ci.yml`). Without it: no `brew install`; the curl installer still works.
-- [ ] **Create the Scoop bucket** (`QRun-IO/scoop-bucket` with `bucket/qqq.json`), or decide to put the
-      manifest next to qctl's. Without it: Windows users download the `.exe` from the release.
+- [ ] **Create `QRun-IO/scoop-bucket`** from ScoopInstaller/BucketTemplate, with `docs/packaging/qqq.json`
+      as `bucket/qqq.json` (`scoop bucket add qrun https://github.com/QRun-IO/scoop-bucket`). Without it:
+      Windows users download the `.exe` from the release.
 - [ ] **CircleCI context** `qqq-maven-registry-credentials` holds a `GITHUB_TOKEN` that can write the
       four `@qrun-io` packages (the orb checks it authenticates; write access is only proven by a publish).
-- [ ] **Go for 1.0.0 final** after the release candidate has been used (rc.1 tagged, installed, no
-      blocker open).
+- [ ] **Go for 1.0.0 final**: the 1.0.0-rc.1 feedback is accepted and no blocker is open.
 
 ## Not verified before 1.0 (unless the lanes run first)
 
@@ -70,11 +70,10 @@ smoke against the sample server), linux-x64 glibc, linux-arm64 glibc and linux-a
 
 ## 2. Versions: release candidate to final
 
-**For 1.0.0 this step is already done** on the branch `release/1.0.0` (one commit on top of the rc.1
-commit 6517373): all four packages final, the exact workspace pins, `## [1.0.0] - YYYY-MM-DD` in the
-CHANGELOG (fill in the date), `docs/release-notes/1.0.0.md`, and the README at 1.0.0. The day rc.1
-feedback is accepted, that branch is fast-forwarded onto `main` (after any rc fixes have been merged into
-it); nothing else changes versions:
+**For 1.0.0 this step is done** on the branch `release/1.0.0` (34bbd2a, on top of the rc.1 commit
+6517373): all four packages final, the exact workspace pins, the `## [1.0.0]` CHANGELOG entry,
+`docs/release-notes/1.0.0.md`, and the READMEs at 1.0.0. That branch (with the release docs merged into
+it) is fast-forwarded onto `main`; nothing else changes versions:
 
 ```sh
 git checkout main && git pull --ff-only
@@ -168,8 +167,9 @@ gh release create cli-v1.0.0 --repo QRun-IO/qqq-cli --latest --title "qqq 1.0.0"
 ```
 
 `dist/qqq-*` is the seven binaries (source maps are in `dist/sourcemaps/`, not uploaded). For a release
-candidate use `--prerelease` instead of `--latest`. The curl installer takes the newest `cli-v*`
-release, prereleases included.
+candidate use `--prerelease` instead of `--latest`. The curl installer takes the newest stable `cli-v*`
+release (the channel Homebrew and Scoop follow); a release candidate is reached with `--pre` or
+`--version 1.x.y-rc.N`.
 
 ## 7. Homebrew tap and Scoop bucket
 
@@ -180,7 +180,7 @@ git commit -S -am "packaging: qqq 1.0.0" && git push      # in qqq-cli, through 
 ```
 
 Then copy `docs/packaging/homebrew-tap/Formula/qqq.rb` to `Formula/qqq.rb` in `QRun-IO/homebrew-tap`
-and `docs/packaging/qqq.json` to `bucket/qqq.json` in the Scoop bucket, a pull request on each. The tap's
+and `docs/packaging/qqq.json` to `bucket/qqq.json` in `QRun-IO/scoop-bucket`, a pull request on each. The tap's
 CI fetches every platform's download, installs the formula and runs its test (which insists on
 `binary with ui`). Scoop's `checkver`/`autoupdate` can take later versions from `SHA256SUMS` by itself.
 
