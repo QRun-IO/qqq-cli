@@ -13,6 +13,8 @@
  *   3. changelog: CHANGELOG.md has an entry for the CLI version
  *   4. docs: every `qqq <command> [<verb>]` in README.md and TRY-IT.md exists in the program
  *      (packages/cli/dist, so build first)
+ *   5. versions: a final CLI ships with final client, core and conformance packages (the orb publishes
+ *      all four as `latest` only when none is a prerelease, else all as `rc`)
  *
  * scripts/release.mjs refuses a final release while anything is missing; `npm run release -- --check`
  * (or `node scripts/readiness.mjs`) prints the report for any version. Exit 0 when ready.
@@ -57,6 +59,13 @@ export function findingProblems(text) {
 /** Whether CHANGELOG.md has a `## [version]` entry. */
 export function changelogHas(text, version) {
   return text.split('\n').some((line) => line.startsWith(`## [${version}]`))
+}
+
+/** The published workspaces that are still prereleases, when the CLI version is final. */
+export function versionProblems(packages) {
+  const cli = packages.find((p) => p.name === '@qrun-io/qqq-cli')
+  if (!cli || cli.version.includes('-')) return []
+  return packages.filter((p) => p.version.includes('-')).map((p) => `${p.name} is still ${p.version}; release it as a final version with qqq ${cli.version}`)
 }
 
 /** Global options of qqq that take a value (skipped when reading a command line from the docs). */
@@ -116,6 +125,8 @@ export async function docProblems() {
 /** The full report: { ready, sections: [{ title, problems: string[] }] }. */
 export async function readiness() {
   const version = JSON.parse(read('packages/cli/package.json')).version
+  const packages = ['packages/ui-api-client', 'packages/core', 'packages/conformance', 'packages/cli'].map((dir) => JSON.parse(read(`${dir}/package.json`)))
+  const versions = versionProblems(packages)
   const parity = parityProblems(read('docs/parity/feature-matrix.md'))
   const findings = findingProblems(read('docs/server-findings.md'))
   const docs = await docProblems()
@@ -125,6 +136,7 @@ export async function readiness() {
     { title: `server findings without an issue link: ${findings.length}`, problems: findings.map((f) => `finding ${f.finding}: ${f.text.slice(0, 90)}`) },
     { title: `CHANGELOG entry for ${version}`, problems: changelogHas(read('CHANGELOG.md'), version) ? [] : [`no "## [${version}]" heading in CHANGELOG.md`] },
     { title: `commands in README.md and TRY-IT.md missing from the program: ${docs.length}`, problems: docs.map((d) => `${d.doc}: ${d.command} (${d.reason})`) },
+    { title: `package versions: ${packages.map((p) => `${p.name.replace('@qrun-io/', '')} ${p.version}`).join(', ')}`, problems: versions },
   ]
   return { version, ready: sections.every((s) => !s.problems.length), sections }
 }
