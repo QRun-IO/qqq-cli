@@ -20,8 +20,6 @@ export abstract class LinesScreen implements Screen {
   readonly list = new ListModel()
   loading = true
   error?: string
-  /** Cells inside the panel at the last render (0 before the first). */
-  protected width = 0
 
   constructor(protected store: AppStore, readonly heading: string) {
     this.id = `${heading}:${Date.now()}`
@@ -62,14 +60,8 @@ export abstract class LinesScreen implements Screen {
     return 'Enter opens · PgUp PgDn page · F5 refresh · Esc back'
   }
 
-  /** Width to wrap text rows to when they load: the panel's inside (before the first render, the terminal's less the Apps tree). */
-  protected wrapWidth(): number {
-    return Math.max(20, this.width || this.store.width - (this.store.showSidebar ? 32 : 0) - 2)
-  }
-
   render(width: number, height: number, focused: boolean) {
     const t = theme()
-    this.width = width - 2
     if (this.loading && !this.list.rows.length) this.list.setRows([{ text: 'loading…', fg: t.dim }])
     return (
       <Panel title={this.heading} width={width} height={height} focused={focused}>
