@@ -226,3 +226,66 @@ export async function getTableApiDocument(baseUrl: string, fetchImpl: typeof fet
 
 /** A developer-mode request cannot be done (unknown script field or revision). */
 export class DeveloperError extends Error {}
+
+/** The answer of an application API request: status, content type, and JSON (or text). */
+export interface TableApiResponse { status: number; contentType: string; data: unknown }
+
+/**
+ * Sends one request to an application API (the developer page's playground): `{server}{api.path}{version}/{subpath}`
+ * with the client's session, the method, query and JSON body given. A non-2xx answer is returned, not thrown.
+ */
+export async function callTableApi(baseUrl: string, fetchImpl: typeof fetch, api: Pick<TableApi, 'path'>, version: string, method: string, subpath: string, options: { query?: Record<string, string>; body?: unknown } = {}): Promise<TableApiResponse> {
+  const base = `${baseUrl.replace(/\/+$/, '')}/${api.path.replace(/^\/+|\/+$/g, '')}`.replace(/\/+$/, '')
+  const url = new URL(`${base}/${encodeURIComponent(version)}/${subpath.replace(/^\/+/, '')}`)
+  for (const [k, v] of Object.entries(options.query ?? {})) url.searchParams.set(k, v)
+  const init: RequestInit = { method: method.toUpperCase(), headers: { accept: 'application/json' } }
+  if (options.body !== undefined) {
+    init.body = JSON.stringify(options.body)
+    init.headers = { ...init.headers as Record<string, string>, 'content-type': 'application/json' }
+  }
+  const response = await fetchImpl(url, init)
+  const contentType = response.headers.get('content-type') ?? ''
+  const text = await response.text()
+  let data: unknown = text
+  if (/json/.test(contentType) && text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = text
+    }
+  }
+  return { status: response.status, contentType, data }
+}
+
+/** The answer of a script test run (the `testScript` process). */
+export interface ScriptTestResult { output: unknown; values: J; logLines: Array<{ timestamp?: string; text: string }>; exception?: string }
+
+/**
+ * Runs a script's code against test inputs, as the developer page's Test tab does: the
+ * `testScript` process with the script id, the revision's API name and version, the files
+ * (`fileNames` and `fileContents:<name>`) and the script type's test input fields.
+ */
+export async function testScript(baseUrl: string, fetchImpl: typeof fetch, input: { scriptId: unknown; apiName?: string; apiVersion?: string; files: Array<{ fileName: string; contents: string }>; inputs: Record<string, string> }): Promise<ScriptTestResult> {
+  const values: Record<string, string> = {
+    scriptId: String(input.scriptId),
+    ...(input.apiName ? { apiName: input.apiName } : {}),
+    ...(input.apiVersion ? { apiVersion: input.apiVersion } : {}),
+    fileNames: input.files.map((f) => f.fileName).join(','),
+    ...Object.fromEntries(input.files.map((f) => [`fileContents:${f.fileName}`, f.contents])),
+    ...input.inputs,
+  }
+  const data = (await callOperation(baseUrl, 'initProcess', { path: { processName: 'testScript' }, form: { values: JSON.stringify(values), stepTimeoutMillis: '60000' } }, fetchImpl)).data as J
+  if (data.type === 'ERROR') throw new DeveloperError(String(data.userFacingError ?? data.error ?? 'The script test failed to run'))
+  const out = (data.values ?? {}) as J
+  const exception = out.exception
+  return {
+    output: out.outputObject,
+    values: out,
+    logLines: ((out.scriptLogLines ?? []) as J[]).map((l) => { const v = values_(l); return { ...(v.timestamp ? { timestamp: String(v.timestamp) } : {}), text: String(v.text ?? v.message ?? '') } }),
+    ...(exception !== undefined && exception !== null ? { exception: typeof exception === 'object' ? String((exception as J).message ?? JSON.stringify(exception)) : String(exception) } : {}),
+  }
+}
+
+function values_(record: unknown): J {
+  return ((record as J | undefined)?.values ?? record ?? {}) as J
+}

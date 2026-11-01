@@ -8,7 +8,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { History, addRecent, hasPin, hashPin, pinDelayMillis, readRecents, removePin, setPin, verifyPin } from '../session/local-state.js'
+import { History, addRecent, readRememberedVariant, rememberVariant, hasPin, hashPin, pinDelayMillis, readRecents, removePin, setPin, verifyPin } from '../session/local-state.js'
 import { readConfig } from '../session/profiles.js'
 
 test('the PIN is stored as a salted hash and verified', () => {
@@ -51,6 +51,21 @@ test('histories persist, skip repeats and secrets, and search newest first', () 
   } finally {
     if (prev === undefined) delete process.env.QQQ_STATE_DIR
     else process.env.QQQ_STATE_DIR = prev
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a table variant is remembered per server and table, and forgotten', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-variant-'))
+  const env = { QQQ_CONFIG_DIR: dir }
+  try {
+    assert.equal(readRememberedVariant('http://a', 'order', env), undefined)
+    rememberVariant('http://a', 'order', { id: '7', type: 'store', name: 'North' }, env)
+    assert.deepEqual(readRememberedVariant('http://a', 'order', env), { id: '7', type: 'store', name: 'North' })
+    assert.equal(readRememberedVariant('http://b', 'order', env), undefined)
+    rememberVariant('http://a', 'order', undefined, env)
+    assert.equal(readRememberedVariant('http://a', 'order', env), undefined)
+  } finally {
     rmSync(dir, { recursive: true, force: true })
   }
 })

@@ -3,9 +3,11 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { mkdirSync, readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { displayDateTime, readFilePreferences, saveDownload, valueText as recordValueText, type DisplayOptions, type FieldMeta, type RecordLike } from '@qrun-io/qqq-core'
+import { chipAnsi, displayDateTime, readFilePreferences, safeFileName, saveDownload, valueText as recordValueText, type DisplayOptions, type FieldMeta, type RecordLike } from '@qrun-io/qqq-core'
 import { UsageError } from '../context.js'
 
 export type Json = Record<string, unknown>
@@ -38,11 +40,14 @@ export function readJson(source: string, flag: string): unknown {
  * local zone or raw with `display.utc`), without link targets or hints. Without field metadata,
  * the display value when the server sent one, else the raw value.
  */
-export function valueText(record: Json, field: string, meta?: Json, display?: DisplayOptions, reveal?: boolean): string {
+export function valueText(record: Json, field: string, meta?: Json, display?: DisplayOptions, reveal?: boolean, color?: boolean): string {
   const fieldMeta = (((meta?.fields ?? {}) as Record<string, Json>)[field]) as FieldMeta | undefined
   const values = (record.values ?? {}) as Record<string, unknown>
   const displayValues = record.displayValues as Record<string, unknown> | undefined
-  if (fieldMeta) return recordValueText({ ...fieldMeta, name: field }, { values, displayValues } as RecordLike, { cell: true, dateTime: display, reveal }).text
+  if (fieldMeta) {
+    const shown = recordValueText({ ...fieldMeta, name: field }, { values, displayValues } as RecordLike, { cell: true, dateTime: display, reveal })
+    return color && shown.chip ? chipAnsi(shown.text, shown.chip.color) : shown.text
+  }
   const value = displayValues?.[field] ?? values[field]
   if (value === null || value === undefined) return ''
   return typeof value === 'object' ? JSON.stringify(value) : String(value)
@@ -132,4 +137,41 @@ export function defaultFields(meta: Json, cap = 8): string[] {
 export function labelsFor(meta: Json, names: string[]): string[] {
   const fields = (meta.fields ?? {}) as Record<string, Json>
   return names.map((n) => String(fields[n]?.label ?? n))
+}
+
+/** Opens $VISUAL / $EDITOR (else vi) on a text and returns what was saved. */
+export function editText(text: string, name: string): string {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-edit-'))
+  const path = join(dir, safeFileName(name))
+  try {
+    writeFileSync(path, text, { mode: 0o600 })
+    const editor = process.env.VISUAL || process.env.EDITOR || 'vi'
+    const result = spawnSync(editor, [path], { stdio: 'inherit', shell: true })
+    if (result.status !== 0) throw new UsageError(`${editor} exited with ${result.status ?? result.signal}; nothing was stored.`)
+    return readFileSync(path, 'utf8')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/** Whether CHIP values are colored: table output on a terminal, unless NO_COLOR is set. */
+export function useColor(format: string): boolean {
+  return format === 'table' && Boolean(process.stdout.isTTY) && !process.env.NO_COLOR
+}
+
+/**
+ * Puts text on the clipboard: pbcopy (macOS), clip (Windows), wl-copy or xclip/xsel (Linux), else
+ * the OSC 52 escape to the terminal (most terminals and tmux accept it). Returns how.
+ */
+export function copyToClipboard(text: string): string {
+  const tries: Array<[string, string[]]> = process.platform === 'darwin' ? [['pbcopy', []]]
+    : process.platform === 'win32' ? [['clip', []]]
+      : [['wl-copy', []], ['xclip', ['-selection', 'clipboard']], ['xsel', ['--clipboard', '--input']]]
+  for (const [cmd, args] of tries) {
+    const result = spawnSync(cmd, args, { input: text, stdio: ['pipe', 'ignore', 'ignore'] })
+    if (result.status === 0) return `with ${cmd}`
+  }
+  if (!process.stderr.isTTY) throw new UsageError('No clipboard tool (pbcopy, clip, wl-copy, xclip, xsel) and no terminal for OSC 52.')
+  process.stderr.write(`\x1b]52;c;${Buffer.from(text, 'utf8').toString('base64')}\x07`)
+  return 'through the terminal (OSC 52)'
 }

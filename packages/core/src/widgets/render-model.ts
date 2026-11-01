@@ -157,9 +157,15 @@ function blockToBlocks(b: J): RenderBlock[] {
     case 'DIVIDER':
       return [{ kind: 'rule' }]
     case 'COMPOSITE':
-      return widgetToBlocks({ ...b, type: 'composite' })
+      return widgetToBlocks({ ...b, type: 'composite', blocks: b.blocks ?? b.subBlocks ?? v.blocks ?? [] })
     case 'TABLE_SUB_ROW_DETAIL_ROW':
       return [{ kind: 'pairs', pairs: [{ label: str(v.label), value: str(v.value) }] }]
+    case 'INPUT_FIELD': {
+      const f = (v.fieldMetaData ?? {}) as J
+      return [{ kind: 'text', text: `${str(f.label ?? f.name)}${f.isRequired ? ' *' : ''}: [${str(v.placeholder ?? (f.type ? String(f.type).toLowerCase() : 'input'))}]${v.submitOnEnter === true ? ' (Enter submits)' : ''}` }]
+    }
+    case 'BUTTON':
+      return [{ kind: 'text', text: `[ ${str(v.label ?? v.actionCode ?? v.controlCode)} ]` }]
     default:
       return [{ kind: 'raw', type: kind || 'block', data: b }]
   }
