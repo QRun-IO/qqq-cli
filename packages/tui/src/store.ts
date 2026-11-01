@@ -23,6 +23,7 @@ import { setAscii, setTheme, theme } from './theme'
 import type { FKeyLabels, Overlay, Screen } from './types'
 import { errorText } from './util/text'
 import { SQL_EXTENSION, hideRunnerApps } from './sql/apps'
+import { AssistantPanel, SIDE_MIN_WIDTH, sideWidth } from './assistant/panel'
 
 export interface Settings {
   theme: string
@@ -78,7 +79,10 @@ export class AppStore {
   overlays: Overlay[] = []
   /** Help-authoring mode (:helpkeys): F1 shows every help slot's key. */
   helpKeys = false
-  focus: 'content' | 'sidebar' = 'content'
+  focus: 'content' | 'sidebar' | 'assistant' = 'content'
+  /** The assistant panel (kept while closed, so reopening finds the conversation). */
+  assistant?: AssistantPanel
+  assistantOpen = false
   width = 120
   height = 40
   client?: TuiClient
@@ -231,6 +235,48 @@ export class AppStore {
     this.bump()
   }
 
+  // ---- the assistant panel ----
+
+  /** Where the assistant panel is drawn: beside the screen, over the whole body (narrow), or not at all. */
+  assistantLayout(): { mode: 'side'; width: number } | { mode: 'full' } | undefined {
+    if (!this.assistantOpen || !this.assistant) return undefined
+    return this.width >= SIDE_MIN_WIDTH ? { mode: 'side', width: sideWidth(this.width) } : { mode: 'full' }
+  }
+
+  /** Opens (and focuses) the panel; with a question, asks it. Without the extension it says so instead. */
+  openAssistant(question?: string): void {
+    if (!this.extensions.has('assistant')) {
+      this.flash(`the assistant needs the assistant extension (qbit-assistant), which this server does not have (installed: ${this.extensions.describe() || 'none'})`, 'error')
+      return
+    }
+    this.closeNavOverlays()
+    this.assistant ??= new AssistantPanel(this)
+    this.assistantOpen = true
+    this.focus = 'assistant'
+    void this.assistant.loadConfig()
+    if (question?.trim()) this.assistant.askWhenReady(question)
+    this.bump()
+  }
+
+  /** Closes the panel (the conversation stays for the next open). */
+  closeAssistant(): void {
+    this.assistantOpen = false
+    if (this.focus === 'assistant') this.focus = 'content'
+    this.bump()
+  }
+
+  /** Ctrl+G: opens the panel, moves between the panel and the screen beside it, or (full width) closes it. */
+  toggleAssistant(): void {
+    if (!this.assistantOpen) return this.openAssistant()
+    if (this.focus !== 'assistant') {
+      this.focus = 'assistant'
+      return this.bump()
+    }
+    if (this.assistantLayout()?.mode === 'full') return this.closeAssistant()
+    this.focus = 'content'
+    this.bump()
+  }
+
   // ---- overlays and messages ----
 
   open(overlay: Overlay): void {
@@ -316,7 +362,7 @@ export class AppStore {
   handlePaste(text: string): void {
     this.lastInput = Date.now()
     const top = (this.lock ?? this.overlays[this.overlays.length - 1]) as { paste?: (t: string) => void } | undefined
-    const target = top ?? (this.screen as { paste?: (t: string) => void } | undefined)
+    const target = top ?? (this.focus === 'assistant' && this.assistantOpen ? this.assistant : this.screen as { paste?: (t: string) => void } | undefined)
     try {
       target?.paste?.(text)
     } catch (e) {
@@ -350,6 +396,12 @@ export class AppStore {
     if (key.name === 'f9') return this.commands().menu()
     if (key.ctrl && key.name === 'o') return this.commands().servers()
     if (key.name === 'f10') return this.requestQuit()
+    if (key.ctrl && key.name === 'g') return this.toggleAssistant()
+    if (this.focus === 'assistant' && this.assistantOpen && this.assistant) {
+      // the panel has every other key while it has focus (text goes to the question line)
+      this.assistant.onKey(key)
+      return
+    }
     if (this.focus === 'sidebar' && this.sidebar && this.showSidebar) {
       if (this.sidebar.onKey(key)) return
     } else if (screen?.onKey(key)) {
@@ -454,6 +506,7 @@ export class AppStore {
     this.clockTimer = undefined
     this.streamAbort?.abort()
     this.printTracker.dispose()
+    this.assistant?.dispose()
     for (const s of this.routes) s.dispose?.()
   }
 
@@ -588,13 +641,14 @@ export class AppStore {
     this.width = width
     this.height = height
     if (!this.showSidebar && this.focus === 'sidebar') this.focus = 'content'
+    if (this.focus === 'assistant' && !this.assistantOpen) this.focus = 'content'
     this.bump()
   }
 
   /** The function-key bar for the current context. */
   fkeys(): Array<{ n: number; label: string | null; global: string }> {
     const defaults: Record<number, string> = { 1: 'Help', 2: 'Search', 3: 'View', 4: 'Edit', 5: 'Refresh', 6: 'Filter', 7: 'New', 8: 'Delete', 9: 'Menu', 10: 'Quit' }
-    const overrides: FKeyLabels = this.screen?.fkeys?.() ?? { 3: null, 4: null, 6: null, 7: null, 8: null }
+    const overrides: FKeyLabels = this.focus === 'assistant' && this.assistantOpen && this.assistant ? this.assistant.fkeys() : this.screen?.fkeys?.() ?? { 3: null, 4: null, 6: null, 7: null, 8: null }
     return Object.entries(defaults).map(([n, label]) => {
       const k = Number(n)
       const shown = k in overrides ? overrides[k]! : label

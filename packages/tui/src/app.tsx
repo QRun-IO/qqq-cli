@@ -157,8 +157,11 @@ export function App({ store }: { store: AppStore }) {
   const w = Math.max(20, width)
   const h = Math.max(8, height)
   const bodyHeight = h - 3
-  const sidebarWidth = store.showSidebar ? (w >= 160 ? 32 : 28) : 0
-  const contentWidth = w - sidebarWidth
+  const assistant = store.assistantLayout()
+  const full = assistant?.mode === 'full'
+  const sidebarWidth = store.showSidebar && !full ? (w >= 160 ? 32 : 28) : 0
+  const assistantWidth = assistant?.mode === 'side' ? assistant.width : 0
+  const contentWidth = w - sidebarWidth - assistantWidth
   const screen = store.screen
   const top = store.overlays[store.overlays.length - 1]
   return (
@@ -169,9 +172,12 @@ export function App({ store }: { store: AppStore }) {
         {sidebarWidth > 0 && store.sidebar && (
           <PaneZone store={store} pane="sidebar" width={sidebarWidth} height={bodyHeight}><ErrorBoundary resetKey="sidebar" width={sidebarWidth} label="Apps">{store.sidebar.render(sidebarWidth, bodyHeight, store.focus === 'sidebar' && !top)}</ErrorBoundary></PaneZone>
         )}
-        {screen
-          ? <PaneZone key={screen.id} store={store} pane="content" width={contentWidth} height={bodyHeight}><ErrorBoundary resetKey={screen.id} width={contentWidth} label="Screen">{screen.render(contentWidth, bodyHeight, store.focus === 'content' && !top)}</ErrorBoundary></PaneZone>
-          : <box width={contentWidth} height={bodyHeight}><text flexShrink={0} wrapMode="none" fg={t.dim}>{' starting…'}</text></box>}
+        {full && store.assistant
+          ? <ErrorBoundary resetKey={store.assistant.id} width={w} label="Assistant">{store.assistant.render(w, bodyHeight, store.focus === 'assistant' && !top)}</ErrorBoundary>
+          : screen
+            ? <PaneZone key={screen.id} store={store} pane="content" width={contentWidth} height={bodyHeight}><ErrorBoundary resetKey={screen.id} width={contentWidth} label="Screen">{screen.render(contentWidth, bodyHeight, store.focus === 'content' && !top)}</ErrorBoundary></PaneZone>
+            : <box width={contentWidth} height={bodyHeight}><text flexShrink={0} wrapMode="none" fg={t.dim}>{' starting…'}</text></box>}
+        {assistantWidth > 0 && store.assistant && <ErrorBoundary resetKey={store.assistant.id} width={assistantWidth} label="Assistant">{store.assistant.render(assistantWidth, bodyHeight, store.focus === 'assistant' && !top)}</ErrorBoundary>}
       </box>
       <StatusLine store={store} width={w} />
       <FKeyBar store={store} width={w} />

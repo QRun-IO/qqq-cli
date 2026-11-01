@@ -345,6 +345,34 @@ and the result. Shareable records (saved reports, saved views) have Share (`Z`, 
 group Read-Only or Read and Edit, change, remove; only the owner may share. `:helpkeys` turns on
 help-authoring mode (F1 shows every help slot key).
 
+## Assistant
+
+With the `assistant` UI API extension (qbit-assistant), `Ctrl+G`, `:ask [question]` or F9 › Work ›
+Assistant opens the Assistant panel: a chat pane on the right of the screen (40 to 64 columns), or the
+whole body on terminals narrower than 110 columns. The question line is at the bottom and the
+conversation above it: each question, the answer as it is written, its numbers (counts and metrics) and
+its links. Answers are read-only and use your permissions.
+
+Questions carry the screen under the panel as context, the way the Next UI's panel sends it: a record
+(`/app/{table}/{id}`) or a grid with its filter; the first line of the panel says which (`on: Person #3`).
+
+| Key | Does |
+|---|---|
+| Enter | ask the question; on a link, open it (a record or a grid, beside the panel; a full-width panel closes so the screen shows) |
+| Tab, Shift+Tab | move over the answer's links; typing returns to the question line |
+| ↑ ↓ | the questions you asked on this profile (on the links: previous and next link) |
+| PgUp PgDn, wheel | scroll the conversation |
+| Ctrl+D | send without (or again with) the page context |
+| Ctrl+L | a new conversation |
+| Ctrl+X | stop the answer being written |
+| Ctrl+G | back to the screen (the panel stays); again to return |
+| Esc | close the panel (the conversation is kept) |
+
+Without the extension the menu entry is disabled and Ctrl+G says what is missing. When the assistant is
+off for you (no model provider on the server, no permission, the kill switch) the panel shows the server's
+reason and what to configure; F5 checks again. The command line has the same: `qqq assistant ask`,
+`qqq assistant config`.
+
 ## SQL Runner
 
 With the `sql-workbench` UI API extension (qbit-sql-workbench), the SQL Runner is the terminal face of the

@@ -53,7 +53,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates', 'history']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'ask', 'dates', 'history']
 
 /** One line on each TUI command, for the `:` line's completion popup. */
 export const TUI_COMMAND_HELP: Record<string, string> = {
@@ -63,7 +63,7 @@ export const TUI_COMMAND_HELP: Record<string, string> = {
   shortcuts: 'single-key shortcuts on or off', lock: 'lock the screen', pin: 'set or remove the lock PIN', idle: 'screen saver after idle minutes', refresh: 'reload this screen',
   filter: 'filter the grid (grammar)', export: 'export the grid or result', jobs: 'your jobs', printjobs: 'print jobs', print: 'print what you see (or :print <printer>)', profile: 'switch profile', servers: 'saved servers (Ctrl+O)',
   history: 'everything you did (CLI and TUI)', server: 'connect to a server URL', signout: 'sign out', connection: 'connection details', open: 'open a table', record: 'open a record by key', app: 'open an app',
-  sql: 'SQL Runner (statement to run, open <notebook id>)', saver: 'the screen saver', doctor: 'check the terminal', views: 'saved views of this table', share: 'share this record', helpkeys: 'help-authoring mode',
+  sql: 'SQL Runner (statement to run, open <notebook id>)', ask: 'the Assistant panel (Ctrl+G); with a question, asks it about this screen', saver: 'the screen saver', doctor: 'check the terminal', views: 'saved views of this table', share: 'share this record', helpkeys: 'help-authoring mode',
 }
 
 /** CLI commands the `:` line does not offer (they make no sense inside the TUI). */
@@ -93,7 +93,8 @@ export class Commands implements CommandsLike {
     const topic = screen?.helpTopic?.()
     const topicHelp: string[] = []
     // keys only: the screen's own key rows and shortcuts from its actions (label and key), never the actions themselves
-    const screenKeys: KeyRow[] = [...(screen?.helpKeys?.() ?? []), ...(screen?.menu?.() ?? []).filter((e) => e.key && !e.disabled).map((e): KeyRow => [e.key!, e.label.replace(/…$/, '').replace(/\s*\([^)]*\d[^)]*\)$/, '')])]
+    const panelKeys = s.focus === 'assistant' && s.assistantOpen && s.assistant ? s.assistant.helpKeys() : []
+    const screenKeys: KeyRow[] = [...panelKeys, ...(screen?.helpKeys?.() ?? []), ...(screen?.menu?.() ?? []).filter((e) => e.key && !e.disabled).map((e): KeyRow => [e.key!, e.label.replace(/…$/, '').replace(/\s*\([^)]*\d[^)]*\)$/, '')])]
     s.open(new HelpOverlay(s, helpKeyGroups(screen?.kind, s.singleKeys, screenKeys), topicHelp))
     // help for this screen: the kernel's help entries for the screen's roles; in help-authoring mode
     // (:helpkeys) every slot shows its key, with or without content, so authors see where help goes
@@ -425,6 +426,7 @@ export class Commands implements CommandsLike {
         case 'open': return rest[0] ? openTable(s, rest[0]) : fail('open <table>')
         case 'app': return rest[0] ? openApp(s, rest[0]) : fail('app <name>')
         case 'sql': return sqlCommand(s, line.replace(/^sql\b/, ''))
+        case 'ask': return s.openAssistant(line.replace(/^ask\b/, ''))
         case 'report':
           if (rest[0] === 'run' && rest[1] && !rest.includes('--format') && !rest.includes('--out')) return openReport(s, rest[1])
           break
@@ -726,6 +728,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Work', label: 'My work', disabled: s.extensions.has('collaboration') ? undefined : 'needs the collaboration extension' })
     out.push({ section: 'Work', label: 'History', command: 'history', detail: 'everything you did, CLI and TUI', run: () => openHistory(s) })
     out.push(...sqlMenuEntries(s))
+    out.push({ id: 'work:assistant', section: 'Work', label: 'Assistant', key: 'Ctrl+G', command: 'ask <question>', detail: 'ask about your data, with this screen as context', disabled: s.extensions.has('assistant') ? undefined : 'needs the assistant extension (qbit-assistant)', run: () => s.openAssistant() })
     for (const e of s.extensions.all()) out.push({ section: 'Work', label: `Extension: ${e.name} ${e.version}`, detail: e.description, command: `api --list`, run: () => s.message(`${e.name} ${e.version}\n${e.description ?? ''}\nPath: ${e.pathPrefix ?? ''}\nIts panels are not drawn by this TUI yet; its operations are reachable with :api.`, 'info', 'Extension') })
     // Connection
     out.push({ section: 'Connection', label: `Server ${s.status.server}`, detail: `UI API ${s.status.apiVersion}`, command: 'connection', run: () => this.connection() })
