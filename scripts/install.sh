@@ -6,16 +6,10 @@
 # QRun-IO/qqq-cli, after checking it against the release's SHA256SUMS.
 #
 #   curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh
-#   curl -fsSL .../install.sh | sh -s -- --version 1.0.0-rc.1 --dir /usr/local/bin
+#   curl -fsSL .../install.sh | sh -s -- --version 1.0.0 --dir /usr/local/bin
 #
-# Options (or environment):
-#   --version V   (QQQ_VERSION)      a release such as 1.0.0-rc.1; default: the newest cli-v* release,
-#                                    prereleases included
-#   --dir D       (QQQ_INSTALL_DIR)  where qqq goes; default: ~/.local/bin
-#   --musl                           take the musl build on Linux (detected on Alpine and other musl hosts)
-#   QQQ_DOWNLOAD_BASE                release download root (default https://github.com/QRun-IO/qqq-cli/releases/download),
-#                                    for mirrors and testing
-# Supported: macOS arm64 and x64, Linux x64 and arm64 (glibc and musl). On Windows use Scoop or the .exe.
+# By default it installs the newest stable cli-v* release (the channel Homebrew and Scoop follow);
+# --pre takes the newest release including prereleases. --help lists the options.
 
 set -eu
 
@@ -24,6 +18,32 @@ version="${QQQ_VERSION:-}"
 dir="${QQQ_INSTALL_DIR:-$HOME/.local/bin}"
 base="${QQQ_DOWNLOAD_BASE:-https://github.com/$repo/releases/download}"
 musl=""
+pre=""
+dry_run=""
+releases_url="${QQQ_RELEASES_URL:-https://api.github.com/repos/$repo/releases?per_page=30}"
+
+usage() {
+  cat <<'USAGE'
+Install qqq (the CLI and the terminal UI, one binary) from https://github.com/QRun-IO/qqq-cli/releases
+
+  curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh
+  curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh -s -- [options]
+
+Options (or environment):
+  --version V   (QQQ_VERSION)      a release such as 1.0.0; default: the newest stable cli-v* release
+  --pre         (QQQ_PRE=1)        with no --version, take the newest release including prereleases
+  --dir D       (QQQ_INSTALL_DIR)  where qqq goes; default: ~/.local/bin
+  --musl                           take the musl build on Linux (detected on Alpine and other musl hosts)
+  --dry-run                        print the version and download URL, change nothing
+  -h, --help                       this help
+  QQQ_DOWNLOAD_BASE                release download root (default https://github.com/QRun-IO/qqq-cli/releases/download),
+                                   for mirrors and testing
+
+Supported: macOS arm64 and x64, Linux x64 and arm64 (glibc and musl). On Windows use Scoop:
+  scoop bucket add qrun https://github.com/QRun-IO/scoop-bucket
+  scoop install qqq
+USAGE
+}
 
 say() { printf '%s\n' "$*" >&2; }
 die() { say "qqq install: $*"; exit 1; }
@@ -33,7 +53,9 @@ while [ $# -gt 0 ]; do
     --version) [ $# -ge 2 ] || die "--version needs a value"; version="$2"; shift 2 ;;
     --dir) [ $# -ge 2 ] || die "--dir needs a value"; dir="$2"; shift 2 ;;
     --musl) musl="-musl"; shift ;;
-    -h|--help) sed -n '2,20p' "$0" 2>/dev/null || true; exit 0 ;;
+    --pre) pre=1; shift ;;
+    --dry-run) dry_run=1; shift ;;
+    -h|--help) usage; exit 0 ;;
     *) die "unknown option $1" ;;
   esac
 done
@@ -51,7 +73,7 @@ fi
 case "$(uname -s)" in
   Darwin) os=darwin ;;
   Linux) os=linux ;;
-  MINGW*|MSYS*|CYGWIN*) die "on Windows install with Scoop (scoop install qqq) or download qqq-windows-x64.exe from https://github.com/$repo/releases" ;;
+  MINGW*|MSYS*|CYGWIN*) die "on Windows install with Scoop (scoop bucket add qrun https://github.com/QRun-IO/scoop-bucket; scoop install qqq) or download qqq-windows-x64.exe from https://github.com/$repo/releases" ;;
   *) die "unsupported operating system $(uname -s)" ;;
 esac
 case "$(uname -m)" in
@@ -67,17 +89,30 @@ if [ "$os" = linux ] && [ -z "$musl" ]; then
 fi
 [ "$os" = linux ] || musl=""
 
+[ -n "${QQQ_PRE:-}" ] && [ "${QQQ_PRE}" != 0 ] && pre=1
 if [ -z "$version" ]; then
-  version="$(fetch_text "https://api.github.com/repos/$repo/releases?per_page=30" \
-    | grep -o '"tag_name": *"cli-v[^"]*"' | head -n 1 | sed 's/.*"cli-v\([^"]*\)"/\1/')" \
-    || true
-  [ -n "$version" ] || die "could not find a cli-v* release of $repo; pass --version"
+  # The releases API lists newest first; each release's "tag_name" comes before its "prerelease".
+  # Escaped quotes inside release notes never match these patterns.
+  version="$(fetch_text "$releases_url" | tr ',' '\n' | awk -v pre="$pre" '
+    /"tag_name": *"/ { tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); next }
+    /"prerelease": *(true|false)/ {
+      if (tag ~ /^cli-v/ && (pre != "" || $0 ~ /false/)) { sub(/^cli-v/, "", tag); print tag; exit }
+      tag = ""
+    }')" || true
+  if [ -z "$version" ]; then
+    if [ -n "$pre" ]; then die "could not find a cli-v* release of $repo; pass --version"; fi
+    die "could not find a stable cli-v* release of $repo; pass --version, or --pre for prereleases"
+  fi
 fi
 version="${version#v}"
 version="${version#cli-v}"
 
 file="qqq-$os-$arch$musl"
 url="$base/cli-v$version/$file"
+if [ -n "$dry_run" ]; then
+  say "qqq $version: $url (checked against $base/cli-v$version/SHA256SUMS), into $dir/qqq"
+  exit 0
+fi
 tmp="$(mktemp -d 2>/dev/null || mktemp -d -t qqq)"
 trap 'rm -rf "$tmp"' EXIT
 trap 'exit 130' INT TERM

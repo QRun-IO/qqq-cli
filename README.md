@@ -24,7 +24,8 @@ Every install path below except npm ships the same single-file binary with the C
 musl for Alpine) and Windows (x64).
 
 **macOS and Linux, curl installer** (to `~/.local/bin`; checks the download against the release's
-`SHA256SUMS`):
+`SHA256SUMS`). It installs the newest stable release, the same channel as Homebrew and Scoop;
+`--version` pins one, `--pre` takes prereleases too, and `--dry-run` shows what it would download:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh
