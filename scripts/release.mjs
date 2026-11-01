@@ -18,17 +18,23 @@
  *      out) and dist/SHA256SUMS
  *   5. prints the tag, GitHub release and npm publish commands
  *
+ * A final (non-prerelease) version also has to pass the readiness gate (scripts/readiness.mjs: parity
+ * 100% in both columns, every server finding filed, a CHANGELOG entry, documented commands exist);
+ * a prerelease prints the same report as information.
+ *
  * Usage: node scripts/release.mjs [--allow-dirty] [--skip-binaries] [--skip-install] [--cli-only]
+ *        node scripts/release.mjs --check     only the readiness report (builds first if needed)
  *   --cli-only  build the binaries without the terminal UI (the release artifact bundles it)
  */
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { printReport, readiness } from './readiness.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const argv = new Set(process.argv.slice(2))
-for (const a of argv) if (!['--allow-dirty', '--skip-binaries', '--skip-install', '--cli-only'].includes(a)) fail(`unknown option ${a}`)
+for (const a of argv) if (!['--allow-dirty', '--skip-binaries', '--skip-install', '--cli-only', '--check'].includes(a)) fail(`unknown option ${a}`)
 const shell = process.platform === 'win32'
 
 /** Published packages, in publish order (each depends only on the ones before it). */
@@ -56,6 +62,13 @@ const cli = versions['packages/cli']
 const orbTag = `v${client.version}`
 const cliTag = `cli-v${cli.version}`
 
+if (argv.has('--check')) {
+  if (!existsSync(join(root, 'packages/cli/dist/program.js'))) step('build', 'npm', ['run', 'build'])
+  const report = await readiness()
+  printReport(report)
+  process.exit(report.ready ? 0 : 1)
+}
+
 console.log('Release check')
 for (const { name, version } of Object.values(versions)) console.log(`  ${name.padEnd(34)} ${version}`)
 
@@ -72,6 +85,11 @@ step('generate', 'npm', ['run', 'generate'])
 const drift = git('status', '--porcelain', '--', 'packages/ui-api-client/src/schema.ts', 'packages/core/src/api/operations.ts')
 if (drift) fail(`generated sources drifted from the OpenAPI document (commit them):\n${drift}`)
 step('build', 'npm', ['run', 'build'])
+const report = await readiness()
+if (!cli.version.includes('-') && !report.ready) {
+  printReport(report)
+  fail(`${cli.version} is a final version and the readiness gate is not met (above); a prerelease (-rc.N) is not gated`)
+}
 step('test', 'npm', ['test'])
 step('lint', 'npm', ['run', 'lint'])
 step('TUI tests', 'npm', ['run', 'test:tui'])
@@ -112,5 +130,10 @@ ${PUBLISHED.map((dir) => `  npm publish -w ${versions[dir].name} --registry ${re
   #    bucket (docs/release-runbook.md steps 7 and 8). With the certificates, sign the macOS and Windows
   #    binaries and recompute dist/SHA256SUMS before step 3 (runbook step 4).
 `)
+if (!report.ready) {
+  console.log('Readiness for a final release (not required for this prerelease):')
+  printReport(report, { limit: 5 })
+  console.log('')
+}
 const conformance = versions['packages/conformance']
 console.log(`Note: the orb also publishes ${conformance.name} ${conformance.version} on ${orbTag}; bump it first if that version is already in the registry.`)
