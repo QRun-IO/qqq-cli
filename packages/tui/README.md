@@ -125,11 +125,19 @@ passes it on — most do not, so Ctrl+P is the key to rely on):
   selected row**. The server prints up to 10,000 rows (more prints the first 10,000 and says so), repeats
   the header on every page, turns the page landscape when the columns need it and puts the table, filter,
   sort, row count, user and time in the header and footer;
-- any other screen (home, dashboards, the developer view, SQL results, process results, output) prints the
-  **screen as text**: a monospace PDF of what is drawn, without the status line and F-key bar, sized so a
-  wide terminal keeps its lines.
+- any other screen (home, dashboards, the developer view, SQL results, process results, Search, History,
+  output) first asks **Print what?**: **Content** (the default) prints the screen's panels as a document —
+  each panel a section under its title, no Apps sidebar, title bar, key lines or borders, wrapped to the
+  page — and **Screen** prints the terminal as drawn (monospace, sized so a wide terminal keeps its lines).
 
-Then the printer picker: printers that can print now (approved, exposed by a connected print agent, PDF)
+Every page carries the app's **header** (the instance's name, the screen's breadcrumb such as `People ›
+Person › Ada Lovelace`, the server, you, and the time in your date format) and **footer** (`qqq ui 1.0.1 ·
+<server>`, a grid's filter and sort, page n of m).
+
+Then the printer picker, with **Save as PDF…** first: it renders the same document on the server and saves
+it the way downloads and exports are saved — the save dialog (or, with `download-mode silent`, straight to
+the download folder), the stamped name (`Customer-Ada-Lovelace_2026-11-01_120301.pdf`), never overwriting
+without asking. `:print pdf` saves without the picker. Then printers that can print now (approved, exposed by a connected print agent, PDF)
 come first, the others are listed with the reason and cannot be picked; the printer chosen is remembered
 per profile and preselected next time, marked "(last used)". `:print <printer>` skips the picker (name,
 unique prefix or id). The title bar and status line show `print 1/3 RECEIVED` while jobs run, and a flash

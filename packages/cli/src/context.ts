@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { Assistant, Collaboration, Printing, missingQBitMessage, runProcess, type ProcessMeta, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { Assistant, Collaboration, Printing, downloadProcessFile, missingQBitMessage, runProcess, type ProcessMeta, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieHeaderFor, target, type Target } from './session.js'
 
@@ -190,6 +190,7 @@ export class Context {
         const outcome = await runProcess({ baseUrl: t.server, fetch: authenticatedFetch(t), meta, values, records: recordIds.length ? { ids: recordIds } : undefined, stepTimeoutMillis: 60000 })
         return outcome.values
       },
+      download: (reference) => downloadProcessFile(t.server, authenticatedFetch(t), reference),
     })
   }
 
