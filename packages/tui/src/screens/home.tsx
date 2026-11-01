@@ -12,7 +12,7 @@
  * the only requests are the optional counts, which load after it is shown.
  */
 
-import { Collaboration, readRecents, readViewSettings, widgetToBlocks, writeViewSettings, type RecentItem, type RenderBlock } from '@qrun-io/qqq-core'
+import { Collaboration, readRecents, readViewSettings, writeViewSettings, type RecentItem, type RenderBlock } from '@qrun-io/qqq-core'
 import type { AppTreeNode } from '../client'
 import type { Key } from '../keys'
 import { openApp, openForm, openProcess, openRecord, openTable } from '../nav'
@@ -20,6 +20,7 @@ import { ChoiceOverlay } from '../overlays/basic'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
+import { WidgetView } from '../widget-view'
 import { errorText, num, pad, trunc } from '../util/text'
 import { blockLines, type StyledLine } from '../widgets'
 
@@ -124,7 +125,11 @@ export class HomeScreen implements Screen {
     }
     const home = this.homeAppName()
     const widgets = home ? ((s.meta?.apps as Record<string, { widgets?: string[] }>)[home]?.widgets ?? []).slice(0, 8) : []
-    for (const w of widgets) client.widget(w).then((d) => this.homeWidgets.set(w, widgetToBlocks(d))).catch((e) => this.homeWidgets.set(w, { error: errorText(e) })).finally(() => s.bump())
+    for (const w of widgets) {
+      // the same widget view as app homes: permission-denied widgets are not requested, stored dropdown selections apply
+      const view = new WidgetView(s, w, { signal: this.abort.signal })
+      view.load().then(() => this.homeWidgets.set(w, view.error ? { error: view.error } : view.blocks ?? [])).catch((e) => this.homeWidgets.set(w, { error: errorText(e) })).finally(() => s.bump())
+    }
   }
 
   favorites: Array<{ label: string; type: string; name: string; recordId?: string }> = []

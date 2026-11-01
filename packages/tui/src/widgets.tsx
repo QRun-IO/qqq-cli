@@ -87,6 +87,20 @@ export function blockLines(blocks: RenderBlock[], width: number): StyledLine[] {
           const max = Math.max(...values.map(Math.abs), 1)
           const numWidth = Math.max(...values.map((v) => fmt(v).length), 1)
           const barWidth = Math.max(6, width - labelWidth - numWidth - 4)
+          const hasNegative = values.some((v) => v < 0)
+          if (hasNegative) {
+            // a zero axis in the middle: negative values extend left of it, positive ones right
+            const half = Math.max(3, Math.floor(barWidth / 2))
+            b.labels.forEach((l, i) => {
+              const v = values[i]!
+              const n = Math.round((Math.abs(v) / max) * half)
+              const left = v < 0 ? padLeft(g.bar.repeat(n), half) : ' '.repeat(half)
+              const right = v > 0 ? pad(g.bar.repeat(n), half) : ' '.repeat(half)
+              out.push({ text: `${pad(l, labelWidth)}  ${left}│${right}  ${padLeft(fmt(v), numWidth)}`, fg: v < 0 ? t.err : t.acc })
+            })
+            if (b.datasets.length > 1) out.push({ text: trunc(b.datasets.map((d) => d.label).join(' + '), width), fg: t.dim })
+            break
+          }
           b.labels.forEach((l, i) => {
             if (b.datasets.length > 1 && b.chart === 'stackedBar') {
               // one segment per dataset, alternating accents

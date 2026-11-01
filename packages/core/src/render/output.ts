@@ -60,6 +60,14 @@ function columnsOf(rows: Row[], printable: Printable): string[] {
   return seen
 }
 
+const ANSI = /\x1b\[[0-9;]*m/g
+
+/** Wraps text in the ANSI color of a CHIP color (default: none). */
+export function chipAnsi(text: string, color: string): string {
+  const code = ({ success: 32, error: 31, warning: 33, info: 36, primary: 34, secondary: 35 } as Record<string, number>)[color]
+  return code ? `\x1b[${code}m${text}\x1b[0m` : text
+}
+
 /**
  * Formats rows as an aligned text table with a header rule; wide cells are cut with an ellipsis.
  *
@@ -69,12 +77,16 @@ function columnsOf(rows: Row[], printable: Printable): string[] {
  * @param maxCell - Longest cell before cutting (default 60).
  */
 export function formatTable(rows: Row[], columns: string[], headers: string[] = columns, maxCell = 60): string {
+  // ANSI color (a CHIP on a terminal) takes no width
+  const visible = (text: string) => text.replace(ANSI, '').length
   const cell = (v: unknown) => {
     const text = cellText(v).replace(/\s+/g, ' ')
-    return text.length > maxCell ? `${text.slice(0, maxCell - 1)}…` : text
+    if (visible(text) <= maxCell) return text
+    const plain = text.replace(ANSI, '')
+    return `${plain.slice(0, maxCell - 1)}…`
   }
-  const widths = columns.map((c, i) => Math.max((headers[i] ?? c).length, ...rows.map((r) => cell(r[c]).length)))
-  const line = (cells: string[]) => cells.map((c, i) => c.padEnd(widths[i] ?? 0)).join('  ').trimEnd()
+  const widths = columns.map((c, i) => Math.max((headers[i] ?? c).length, ...rows.map((r) => visible(cell(r[c])))))
+  const line = (cells: string[]) => cells.map((c, i) => c + ' '.repeat(Math.max(0, (widths[i] ?? 0) - visible(c)))).join('  ').trimEnd()
   return [line(headers), line(widths.map((w) => '-'.repeat(w))), ...rows.map((r) => line(columns.map((c) => cell(r[c]))))].join('\n')
 }
 

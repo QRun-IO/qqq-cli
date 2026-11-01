@@ -49,19 +49,37 @@ work (jobs, alerts, my work, release notes, extensions) when present, and the in
 when the metadata declares `homeAppName`. Tab moves between panels; `v` orders them.
 
 
-Sign-in (profiles; MOCK and FULLY_ANONYMOUS get a server session, OAUTH2 and AUTH_0 the device flow with the
-code on screen; the sign-in is shared with the CLI), home (apps with counts, recently viewed), app home
+Sign-in (profiles; MOCK and FULLY_ANONYMOUS get a server session; TABLE_BASED asks for a username and a
+masked password, sent once and never stored; OAUTH2 signs in in the browser with authorization code + PKCE
+on a loopback redirect, or with the device flow; AUTH_0 uses the browser with the API audience and keeps the
+server session; a 401 mid-use opens sign-in on top and returns to the same screen; sign-out can end the
+provider session too; the sign-in is shared with the CLI), home (apps with counts, recently viewed), app home
 (widgets drawn from render blocks: stats, bar charts in block characters, sparklines, percentage bars,
 tables, steppers, then sections with record counts), table grid (server paging, sort, columns that use the
 width, horizontal scroll, selection with Space and a bulk bar, export, go to by key), record view (sections
 by tier, links, child lists, next and previous through the list it came from), create/edit/copy forms
 (editors per type, a picker that narrows for contingent fields, local and server validation by field,
 DATE_TIME in the local zone), the process wizard (each step's form, validation review, progress with N/M
-and elapsed, summary, cancel), and the output pane of `:` commands run through the CLI in-process.
+and elapsed, summary, cancel; ad hoc widget inputs and buttons), and the output pane of `:` commands run
+through the CLI in-process.
+
+Widgets (home, app homes, record sections) have their actions on Enter: reload, the payload's dropdowns
+(possible values or a date; kept per widget when it asks), export CSV, run a process widget, data bag
+versions, script revisions, and on a saved report the filter/columns and pivot setup editors (API-versioned
+setups go through the application API). Denied widgets are not requested; a parent widget loads its
+children in a grid or one tab at a time. A dynamicForm section has "Edit these fields".
+
+The bulk wizard (`a` on a grid: bulk insert, bulk edit with a file, bulk edit, bulk delete, the upload
+template) runs on the kernel's `runBulkProcess`: the file from the file navigator, the column mapping as a
+grid (Enter chooses a column, a typed default or value mapping; `h` header row, `l` layout, `k` key fields,
+`P` saved profiles, yours and shared), value mapping with the picker, the review with optional validation,
+and the result. Shareable records (saved reports, saved views) have Share (`Z`, `:share`): add a user or
+group Read-Only or Read and Edit, change, remove; only the owner may share. `:helpkeys` turns on
+help-authoring mode (F1 shows every help slot key).
 
 ## The `:` command line
 
-TUI commands: `home`, `back`, `quit`, `help`, `menu`, `goto`, `view`, `theme <name>`, `ascii on|off`,
+TUI commands: `home`, `back`, `quit`, `help`, `helpkeys`, `menu`, `goto`, `view`, `views`, `share`, `theme <name>`, `ascii on|off`,
 `linear on|off`, `shortcuts on|off`, `lock`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
 `export <format>`, `jobs`, `profile [name]`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
 `app <name>`, `record <table> <key>`. `table query|get|create|update|delete` and `process run` open screens;
@@ -112,6 +130,8 @@ before any program sees it. `qqq ui --check` (and the quick check at startup) fi
 ```sh
 cd packages/tui && bun test          # or npm run test:tui at the root: the whole TUI against a fake server in memory
 packages/tui/scripts/smoke.sh        # tmux against a running server (profile "sample"); captures kept
+packages/tui/scripts/smoke-widths.sh # fixed grid widths across pages (fake large-instance server)
+packages/tui/scripts/perf-large-table.sh  # PRF-001: 10,000 rows x 40 columns, timings against a 2 s budget
 ```
 
 ## Layout of the code

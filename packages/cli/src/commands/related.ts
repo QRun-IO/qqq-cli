@@ -11,13 +11,13 @@
 
 import type { Command } from 'commander'
 import {
-  associationGroups, associationLabel, associationsOf, childListFields, fetchChildren, fileDownload, safeFileName, findAssociation, helpToText, recordView, relationshipValues, tableHelp, VIEW_SCREEN_HELP_ROLES,
+  associationGroups, associationLabel, chipAnsi, associationsOf, childListFields, fetchChildren, fileDownload, safeFileName, findAssociation, helpToText, recordView, relationshipValues, tableHelp, VIEW_SCREEN_HELP_ROLES,
   defaultJoinColumns, withJoinFields, fieldLabel, variantBody, variantParam, type ExposedJoin, type RecordLike, type TableMetaLike, type WidgetMetaLike,
 } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch } from '../session.js'
-import { countFooter, intOption, valueText, writeDownload, type Json } from './shared.js'
+import { countFooter, intOption, useColor, valueText, writeDownload, requireTable, type Json } from './shared.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
 /** Reads one record (`{ record }` or a bare record). */
@@ -64,7 +64,7 @@ export async function showRecord(c: Context, table: string, primaryKey: string, 
   for (const section of sections) {
     if (options.helpContent && section.help) rows.push({ section: section.label, field: '(help)', value: section.help })
     for (const { field, value, help } of section.fields) {
-      rows.push({ section: section.label, field: field.label, value: value.text })
+      rows.push({ section: section.label, field: field.label, value: value.chip && useColor(c.format) ? chipAnsi(value.text, value.chip.color) : value.text })
       if (help) rows.push({ section: section.label, field: '', value: `help: ${help}` })
     }
   }
@@ -135,6 +135,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
     .action(async (name: string, primaryKey: string, associationName: string | undefined, options: { limit: string; skip: string; all?: boolean; reveal?: boolean; variant?: string }) => {
       const c = ctx()
       const meta = await c.tableMeta<TableMetaLike>(name)
+      requireTable(meta as unknown as Json, 'read')
       const all = associationsOf(meta)
       if (!all.length) throw new UsageError(`${meta.label ?? name} has no associations (child lists).`)
       const limit = intOption(options.limit, '--limit', 1)!
@@ -197,6 +198,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
     .action(async (name: string, primaryKey: string, fieldName: string, options: { out?: string; variant?: string }) => {
       const c = ctx()
       const meta = await c.tableMeta<TableMetaLike>(name)
+      requireTable(meta as unknown as Json, 'read')
       const field = meta.fields[fieldName]
       if (!field) throw new UsageError(`No field "${fieldName}" in ${name}`)
       const variant = await chooseVariant(c, meta as unknown as Json, options.variant)

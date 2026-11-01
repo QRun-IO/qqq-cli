@@ -7,7 +7,7 @@ import { mkdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
-import { BACK, displayDateTime, formatValue, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpToText, isMissingValue, processHelp, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, variantParam, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, adHocControls, deniedProcessReason, parseFilter, displayDateTime, formatValue, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpToText, isMissingValue, processHelp, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, variantParam, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { ask, promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -30,9 +30,9 @@ export function registerProcess(program: Command, ctx: () => Context): void {
       const metaData = await c.metaData() as unknown as Json
       const rows = Object.values((metaData.processes ?? {}) as Record<string, Json>)
         .filter((p) => (options.all || !p.isHidden) && (!options.table || p.tableName === options.table))
-        .map((p) => ({ name: p.name, label: p.label, table: p.tableName ?? '', hidden: p.isHidden ? 'yes' : '' }))
+        .map((p) => ({ name: p.name, label: p.label, table: p.tableName ?? '', hidden: p.isHidden ? 'yes' : '', note: deniedProcessReason(p) ?? '' }))
         .sort((a, b) => String(a.label).localeCompare(String(b.label)))
-      c.print({ data: rows, columns: ['name', 'label', 'table', 'hidden'] })
+      c.print({ data: rows, columns: ['name', 'label', 'table', 'hidden', ...(rows.some((r) => r.note) ? ['note'] : [])] })
     })
 
   proc.command('describe <process>')
@@ -71,6 +71,9 @@ export function registerProcess(program: Command, ctx: () => Context): void {
     .action(async (name: string, options: RunOptions) => {
       const c = ctx()
       const meta = await processMeta(c, name) as unknown as ProcessMeta
+      // a DISABLED process is listed with hasPermission false: refuse with the reason (the server would too)
+      const denied = deniedProcessReason(meta as unknown as Json)
+      if (denied) throw new UiApiError(403, { code: 'PERMISSION_DENIED', message: denied })
       // a process on a variant table runs with the variant on init and every step (as the web UI does)
       const tableVariant = meta.tableName && (options.variant !== undefined || ((await c.metaData() as unknown as Json).tables as Record<string, Json> | undefined)?.[meta.tableName])
         ? variantParam(await chooseVariant(c, await c.tableMeta<Json>(meta.tableName), options.variant))
@@ -162,6 +165,20 @@ export function registerProcess(program: Command, ctx: () => Context): void {
                 }
               }
             }
+            // a field drawn by a filterAndColumnsSetup widget (WIDGET adornment) takes a filter: the grammar becomes its QueryFilter JSON
+            const widgetMeta = ((await c.metaData() as unknown as Json).widgets ?? {}) as Record<string, Json>
+            for (const f of fields) {
+              const adornment = (f.adornments ?? []).find((a) => a.type === 'WIDGET') as { values?: Record<string, unknown> } | undefined
+              const widgetType = adornment ? widgetMeta[String(adornment.values?.widgetName ?? '')]?.type : undefined
+              const typed = given[f.name]
+              if (widgetType === 'filterAndColumnsSetup' && typeof typed === 'string' && typed.trim() && !typed.trim().startsWith('{')) {
+                try {
+                  given[f.name] = JSON.stringify(parseFilter(typed))
+                } catch (error) {
+                  throw new UsageError(`--values ${f.name}: ${error instanceof Error ? error.message : String(error)}`)
+                }
+              }
+            }
             // every step's fields go through a form session: labels resolve, contingent fields clear and disable, values validate
             const inputs = fields.filter((f) => !(f.type === 'BLOB' && fileFields.has(f.name)))
             if (inputs.length) {
@@ -185,6 +202,19 @@ export function registerProcess(program: Command, ctx: () => Context): void {
               if (Object.keys(problems).length) throw new UiApiError(400, { code: 'BAD_REQUEST', message: `Step "${step.label ?? step.name}" has invalid values`, fieldErrors: Object.entries(problems).map(([field, message]) => ({ field, message: `${session.fields[field]?.label ?? field} ${message}` })) })
               for (const f of fields) if (session.values[f.name] !== undefined) out[f.name] = session.values[f.name]
             }
+            // an ad hoc composite widget's buttons: an actionCode submits the step with it
+            const buttons = adHocControls(step, values).buttons.filter((b) => b.actionCode)
+            if (buttons.length && given.actionCode === undefined) {
+              if (canPrompt) {
+                buttons.forEach((b, i) => c.note(`  ${i + 1}. ${b.label}`))
+                const answer = await ask(`Choose a button (1-${buttons.length})${inputs.length ? ', or Enter to submit the values' : ''}: `, { signal: abort.signal })
+                const chosen = buttons[Number(answer) - 1] ?? buttons.find((b) => b.label.toLowerCase() === answer.toLowerCase() || b.actionCode === answer)
+                if (chosen) out.actionCode = chosen.actionCode
+                else if (answer || !inputs.length) throw new UsageError(`No button "${answer}" (${buttons.map((b) => b.label).join(', ')})`)
+              } else if (!inputs.length) {
+                throw new UsageError(`Step "${step.label ?? step.name}" offers buttons: pass --values actionCode=<code> (${buttons.map((b) => `${b.actionCode} = ${b.label}`).join(', ')})`)
+              }
+            } else if (given.actionCode !== undefined) out.actionCode = given.actionCode
             if (backStep && canPrompt) {
               const backLabel = outcomeStepLabel(meta, backStep)
               const answer = await ask(`Enter to continue, b to go back to ${backLabel}: `, { signal: abort.signal })

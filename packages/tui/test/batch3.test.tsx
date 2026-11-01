@@ -5,7 +5,7 @@
 
 import { afterEach, beforeAll, expect, test } from 'bun:test'
 import { KeyCodes } from '@opentui/core/testing'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeFilePreferences } from '@qrun-io/qqq-core'
@@ -169,4 +169,116 @@ test('create child through a composite association fills every join value', asyn
   expect(f).toContain('Alpha')
   const form = h.store.screen as unknown as { editor: { session: { values: Record<string, unknown> } } }
   expect(form.editor.session.values).toMatchObject({ accId: 1, accName: 'Alpha' })
+})
+
+
+
+test('reports: a streaming report asks the format and saves; a process report chooses the format then runs its process', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-report-'))
+  writeFilePreferences({ downloadDir: dir, downloadMode: 'silent' })
+  try {
+    h = await startTui(120, 30)
+    await command(h, 'report run streamReport')
+    await waitFor(h, (x) => x.includes('Stream report: format') && x.includes('CSV'))
+    await press(h, () => h!.setup.mockInput.pressArrow('down'))
+    await enter()
+    await waitFor(h, (x) => x.includes('Wrote'))
+    expect(readFileSync(join(dir, 'streamReport.csv'), 'utf8')).toBe('fmt,csv\n')
+    await esc()
+    await command(h, 'report run wizReport')
+    await waitFor(h, (x) => x.includes('Wizard report: format'))
+    await enter()
+    await waitFor(h, (x) => h!.log.requests.some((r) => r.path === '/processes/wizard/init'))
+    const init = h.log.requests.find((r) => r.path === '/processes/wizard/init')!
+    expect(JSON.stringify(init.body)).toContain('XLSX')
+  } finally {
+    writeFilePreferences({})
+  }
+})
+
+
+
+test('ad hoc composite widget: interpolated text, conditional block hidden, input with Enter submits, buttons send their actionCode', async () => {
+  h = await startTui(120, 36)
+  await command(h, 'process run adhoc')
+  let f = await waitFor(h, (x) => x.includes('Order SO-9') && x.includes('Barcode'))
+  expect(f).not.toContain('Hint: scan the label')
+  expect(f).toContain('[ Skip ]')
+  await type('X-42')
+  await enter()
+  await waitFor(h, (x) => x.includes('Scan: choose') && x.includes('Finish'))
+  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  await enter()
+  f = await waitFor(h, (x) => x.includes('finish X-42'))
+  const step = h.log.requests.find((r) => r.path === '/processes/adhoc/ah/step/scan')!
+  expect(String((step.body as Record<string, string>).values)).toContain('"actionCode":"finish"')
+})
+
+
+
+test('composite INPUT_FIELD editors: required checks as on any process form, a BLOB input goes as a multipart file', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-adhoc-'))
+  const file = join(dir, 'p.png')
+  writeFileSync(file, 'PNGDATA')
+  h = await startTui(120, 36)
+  await command(h, 'process run adhocfile')
+  await waitFor(h, (x) => x.includes('Photo') && x.includes('Quantity'))
+  await key('s', { ctrl: true })
+  await waitFor(h, (x) => x.includes('need attention'))
+  expect(h.log.requests.some((r) => r.path === '/processes/adhocfile/af/step/up')).toBe(false)
+  await enter()
+  await waitFor(h, (x) => x.includes('Photo') && (x.includes('Find') || x.includes('type to filter this folder')))
+  await press(h, () => h!.setup.mockInput.pressTab())
+  await key('u', { ctrl: true })
+  await type(file)
+  await enter()
+  await waitFor(h, (x) => x.includes('p.png'))
+  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  await type('3')
+  await key('s', { ctrl: true })
+  await waitFor(h, (x) => x.includes('got p.png 7 bytes qty 3'))
+})
+
+
+
+test('a WIDGET-adorned process field with a filter setup: Enter opens the filter dialog for the form table; the field gets the filter JSON', async () => {
+  h = await startTui(120, 40)
+  await command(h, 'process run setupProc')
+  await waitFor(h, (x) => x.includes('Filter') && x.includes('Table'))
+  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  await enter()
+  await waitFor(h, (x) => x.includes('First Name') || x.includes('guided') || x.includes('Filter and sort'))
+  await key('s', { ctrl: true })
+  await waitFor(h, (x) => x.includes('"orderBys":[]}') && !(h!.store.overlays.length))
+  await key('s', { ctrl: true })
+  await waitFor(h, (x) => x.includes('filter {') && x.includes('booleanOperator'))
+})
+
+
+
+test('help: app and widget help on an app home, step and process help, column help on the grid, help-authoring keys', async () => {
+  h = await startTui(130, 50)
+  await command(h, 'app dash')
+  await waitFor(h, (x) => x.includes('Sales by region'))
+  await press(h, () => h!.setup.mockInput.pressKey(KeyCodes.F1))
+  let f = await waitFor(h, (x) => x.includes('The sales dashboard.') && x.includes('Totals by region for the chosen date.'))
+  await esc()
+  await command(h, 'helpkeys')
+  await press(h, () => h!.setup.mockInput.pressKey(KeyCodes.F1))
+  f = await waitFor(h, (x) => x.includes('[app:dash;slot:help]') && x.includes('[widget:needsWidget;slot:help]'))
+  expect(f).toContain('[widget:ddWidget;slot:help]')
+  await esc()
+  await command(h, 'helpkeys')
+  await command(h, 'process run adhoc')
+  await waitFor(h, (x) => x.includes('Order SO-9'))
+  await press(h, () => h!.setup.mockInput.pressKey(KeyCodes.F1))
+  f = await waitFor(h, (x) => x.includes('Scan orders one by one.') && x.includes('Scan the order label.'))
+  await esc()
+  await esc()
+  await key('y')
+  await command(h, 'table query acc')
+  await waitFor(h, (x) => x.includes('records'))
+  await press(h, () => h!.setup.mockInput.pressArrow('right'))
+  await press(h, () => h!.setup.mockInput.pressArrow('right'))
+  f = await waitFor(h, (x) => x.includes('Status: Where the account stands.'))
 })

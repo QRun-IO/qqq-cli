@@ -182,6 +182,22 @@ export interface ValueText {
   adornment?: string
   masked?: boolean
   error?: boolean
+  /** CHIP style for the value (`color.<value>`, `icon.<value>` of the adornment): the CLI colors it on a terminal, the TUI draws it. */
+  chip?: { color: ChipColor; icon?: string }
+}
+
+/** CHIP colors the backend declares (AdornmentType.ChipValues). */
+export type ChipColor = 'default' | 'info' | 'primary' | 'secondary' | 'success' | 'warning' | 'error'
+
+/** The chip color and icon a CHIP adornment gives a raw value. */
+export function chipStyle(field: FieldMeta, raw: unknown): { color: ChipColor; icon?: string } {
+  const values = (findAdornment(field, 'CHIP')?.values ?? {}) as Record<string, unknown>
+  const colorMap = (values.colorMap ?? {}) as Record<string, unknown>
+  const color = String(values[`color.${String(raw)}`] ?? colorMap[String(raw)] ?? 'default').toLowerCase()
+  const icon = values[`icon.${String(raw)}`]
+  const known: ChipColor[] = ['default', 'info', 'primary', 'secondary', 'success', 'warning', 'error']
+  const alias: Record<string, ChipColor> = { green: 'success', red: 'error', yellow: 'warning', orange: 'warning', blue: 'info', gray: 'default', grey: 'default' }
+  return { color: known.includes(color as ChipColor) ? color as ChipColor : alias[color] ?? 'default', ...(typeof icon === 'string' && icon ? { icon } : {}) }
 }
 
 function str(value: unknown): string {
@@ -203,6 +219,9 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
   const display = record.displayValues?.[field.name]
   const value = display ?? raw
   const empty = options.empty ?? ''
+
+  // a PASSWORD field is never shown (the server should not return it; when it does, it stays masked)
+  if (field.type === 'PASSWORD') return { text: raw === null || raw === undefined || raw === '' ? empty : '••••••' }
 
   const widget = findAdornment(field, 'WIDGET')
   if (widget) {
@@ -230,7 +249,8 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
 
   if (findAdornment(field, 'CHIP')) {
     if (value === null || value === undefined || value === '') return { text: empty, adornment: 'CHIP' }
-    return { text: `[${str(value)}]`, adornment: 'CHIP' }
+    const chip = chipStyle(field, raw ?? value)
+    return { text: `[${str(value)}]${chip.icon && !options.cell ? ` (icon ${chip.icon})` : ''}`, adornment: 'CHIP', chip }
   }
 
   if (findAdornment(field, 'CODE_EDITOR')) return { text: str(raw ?? value), adornment: 'CODE_EDITOR' }
@@ -251,6 +271,9 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
   if (value === null || value === undefined || value === '') return { text: empty }
 
   if (field.type === 'DATE_TIME') return { text: displayDateTime(raw, display, options.dateTime) }
+
+  // HTML fields are shown as their text (the web renders them sanitized); $EDITOR edits the source
+  if (field.type === 'HTML' && typeof raw === 'string') return { text: htmlToText(raw) }
 
   if (field.type === 'BLOB' && typeof raw === 'string') {
     const bytes = Math.floor(raw.replace(/=+$/, '').length * 3 / 4)

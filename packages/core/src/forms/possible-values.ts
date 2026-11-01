@@ -61,3 +61,49 @@ export async function resolvePossibleValue(baseUrl: string, fetchImpl: typeof fe
   }
   return { option: contains.length === 1 ? contains[0] : undefined, candidates: contains.length ? contains : bySearch }
 }
+
+/** Thrown when a label in a filter matches no possible value, or several. */
+export class FilterLabelError extends Error {}
+
+/**
+ * Filter values on possible-value fields typed as labels become ids, as the web filter's
+ * dropdowns send them: `homeCityId = 'New York'` is sent as the city's id. A value that already
+ * is an id stays; numeric fields only look up text that is not a number. Expressions, field
+ * functions (`weekday(...)`) and joined fields (`pet.x`) are left alone. Returns a new filter and
+ * notes (`homeCityId: "New York" = 3`).
+ */
+export async function resolveFilterLabels<F extends { criteria: Array<{ fieldName: string; values: unknown[]; fieldFunction?: unknown }>; subFilters?: F[] }>(baseUrl: string, fetchImpl: typeof fetch, table: string, fields: Record<string, { type?: string; possibleValueSourceName?: string | null; label?: string }>, filter: F): Promise<{ filter: F; notes: string[] }> {
+  const notes: string[] = []
+  const cache = new Map<string, unknown>()
+  const visit = async (f: F): Promise<F> => {
+    const criteria = []
+    for (const c of f.criteria ?? []) {
+      const field = fields[c.fieldName]
+      if (!field?.possibleValueSourceName || c.fieldFunction) {
+        criteria.push(c)
+        continue
+      }
+      const numeric = field.type === 'INTEGER' || field.type === 'LONG' || field.type === 'DECIMAL'
+      const values = []
+      for (const v of c.values ?? []) {
+        if (typeof v !== 'string' || v === '' || (numeric && /^-?\d+(\.\d+)?$/.test(v))) {
+          values.push(v)
+          continue
+        }
+        const key = `${c.fieldName}\u0000${v}`
+        if (!cache.has(key)) {
+          const { option, candidates } = await resolvePossibleValue(baseUrl, fetchImpl, { table }, c.fieldName, v, { fieldType: field.type })
+          if (!option) throw new FilterLabelError(`${field.label ?? c.fieldName}: "${v}" ${candidates.length ? `matches several values (${candidates.slice(0, 8).map((o) => `${o.label} (${String(o.id)})`).join(', ')})` : 'matches no value'}`)
+          cache.set(key, option.id)
+          if (String(option.id) !== v) notes.push(`${c.fieldName}: "${v}" = ${String(option.id)}`)
+        }
+        values.push(String(cache.get(key)))
+      }
+      criteria.push({ ...c, values })
+    }
+    const out = { ...f, criteria } as F
+    if (f.subFilters?.length) out.subFilters = await Promise.all(f.subFilters.map(visit))
+    return out
+  }
+  return { filter: await visit(filter), notes }
+}

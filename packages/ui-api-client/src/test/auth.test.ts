@@ -70,3 +70,25 @@ test('sign-out: the refresh token is revoked and the end-session URL names the c
   assert.equal(url.searchParams.get('client_id'), 'cli')
   assert.deepEqual(keepIdToken({ accessToken: 'b', expiresAt: 1 }, { accessToken: 'a', idToken: 'id1', expiresAt: 0 }), { accessToken: 'b', expiresAt: 1, idToken: 'id1' })
 })
+
+test('AUTH_0: the tenant is the issuer, the audience is sent with the device and authorization requests', async () => {
+  const { auth0SignInConfig, deviceSignIn, getNativeSignInConfig } = await import('../index.js')
+  const config = auth0SignInConfig({ baseUrl: 'https://tenant.example/', clientId: 'spa', nativeClientId: 'cli', audience: 'https://api.example' })
+  assert.deepEqual(config, { issuer: 'https://tenant.example/', clientId: 'cli', scope: 'openid profile email offline_access', audience: 'https://api.example' })
+  assert.throws(() => auth0SignInConfig({ clientId: 'x' }), /no tenant/)
+  const fromServer = await getNativeSignInConfig('http://q.test', (async () => new Response(JSON.stringify({ type: 'AUTH_0', values: { baseUrl: 'https://tenant.example/', clientId: 'spa', audience: 'aud' } }), { headers: { 'content-type': 'application/json' } })) as typeof fetch)
+  assert.equal(fromServer.audience, 'aud')
+  const sent: Record<string, string>[] = []
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input instanceof Request ? input.url : input)
+    if (url.endsWith('/.well-known/openid-configuration')) return new Response(JSON.stringify({ issuer: 'https://tenant.example/', token_endpoint: 'https://tenant.example/oauth/token', device_authorization_endpoint: 'https://tenant.example/oauth/device/code' }), { headers: { 'content-type': 'application/json' } })
+    sent.push(Object.fromEntries(new URLSearchParams(String(init?.body ?? ''))))
+    if (url.endsWith('/oauth/device/code')) return new Response(JSON.stringify({ device_code: 'd', user_code: 'U', verification_uri: 'https://tenant.example/activate', expires_in: 60, interval: 0 }), { headers: { 'content-type': 'application/json' } })
+    return new Response(JSON.stringify({ access_token: 'a.b.c', token_type: 'Bearer', expires_in: 60, refresh_token: 'r' }), { headers: { 'content-type': 'application/json' } })
+  }) as typeof fetch
+  const tokens = await deviceSignIn(config, () => undefined, { fetch: fakeFetch, pollMillis: 1 } as never)
+  assert.equal(tokens.accessToken, 'a.b.c')
+  assert.equal(sent[0]!.audience, 'https://api.example')
+  const url = new URL(authorizationUrl({ issuer: 'https://tenant.example/', tokenEndpoint: 't', authorizationEndpoint: 'https://tenant.example/authorize' }, config, { redirectUri: 'http://127.0.0.1:1/callback', state: 's', challenge: 'c' }))
+  assert.equal(url.searchParams.get('audience'), 'https://api.example')
+})

@@ -8,18 +8,21 @@ import { UiApiError, createSession, decodeJwtClaims, deviceSignIn, endSessionUrl
 import { browserSignIn, openInBrowser } from '../browser-login.js'
 import type { Context } from '../context.js'
 import { UsageError } from '../context.js'
+import { ask, askHidden } from '../prompt.js'
+import { PasswordSignInError, signInWithPasswordCookie } from '@qrun-io/qqq-core'
 import { CLIENT_CHANNEL, currentToken, getLogin, nativeConfig, removeLogin, saveLogin, secretStoreKind } from '../session.js'
 import type { Json } from './shared.js'
 
 export function registerAuth(program: Command, ctx: () => Context): void {
   program.command('login')
-    .description('Sign in. OAUTH2 and AUTH_0 servers use the device-authorization grant (or --browser: authorization code with PKCE on a loopback redirect); MOCK and FULLY_ANONYMOUS servers get a server session.')
+    .description('Sign in. OAUTH2 and AUTH_0 servers use the device-authorization grant (or --browser: authorization code with PKCE on a loopback redirect); MOCK and FULLY_ANONYMOUS servers get a server session; TABLE_BASED servers ask for a username and password.')
     .option('--device', 'force the device-authorization grant')
     .option('--browser', 'sign in in the browser: authorization code + PKCE, redirect to http://127.0.0.1:{port}/callback')
     .option('--no-open', 'with --browser, print the URL instead of opening the browser')
     .option('--port <n>', 'with --browser, the loopback port (default: any free port)')
     .option('--redirect-host <host>', 'with --browser, 127.0.0.1 (default) or localhost, as the provider registered it')
-    .action(async (options: { device?: boolean; browser?: boolean; open: boolean; port?: string; redirectHost?: string }) => {
+    .option('-u, --username <name>', 'TABLE_BASED servers: the username (the password is asked for, or read from QQQ_PASSWORD)')
+    .action(async (options: { device?: boolean; browser?: boolean; open: boolean; port?: string; redirectHost?: string; username?: string }) => {
       const c = ctx()
       const t = c.target
       const origin = t.server
@@ -35,8 +38,28 @@ export function registerAuth(program: Command, ctx: () => Context): void {
         return
       }
       if (options.browser && type !== 'OAUTH2' && type !== 'AUTH_0') throw new UsageError(`--browser needs an OAUTH2 or AUTH_0 server; this one uses ${type}.`)
-      if (!options.device && type === 'TABLE_BASED') throw new UsageError('TABLE_BASED sign-in (username and password) is not implemented yet; set QQQ_TOKEN to a session UUID for now.')
-      if (!options.device && type !== 'OAUTH2' && type !== 'AUTH_0') throw new UsageError(`Unknown authentication type "${auth.type}"; this CLI knows OAUTH2, AUTH_0, MOCK and FULLY_ANONYMOUS.`)
+      if (!options.device && type === 'TABLE_BASED') {
+        // username and password over HTTP Basic once; the server answers with a sessionId cookie, kept as the sign-in (never the password)
+        let username = options.username
+        if (!username) {
+          if (!process.stdin.isTTY) throw new UsageError('This server signs in with a username and password: --username <name> (password from QQQ_PASSWORD without a terminal).')
+          username = (await ask(`Username for ${origin}: `)).trim()
+        }
+        const password = process.env.QQQ_PASSWORD ?? (process.stdin.isTTY ? await askHidden('Password: ') : undefined)
+        if (!password) throw new UsageError('No password: run on a terminal to be asked, or set QQQ_PASSWORD.')
+        let sessionId: string
+        try {
+          ({ sessionId } = await signInWithPasswordCookie(origin, username, password, CLIENT_CHANNEL))
+        } catch (error) {
+          // one message for a wrong password or an unknown user; nothing is stored
+          if (error instanceof PasswordSignInError) throw new UiApiError(401, { code: 'UNAUTHENTICATED', message: error.message })
+          throw error
+        }
+        await saveLogin(t, { kind: 'session', authType: type, sessionUUID: sessionId, cookieName: 'sessionId', user: { username }, createdAt: new Date().toISOString() })
+        c.note(`Signed in to ${origin} as ${username} (table-based authentication) as profile "${t.name}"; the session is kept in the ${secretStoreKind()}, the password is not.`)
+        return
+      }
+      if (!options.device && type !== 'OAUTH2' && type !== 'AUTH_0') throw new UsageError(`Unknown authentication type "${auth.type}"; this CLI knows OAUTH2, AUTH_0, TABLE_BASED, MOCK and FULLY_ANONYMOUS.`)
       const config = await nativeConfig(origin)
       const tokens = await (options.browser
         ? browserSignIn(config, { port: options.port ? Number(options.port) : undefined, host: options.redirectHost as '127.0.0.1' | 'localhost' | undefined, open: options.open, note: (text) => c.note(text) })

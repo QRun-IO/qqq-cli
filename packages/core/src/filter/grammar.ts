@@ -31,8 +31,11 @@ export const OPERATORS: Operator[] = [
 
 const SHORTHAND: Record<string, Operator> = {
   '=': 'EQUALS', '==': 'EQUALS', '!=': 'NOT_EQUALS', '<>': 'NOT_EQUALS', '<': 'LESS_THAN', '<=': 'LESS_THAN_OR_EQUALS',
-  '>': 'GREATER_THAN', '>=': 'GREATER_THAN_OR_EQUALS', '~': 'CONTAINS', '!~': 'NOT_CONTAINS',
+  '>': 'GREATER_THAN', '>=': 'GREATER_THAN_OR_EQUALS', '~': 'CONTAINS', '!~': 'NOT_CONTAINS', '~=': 'CONTAINS', '!~=': 'NOT_CONTAINS',
 }
+
+/** Shorthand for a case-sensitive text match (`~=`, `!~=`; word operators take a trailing `:CS`, as `STARTS_WITH:CS`). */
+const CASE_SENSITIVE_SHORTHAND = new Set(['~=', '!~='])
 
 /** Operators whose value is a comma-separated list. */
 export const LIST_OPERATORS = new Set<Operator>(['IN', 'NOT_IN', 'IS_NULL_OR_IN', 'BETWEEN', 'NOT_BETWEEN', 'CONTAINS_ALL'])
@@ -59,6 +62,22 @@ export interface Criterion {
   values: FilterValue[]
   /** A backend function applied to the field before comparing (`weekday(birthDate) IN 1,7`). */
   fieldFunction?: FieldFunction
+  /** Criteria options (`CriteriaOption`): `CASE_INSENSITIVE` on text matches unless asked for case-sensitive. */
+  options?: string[]
+}
+
+/**
+ * Text-matching operators. String comparison is case-sensitive by design on the backends
+ * (memory, H2, PostgreSQL); clients opt in to case-insensitive matching per criterion with the
+ * `CASE_INSENSITIVE` criteria option, which the grammar adds to these by default.
+ */
+export const TEXT_MATCH_OPERATORS = new Set<Operator>(['CONTAINS', 'NOT_CONTAINS', 'STARTS_WITH', 'NOT_STARTS_WITH', 'ENDS_WITH', 'NOT_ENDS_WITH', 'LIKE', 'NOT_LIKE', 'CONTAINS_ALL'])
+
+export const CASE_INSENSITIVE = 'CASE_INSENSITIVE'
+
+/** Options a criterion gets: CASE_INSENSITIVE for a text match, unless case-sensitive. */
+export function textMatchOptions(operator: Operator, caseSensitive = false): { options?: string[] } {
+  return !caseSensitive && TEXT_MATCH_OPERATORS.has(operator) ? { options: [CASE_INSENSITIVE] } : {}
 }
 
 /** A backend field function (FieldFunction): `functionTypeIdentifierName` applied to `fieldName`. */
@@ -180,14 +199,17 @@ function splitValues(text: string): string[] {
  * @param text - The criterion.
  * @param knownFields - When given, the field must be one of them.
  */
-export function parseCriterion(text: string, knownFields?: Iterable<string>): Criterion {
+export function parseCriterion(text: string, knownFields?: Iterable<string>, options: { caseSensitive?: boolean } = {}): Criterion {
   const match = /^\s*((?:weekday\()?[A-Za-z0-9_.]+\)?)\s+(\S+)\s*(.*)$/s.exec(text)
   if (!match) throw new FilterSyntaxError(`A criterion is "field OPERATOR value": ${text.trim()}`)
   const [, rawField, rawOperator, rest] = match as unknown as [string, string, string, string]
   const weekday = /^weekday\(([A-Za-z0-9_.]+)\)$/.exec(rawField)
   const fieldName = weekday ? weekday[1]! : rawField
-  const operator = SHORTHAND[rawOperator] ?? rawOperator.toUpperCase() as Operator
-  if (!OPERATORS.includes(operator)) throw new FilterSyntaxError(`Unknown operator "${rawOperator}"; use one of ${OPERATORS.join(', ')} or = != < <= > >= ~`)
+  const csSuffix = /:CS$/i.test(rawOperator)
+  const opText = csSuffix ? rawOperator.slice(0, -3) : rawOperator
+  const operator = SHORTHAND[opText] ?? opText.toUpperCase() as Operator
+  if (!OPERATORS.includes(operator)) throw new FilterSyntaxError(`Unknown operator "${rawOperator}"; use one of ${OPERATORS.join(', ')} or = != < <= > >= ~ (~= is a case-sensitive ~)`)
+  const caseOptions = textMatchOptions(operator, options.caseSensitive || csSuffix || CASE_SENSITIVE_SHORTHAND.has(opText))
   if (knownFields) {
     const names = [...knownFields]
     if (names.length && !names.includes(fieldName)) throw new FilterSyntaxError(`No field "${fieldName}"; fields: ${names.join(', ')}`)
@@ -199,6 +221,7 @@ export function parseCriterion(text: string, knownFields?: Iterable<string>): Cr
   }
   if (trimmed === '') throw new FilterSyntaxError(`${operator} needs a value: ${text.trim()}`)
   let values = (LIST_OPERATORS.has(operator) ? splitValues(trimmed) : [trimmed]).map(parseValue)
+  if (!weekday && caseOptions.options) return { fieldName, operator, values, ...caseOptions }
   if (weekday) {
     values = weekdayValues(values)
     return { fieldName, operator, values, fieldFunction: { fieldName, functionTypeIdentifierName: WEEKDAY_OF_DATE } }
@@ -210,6 +233,7 @@ export function parseCriterion(text: string, knownFields?: Iterable<string>): Cr
 /** Prints one criterion. */
 export function printCriterion(c: Criterion): string {
   const field = c.fieldFunction && /^WeekdayOf/.test(c.fieldFunction.functionTypeIdentifierName) ? `weekday(${c.fieldName})` : c.fieldName
+  // the criteria options (CASE_INSENSITIVE) are not printed: --print-filter shows them in the JSON
   return c.values.length ? `${field} ${c.operator} ${c.values.map(printValue).join(',')}` : `${field} ${c.operator}`
 }
 
@@ -264,7 +288,7 @@ function tokenize(source: string): Token[] {
  * Parses a filter expression with groups: `a EQUALS 1 AND (b IN x,y OR c IS_BLANK)`. Mixing AND
  * and OR at one level without parentheses is an error, so the meaning is never ambiguous.
  */
-export function parseFilter(text: string, knownFields?: Iterable<string>): QueryFilter {
+export function parseFilter(text: string, knownFields?: Iterable<string>, options: { caseSensitive?: boolean } = {}): QueryFilter {
   const tokens = tokenize(text)
   let pos = 0
   const peek = () => tokens[pos]
@@ -283,7 +307,7 @@ export function parseFilter(text: string, knownFields?: Iterable<string>): Query
         parts.push(inner)
       } else if (t.kind === 'criterion') {
         pos++
-        parts.push(parseCriterion(t.text, knownFields))
+        parts.push(parseCriterion(t.text, knownFields, options))
       } else {
         if (parts.length === 0) throw new FilterSyntaxError(`${t.kind} without a left side in: ${text}`)
         if (op && op !== t.kind) throw new FilterSyntaxError(`Mixed AND and OR need parentheses: ${text}`)
@@ -315,9 +339,9 @@ export function printFilter(filter: QueryFilter): string {
 }
 
 /** Builds a filter from repeated `--where` criteria plus optional `--group` expressions and `--or`. */
-export function buildFilter(options: { where?: string[]; group?: string[]; or?: boolean; order?: string[]; skip?: number; limit?: number; knownFields?: Iterable<string> }): QueryFilter {
-  const criteria = (options.where ?? []).map((w) => parseCriterion(w, options.knownFields))
-  const subFilters = (options.group ?? []).map((g) => parseFilter(g, options.knownFields))
+export function buildFilter(options: { where?: string[]; group?: string[]; or?: boolean; order?: string[]; skip?: number; limit?: number; knownFields?: Iterable<string>; caseSensitive?: boolean }): QueryFilter {
+  const criteria = (options.where ?? []).map((w) => parseCriterion(w, options.knownFields, { caseSensitive: options.caseSensitive }))
+  const subFilters = (options.group ?? []).map((g) => parseFilter(g, options.knownFields, { caseSensitive: options.caseSensitive }))
   const orderBys = (options.order ?? []).map((o) => ({ fieldName: o.replace(/^-/, ''), isAscending: !o.startsWith('-') }))
   // one --group and no --where is the filter itself, not a wrapper around it
   const filter: QueryFilter = criteria.length === 0 && subFilters.length === 1 && !options.or ? { ...subFilters[0]! } : { criteria, booleanOperator: options.or ? 'OR' : 'AND' }

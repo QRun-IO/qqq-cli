@@ -11,7 +11,7 @@
 
 import { runCli } from '@qrun-io/qqq-cli/program'
 import { THEMES } from './theme'
-import { helpEntryText, helpText, processHelpText, selectHelpContent, tableViewHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
+import { metaHelp, processHelp, tableHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
 import type { AppTreeNode } from './client'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
@@ -60,10 +60,6 @@ export class Commands implements CommandsLike {
     const screen = s.screen
     const topic = screen?.helpTopic?.()
     const topicHelp: string[] = []
-    if (topic?.kind === 'table') {
-      const meta = s.client && (s.client as unknown as { tableCache?: Map<string, unknown> })
-      void meta
-    }
     const actions = screen?.menu?.() ?? []
     const keys = GLOBAL_KEYS.filter(([k]) => s.singleKeys || !/^[a-z?/.\]]/.test(k.split(/\s+/).pop() ?? ''))
     const overlay = new HelpOverlay(s, keys, actions, topicHelp, async (q) => {
@@ -75,31 +71,69 @@ export class Commands implements CommandsLike {
       }))
     })
     s.open(overlay)
+    // help for this screen: the kernel's help entries for the screen's roles; in help-authoring mode
+    // (:helpkeys) every slot shows its key, with or without content, so authors see where help goes
+    const authoring = s.helpKeys
+    // entry places as people read them: a field's label, a section's label, step · field
+    const labels: Record<string, string> = {}
+    const shown = (where: string) => {
+      const field = /^(?:step (.+?) )?field (.+)$/.exec(where)
+      if (field) return `${field[1] ? `${field[1]} · ` : ''}${labels[field[2]!] ?? field[2]}`
+      return where.replace(/^(section|step) /, '')
+    }
+    const push = (list: Array<{ where: string; text: string; title?: string }>, keyOf: (where: string) => string) => {
+      for (const e of list) topicHelp.push(`${e.where === 'table' || e.where === 'process' || e.where === 'app' || e.where === 'instance' ? '' : `${shown(e.where)}: `}${e.title ? `${e.title}: ` : ''}${e.text}${authoring ? `  [${keyOf(e.where)}]` : ''}`)
+    }
+    const slotKeys = (keys: string[], have: Array<{ where: string }>, keyOf: (where: string) => string) => {
+      if (!authoring) return
+      const covered = new Set(have.map((e) => keyOf(e.where)))
+      for (const k of keys) if (!covered.has(k)) topicHelp.push(`(no help yet)  [${k}]`)
+    }
     if (topic?.kind === 'table' && s.client) {
-      // table, section and field help for this screen's roles (kernel record-view helpers)
       const roles = screen?.kind === 'form' ? ['INSERT_SCREEN', 'EDIT_SCREEN', 'WRITE_SCREENS', 'ALL_SCREENS'] : screen?.kind === 'table' ? ['QUERY_SCREEN', 'READ_SCREENS', 'ALL_SCREENS'] : ['VIEW_SCREEN', 'READ_SCREENS', 'ALL_SCREENS']
       s.client.tableMeta(topic.name).then((m) => {
-        for (const h of tableViewHelp(m as never, roles)) topicHelp.push(h.slot === 'table' ? h.text : `${h.slot}: ${h.text}`)
-        for (const sec of m.sections ?? []) { const t = helpEntryText(selectHelpContent((sec as { helpContents?: unknown }).helpContents, roles)); if (t) topicHelp.push(`${sec.label}: ${t}`) }
-        for (const f of Object.values(m.fields)) { const t = helpEntryText(selectHelpContent(f.helpContents, roles)); if (t) topicHelp.push(`${f.label}: ${t}`) }
+        const keyOf = (where: string) => where.startsWith('field ') ? `table:${topic.name};field:${where.slice(6)}` : where.startsWith('section ') ? `table:${topic.name};section:${(m.sections ?? []).find((x) => x.label === where.slice(8) || x.name === where.slice(8))?.name ?? where.slice(8)}` : `table:${topic.name}`
+        for (const [n, f] of Object.entries(m.fields)) labels[n] = f.label
+        const list = tableHelp(m as never, { role: roles })
+        push(list, keyOf)
+        slotKeys([`table:${topic.name}`, ...(m.sections ?? []).map((x) => `table:${topic.name};section:${x.name}`), ...Object.keys(m.fields).map((f) => `table:${topic.name};field:${f}`)], list, keyOf)
         if (!topicHelp.length) topicHelp.push(`${m.label}: no help content on this server. Fields: ${Object.values(m.fields).map((f) => f.label).join(', ')}.`)
         s.bump()
       }).catch(() => undefined)
     }
     if (topic?.kind === 'process' && s.client) {
       s.client.processMeta(topic.name).then((p) => {
-        for (const t of processHelpText(p as never)) topicHelp.push(t)
-        for (const step of p.frontendSteps ?? []) for (const t of helpText((step as { helpContents?: never }).helpContents)) topicHelp.push(`${step.label ?? step.name}: ${t}`)
+        const steps = (p.frontendSteps ?? []) as Array<{ name: string; label?: string; formFields?: Array<{ name: string }> }>
+        const keyOf = (where: string) => {
+          const m = /^step (.+?)(?: field (.+))?$/.exec(where)
+          if (!m) return `process:${topic.name}`
+          const step = steps.find((x) => (x.label ?? x.name) === m[1])
+          return m[2] ? `process:${topic.name};field:${m[2]}` : `process:${topic.name};step:${step?.name ?? m[1]}`
+        }
+        for (const st of steps) for (const f of (st.formFields ?? []) as Array<{ name: string; label?: string }>) labels[f.name] = f.label ?? f.name
+        const list = processHelp(p as never)
+        push(list, keyOf)
+        slotKeys([`process:${topic.name}`, ...steps.map((x) => `process:${topic.name};step:${x.name}`), ...steps.flatMap((x) => (x.formFields ?? []).map((f) => `process:${topic.name};field:${f.name}`))], list, keyOf)
         if (!topicHelp.length) topicHelp.push(`${p.label ?? p.name}: no help content on this server.`)
         s.bump()
       }).catch(() => undefined)
     }
     if (topic?.kind === 'app') {
-      const app = (s.meta?.apps as Record<string, { label?: string; helpContents?: unknown; widgets?: string[] }> | undefined)?.[topic.name]
-      const t = helpEntryText(selectHelpContent(app?.helpContents))
-      if (t) topicHelp.push(t)
-      for (const w of app?.widgets ?? []) { const wt = helpEntryText(selectHelpContent((s.meta?.widgets as Record<string, { helpContents?: unknown; label?: string }> | undefined)?.[w]?.helpContents)); if (wt) topicHelp.push(`${(s.meta?.widgets as Record<string, { label?: string }>)[w]?.label ?? w}: ${wt}`) }
+      const apps = (s.meta?.apps ?? {}) as Record<string, { label?: string; helpContents?: unknown; widgets?: string[] }>
+      const widgets = (s.meta?.widgets ?? {}) as Record<string, { label?: string; helpContents?: unknown }>
+      const app = apps[topic.name]
+      const appList = metaHelp('app', (app ?? {}) as never)
+      push(appList, (where) => `app:${topic.name};slot:${/\((.+)\)$/.exec(where)?.[1] ?? 'help'}`)
+      for (const w of app?.widgets ?? []) {
+        const list = metaHelp(widgets[w]?.label ?? w, (widgets[w] ?? {}) as never)
+        push(list.map((e) => ({ ...e, where: e.where })), (where) => `widget:${w};slot:${/\((.+)\)$/.exec(where)?.[1] ?? 'help'}`)
+        slotKeys([`widget:${w};slot:help`], list, (where) => `widget:${w};slot:${/\((.+)\)$/.exec(where)?.[1] ?? 'help'}`)
+      }
+      slotKeys([`app:${topic.name};slot:help`], appList, (where) => `app:${topic.name};slot:${/\((.+)\)$/.exec(where)?.[1] ?? 'help'}`)
     }
+    // the instance's help (every screen)
+    const instance = metaHelp('instance', ((s.meta as Record<string, unknown> | undefined)?.instance ?? s.meta ?? {}) as never)
+    push(instance, (where) => `instanceLevel:true;slot:${/\((.+)\)$/.exec(where)?.[1] ?? 'help'}`)
   }
 
   /** Opens a metadata object found in the index. */
@@ -261,6 +295,22 @@ export class Commands implements CommandsLike {
           const screen = s.screen as { kind?: string; openTags?: () => void } | undefined
           if (screen?.kind === 'record') return screen.openTags?.()
           return fail(':tags works on a record (qqq collab tags list <table> shows a vocabulary)')
+        }
+        case 'helpkeys': {
+          s.helpKeys = !s.helpKeys
+          return s.flash(`help-authoring mode ${s.helpKeys ? 'on: F1 shows every help slot\'s key' : 'off'}`)
+        }
+        case 'views': {
+          const screen = s.screen as { kind?: string; savedViews?: () => void } | undefined
+          if (screen?.kind === 'table') return screen.savedViews?.()
+          return fail(':views works on a table grid')
+        }
+        case 'share': {
+          const screen = s.screen as { kind?: string; shareEntry?: () => MenuEntry[] } | undefined
+          const entry = screen?.kind === 'record' ? screen.shareEntry?.()[0] : undefined
+          if (!entry) return fail(':share works on a record of a shareable table (saved reports, saved views)')
+          if (entry.disabled) return fail(entry.disabled)
+          return entry.run?.()
         }
         case 'actions': {
           if (s.screen) return actionsOverlay(s, s.screen)
@@ -430,20 +480,66 @@ export class Commands implements CommandsLike {
 
   signOut(): void {
     const s = this.store
-    s.confirm(`Sign out of ${s.target?.server}?`, () => {
-      const deps = s.signInDeps
-      const target = s.target
-      if (!deps || !target) return
-      s.client?.call('logout').catch(() => undefined)
+    const deps = s.signInDeps
+    const target = s.target
+    if (!deps || !target) return
+    const finish = (note: string) => {
       import('@qrun-io/qqq-core').then(({ deleteLogin }) => deleteLogin(deps.secrets(), target)).finally(() => {
         s.dispose()
         s.client = undefined
         s.meta = undefined
         s.sidebar = undefined
         while (s.routes.length) s.routes.pop()
-        s.push(new SignInScreen(s, deps, target, 'signed out'))
+        s.push(new SignInScreen(s, deps, target, note))
       })
-    })
+    }
+    import('@qrun-io/qqq-core').then(({ readLogin }) => readLogin(deps.secrets(), target)).then((login) => {
+      if (login?.kind === 'oauth') {
+        type How = 'here' | 'provider'
+        s.open(new ChoiceOverlay<How>(s, `Sign out of ${target.server}`, [
+          { label: 'Sign out here', value: 'here', detail: 'forget the sign-in' },
+          { label: 'Sign out and end the provider session', value: 'provider', detail: 'revoke, end-session in the browser' },
+        ], (how) => {
+          if (how === 'here') return finish('signed out')
+          void (async () => {
+            const { revokeToken, endSessionUrl } = await import('@qrun-io/qqq-ui-api-client')
+            let note = 'signed out'
+            try {
+              if (login.tokens.refreshToken) await revokeToken(login.config, login.tokens.refreshToken)
+            } catch (e) {
+              note = `signed out; revoking at the provider failed: ${errorText(e)}`
+            }
+            const url = await endSessionUrl(login.config, { idToken: login.tokens.idToken }).catch(() => undefined)
+            if (url) {
+              const { openInBrowser } = await import('@qrun-io/qqq-cli/browser-login')
+              if (process.env.QQQ_UI_NO_BROWSER !== '1') openInBrowser(url)
+              note += `; ending the provider session in the browser (${url})`
+            } else note += '; the provider publishes no end-session address'
+            finish(note)
+          })()
+        }))
+        return
+      }
+      if (login?.kind === 'session' && login.authType === 'AUTH_0') {
+        type How = 'here' | 'provider'
+        s.open(new ChoiceOverlay<How>(s, `Sign out of ${target.server}`, [
+          { label: 'Sign out here', value: 'here', detail: 'end the server session' },
+          { label: 'Sign out and end the Auth0 session', value: 'provider', detail: 'v2/logout in the browser' },
+        ], (how) => {
+          void s.client?.call('logout').catch(() => undefined).finally(async () => {
+            if (how === 'here') return finish('signed out')
+            const [{ getAuthenticationMetaData }, { auth0LogoutUrl, auth0Values }] = await Promise.all([import('@qrun-io/qqq-ui-api-client'), import('./auth0')])
+            const url = auth0LogoutUrl(auth0Values((await getAuthenticationMetaData(target.server, deps.fetch)).values as Record<string, unknown> | undefined))
+            if (process.env.QQQ_UI_NO_BROWSER !== '1') void import('@qrun-io/qqq-cli/browser-login').then(({ openInBrowser }) => openInBrowser(url))
+            finish(`signed out; ending the Auth0 session in the browser (${url})`)
+          })
+        }))
+        return
+      }
+      s.confirm(`Sign out of ${target.server}?`, () => {
+        s.client?.call('logout').catch(() => undefined).finally(() => finish('signed out'))
+      })
+    }).catch((e) => s.error(e))
   }
 
   connectionText(): string {
@@ -526,6 +622,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Help', label: 'Keyboard reference and help', key: 'F1 ?', command: 'help', run: () => this.help() })
     out.push({ section: 'Help', label: 'Search help…', run: () => this.help() })
     out.push({ section: 'Help', label: 'Check my terminal', command: 'doctor', run: () => this.doctor() })
+    out.push({ section: 'Help', label: `Help-authoring mode (show help slot keys)`, detail: this.store.helpKeys ? 'on' : 'off', command: 'helpkeys', run: () => { this.store.helpKeys = !this.store.helpKeys; this.store.flash(`help-authoring mode ${this.store.helpKeys ? 'on' : 'off'}`) } })
     out.push({ section: 'Help', label: 'About', run: () => s.message(`qqq ui ${s.status.build}\nOpenTUI 0.8.1 (React) on Bun ${typeof Bun !== 'undefined' ? Bun.version : '?'}\nUI API ${s.status.apiVersion} at ${s.status.server}`, 'info', 'About') })
     out.push({ section: 'Help', label: 'Quit', key: 'F10', command: 'quit', run: () => s.requestQuit() })
     return out

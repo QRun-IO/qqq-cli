@@ -190,6 +190,35 @@ export class FormEditor {
   }
 
   /** Handles a key; returns true when the form used it. Ctrl+S and Esc are left to the owner. */
+  /** A field adorned with a filterAndColumnsSetup WIDGET: its value is a filter set up in the filter dialog. */
+  setupWidgetOf(name: string): string | undefined {
+    const f = this.session.fields[name] as { adornments?: Array<{ type?: string; values?: Record<string, unknown> }> } | undefined
+    const w = f?.adornments?.find((a) => a.type === 'WIDGET')?.values?.widgetName
+    if (typeof w !== 'string') return undefined
+    const type = (this.store.meta?.widgets as Record<string, { type?: string }> | undefined)?.[w]?.type
+    return type === 'filterAndColumnsSetup' ? w : undefined
+  }
+
+  /** Opens the filter dialog for the form's table (its tableName value) and writes the filter JSON into the field. */
+  editSetupField(name: string): void {
+    const table = String(this.session.values.tableName ?? (this.session.fields[name] as { defaultValue?: unknown }).defaultValue ?? '')
+    if (!table) return this.store.flash('choose the table first: the filter is for its fields', 'error')
+    let current: unknown
+    try {
+      current = typeof this.session.values[name] === 'string' && this.session.values[name] ? JSON.parse(String(this.session.values[name])) : this.session.values[name]
+    } catch {
+      current = undefined
+    }
+    const filter = (current && typeof current === 'object' ? current : { criteria: [], booleanOperator: 'AND' }) as { criteria: never[]; booleanOperator: 'AND'; orderBys?: Array<{ fieldName: string; isAscending?: boolean }> }
+    this.store.run(this.store.client!.tableMeta(table), (meta) => void import('../overlays/filter').then(({ FilterOverlay }) => {
+      const ob = filter.orderBys?.[0]
+      this.store.open(new FilterOverlay(this.store, meta, filter as never, ob ? { field: ob.fieldName, asc: ob.isAscending !== false } : undefined, (f, sort) => {
+        const value = JSON.stringify({ ...f, orderBys: sort ? [{ fieldName: sort.field, isAscending: sort.asc }] : [] })
+        this.store.run(this.session.set(name, value), () => this.editors.get(name)?.set(value))
+      }))
+    }))
+  }
+
   onKey(key: Key): boolean {
     const name = this.current
     if (!name) return false
@@ -212,6 +241,10 @@ export class FormEditor {
       return true
     }
     if (readOnly) return key.name === 'return' ? (this.move(1), true) : false
+    if (key.name === 'return' && this.setupWidgetOf(name)) {
+      this.editSetupField(name)
+      return true
+    }
     if (isFileField(f)) {
       if (key.name === 'return' || key.name === 'space') {
         this.chooseFile(name)

@@ -6,6 +6,10 @@
 /** A fake UI API server for in-memory TUI tests: a person table with pets, a contingent address form, a process. */
 
 import { accRoute } from './fake-acc'
+import { bulkProcessesMeta, bulkRoute } from './fake-bulk'
+import { savedReportWidgets, shareRoute } from './fake-share'
+import { dashApp, dashWidgets, widgetRoute } from './fake-widgets'
+import { secApps, secProcesses, secRoute, secTables } from './fake-sec'
 
 type J = Record<string, unknown>
 
@@ -69,10 +73,23 @@ const wideMeta = {
 /** Rows 1-20 are short; rows 21-40 have much longer values (column widths must not move). */
 export const WIDE = Array.from({ length: 40 }, (_, i) => ({ id: i + 1, name: i < 20 ? `n${i + 1}` : `a-much-longer-name-number-${i + 1}-xxxxxxxxxxxx`, note: i < 20 ? 'short' : 'y'.repeat(70) }))
 
-export interface FakeLog { requests: Array<{ method: string; path: string; body?: unknown }> }
+export interface FakeLog { requests: Array<{ method: string; path: string; body?: unknown; auth?: string; cookie?: string }> }
+
+/**
+ * Sign-in behaviour of the fake: the authentication type, TABLE_BASED users, and `expire` (the
+ * next data request answers 401 once, as an expired session does).
+ */
+export interface FakeAuth {
+  type: string
+  users?: Record<string, string>
+  expire?: boolean
+  sessions: Set<string>
+  /** values of the authentication metadata (OAUTH2: nativeClientId, baseUrl). */
+  values?: Record<string, unknown>
+}
 
 /** A fetch answering the operations the TUI uses. */
-export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): typeof fetch {
+export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown, auth?: FakeAuth): typeof fetch {
   let statusPolls = 0
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input as RequestInfo, init)
@@ -84,18 +101,57 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): t
       if (type.includes('json')) body = await request.json()
       else if (type.includes('form')) body = Object.fromEntries((await request.formData()).entries())
     }
-    log.requests.push({ method: request.method, path, body })
+    log.requests.push({ method: request.method, path, body, auth: request.headers.get('authorization') ?? undefined, cookie: request.headers.get('cookie') ?? undefined })
+    if (auth) {
+      if (path === '/metaData/authentication') return json({ type: auth.type, name: auth.type.toLowerCase(), values: { appName: 'Fake Corp', ...auth.values } })
+      if (path === '/manageSession') {
+        const basic = request.headers.get('authorization') ?? ''
+        if (auth.type === 'TABLE_BASED') {
+          const [user, password] = Buffer.from(basic.replace(/^Basic /, ''), 'base64').toString('utf8').split(':')
+          if (!user || auth.users?.[user] !== password) return json({ message: 'Unable to authenticate' }, 401)
+          const uuid = `s-${auth.sessions.size + 1}`
+          auth.sessions.add(uuid)
+          return json({ uuid, values: { user: { username: user, name: user } } })
+        }
+        if (auth.type === 'AUTH_0') {
+          const token = (body as { accessToken?: string } | undefined)?.accessToken
+          if (!token || token !== auth.values?.expectedToken) return json({ message: 'Unable to validate the access token' }, 401)
+        }
+        const uuid = `s-${auth.sessions.size + 1}`
+        auth.sessions.add(uuid)
+        return json({ uuid, values: { user: { name: 'Tester', email: 'auth0@fake.test' } } })
+      }
+      if (path === '/logout') {
+        const uuid = /sessionUUID=([^;]+)/.exec(request.headers.get('cookie') ?? '')?.[1]
+        if (uuid) auth.sessions.delete(uuid)
+        return json({})
+      }
+      if (auth.expire && path.startsWith('/table/')) {
+        auth.expire = false
+        auth.sessions.clear()
+        return json({ message: 'Session expired' }, 401)
+      }
+    }
     const acc = await accRoute(path, request.method, body, url)
     if (acc) return acc
+    const bulk = await bulkRoute(path, request.method, body)
+    if (bulk) return bulk
+    const share = await shareRoute(path, request.method, body)
+    if (share) return share
+    const widget = await widgetRoute(path, body)
+    if (widget) return widget
+    const sec = await secRoute(path, request.method)
+    if (sec) return sec
     if (path === '/version') return json({ apiVersion: '1.8.0', features: ['metaData', 'tables', 'processes'], extensions: [] })
     if (path === '/metaData' && bigMeta) return json(bigMeta)
     if (path === '/metaData') {
       return json({
-        apps: { people: { name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] } },
+        apps: { ...secApps, dash: dashApp, people: { name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] } },
         appTree: [{ type: 'APP', name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] }],
-        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, order: { name: 'order', label: 'Order' }, acc: { name: 'acc', label: 'Acc', insertPermission: true }, part: { name: 'part', label: 'Part', insertPermission: true }, scriptRevisionFile: { name: 'scriptRevisionFile', label: 'Files' }, line: { name: 'line', label: 'Order Line' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true } },
-        processes: { sleeper: { name: 'sleeper', label: 'Sleeper', tableName: 'person' }, scanner: { name: 'scanner', label: 'Scanner' }, wizard: { name: 'wizard', label: 'Wizard' }, GetAuditsForRecord: { name: 'GetAuditsForRecord', label: 'Audits', isHidden: true }, columnStats: { name: 'columnStats', label: 'Stats', isHidden: true }, querySavedView: { name: 'querySavedView', label: 'q', isHidden: true } },
-        widgets: { ctxWidget: { name: 'ctxWidget', label: 'Context' }, stepWidget: { name: 'stepWidget', label: 'Step widget' }, payloadWidget: { name: 'payloadWidget', label: 'Payload' } }, branding: { appName: 'Fake' },
+        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, order: { name: 'order', label: 'Order' }, acc: { name: 'acc', label: 'Acc', insertPermission: true }, part: { name: 'part', label: 'Part', insertPermission: true }, scriptRevisionFile: { name: 'scriptRevisionFile', label: 'Files' }, line: { name: 'line', label: 'Order Line' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true }, blk: { name: 'blk', label: 'Blk', insertPermission: true }, savedReport: { name: 'savedReport', label: 'Saved Report' }, savedView: { name: 'savedView', label: 'Saved View', isHidden: true }, ...secTables },
+        processes: { ...bulkProcessesMeta, ...secProcesses, adhoc: { name: 'adhoc', label: 'Ad hoc' }, adhocfile: { name: 'adhocfile', label: 'Ad hoc file' }, setupProc: { name: 'setupProc', label: 'Report setup' }, sleeper: { name: 'sleeper', label: 'Sleeper', tableName: 'person' }, scanner: { name: 'scanner', label: 'Scanner' }, wizard: { name: 'wizard', label: 'Wizard' }, GetAuditsForRecord: { name: 'GetAuditsForRecord', label: 'Audits', isHidden: true }, columnStats: { name: 'columnStats', label: 'Stats', isHidden: true }, querySavedView: { name: 'querySavedView', label: 'q', isHidden: true } },
+        reports: { deniedReport: { name: 'deniedReport', label: 'Denied report', hasPermission: false }, streamReport: { name: 'streamReport', label: 'Stream report' }, wizReport: { name: 'wizReport', label: 'Wizard report', processName: 'wizard' } },
+        widgets: { ...dashWidgets, ...savedReportWidgets, ctxWidget: { name: 'ctxWidget', label: 'Context' }, stepWidget: { name: 'stepWidget', label: 'Step widget' }, payloadWidget: { name: 'payloadWidget', label: 'Payload' } }, branding: { appName: 'Fake' },
       })
     }
     if (path === '/metaData/table/person') return json(personMeta)
@@ -125,6 +181,7 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): t
     }
     if (path === '/metaData/table/vt') return json({ ...wideMeta, name: 'vt', label: 'Variant Table', usesVariants: true, variantTableLabel: 'Client' })
     if (path === '/table/vt/variants') return json({ variants: [{ id: '1', type: 'client', name: 'Acme' }, { id: '2', type: 'client', name: 'Globex' }] })
+    if (path === '/reports/streamReport') return new Response(`fmt,${url.searchParams.get('format')}\n`, { status: 200, headers: { 'content-type': 'text/csv' } })
     if (path === '/table/vt/count') return json({ count: url.searchParams.get('tableVariant') ? 3 : 0 })
     if (path === '/table/vt/query') return json({ records: url.searchParams.get('tableVariant') ? WIDE.slice(0, 3).map((w) => ({ values: w, recordLabel: w.name })) : [] })
     if (path === '/table/doc' && request.method === 'POST') {

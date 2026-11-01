@@ -19,6 +19,7 @@ import { registerApi } from './commands/api.js'
 import { registerAudit } from './commands/audit.js'
 import { registerAuth } from './commands/auth.js'
 import { registerBulk } from './commands/bulk.js'
+import { registerReports } from './commands/reports.js'
 import { registerCompletion } from './commands/completion.js'
 import { registerConfig } from './commands/config.js'
 import { registerDeveloper } from './commands/developer.js'
@@ -67,6 +68,7 @@ export function createProgram(): Command {
   registerSavedView(program, ctx)
   registerJob(program, ctx)
   registerWidget(program, ctx)
+  registerReports(program, ctx)
   registerApi(program, ctx)
   registerExtensions(program, ctx)
   registerCompletion(program, ctx)

@@ -13,7 +13,7 @@ import { upsertProfile, type SecretStore } from '@qrun-io/qqq-core'
 import { App } from '../src/app'
 import { boot, parseArgs } from '../src/boot'
 import type { AppStore } from '../src/store'
-import { fakeFetch, type FakeLog } from './fake-server'
+import { fakeFetch, type FakeAuth, type FakeLog } from './fake-server'
 
 // async loads repaint outside act(); the frames are awaited explicitly, so the warning is noise here
 const consoleError = console.error
@@ -36,7 +36,7 @@ export function isolate(): void {
 
 /** A secret store holding a session sign-in for every account. */
 export function sessionSecrets(): SecretStore {
-  const login = JSON.stringify({ kind: 'session', authType: 'MOCK', sessionUUID: 'test-session', user: { name: 'Tester' }, createdAt: new Date().toISOString() })
+  const login = JSON.stringify({ kind: 'session', authType: 'MOCK', sessionUUID: 'test-session', user: { name: 'Tester', email: 'tester@fake.test' }, createdAt: new Date().toISOString() })
   return { kind: 'memory', get: async () => login, set: async () => undefined, delete: async () => true }
 }
 
@@ -48,13 +48,21 @@ export interface Harness {
 }
 
 /** Renders the whole TUI against the fake server and waits for the home screen. */
-export async function startTui(width = 120, height = 36, options: { metaData?: unknown } = {}): Promise<Harness> {
+export async function startTui(width = 120, height = 36, options: { metaData?: unknown; auth?: FakeAuth; secrets?: () => SecretStore; until?: 'home' | 'signin' } = {}): Promise<Harness> {
   const log: FakeLog = { requests: [] }
-  const store = boot({ args: parseArgs(['--profile', 'fake']), quit: () => undefined, build: 'test', secrets: sessionSecrets, fetch: fakeFetch(log, options.metaData) })
+  const store = boot({ args: parseArgs(['--profile', 'fake']), quit: () => undefined, build: 'test', secrets: options.secrets ?? sessionSecrets, fetch: fakeFetch(log, options.metaData, options.auth) })
   const setup = await testRender(<App store={store} />, { width, height })
   const h: Harness = { setup, store, log, frame: () => setup.captureCharFrame() }
-  await waitFor(h, (f) => f.includes('Apps') && h.store.screen?.kind === 'home')
+  if ((options.until ?? 'home') === 'home') await waitFor(h, (f) => f.includes('Apps') && h.store.screen?.kind === 'home')
+  else await waitFor(h, () => h.store.screen?.kind === 'signin')
   return h
+}
+
+/** A secret store that starts empty and keeps what is written (sign-in tests). */
+export function memorySecrets(): () => SecretStore {
+  const m = new Map<string, string>()
+  const store: SecretStore = { kind: 'memory', get: async (k) => m.get(k), set: async (k, v) => { m.set(k, v) }, delete: async (k) => m.delete(k) }
+  return () => store
 }
 
 /** Fires input inside act(), lets data events settle, paints one frame. */

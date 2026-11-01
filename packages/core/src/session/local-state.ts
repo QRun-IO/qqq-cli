@@ -140,3 +140,23 @@ export function writeIdleMinutes(minutes: number, env: NodeJS.ProcessEnv = proce
 export function pinDelayMillis(failures: number): number {
   return failures <= 0 ? 0 : Math.min(30_000, 500 * 2 ** (failures - 1))
 }
+
+/** A table variant chosen earlier, remembered per server and table (as the web keeps it for the session). */
+export interface RememberedVariant { id: string; type: string; name?: string }
+
+/** The variant last chosen for a table on a server, if any (kept in the config file's ui section). */
+export function readRememberedVariant(server: string, table: string, env: NodeJS.ProcessEnv = process.env): RememberedVariant | undefined {
+  const ui = readConfig(env).ui as { variants?: Record<string, Record<string, RememberedVariant>> } | undefined
+  return ui?.variants?.[server]?.[table]
+}
+
+/** Remembers (or with undefined, forgets) the variant chosen for a table on a server. */
+export function rememberVariant(server: string, table: string, variant: RememberedVariant | undefined, env: NodeJS.ProcessEnv = process.env): void {
+  const config = readConfig(env)
+  const ui = (config.ui ?? {}) as { variants?: Record<string, Record<string, RememberedVariant>> }
+  const forServer = { ...(ui.variants?.[server] ?? {}) }
+  if (variant) forServer[table] = { id: variant.id, type: variant.type, ...(variant.name ? { name: variant.name } : {}) }
+  else delete forServer[table]
+  config.ui = { ...config.ui, variants: { ...(ui.variants ?? {}), [server]: forServer } } as never
+  writeConfig(config, env)
+}

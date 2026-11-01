@@ -12,7 +12,7 @@ import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
 import { Collaboration, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
-import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieFor, target, type Target } from './session.js'
+import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieHeaderFor, target, type Target } from './session.js'
 
 /**
  * Where output goes. The CLI writes to the process streams; `runCli` (the TUI's `:` command line)
@@ -121,12 +121,12 @@ export class Context {
     return new Collaboration(await this.extensions(), {
       call: (id, input) => this.call(id, input),
       openStream: (signal) => (async function* () {
-        const session = await sessionCookieFor(t)
+        const session = await sessionCookieHeaderFor(t)
         yield* openRealtimeStream({
           baseUrl: t.server,
           clientChannel: CLIENT_CHANNEL,
           signal,
-          headers: session ? { Cookie: `sessionUUID=${session}` } : undefined,
+          headers: session ? { Cookie: session } : undefined,
           token: session ? undefined : () => currentToken(t),
         })
       })(),

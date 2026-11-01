@@ -14,7 +14,7 @@ import { basename, extname } from 'node:path'
 import type { Command } from 'commander'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import {
-  BACK, BulkDeclinedError, BulkMappingError, FormInputError, FormSession, ProcessCancelledError, ProcessError, SavedBulkLoadProfileError, blocksToText, buildFilter, bulkProcesses,
+  BACK, BulkDeclinedError, BulkMappingError, FilterLabelError, resolveFilterLabels, FormInputError, FormSession, ProcessCancelledError, ProcessError, SavedBulkLoadProfileError, blocksToText, buildFilter, bulkProcesses,
   checkInputRecords, checkMapping, columnLetter, columnName, columnPreview, deleteSavedBulkLoadProfile, diffMappings, displayDateTime, filterDateTimesToUtc, findColumn, findSavedBulkLoadProfile,
   formatTable, formatValue, isProfileOwner, listSavedBulkLoadProfiles, mappingDocument, mappingFromProfile, mappingRows, parseMappingDocument, profileFromMapping, readFileDescription, resolvePossibleValue,
   runBulkProcess, safeFileName, savedBulkLoadProfilesAvailable, screenToText, searchPossibleValues, setHasHeaderRow, storeSavedBulkLoadProfile, structureFields, uploadTemplates, variantParam,
@@ -26,10 +26,10 @@ import { ask, promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
 import { printOutcome } from './process.js'
 import { currentUserId } from './saved-view.js'
-import { countFooter, parsePairs, positiveInt, readFileArg, readJson, writeDownload, type Json } from './shared.js'
+import { countFooter, parsePairs, positiveInt, readFileArg, readJson, writeDownload, requireTable, type Json } from './shared.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
-interface SelectOptions { records?: string; where?: string[]; group?: string[]; or?: boolean; filterJson?: string; allRecords?: boolean }
+interface SelectOptions { caseSensitive?: boolean; records?: string; where?: string[]; group?: string[]; or?: boolean; filterJson?: string; allRecords?: boolean }
 interface ReviewOptions { validate?: boolean; skipValidation?: boolean; dryRun?: boolean; quiet?: boolean; recordLimit: string; variant?: string }
 interface FileOptions { file?: string; mapping?: string; column?: string[]; default?: string[]; layout?: string; header: boolean; saved?: string; saveMapping?: string; saveProfile?: string; interactive?: boolean; key?: string; template?: string; out?: string }
 
@@ -42,7 +42,21 @@ function selection(options: SelectOptions, meta: Json): { ids: string[] } | { fi
   if (options.filterJson) return { filter: readJson(options.filterJson, '--filter-json') as QueryFilter }
   if (options.allRecords) return { filter: { criteria: [], booleanOperator: 'AND' } as unknown as QueryFilter }
   const fields = (meta.fields ?? {}) as Record<string, FieldMeta>
-  return { filter: filterDateTimesToUtc(buildFilter({ where: options.where, group: options.group, or: options.or, knownFields: Object.keys(fields) }), fields) }
+  return { filter: filterDateTimesToUtc(buildFilter({ where: options.where, group: options.group, or: options.or, knownFields: Object.keys(fields), caseSensitive: options.caseSensitive }), fields) }
+}
+
+/** selection, with possible-value labels in --where resolved to ids. */
+async function resolvedSelection(c: Context, options: SelectOptions, meta: Json): Promise<{ ids: string[] } | { filter: QueryFilter }> {
+  const chosen = selection(options, meta)
+  if (!('filter' in chosen) || options.filterJson) return chosen
+  try {
+    const { filter, notes } = await resolveFilterLabels(c.server, authenticatedFetch(c.target), String(meta.name), (meta.fields ?? {}) as Record<string, FieldMeta>, chosen.filter)
+    for (const n of notes) c.note(`filter: ${n}`)
+    return { filter }
+  } catch (error) {
+    if (error instanceof FilterLabelError) throw new UsageError(`--where: ${error.message}`)
+    throw error
+  }
 }
 
 function addSelectOptions(cmd: Command): Command {
@@ -51,6 +65,7 @@ function addSelectOptions(cmd: Command): Command {
     .option('-w, --where <criteria...>', 'criteria, ANDed (or --or): the whole query result')
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
     .option('--or', 'OR the --where criteria')
+    .option('--case-sensitive', 'text matches in --where match case (by default they ignore it)')
     .option('--filter-json <json|file|->', 'a QueryFilter selecting the records')
     .option('--all-records', 'every record of the table')
 }
@@ -89,6 +104,7 @@ export function registerBulk(program: Command, ctx: () => Context): void {
     .action(async (name: string, options: FileOptions & ReviewOptions) => {
       const c = ctx()
       const meta = await c.tableMeta<Json>(name)
+      requireTable(meta as unknown as Json, 'insert')
       const processName = bulkProcesses(meta, await c.metaData() as unknown as Json).insert
       if (!processName) throw new UsageError(`${meta.label} offers no bulk insert to you.`)
       if (options.template !== undefined) return await saveTemplates(c, processName, name, options)
@@ -105,6 +121,7 @@ export function registerBulk(program: Command, ctx: () => Context): void {
     .action(async (name: string, options: FileOptions & ReviewOptions & SelectOptions & { set?: string[]; clear?: string[] }) => {
       const c = ctx()
       const meta = await c.tableMeta<Json>(name)
+      requireTable(meta as unknown as Json, 'edit')
       const processes = bulkProcesses(meta, await c.metaData() as unknown as Json)
       if (options.file) {
         if (!processes.editWithFile) throw new UsageError(`${meta.label} offers no bulk edit with a file to you.`)
@@ -121,6 +138,7 @@ export function registerBulk(program: Command, ctx: () => Context): void {
     .action(async (name: string, options: ReviewOptions & SelectOptions) => {
       const c = ctx()
       const meta = await c.tableMeta<Json>(name)
+      requireTable(meta as unknown as Json, 'delete')
       const processName = bulkProcesses(meta, await c.metaData() as unknown as Json).delete
       if (!processName) throw new UsageError(`${meta.label} offers no bulk delete to you.`)
       await runSelected(c, meta, processName, options, 'delete')
@@ -284,7 +302,7 @@ async function drive(c: Context, meta: Json, processName: string, options: Revie
 
 /** bulk-edit (no file) and bulk-delete: records chosen by ids or a filter. */
 async function runSelected(c: Context, meta: Json, processName: string, options: ReviewOptions & SelectOptions & { set?: string[]; clear?: string[]; interactive?: boolean }, kind: 'edit' | 'delete'): Promise<void> {
-  const records = selection(options, meta)
+  const records = await resolvedSelection(c, options, meta)
   const procMeta = await c.unwrap(c.client.GET('/qqq/v1/metaData/process/{processName}', { params: { path: { processName } } })) as unknown as ProcessMeta
   try {
     await checkInputRecords(procMeta, records, async (filter) => Number(((await c.call('countTable', { path: { tableName: String(meta.name) }, json: { filter } })).data as Json).count ?? 0))
