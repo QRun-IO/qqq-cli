@@ -7,7 +7,7 @@ import { mkdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
-import { BACK, adHocControls, deniedProcessReason, displayDateTime, formatValue, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpToText, isMissingValue, processHelp, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, variantParam, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, adHocControls, deniedProcessReason, parseFilter, displayDateTime, formatValue, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpToText, isMissingValue, processHelp, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, variantParam, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { ask, promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -162,6 +162,20 @@ export function registerProcess(program: Command, ctx: () => Context): void {
                   declined = true
                   abort.abort()
                   throw new Error('not submitted')
+                }
+              }
+            }
+            // a field drawn by a filterAndColumnsSetup widget (WIDGET adornment) takes a filter: the grammar becomes its QueryFilter JSON
+            const widgetMeta = ((await c.metaData() as unknown as Json).widgets ?? {}) as Record<string, Json>
+            for (const f of fields) {
+              const adornment = (f.adornments ?? []).find((a) => a.type === 'WIDGET') as { values?: Record<string, unknown> } | undefined
+              const widgetType = adornment ? widgetMeta[String(adornment.values?.widgetName ?? '')]?.type : undefined
+              const typed = given[f.name]
+              if (widgetType === 'filterAndColumnsSetup' && typeof typed === 'string' && typed.trim() && !typed.trim().startsWith('{')) {
+                try {
+                  given[f.name] = JSON.stringify(parseFilter(typed))
+                } catch (error) {
+                  throw new UsageError(`--values ${f.name}: ${error instanceof Error ? error.message : String(error)}`)
                 }
               }
             }

@@ -89,6 +89,6 @@ test('text matches are case-insensitive by default; ~=, :CS and caseSensitive as
   assert.equal(parseCriterion('lastName = Sam').options, undefined)
   assert.equal(buildFilter({ where: ['a ~ x'], caseSensitive: true }).criteria[0]!.options, undefined)
   assert.equal(printCriterion(parseCriterion('a ~ x')), 'a CONTAINS x')
-  assert.equal(printCriterion(parseCriterion('a ~= x')), 'a CONTAINS:CS x')
+  assert.equal(printCriterion(parseCriterion('a ~= x')), 'a CONTAINS x')
   assert.equal(quickSearchFilter('x', ['a'], { caseSensitive: true })!.criteria[0]!.options, undefined)
 })

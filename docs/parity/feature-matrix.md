@@ -11,16 +11,16 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 |---|---|---|---|---|---|---|
 | HLP | 6 | 5 | 0 | 0 | 0 | 1 |
 | INT | 14 | 5 | 0 | 0 | 0 | 9 |
-| NAV | 40 | 9 | 3 | 1 | 0 | 27 |
+| NAV | 40 | 13 | 0 | 0 | 0 | 27 |
 | PRC | 60 | 48 | 0 | 0 | 0 | 12 |
-| PRF | 5 | 4 | 1 | 0 | 0 | 0 |
+| PRF | 5 | 5 | 0 | 0 | 0 | 0 |
 | QRY | 70 | 48 | 0 | 0 | 1 | 21 |
 | REC | 65 | 53 | 0 | 0 | 1 | 11 |
 | REL | 9 | 9 | 0 | 0 | 0 | 0 |
-| RPT | 20 | 1 | 19 | 0 | 0 | 0 |
+| RPT | 20 | 20 | 0 | 0 | 0 | 0 |
 | SEC | 43 | 29 | 0 | 0 | 2 | 12 |
-| WID | 69 | 29 | 27 | 0 | 0 | 13 |
-| **all** | 401 | 240 | 50 | 1 | 4 | 106 |
+| WID | 69 | 55 | 0 | 0 | 0 | 14 |
+| **all** | 401 | 290 | 0 | 0 | 4 | 107 |
 
 ## Summary (TUI column)
 
@@ -36,8 +36,8 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REL | 9 | 9 | 0 | 0 | 0 | 0 |
 | RPT | 20 | 0 | 20 | 0 | 0 | 0 |
 | SEC | 43 | 7 | 23 | 1 | 0 | 12 |
-| WID | 69 | 15 | 43 | 0 | 0 | 11 |
-| **all** | 401 | 227 | 92 | 5 | 3 | 74 |
+| WID | 69 | 15 | 42 | 0 | 0 | 12 |
+| **all** | 401 | 227 | 91 | 5 | 3 | 75 |
 
 ## Rows
 
@@ -53,24 +53,24 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | NAV-008 | App home sections list processes (Actions), reports (Reports) and tables (Data) by label with icons, and each  | pass | pass | qqq apps show <app>: sections of processes, reports, tables and child apps, then widgets; TUI: app home: sections with tables, processes, reports |
 | NAV-009 | App home table entries show the backend record count | pass | pass | qqq apps show counts each table with TABLE_COUNT (--no-counts skips); TUI: record counts beside tables |
 | NAV-010 | App homes of apps with child apps, only processes, or nothing render without errors | n/a | pass | app home rendering |
-| NAV-011 | A dashboard app (widgets only) opens from navigation and shows one labelled container per permitted declared w | todo | pass | widgets per app; TUI: dashboard apps draw their widgets |
+| NAV-011 | A dashboard app (widgets only) opens from navigation and shows one labelled container per permitted declared w | pass | pass | qqq apps show <app> --widgets: one labelled section per permitted declared widget, loaded once each; verified live on SampleWidgetsDashboard; TUI: dashboard apps draw their widgets |
 | NAV-012 | Branding: sidebar logo (Material parity), app name, favicon from the icon, accent color, and partial branding  | n/a | n/a | browser shell; TUI: logo, favicon and accent images are browser-only; the app name is in the title bar and on Home |
 | NAV-013 | Branding banners render in their slots (top of site, top of body, side nav under logo) with text or sanitized  | n/a | n/a | browser shell |
 | NAV-014 | Breadcrumbs show the full app hierarchy for tables, processes, records, create and edit pages, and each crumb  | n/a | pass | browser shell; TUI: title-bar path: apps, table, record or form |
 | NAV-015 | Document title names the page, its enclosing apps and the application (Material parity) | n/a | n/a | browser shell |
 | NAV-016 | The site root redirects to the dashboard | n/a | n/a | browser shell |
-| NAV-017 | Dashboard landing page: counts, quick actions and application cards derived from navigable, permitted metadata | todo | pass | whoami shows counts; dashboard landing is the TUI; TUI: Home: greeting, counts, recents, quick actions, app cards, work |
+| NAV-017 | Dashboard landing page: counts, quick actions and application cards derived from navigable, permitted metadata | pass | pass | qqq home: counts of what you may open, quick actions (permitted processes in your apps, with the command) and one card per app; verified live; TUI: Home: greeting, counts, recents, quick actions, app cards, work |
 | NAV-018 | Direct (hard-loaded) links open every route shape with the shell, sidebar state and breadcrumbs | n/a | pass | browser shell; TUI: qqq ui <route in the CLI grammar> |
 | NAV-019 | Browser refresh keeps the route, its query string and the rendered content | n/a | n/a | browser shell |
 | NAV-020 | Browser back and forward traverse navigation history with the right content | n/a | n/a | browser shell |
 | NAV-021 | An unknown /app/{name} shows an in-shell not-found state with a link to the dashboard | n/a | n/a | browser shell |
 | NAV-022 | Unknown deeper or top-level paths return the 404 page with a working home link | n/a | n/a | browser shell |
 | NAV-023 | Record lookup by key: /app/{table}/key?{field}={value} opens the single matching record | pass | pass | qqq table get <t> --key field=value: one match shows the record, none exits 5, several exit 2; TUI: g: primary key or a configured unique key (kernel gotoKeys) |
-| NAV-024 | Command palette (Ctrl+K and '.') lists navigable apps, tables and processes by label with type and app context | todo | pass | shell completion covers names; a palette is the TUI; TUI: F2, /, ., Ctrl+K palette with type and app context |
+| NAV-024 | Command palette (Ctrl+K and '.') lists navigable apps, tables and processes by label with type and app context | pass | pass | qqq find <text> [--type]: apps, tables, processes and reports by label with type, app and the command that opens each (the terminal's palette); verified live; shell completion covers names; TUI: F2, /, ., Ctrl+K palette with type and app context |
 | NAV-025 | Header search, '/' search dialog and search page jump to navigation targets and recently viewed records by lab | pass | pass | qqq search; TUI: the palette (F2, /, ., Ctrl+K) jumps to navigation targets and recently viewed records; live |
 | NAV-026 | Mobile navigation drawer opens from the header, navigates and closes | n/a | n/a | browser shell |
 | NAV-027 | Developer page reports the backend metadata counts and the running framework versions | pass | pass | qqq whoami: apiVersion, features, counts; TUI: F9 › Connection: UI API version, features, extensions, metadata generation and age, client build; live |
-| NAV-028 | Reports in the app tree are listed under their app (sidebar and app home Reports group) and open the report pa | partial | partial | qqq report list (reports with their app); the sample app has no reports to verify; TUI: reports listed in the tree, Home and palette; run through :report run |
+| NAV-028 | Reports in the app tree are listed under their app (sidebar and app home Reports group) and open the report pa | pass | partial | qqq report list (with app) and apps show list reports in the app's Reports group, report run opens them; unit-tested and stub-server tested (the sample has no reports); TUI: reports listed in the tree, Home and palette; run through :report run |
 | NAV-029 | A user who may access no apps sees the Dashboard entry and the no-apps message (Material NoApps parity) | n/a | n/a | browser shell |
 | NAV-030 | Global search (header box, '/' dialog, search page) lists the records a backend record search (POST /qqq/v1/se | pass | blocked | qqq search over POST /search; TUI: the palette calls POST /search; the sample lists recordSearch with no provider (server finding 21) |
 | NAV-031 | Record search respects table read permissions and record security locks, in the UI and the API | pass | pass | server-enforced; refusals shown; TUI: server-enforced; the palette shows only what the server returns |
@@ -86,7 +86,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRF-001 | large table: a 10,000-row, 40-column table opens with every column and the exact first page within budget | pass | partial | 10,000 rows with --all and --page-size; TUI: server paging opens the first page; the column layout scrolls horizontally rather than fitting 40 columns |
 | PRF-002 | large table: 250-row pages of 40 columns render, page and reach the last page within budget | pass | pass | --limit/--skip paging; TUI: server-paged grid, page = visible rows |
 | PRF-003 | large table: sorting and filtering 10,000 rows return exact results within budget | pass | pass | server sort and filter; TUI: server sort and filter |
-| PRF-004 | heavy dashboard: 24 widgets (statistics, bar, line and pie charts, 100-row tables) load once each within budge | todo | pass | one widget per call today; TUI: dashboards load widgets as they come into view, 4 at a time (fake 3000-widget instance) |
+| PRF-004 | heavy dashboard: 24 widgets (statistics, bar, line and pie charts, 100-row tables) load once each within budge | pass | pass | apps show --widgets loads every widget once, all at once, in declared order: 24 widgets (statistics, charts, 100-row tables) answering in 150 ms each finish well under 3 s; stub-server tested; TUI: dashboards load widgets as they come into view, 4 at a time (fake 3000-widget instance) |
 | PRF-005 | long process: a 10-second job over 10,000 rows reports progress, polls at a bounded rate and shows its result  | pass | pass | process run polls every 500 ms and prints progress; TUI: progress N/M, elapsed, 250 ms polling |
 | PRC-001 | Selected-record run: record ids reach the backend, screen values are submitted, mixed view and record-list res | pass | pass | process run -r ids; TUI: grid selection or record, ids sent |
 | PRC-002 | All-records run from a filter selection with no criteria | pass | pass | --filter-json; TUI: without a selection: the grid filter |
@@ -354,13 +354,13 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | WID-003 | chart output from an untyped widget renders as a bar chart | pass | todo | rendered as text |
 | WID-004 | divider widget renders a rule without card chrome | pass | pass | rendered as text |
 | WID-005 | fieldValueList widget: labels, display values, prefix icons, indentation | pass | todo | rendered as text |
-| WID-006 | generic widget renders its common payload fields (sublabel, footer) | todo | todo | generic |
+| WID-006 | generic widget renders its common payload fields (sublabel, footer) | pass | todo | generic: its html as text, plus label, sublabel and footer; unit-tested (none in the sample) |
 | WID-007 | horizontalBarChart widget: horizontal bars with negative values left of zero | pass | todo | rendered as text |
 | WID-008 | html widget (no-code) renders sanitized user HTML | pass | todo | rendered as text |
 | WID-009 | lineChart widget: line with a point per label and description | pass | pass | rendered as text; TUI: sparkline and table |
 | WID-010 | smallLineChart widget: compact line with title and HTML description | pass | todo | rendered as text |
-| WID-011 | location widget: image, title, description, address and footer | todo | todo | location |
-| WID-012 | multiStatistics widget: groups with icon, header, subheader and statistics | todo | pass | multiStatistics untested |
+| WID-011 | location widget: image, title, description, address and footer | pass | todo | location: image link, title, description, address and footer text; unit-tested (none in the sample) |
+| WID-012 | multiStatistics widget: groups with icon, header, subheader and statistics | pass | pass | multiStatistics: groups with icon, header and subheader, statisticList values with separators (links shown); verified live on SampleMultiStatisticsWidget |
 | WID-013 | multiTable widget renders each table with its label and rows | pass | todo | rendered as text |
 | WID-014 | pieChart widget: colored slices, legend values and subheader | pass | pass | rendered as text; TUI: percentage bars |
 | WID-015 | quickSightChart widget embeds the provider URL (real renderer, owned local provider endpoint) | pass | todo | prints the URL |
@@ -368,26 +368,26 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | WID-017 | stackedBarChart widget stacks datasets with colors and legend | pass | pass | rendered as text; TUI: segments per dataset |
 | WID-018 | stepper widget: completed, current (with link) and upcoming steps | pass | pass | rendered as text |
 | WID-019 | table widget: headers, rows, alignment and fixed totals row | pass | pass | rendered as text |
-| WID-020 | usaMap widget plots each marker with name and coordinates | todo | todo | usaMap markers |
-| WID-021 | process widget runs the sample interactive process inline | todo | todo | process widget |
-| WID-022 | parentWidget renders its children in a 12-column grid | todo | todo | parent widget children |
+| WID-020 | usaMap widget plots each marker with name and coordinates | pass | todo | usaMap: each marker with name and coordinates as a table, 'No locations to show' when none; unit-tested |
+| WID-021 | process widget runs the sample interactive process inline | pass | todo | a process widget names its process; widget get --run runs it here with the widget's default values; stub-server tested (no process widget in the sample) |
+| WID-022 | parentWidget renders its children in a 12-column grid | pass | todo | parentWidget: children loaded and shown in order, each sized n/12 (gridColumns; TABS as tab headings); unit-tested |
 | WID-023 | composite widget renders QQQ blocks (big numbers, up/down, links, tooltips) | pass | pass | rendered as text; TUI: big numbers, up/down |
 | WID-024 | childRecordList widget without association binding lists joined child records | pass | todo | rendered as text |
 | WID-025 | customComponent widget loads its bundle and renders the named component | n/a | n/a | customComponent is web-only |
-| WID-026 | cronUI widget shows the record's schedule expression, description and time zone | todo | todo | developer and editor widgets |
-| WID-027 | dynamicForm widget shows labeled values from the payload | todo | todo | developer and editor widgets |
-| WID-028 | dataBagViewer widget lists versions and shows the selected version contents | todo | todo | developer and editor widgets |
-| WID-029 | pivotTableSetup widget shows, edits and clears the saved report's pivot definition | todo | todo | developer and editor widgets |
-| WID-030 | filterAndColumnsSetup widget shows the saved report's filter, sort and columns | todo | todo | developer and editor widgets |
-| WID-070 | filterAndColumnsSetup edits a saved report's filter, sort, columns and variable values through the host form | todo | todo | developer and editor widgets |
-| WID-071 | a WIDGET-adorned process form field renders filter setup and writes its own value | todo | todo | developer and editor widgets |
-| WID-072 | API-versioned report setup loads table metadata and previews through the application API | todo | todo | developer and editor widgets |
-| WID-073 | report setup editor uses the full server-backed grid for paging, sorting and column sizing | todo | todo | developer and editor widgets |
-| WID-031 | rowBuilder widget without association binding shows its rows read-only | todo | todo | developer and editor widgets |
-| WID-032 | scriptViewer widget lists script revisions and shows the selected revision's files | todo | todo | developer and editor widgets |
+| WID-026 | cronUI widget shows the record's schedule expression, description and time zone | pass | todo | cronUI: the record's cron expression, the payload's description and the time zone (widget get --record t=pk); 'No schedule set'; unit-tested |
+| WID-027 | dynamicForm widget shows labeled values from the payload | pass | todo | dynamicForm: labeled values (display values first, or the merged JSON field); noFieldsMessage; unit-tested |
+| WID-028 | dataBagViewer widget lists versions and shows the selected version contents | pass | todo | dataBagViewer: the bag's versions newest first (current marked) and the current version's data as JSON; unit-tested |
+| WID-029 | pivotTableSetup widget shows, edits and clears the saved report's pivot definition | pass | todo | qqq saved-report show prints the pivot definition (rows, columns, 'Sum of Total'); saved-report pivot sets it (--rows/--columns/--values FUNCTION:field) or --clear clears it; stub-server tested |
+| WID-030 | filterAndColumnsSetup widget shows the saved report's filter, sort and columns | pass | todo | qqq saved-report show: filter (match all/any), sort and visible columns as the setup widget words them; stub-server tested |
+| WID-070 | filterAndColumnsSetup edits a saved report's filter, sort, columns and variable values through the host form | pass | todo | qqq saved-report set: filter and sort (--where/--group/--order, ${variable.x} filter variables), visible columns (--columns), name; written to queryFilterJson/columnsJson as the setup does; stub-server tested |
+| WID-071 | a WIDGET-adorned process form field renders filter setup and writes its own value | pass | todo | a process field drawn by a filterAndColumnsSetup widget takes the filter grammar (-v field="a = 1 AND b > 2") and writes its QueryFilter JSON; stub-server tested |
+| WID-072 | API-versioned report setup loads table metadata and previews through the application API | pass | todo | qqq saved-report preview --api-path/--api-version queries and counts through the application API, as API-versioned setups preview; stub-server tested |
+| WID-073 | report setup editor uses the full server-backed grid for paging, sorting and column sizing | pass | todo | qqq saved-report preview pages, sorts and counts on the server (-l, --skip, -o); columns fit their content (dragging widths is a browser grid control); stub-server tested |
+| WID-031 | rowBuilder widget without association binding shows its rows read-only | pass | todo | rowBuilder without association binding: its rows read-only in a table (declared fields, display values); unit-tested |
+| WID-032 | scriptViewer widget lists script revisions and shows the selected revision's files | pass | todo | scriptViewer: the script's revisions (current marked) and the current revision's files; unit-tested |
 | WID-033 | quickSightChart against a real AWS QuickSight account and dashboard | n/a | todo | QuickSight |
-| WID-040 | dashboard renders app widgets in declared order sized by gridColumns (twelfths) | todo | pass | widgets per app; TUI: widgets in declared order, laid out side by side by gridColumns on wide terminals, v reorders; live |
-| WID-041 | widget chrome: card vs plain (isCard=false), sublabel, metadata and payload footer HTML | todo | todo | footer text |
+| WID-040 | dashboard renders app widgets in declared order sized by gridColumns (twelfths) | pass | pass | apps show --widgets: app widgets in declared order, each marked with its width in twelfths (gridColumns); verified live; TUI: widgets in declared order, laid out side by side by gridColumns on wide terminals, v reorders; live |
+| WID-041 | widget chrome: card vs plain (isCard=false), sublabel, metadata and payload footer HTML | pass | todo | chrome: a card widget's title framed (== label ==), plain (isCard=false) without; sublabel; payload or metadata footer HTML as text; unit-tested and verified live |
 | WID-042 | header icons (topLeftInsideCard/topRightInsideCard) with metadata colors | n/a | n/a | card chrome |
 | WID-043 | widget label tooltip from metadata on hover and keyboard focus | n/a | n/a | card chrome |
 | WID-044 | widget help content (HTML) on the label | n/a | n/a | card chrome |
@@ -395,49 +395,49 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | WID-046 | export button downloads the widget's csvData as CSV | pass | todo | rendered as text |
 | WID-047 | PVS dropdown from the widget payload: selection is sent as a parameter and re-renders | pass | todo | --input name=value |
 | WID-048 | DATE_PICKER dropdown sends the chosen date | pass | todo | --input |
-| WID-049 | required dropdowns: the parent waits with the backend message until selections are made | todo | todo | required dropdowns |
+| WID-049 | required dropdowns: the parent waits with the backend message until selections are made | pass | todo | a widget waiting for a required dropdown shows the server's dropdownNeedsSelectedText in place of its body; selections given with --input name=id; unit-tested |
 | WID-050 | storeDropdownSelections persists selections across reload; stale stored options are dropped | n/a | todo |  |
 | WID-051 | failing widget renderer shows a contained error with the backend message and retry | pass | pass | rendered as text; TUI: error contained to the widget |
-| WID-052 | empty payloads show descriptive empty states for every display type | todo | todo | empty states |
+| WID-052 | empty payloads show descriptive empty states for every display type | pass | todo | every display type shows the web's empty state (No rows found, No chart data available, No statistics available, …); unit-tested |
 | WID-053 | malformed payloads are contained to their own widget | pass | pass | unknown shapes shown raw |
 | WID-054 | widget permissions: a denied widget is absent from metadata, not rendered and not requested; the API denies it | pass | todo | rendered as text |
 | WID-055 | parent widget TABS layout switches tabs and remembers the selected tab | n/a | n/a | card chrome |
-| WID-056 | parent widget skips denied and unknown children without requests | todo | todo |  |
-| WID-057 | composite renders every block type with its values and styles | todo | todo | every block type |
+| WID-056 | parent widget skips denied and unknown children without requests | pass | todo | parent widgets skip unknown and denied (hasPermission false) children without a request and say which; unit-tested |
+| WID-057 | composite renders every block type with its values and styles | pass | todo | composite: TEXT (icons, alert/banner), NUMBER_ICON_BADGE, UP_OR_DOWN_NUMBER, TABLE_SUB_ROW_DETAIL_ROW, PROGRESS_BAR, DIVIDER, BIG_NUMBER, INPUT_FIELD, BUTTON, AUDIO, IMAGE, ICON, nested COMPOSITE, tooltips; unit-tested, BIG_NUMBER and UP_OR_DOWN verified live |
 | WID-058 | composite layouts and slot links/tooltips | n/a | n/a | card chrome |
 | WID-059 | unsupported block type shows a contained warning | pass | todo | rendered as text |
 | WID-060 | record-view section widgets receive the record context (id, tableName) | pass | pass | --input id=…; TUI: record section widgets get the record id and table (unit-tested) |
 | WID-061 | process widget for a persona without process permission is contained | pass | todo | rendered as text |
 | WID-062 | custom component whose bundle cannot load shows a contained error | n/a | n/a | card chrome |
 | WID-063 | alerts with hideWidget or without HTML render nothing | pass | todo |  |
-| RPT-001 | TABLE report runs through its process and downloads CSV matching the database | todo | todo | report run exists; no sample report to verify |
-| RPT-002 | TABLE report downloads XLSX with the same rows | todo | todo |  |
-| RPT-003 | TABLE report downloads JSON with the same rows | todo | todo |  |
-| RPT-004 | SUMMARY report groups rows with counts and a totals row | todo | todo |  |
-| RPT-005 | PIVOT report produces a native pivot table in XLSX | todo | todo |  |
-| RPT-006 | report input fields: required validation and the value filters the rows | todo | todo | report inputs |
+| RPT-001 | TABLE report runs through its process and downloads CSV matching the database | pass | todo | report run <r>: through the report's process (reportName, reportFormat), the file from GET /download saved (--out-dir); stub-server tested (the sample has no reports) |
+| RPT-002 | TABLE report downloads XLSX with the same rows | pass | todo | report run --format xlsx: the same process, the XLSX file as the server writes it; stub-server tested |
+| RPT-003 | TABLE report downloads JSON with the same rows | pass | todo | report run --format json: the same process, the JSON file; stub-server tested (format path shared with csv/xlsx) |
+| RPT-004 | SUMMARY report groups rows with counts and a totals row | pass | todo | SUMMARY reports: the server's grouped rows with counts and totals saved as sent (process or report route); stub-server tested |
+| RPT-005 | PIVOT report produces a native pivot table in XLSX | pass | todo | PIVOT reports: the server writes the native XLSX pivot; the CLI saves the file unchanged; stub-server tested |
+| RPT-006 | report input fields: required validation and the value filters the rows | pass | todo | report input fields asked on a terminal or given with -v; a missing required one exits 2 naming it before the report runs; the value is sent to the step; stub-server tested |
 | RPT-007 | report permissions: restricted report denied in UI and by the server | pass | todo | server |
-| RPT-008 | reports appear in app navigation and open their run page | todo | todo | report list |
-| RPT-009 | saved report view shows its filter/columns and pivot setup | todo | todo | saved reports, schedules, sharing |
-| RPT-010 | saved report renders through renderSavedReport and downloads the saved columns and rows | todo | todo | saved reports, schedules, sharing |
-| RPT-011 | streaming report route for reports without a process | todo | todo | saved reports, schedules, sharing |
-| RPT-012 | scheduled report: create a schedule for a saved report and view its cron schedule | todo | todo | saved reports, schedules, sharing |
-| RPT-013 | sharing: the owner shares a saved report with a user (Read-Only) | todo | todo | saved reports, schedules, sharing |
-| RPT-014 | sharing: change a share's scope to Read and Edit | todo | todo | saved reports, schedules, sharing |
-| RPT-015 | sharing: remove a share | todo | todo | saved reports, schedules, sharing |
-| RPT-016 | sharing record security: another user cannot see an unshared report until it is shared | todo | todo | saved reports, schedules, sharing |
-| RPT-017 | sharing: only the owner may share | todo | todo | saved reports, schedules, sharing |
-| RPT-018 | sharing a saved view through the share dialog | todo | todo | saved reports, schedules, sharing |
+| RPT-008 | reports appear in app navigation and open their run page | pass | todo | reports listed by report list and under their app in apps show; report run opens them; stub-server tested |
+| RPT-009 | saved report view shows its filter/columns and pivot setup | pass | todo | qqq saved-report show: filter, sort, columns and pivot setup; stub-server tested |
+| RPT-010 | saved report renders through renderSavedReport and downloads the saved columns and rows | pass | todo | qqq saved-report run <r> [--format]: renderSavedReport with the record, the file downloaded; stub-server tested |
+| RPT-011 | streaming report route for reports without a process | pass | todo | report run on a report without a process (or --route) streams from GET /reports/{name}; stub-server tested |
+| RPT-012 | scheduled report: create a schedule for a saved report and view its cron schedule | pass | todo | qqq saved-report schedule <r> --cron --time-zone --to [--format]; saved-report schedules lists them with the server's cron description; stub-server tested |
+| RPT-013 | sharing: the owner shares a saved report with a user (Read-Only) | pass | todo | qqq share add savedReport <id> user:<id> --scope read-only (insertSharedRecord); stub-server tested |
+| RPT-014 | sharing: change a share's scope to Read and Edit | pass | todo | qqq share scope savedReport <id> <share> read-write (editSharedRecord); stub-server tested |
+| RPT-015 | sharing: remove a share | pass | todo | qqq share remove savedReport <id> <share> (asks; --yes); stub-server tested |
+| RPT-016 | sharing record security: another user cannot see an unshared report until it is shared | pass | todo | server-enforced record security: saved-report list shows only what the server returns (yours, shared with you); stub-server tested |
+| RPT-017 | sharing: only the owner may share | pass | todo | only the owner may share: the server's refusal shown (exit 2); stub-server tested |
+| RPT-018 | sharing a saved view through the share dialog | pass | todo | qqq share … savedView <id>: the same sharing processes for saved views; stub-server tested with saved reports |
 | WID-064 | cronUI schedule editor on record forms: Basic days/hours/minutes, Advanced expression, live description, valid | n/a | n/a | card chrome |
 | WID-065 | record view mounts only the active layout, so each section widget mounts and loads once | n/a | n/a | card chrome |
 | WID-066 | Widget metadata and widget data come from the v1 API | pass | todo |  |
-| WID-067 | a widget whose payload is a single leaf block (Material block widget) renders that block | todo | todo |  |
-| WID-068 | table widget Material extras: typed cells (numbers with separators, html, htmlAndTooltip, image, composite), h | todo | todo |  |
+| WID-067 | a widget whose payload is a single leaf block (Material block widget) renders that block | pass | todo | a payload that is one leaf block renders that block; unit-tested |
+| WID-068 | table widget Material extras: typed cells (numbers with separators, html, htmlAndTooltip, image, composite), h | pass | todo | table extras: hidden columns dropped, numbers with separators, html, htmlAndTooltip, image cells, composite cells, sub-rows, sticky last (totals) row, link and noRowsFoundHTML; unit-tested, sticky row verified live on SampleTableWidget |
 | WID-069 | chart widget Material extras: theme color names, legend toggles, single-series legends (horizontal bars, line  | n/a | n/a | theme colors |
-| RPT-019 | render report input step shows only its fields; a report without variables adds no no-fields message | todo | todo | saved reports, schedules, sharing |
-| RPT-020 | Report files download from the v1 download and report routes | todo | todo |  |
-| WID-074 | Standalone composite scalar controls and metadata editors | todo | todo | developer and editor widgets |
-| WID-075 | Standalone DATE_TIME blocks localize seeded instants without losing seconds | todo | todo | developer and editor widgets |
+| RPT-019 | render report input step shows only its fields; a report without variables adds no no-fields message | pass | todo | the render step shows only its fields (kernel screen model); a step without fields shows no 'no fields' message; unit-tested |
+| RPT-020 | Report files download from the v1 download and report routes | pass | todo | report files come from GET /download (process reports) or GET /reports/{name} (route); stub-server tested |
+| WID-074 | Standalone composite scalar controls and metadata editors | n/a | n/a | standalone composite controls are browser input editors (caret, IME, widths) whose drafts stay on the page; the CLI shows the controls and their values (WID-057), and process-hosted inputs go through the form session (PRC-037) |
+| WID-075 | Standalone DATE_TIME blocks localize seeded instants without losing seconds | pass | todo | a seeded DATE_TIME input block is shown in the local zone with its seconds (kernel displayDateTime); unit-tested |
 | HLP-001 | App and widget help | pass | todo | qqq help show app/widget/instance; unit-tested (the sample carries no help content, finding 17) |
 | HLP-002 | Table, field and section help | pass | pass | qqq help show table <t> [field]: table, section and field help; unit-tested (finding 17); TUI: table, field and section help by screen role in F1 (unit-tested only; the sample has none) |
 | HLP-003 | Query columns and table action help | pass | todo | field help is the column help; table action help slots printed with their slot name; unit-tested (finding 17) |

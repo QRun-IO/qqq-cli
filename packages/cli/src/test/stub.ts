@@ -27,7 +27,7 @@ export class StubResponse {
 
 export async function startStub(routes: Array<[RegExp, StubHandler]>): Promise<Stub> {
   const requests: StubRequest[] = []
-  const handle = (req: IncomingMessage, body: string, res: ServerResponse) => {
+  const handle = async (req: IncomingMessage, body: string, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', 'http://stub')
     const path = url.pathname.replace(/^\/qqq\/v1/, '')
     const m = /name="values"\r\n\r\n([\s\S]*?)\r\n--/.exec(body)
@@ -36,7 +36,7 @@ export async function startStub(routes: Array<[RegExp, StubHandler]>): Promise<S
     const request: StubRequest = { method: req.method ?? 'GET', path, query: url.searchParams, headers: req.headers, body, values: m ? JSON.parse(m[1]!) as J : {}, json }
     requests.push(request)
     const route = routes.find(([re]) => re.test(`${request.method} ${path}`))
-    let answer: unknown = route ? route[1](request) : new StubResponse(404, { code: 'NOT_FOUND', message: `no route ${request.method} ${path}` })
+    let answer: unknown = route ? await route[1](request) : new StubResponse(404, { code: 'NOT_FOUND', message: `no route ${request.method} ${path}` })
     if (!(answer instanceof StubResponse)) answer = new StubResponse(200, answer)
     const r = answer as StubResponse
     const isBytes = r.body instanceof Uint8Array || typeof r.body === 'string'
@@ -46,7 +46,7 @@ export async function startStub(routes: Array<[RegExp, StubHandler]>): Promise<S
   const server = createServer((req, res) => {
     const chunks: Buffer[] = []
     req.on('data', (c: Buffer) => chunks.push(c))
-    req.on('end', () => handle(req, Buffer.concat(chunks).toString('utf8'), res))
+    req.on('end', () => void handle(req, Buffer.concat(chunks).toString('utf8'), res))
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   return {

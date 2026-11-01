@@ -233,9 +233,8 @@ export function parseCriterion(text: string, knownFields?: Iterable<string>, opt
 /** Prints one criterion. */
 export function printCriterion(c: Criterion): string {
   const field = c.fieldFunction && /^WeekdayOf/.test(c.fieldFunction.functionTypeIdentifierName) ? `weekday(${c.fieldName})` : c.fieldName
-  // a text match without CASE_INSENSITIVE was asked for case-sensitive
-  const operator = TEXT_MATCH_OPERATORS.has(c.operator) && !c.options?.includes(CASE_INSENSITIVE) ? `${c.operator}:CS` : c.operator
-  return c.values.length ? `${field} ${operator} ${c.values.map(printValue).join(',')}` : `${field} ${operator}`
+  // the criteria options (CASE_INSENSITIVE) are not printed: --print-filter shows them in the JSON
+  return c.values.length ? `${field} ${c.operator} ${c.values.map(printValue).join(',')}` : `${field} ${c.operator}`
 }
 
 type Token = { kind: '(' | ')' | 'AND' | 'OR' } | { kind: 'criterion'; text: string }

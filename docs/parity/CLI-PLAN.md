@@ -7,7 +7,8 @@ browser-only reason) or **blocked** (citing a server finding in `docs/server-fin
 
 Start: 173 pass / 42 partial / 80 todo / 106 n/a of 401.
 Checkpoint 1 (bulk load): 188 pass / 41 partial / 66 todo / 106 n/a.
-Checkpoint 2 (records, queries, processes, help): 232 pass / 1 partial / 60 todo / 106 n/a / 2 blocked (branch `feat/m1-cli-parity` from `feat/m1-kernel-cli` 6c56b89).
+Checkpoint 2 (records, queries, processes, help): 232 pass / 1 partial / 60 todo / 106 n/a / 2 blocked.
+Checkpoint 3 (navigation, widgets, reports, security): 290 pass / 0 partial / 0 todo / 107 n/a / 4 blocked. Blocked: QRY-085 (finding 24, qqq#1355), REC-063 (finding 19, qqq#1351), SEC-029 and SEC-030 (finding 28: no AUTH_0 server; SEC-030 needs tenant credentials from James). New n/a: WID-074 (standalone composite controls are browser input editors). (branch `feat/m1-cli-parity` from `feat/m1-kernel-cli` 6c56b89).
 
 "unit-tested" in a row note means the sample at :8077 cannot exercise the row (no fixture); the kernel and the
 command are covered by node tests (and a local stub server where a command is involved). Everything else is
@@ -79,32 +80,32 @@ Status column: **plan** = what the row becomes; **done** once the STATUS source 
 
 | Row | Plan | Status |
 |---|---|---|
-| NAV-011, WID-040, PRF-004 | `qqq apps show <app> --widgets`: every widget once, declared order, gridColumns noted | plan |
-| NAV-017 | `qqq home`: counts, quick actions, app cards | plan |
-| NAV-024 | `qqq find <text>`: apps, tables, processes, reports by label with type and app | plan |
-| NAV-028 | reports under their app; unit-tested | plan |
-| WID-006/011/012/020/022/026/027/028/031/032/041/052/056/057/067/068 | render model per type, unit-tested and live where the sample has one | plan |
-| WID-021 process widget | runs its process through the runner | plan |
-| WID-029/030/070..075 editors | read-only rendering where it is display; editing through the host record field; grid-only rows n/a | plan |
-| WID-049 required dropdowns | prompt or refuse with the backend message | plan |
+| NAV-011, WID-040, PRF-004 | `qqq apps show <app> --widgets`: every widget once, declared order, gridColumns noted | done |
+| NAV-017 | `qqq home`: counts, quick actions, app cards | done |
+| NAV-024 | `qqq find <text>`: apps, tables, processes, reports by label with type and app | done |
+| NAV-028 | reports under their app; unit-tested | done |
+| WID-006/011/012/020/022/026/027/028/031/032/041/052/056/057/067/068 | render model per type, unit-tested and live where the sample has one | done |
+| WID-021 process widget | runs its process through the runner | done |
+| WID-029/030/070..075 editors | read-only rendering where it is display; editing through the host record field; grid-only rows n/a | done |
+| WID-049 required dropdowns | prompt or refuse with the backend message | done |
 
 ## Reports (sample has none)
 
 | Row | Plan | Status |
 |---|---|---|
-| RPT-001..006, 008, 019, 020 | `report run` formats csv/xlsx/json, inputs, summary/pivot files, navigation; stub server tests | plan |
-| RPT-009..018 | saved reports (`qqq saved-report list\|show\|run`), schedules, sharing (`share list\|add\|scope\|remove`); stub server tests | plan |
-| RPT-011 | streaming report route | plan |
+| RPT-001..006, 008, 019, 020 | `report run` formats csv/xlsx/json, inputs, summary/pivot files, navigation; stub server tests | done |
+| RPT-009..018 | saved reports (`qqq saved-report list\|show\|run`), schedules, sharing (`share list\|add\|scope\|remove`); stub server tests | done |
+| RPT-011 | streaming report route | done |
 
 ## Security and sign-in
 
 | Row | Plan | Status |
 |---|---|---|
-| SEC-002/008 DISABLED tables and processes | listed with the reason; use refused before the call; unit-tested | plan |
-| SEC-006 copy needs insert | `table copy` refused without insert permission | plan |
-| SEC-011 record-level security | server-enforced; listed as returned | plan |
-| SEC-029/030 AUTH_0 | same device/PKCE code as OAUTH2 (verified with qqq-dev-idp); real tenant needs credentials | plan |
-| SEC-034..037 TABLE_BASED | `qqq login` with username/password over HTTP Basic (the server's TableBasedAuthenticationModule creates the session and sets the cookie); unit-tested with a stub | plan |
+| SEC-002/008 DISABLED tables and processes | listed with the reason; use refused before the call; unit-tested | done |
+| SEC-006 copy needs insert | `table copy` refused without insert permission | done |
+| SEC-011 record-level security | server-enforced; listed as returned | done |
+| SEC-029/030 AUTH_0 | same device/PKCE code as OAUTH2 (verified with qqq-dev-idp); real tenant needs credentials | done |
+| SEC-034..037 TABLE_BASED | `qqq login` with username/password over HTTP Basic (the server's TableBasedAuthenticationModule creates the session and sets the cookie); unit-tested with a stub | done |
 
 ## Help
 

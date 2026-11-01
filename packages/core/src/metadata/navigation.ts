@@ -117,3 +117,79 @@ export function deniedTableReason(table: J, action: TableAction): string | undef
 export function deniedProcessReason(process: J): string | undefined {
   return process.hasPermission === false ? `You do not have permission to run ${String(process.label ?? process.name)}.` : undefined
 }
+
+/** Something one can open from navigation: an app, a table, a process or a report, with the app it sits in. */
+export interface NavigationTarget {
+  type: 'APP' | 'TABLE' | 'PROCESS' | 'REPORT'
+  name: string
+  label: string
+  /** The label of the app it is listed under ('' when none). */
+  app: string
+}
+
+/** Every navigable, permitted app, table, process and report (as the command palette lists them), with its app context. */
+export function navigationTargets(metaData: J): NavigationTarget[] {
+  const out: NavigationTarget[] = []
+  const seen = new Set<string>()
+  const apps = (metaData.apps ?? {}) as Record<string, J>
+  const visit = (appName: string, trail: string[]) => {
+    const app = apps[appName]
+    if (!app || trail.includes(appName) || !visible(metaData, 'APP', appName)) return
+    const appLabel = String(app.label ?? appName)
+    if (!seen.has(`APP:${appName}`)) {
+      seen.add(`APP:${appName}`)
+      out.push({ type: 'APP', name: appName, label: appLabel, app: trail.length ? String(apps[trail[trail.length - 1]!]?.label ?? '') : '' })
+    }
+    const children = [...((app.children ?? []) as J[]), ...((app.sections ?? []) as J[]).flatMap((s) => [...((s.tables ?? []) as string[]).map((n) => ({ type: 'TABLE', name: n })), ...((s.processes ?? []) as string[]).map((n) => ({ type: 'PROCESS', name: n })), ...((s.reports ?? []) as string[]).map((n) => ({ type: 'REPORT', name: n }))])]
+    for (const child of children) {
+      const type = String(child.type)
+      const name = String(child.name)
+      if (type === 'APP') visit(name, [...trail, appName])
+      else if ((type === 'TABLE' || type === 'PROCESS' || type === 'REPORT') && !seen.has(`${type}:${name}`) && visible(metaData, type, name)) {
+        seen.add(`${type}:${name}`)
+        out.push({ type, name, label: label(metaData, type, name), app: appLabel })
+      }
+    }
+  }
+  const tree = (metaData.appTree ?? []) as J[]
+  const roots = tree.length ? tree.filter((n) => n.type === 'APP').map((n) => String(n.name)) : Object.keys(apps)
+  for (const root of roots) visit(root, [])
+  for (const name of Object.keys(apps)) visit(name, [])
+  return out
+}
+
+/**
+ * Finds navigation targets by label as the palette does: every word must appear in the label (or
+ * name), case-insensitively; exact and prefix matches first, then by label.
+ */
+export function findNavigationTargets(metaData: J, text: string, types?: Array<NavigationTarget['type']>): NavigationTarget[] {
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean)
+  const score = (t: NavigationTarget) => {
+    const l = t.label.toLowerCase()
+    return l === text.toLowerCase() ? 0 : l.startsWith(text.toLowerCase()) ? 1 : 2
+  }
+  return navigationTargets(metaData)
+    .filter((t) => (!types || types.includes(t.type)) && words.every((w) => t.label.toLowerCase().includes(w) || t.name.toLowerCase().includes(w)))
+    .sort((a, b) => score(a) - score(b) || a.label.localeCompare(b.label))
+}
+
+/** The landing page: counts of what the user may open, quick actions (permitted processes listed in apps) and one card per top-level app. */
+export interface HomePage {
+  counts: { apps: number; tables: number; processes: number; reports: number; widgets: number }
+  quickActions: NavigationTarget[]
+  apps: Array<{ name: string; label: string; tables: number; processes: number; reports: number; widgets: number; apps: number }>
+}
+
+export function homePage(metaData: J, quickActionLimit = 8): HomePage {
+  const targets = navigationTargets(metaData)
+  const count = (type: NavigationTarget['type']) => targets.filter((t) => t.type === type).length
+  const widgets = Object.keys((metaData.widgets ?? {}) as J).filter((w) => visible(metaData, 'WIDGET', w)).length
+  const tree = (metaData.appTree ?? []) as J[]
+  const roots = (tree.length ? tree.filter((n) => n.type === 'APP').map((n) => String(n.name)) : Object.keys((metaData.apps ?? {}) as J)).filter((a) => visible(metaData, 'APP', a))
+  const apps = roots.map((name) => {
+    const home = appHome(metaData, name)!
+    const items = home.sections.flatMap((s) => s.items)
+    return { name, label: home.label, tables: items.filter((i) => i.type === 'TABLE').length, processes: items.filter((i) => i.type === 'PROCESS').length, reports: items.filter((i) => i.type === 'REPORT').length, widgets: home.widgets.length, apps: items.filter((i) => i.type === 'APP').length }
+  })
+  return { counts: { apps: count('APP'), tables: count('TABLE'), processes: count('PROCESS'), reports: count('REPORT'), widgets }, quickActions: targets.filter((t) => t.type === 'PROCESS').slice(0, quickActionLimit), apps }
+}
