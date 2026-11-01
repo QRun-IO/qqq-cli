@@ -70,6 +70,9 @@ test('levels and filters round trip; rows without a value are left out; EQUALS t
   expect(guidedProblem({ booleanOperator: 'AND', criteria: [], subFilters: [{ booleanOperator: 'OR', criteria: [], subFilters: [{ booleanOperator: 'AND', criteria: [] }] }] })).toContain('group inside a group')
   expect(mixedJoinAt('a = 1 OR b = 2 AND c = 3')).toBe(15)
   expect(mixedJoinAt('a = 1 OR (b = 2 AND c = 3) OR d > now(-1d)')).toBeUndefined()
+  // quoted values escape " and \ the way core prints them; an escaped quote does not end the value
+  expect(mixedJoinAt('a = 1 OR c = "x \\" AND y"')).toBeUndefined()
+  expect(mixedJoinAt('a = "ends \\\\" OR b = 2 AND c = 3')).toBe(23)
 })
 
 /** The address table with a true/false field added to its quick fields. */

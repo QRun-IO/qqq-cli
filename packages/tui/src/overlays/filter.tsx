@@ -14,7 +14,7 @@
  */
 
 import {
-  FilterSyntaxError, LIST_OPERATORS, OPERATORS, UNARY_OPERATORS, WEEKDAY_OF_DATE, WEEKDAY_OF_DATE_TIME, applyFieldTypes, applyCompletion, completeFilter, describeFilter, expressionCandidates, locateFilterError,
+  FilterSyntaxError, LIST_OPERATORS, OPERATORS, UNARY_OPERATORS, WEEKDAY_OF_DATE, WEEKDAY_OF_DATE_TIME, applyFieldTypes, applyCompletion, completeFilter, isEscapedAt, describeFilter, expressionCandidates, locateFilterError,
   operatorsForField, parseFilter, textMatchOptions, TEXT_MATCH_OPERATORS, CASE_INSENSITIVE, parseValue, printCriterion, printFilter, printValue, resolvePossibleValue, searchPossibleValues,
   type CompletionResult, type Completion, type Criterion, type FilterValue, type Operator, type QueryFilter,
 } from '@qrun-io/qqq-core'
@@ -238,7 +238,7 @@ export function mixedJoinAt(text: string): number | undefined {
   let calls = 0
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]!
-    if (ch === '"') quoted = !quoted
+    if (ch === '"' && !isEscapedAt(text, i)) quoted = !quoted // a \" inside a value does not end it (as in core's tokenizer)
     if (quoted) continue
     if (ch === '(') {
       if (/[A-Za-z0-9_]/.test(text[i - 1] ?? ' ')) calls++
