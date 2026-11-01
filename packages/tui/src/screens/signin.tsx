@@ -188,7 +188,22 @@ export class SignInScreen implements Screen {
       await signInWithSession(secrets, target, type, TUI_CHANNEL, this.deps.fetch)
       return
     }
-    if (type === 'OAUTH2' || type === 'AUTH_0') {
+    if (type === 'AUTH_0') {
+      const { auth0SignIn, auth0Values } = await import('../auth0')
+      const values = auth0Values(auth.values as Record<string, unknown> | undefined)
+      this.abort = new AbortController()
+      this.status = 'waiting for the browser…'
+      await auth0SignIn({
+        server: target.server, values, secrets, target, clientChannel: TUI_CHANNEL, signal: this.abort.signal, fetch: this.deps.fetch,
+        onUrl: (url) => {
+          this.browserUrl = url
+          if (process.env.QQQ_UI_NO_BROWSER !== '1') void import('@qrun-io/qqq-cli/browser-login').then(({ openInBrowser }) => openInBrowser(url))
+          this.store.bump()
+        },
+      })
+      return
+    }
+    if (type === 'OAUTH2') {
       const config = await getNativeSignInConfig(target.server, this.deps.fetch)
       const how = process.env.QQQ_UI_SIGN_IN === 'device' ? 'device' : process.env.QQQ_UI_SIGN_IN === 'browser' ? 'browser' : await this.choice<'browser' | 'device'>(`Sign in to ${target.server}`, [
         { label: 'In the browser (authorization code with PKCE)', value: 'browser', detail: 'opens your browser' },

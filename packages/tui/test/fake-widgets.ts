@@ -13,21 +13,22 @@ type J = Record<string, unknown>
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
 
 export const dashWidgets = {
-  ddWidget: { name: 'ddWidget', label: 'Sales by region', type: 'table', storeDropdownSelections: true, dropdowns: [{ type: 'POSSIBLE_VALUE_SOURCE', label: 'Region' }, { type: 'DATE_PICKER', label: 'As of' }] },
+  ddWidget: { name: 'ddWidget', label: 'Sales by region', helpContents: { help: [{ contentAsText: 'Totals by region for the chosen date.' }] }, type: 'table', storeDropdownSelections: true, dropdowns: [{ type: 'POSSIBLE_VALUE_SOURCE', label: 'Region' }, { type: 'DATE_PICKER', label: 'As of' }] },
   needsWidget: { name: 'needsWidget', label: 'Needs a choice', type: 'statistics', dropdowns: [{ type: 'POSSIBLE_VALUE_SOURCE', label: 'Store', isRequired: true }] },
   procWidget: { name: 'procWidget', label: 'Quick scan', type: 'process' },
+  procDenied: { name: 'procDenied', label: 'Denied process widget', type: 'process' },
   parentW: { name: 'parentW', label: 'Parent', type: 'parentWidget' },
   deniedW: { name: 'deniedW', label: 'Secret', type: 'statistics', hasPermission: false },
   hbar: { name: 'hbar', label: 'Change', type: 'horizontalBarChart' },
   hiddenAlert: { name: 'hiddenAlert', label: 'Hidden', type: 'alert' },
 }
 
-export const dashApp = { name: 'dash', label: 'Dashboard', widgets: ['ddWidget', 'needsWidget', 'procWidget', 'parentW', 'deniedW', 'hbar', 'hiddenAlert'], children: [] }
+export const dashApp = { name: 'dash', label: 'Dashboard', helpContents: { help: [{ contentAsText: 'The sales dashboard.' }] }, widgets: ['ddWidget', 'needsWidget', 'procWidget', 'parentW', 'deniedW', 'hbar', 'hiddenAlert'], children: [] }
 
 export const widgetCalls: Array<{ name: string; body: J }> = []
 
 export async function widgetRoute(path: string, body: unknown): Promise<Response | undefined> {
-  const m = /^\/widget\/(ddWidget|needsWidget|procWidget|parentW|deniedW|hbar|hiddenAlert)$/.exec(path)
+  const m = /^\/widget\/(ddWidget|needsWidget|procWidget|procDenied|parentW|deniedW|hbar|hiddenAlert)$/.exec(path)
   if (!m) return undefined
   const b = (body ?? {}) as J
   widgetCalls.push({ name: m[1]!, body: b })
@@ -41,6 +42,8 @@ export async function widgetRoute(path: string, body: unknown): Promise<Response
         : json({ type: 'statistics', label: 'Needs a choice', dropdownNameList: ['store'], dropdownDataList: [[{ id: 'a', label: 'Store A' }]], dropdownNeedsSelectedText: 'Please select a Store' })
     case 'procWidget':
       return json({ type: 'process', label: 'Quick scan', processMetaData: { name: 'scanner', label: 'Scanner' }, defaultValues: { barcode: 'PRE' } })
+    case 'procDenied':
+      return json({ type: 'process', label: 'Denied process widget', processMetaData: { name: 'denyProc', label: 'Deny Proc' } })
     case 'parentW':
       return json({ type: 'parentWidget', label: 'Parent', childWidgetNameList: ['hbar', 'deniedW', 'unknownW'] })
     case 'hbar':

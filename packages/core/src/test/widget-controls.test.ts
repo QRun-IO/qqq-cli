@@ -44,3 +44,23 @@ test('render model: dynamicForm, cronUI with record, usaMap, location, untyped c
   assert.match(text({ type: 'table', columns: [{ accessor: 'n', header: 'N' }, { accessor: 'h', header: 'H', type: 'html' }], rows: [{ n: 1234567, h: '<b>bold</b>' }] }), /1,234,567\s+bold/)
   assert.match(text({ type: 'composite', blocks: [{ blockTypeName: 'INPUT_FIELD', values: { fieldMetaData: { name: 'w', label: 'When', type: 'DATE_TIME' }, value: '2026-01-02T03:04:05Z' } }] }), /When: \[2026-01-0\d \d\d:04:05/)
 })
+
+
+test('render model: fieldValueList indent and icons, generic and html, smallLine description, multiTable labels, quickSight, rowBuilder, child list without association, every block type, chrome footer, empty states', () => {
+  const text = (d: unknown) => blocksToText(widgetToBlocks(d))
+  assert.match(text({ type: 'fieldValueList', fields: [{ name: 'a', label: 'Alpha' }, { name: 'b', label: 'Beta' }], record: { values: { a: 1 }, displayValues: { b: 'two' } }, fieldIndentLevels: { b: 1 }, fieldLabelPrefixIconNames: { a: 'star' } }), /• Alpha\s+1[\s\S]*  Beta\s+two/)
+  assert.equal(text({ type: 'fieldValueList', fields: [] }), 'No values to show')
+  assert.match(text({ type: 'generic', label: 'G', sublabel: 'sub', html: '<p>Hi <b>there</b></p>', footerHTML: '<i>foot</i>' }), /G — sub[\s\S]*Hi there[\s\S]*foot/)
+  assert.equal(text({ type: 'html', html: '<script>x</script><p>safe</p>' }).includes('safe'), true)
+  assert.match(text({ type: 'smallLineChart', label: 'Trend', description: '<b>last 7 days</b>', chartData: { labels: ['a', 'b'], datasets: [{ label: 'n', data: [1, 2] }] } }), /Trend — last 7 days/)
+  assert.match(text({ type: 'multiTable', tables: [{ label: 'First', columns: [{ accessor: 'x' }], rows: [{ x: 1 }] }, { label: 'Second', columns: [{ accessor: 'y' }], rows: [{ y: 2 }] }] }), /First[\s\S]*Second/)
+  assert.match(text({ type: 'quickSightChart', url: 'https://qs.example/embed' }), /https:\/\/qs.example\/embed/)
+  assert.equal(text({ type: 'quickSightChart' }), 'No dashboard is available to embed.')
+  assert.match(text({ type: 'rowBuilder', records: [{ values: { sku: 'A1', qty: 2 } }] }), /sku\s+qty[\s\S]*A1\s+2/)
+  assert.match(text({ type: 'childRecordList', childTableMetaData: { label: 'Lines', fields: { sku: { label: 'SKU' } } }, queryOutput: { records: [{ values: { sku: 'Z9' } }] }, totalRows: 1 }), /SKU[\s\S]*Z9[\s\S]*1 Lines/)
+  const all = text({ type: 'composite', blocks: ['TEXT', 'BIG_NUMBER', 'NUMBER_ICON_BADGE', 'UP_OR_DOWN_NUMBER', 'PROGRESS_BAR', 'DIVIDER', 'TABLE_SUB_ROW_DETAIL_ROW', 'INPUT_FIELD', 'BUTTON', 'IMAGE', 'AUDIO', 'ICON'].map((t) => ({ blockTypeName: t, values: { text: `t-${t}`, number: 3, label: `l-${t}`, value: 'v', percent: 40, heading: 'h', path: '/a.mp3', alt: 'logo', name: 'star', fieldMetaData: { name: 'f', label: 'F', type: 'STRING' } } })) })
+  for (const s of ['t-TEXT', 'h: 3', 'l-NUMBER_ICON_BADGE: 3', '▼ 3', 'h: 40%', 'l-TABLE_SUB_ROW_DETAIL_ROW', 'F: [v]', '[ l-BUTTON ]', '[image logo]', '[audio /a.mp3]', '[star]']) assert.ok(all.includes(s), s)
+  assert.equal(text({ type: 'statistics' }), 'No value')
+  assert.equal(text({ type: 'barChart', chartData: { labels: [], datasets: [] } }), 'No data to chart')
+  assert.equal(text({ type: 'parentWidget' }), 'No child widgets to show')
+})

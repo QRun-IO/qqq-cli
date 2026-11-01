@@ -26,18 +26,18 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 
 | Family | rows | pass | todo | partial | blocked | n/a |
 |---|---|---|---|---|---|---|
-| HLP | 6 | 2 | 4 | 0 | 0 | 0 |
+| HLP | 6 | 6 | 0 | 0 | 0 | 0 |
 | INT | 14 | 10 | 0 | 0 | 0 | 4 |
 | NAV | 40 | 20 | 0 | 0 | 1 | 19 |
-| PRC | 60 | 53 | 1 | 1 | 1 | 4 |
-| PRF | 5 | 4 | 0 | 1 | 0 | 0 |
+| PRC | 60 | 55 | 0 | 0 | 1 | 4 |
+| PRF | 5 | 5 | 0 | 0 | 0 | 0 |
 | QRY | 70 | 60 | 0 | 0 | 1 | 9 |
-| REC | 65 | 58 | 1 | 0 | 0 | 6 |
+| REC | 65 | 59 | 0 | 0 | 0 | 6 |
 | REL | 9 | 9 | 0 | 0 | 0 | 0 |
-| RPT | 20 | 3 | 17 | 0 | 0 | 0 |
-| SEC | 43 | 7 | 23 | 1 | 0 | 12 |
-| WID | 69 | 15 | 43 | 0 | 0 | 11 |
-| **all** | 401 | 241 | 89 | 3 | 3 | 65 |
+| RPT | 20 | 20 | 0 | 0 | 0 | 0 |
+| SEC | 43 | 30 | 1 | 0 | 0 | 12 |
+| WID | 69 | 56 | 0 | 0 | 0 | 13 |
+| **all** | 401 | 330 | 1 | 0 | 3 | 67 |
 
 ## Rows
 
@@ -83,7 +83,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | NAV-038 | Shell on phones and tablets: skip link, header controls, breadcrumbs, navigation entries, user menu, app homes | n/a | n/a | browser shell |
 | NAV-055 | Material Dashboard CSS and test hooks remain available on navigation, banners, app homes, forms, record views  | n/a | n/a | browser shell |
 | NAV-056 | The Material Dashboard theme from versioned QQQ metadata changes Next UI tokens, application CSS and the brand | n/a | n/a | browser shell |
-| PRF-001 | large table: a 10,000-row, 40-column table opens with every column and the exact first page within budget | pass | partial | 10,000 rows with --all and --page-size; TUI: server paging opens the first page; the column layout scrolls horizontally rather than fitting 40 columns |
+| PRF-001 | large table: a 10,000-row, 40-column table opens with every column and the exact first page within budget | pass | pass | 10,000 rows with --all and --page-size; TUI: fake big server 10,000 rows x 40 columns at 160x45 (scripts/perf-large-table.sh): first page 95-100 ms with col 1/40, End to record 10,000 in 39-45 ms, to column 40 in 343-364 ms; budget 2,000 ms per step |
 | PRF-002 | large table: 250-row pages of 40 columns render, page and reach the last page within budget | pass | pass | --limit/--skip paging; TUI: server-paged grid, page = visible rows |
 | PRF-003 | large table: sorting and filtering 10,000 rows return exact results within budget | pass | pass | server sort and filter; TUI: server sort and filter |
 | PRF-004 | heavy dashboard: 24 widgets (statistics, bar, line and pie charts, 100-row tables) load once each within budge | todo | pass | one widget per call today; TUI: dashboards load widgets as they come into view, 4 at a time (fake 3000-widget instance) |
@@ -124,7 +124,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRC-034 | Upload instructions HTML with downloadable template | pass | pass | upload instructions printed as text; --template [flat/tall/wide] [--out] saves the data: templates; verified live; TUI: a: save the bulk insert template file(s) from the upload instructions; live on person (3 templates) |
 | PRC-035 | Named WIDGET fetched with the process UUID and values | pass | pass | named widget with the process UUID and values, kernel render model; none in the sample, verified by tests; TUI: named WIDGET fetched with the process UUID and values, drawn from the kernel screen (unit-tested only) |
 | PRC-036 | Named composite WIDGET seeded from process values | pass | pass | seeded from the process value of the widget name; TUI: composite widget blocks seeded from process values drawn as text (kernel screen; unit-tested only) |
-| PRC-037 | Ad hoc composite WIDGET: interpolation, conditional blocks, action buttons, submit-on-enter inputs | pass | partial | ad hoc composite: ${} interpolation, conditional blocks left out, INPUT_FIELD blocks asked as step fields (submitOnEnter submits), BUTTON actionCodes offered as a choice (-v actionCode=…), controlCode buttons change only what shows; unit-tested (the sample has no ad hoc widget); TUI: ad hoc widget blocks drawn; no action buttons |
+| PRC-037 | Ad hoc composite WIDGET: interpolation, conditional blocks, action buttons, submit-on-enter inputs | pass | pass | ad hoc composite: ${} interpolation, conditional blocks left out, INPUT_FIELD blocks asked as step fields (submitOnEnter submits), BUTTON actionCodes offered as a choice (-v actionCode=…), controlCode buttons change only what shows; unit-tested (the sample has no ad hoc widget); TUI: ad hoc composite widgets: interpolation, conditional blocks hidden, INPUT_FIELD inputs (Enter submits when asked), BUTTON actionCode sent with the step (unit-tested only) |
 | PRC-038 | GOOGLE_DRIVE_SELECT_FOLDER screen keeps its other components working | n/a | n/a | Google Drive is web-only |
 | PRC-039 | Google Drive folder selection through the Google Picker | n/a | n/a | Google Drive is web-only |
 | PRC-040 | Reload mid-process starts a fresh run | n/a | n/a | no reload; TUI: no reload in a terminal; F5 re-runs |
@@ -143,7 +143,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRC-059 | Saved bulk load profile ownership: yours vs shared with you, and only the owner may save, rename or delete a p | pass | pass | profiles listed as yours, then shared by their owner; save over, rename and delete refused for a profile you do not own; stub-server CLI tests; TUI: profiles listed as yours or shared by their owner; update and delete only for the owner (unit-tested only) |
 | PRC-060 | Bulk load file mapping form fidelity: field help, column tooltips, repeated-header warning, header-row toggle  | pass | pass | -i lists columns with preview values and the step's field help, asks for the header row (--no-header), warns on repeated headers (only the first is read); header toggle and previews verified live, help and repeated headers unit-tested; TUI: mapping grid: field help of the row, column previews, required marks, repeated-header warnings, header row toggle h; live |
 | PRC-061 | Typed bulk load default values, searchable value mapping and the grouped, searchable Add Fields menu (Material | pass | pass | defaults typed per field (--default f=label resolves possible values; yes/no booleans), value mapping by label or id with choices listed, -i add-fields list grouped by table; verified live (Dog/Cat to species ids, yes/no to booleans); TUI: typed defaults (picker for possible values, yes/no), searchable value mapping picker, searchable field source menu (unit-tested) |
-| PRC-062 | Composite INPUT_FIELD metadata editors share process validation and multipart submission | n/a | todo | composite editors; TUI: composite INPUT_FIELD editors |
+| PRC-062 | Composite INPUT_FIELD metadata editors share process validation and multipart submission | n/a | pass | composite editors; TUI: composite INPUT_FIELD editors are step fields: required checks before sending, a BLOB input goes as a multipart file (unit-tested only) |
 | PRC-063 | INPUT_FIELD autofocus and trimmed Enter values on subsequent process screens | n/a | pass | TUI: the first field has focus; behaviors trim on set |
 | PRC-064 | DATE_TIME process inputs display local time and submit UTC instants | pass | pass | process values typed local, sent UTC; screens show the local zone; TUI: step DATE_TIME inputs edited in the local zone, sent as UTC (kernel datetime) |
 | PRC-065 | Configured Google Drive shared-folder selection and process submission | n/a | n/a | Google Drive |
@@ -286,45 +286,45 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REC-055 | Record view keyboard shortcuts n, e, c, d, a (Material) and their help text | n/a | pass | TUI: n e c d; F-keys |
 | REC-058 | Record view on phones and tablets: the title stays readable, the header controls wrap onto their own row, and  | n/a | n/a | TUI: phone layout |
 | REC-059 | Record forms on phones and tablets: every editor type fits without sideways scrolling, controls are touch-size | n/a | n/a | TUI: phone layout |
-| REC-061 | An editable dynamicForm widget on a record form validates its fields and persists them in the declared JSON re | pass | todo | qqq table widget-form <t> <pk> <widget> --set/-i: the dynamicForm's fields validated (required) and saved in its merged JSON field (or as record fields); stub-server tested (the sample has no dynamicForm); TUI: dynamicForm widget editing |
+| REC-061 | An editable dynamicForm widget on a record form validates its fields and persists them in the declared JSON re | pass | pass | qqq table widget-form <t> <pk> <widget> --set/-i: the dynamicForm's fields validated (required) and saved in its merged JSON field (or as record fields); stub-server tested (the sample has no dynamicForm); TUI: record view: a dynamicForm widget section has "Edit these fields": FormEditor editors, required checked, saved into the named JSON field or record fields (unit-tested only) |
 | REC-062 | Inline enum possible values filter by label prefix without a lookup request; CHIP adornments style options and | pass | pass | inline enums; TUI: inline enums filter locally |
 | REC-060 | Material table and field form adjusters and field rules operate against the real QQQ sample server | pass | pass | form adjusters (onLoad, onChange) and field behaviors run through the kernel FormSession for create, update and copy; unit-tested (the sample declares none); TUI: form adjusters run on change through FormSession (unit-tested only; the sample has none) |
 | REC-064 | Record sections render qualified fields from readable exposed joins | pass | pass | table get --join adds joined fields (queryJoins); verified live through an association join; exposed-join sections unit-tested; TUI: section fields of readable exposed joins read through a joined query (unit-tested only) |
 | REC-063 | Record view, edit and copy load from the table variant selected on the query screen | blocked | pass | get, copy and update -i read with --variant; the v1 insert, update and delete routes ignore it (server finding 19, qqq#1351); TUI: records and forms opened from a variant grid read with tableVariant (unit-tested only; writes ignore it, finding 19) |
 | REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | pass | pass | an unchanged wall-clock time keeps the original instant and its precision; TUI: DATE_TIME edited in local zone, unchanged instants kept |
-| SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | todo |  |
-| SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | todo | disabled tables listed with a reason |
+| SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | pass | TUI: a hidden table is not in the metadata: absent from the tree, palette and index; a direct :table query names no such table and loads nothing (unit-tested only) |
+| SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | pass | disabled tables listed with a reason; TUI: a disabled table (hasPermission false) is listed with "(no access)"; opening it explains the denial and requests nothing (unit-tested only) |
 | SEC-003 | Insert permission denied: create not offered, create link refused, backend writes nothing | pass | pass | TUI: F7 hidden without insert permission |
 | SEC-004 | Edit permission denied: edit not offered, edit link refused, backend changes nothing | pass | pass |  |
 | SEC-005 | Delete permission denied: delete not offered on record or bulk bar, bulk delete refused, backend deletes nothi | pass | pass |  |
-| SEC-006 | Copy requires insert permission: copy not offered and copy link refused | todo | todo | copy |
-| SEC-007 | Process permission denied (hidden): processes not offered in navigation or launcher, links do not start them,  | pass | todo |  |
-| SEC-008 | Process disabled for a user (DenyBehavior.DISABLED): shown disabled, link explains the denial, backend refuses | todo | todo |  |
-| SEC-009 | Widget restrictions: hidden widgets absent, disabled widgets show a permission state without loading data, bac | pass | todo | widget get shows the refusal |
-| SEC-010 | App restrictions: hidden apps absent from navigation and unknown by link; disabled apps keep their children ga | pass | todo |  |
-| SEC-011 | Record-level security (sharing demo): users see only their own or shared saved views/reports; direct links and | todo | todo | saved views and reports |
-| SEC-012 | Record security lock on a data table: list filtered to the key, other users' records unreachable, forged owner | pass | todo | server |
-| SEC-013 | Field protection: hidden fields never shown or returned, password fields masked and never overwritten by the m | pass | todo | server |
-| SEC-014 | Capability restrictions: tables without insert/update/delete capabilities offer none of them and refuse direct | pass | todo |  |
-| SEC-015 | Permission revoked mid-session: stale UI actions are refused by the backend with a clear message, nothing is w | pass | todo |  |
+| SEC-006 | Copy requires insert permission: copy not offered and copy link refused | todo | pass | copy; TUI: copy disabled with the reason without insert permission; c and :table copy are refused (unit-tested only) |
+| SEC-007 | Process permission denied (hidden): processes not offered in navigation or launcher, links do not start them,  | pass | pass | TUI: a hidden process is not offered (tree, palette, actions) and :process run names no such process (unit-tested only) |
+| SEC-008 | Process disabled for a user (DenyBehavior.DISABLED): shown disabled, link explains the denial, backend refuses | todo | pass | TUI: a disabled process is listed "(no access)" and refused with the reason; table actions show it disabled (unit-tested only) |
+| SEC-009 | Widget restrictions: hidden widgets absent, disabled widgets show a permission state without loading data, bac | pass | pass | widget get shows the refusal; TUI: hidden widgets are absent; a disabled widget shows the permission state without a request; children of a parent skip denied ones (unit-tested only) |
+| SEC-010 | App restrictions: hidden apps absent from navigation and unknown by link; disabled apps keep their children ga | pass | pass | TUI: hidden apps are absent and unknown by name; a disabled app explains the denial (unit-tested only) |
+| SEC-011 | Record-level security (sharing demo): users see only their own or shared saved views/reports; direct links and | todo | pass | saved views and reports; TUI: saved views and reports: the TUI lists what the server returns; sharing through the share dialog; a refused direct link shows the server message (unit-tested only) |
+| SEC-012 | Record security lock on a data table: list filtered to the key, other users' records unreachable, forged owner | pass | pass | server; TUI: record security is server-side: grids show the server's rows; a record the server refuses shows its message (403) (unit-tested only) |
+| SEC-013 | Field protection: hidden fields never shown or returned, password fields masked and never overwritten by the m | pass | pass | server; TUI: hidden fields never shown (grid, record, form); PASSWORD values masked; edits send only changed fields, never the masked value (unit-tested only) |
+| SEC-014 | Capability restrictions: tables without insert/update/delete capabilities offer none of them and refuse direct | pass | pass | TUI: without TABLE_INSERT/UPDATE/DELETE capabilities the F-keys, menu entries and copy are off and n/e/d are refused (unit-tested only) |
+| SEC-015 | Permission revoked mid-session: stale UI actions are refused by the backend with a clear message, nothing is w | pass | pass | TUI: a save refused mid-session keeps the form with what was typed and shows the server message (unit-tested only) |
 | SEC-020 | MOCK sign-in: a deep link establishes the session and shows the session user from manageSession values | pass | pass | qqq login on a MOCK server; TUI: MOCK session, shared with the CLI keyring |
 | SEC-021 | Logout: POST /qqq/v1/logout ends the session, protected pages stay on login, Sign in returns to the page, per- | pass | pass | qqq logout calls POST /logout; TUI: F9 Sign out |
-| SEC-022 | Session expiry: 401 redirects to login with returnTo and re-authenticates back to the page (initial load and m | pass | todo | exit 3 with the sign-in hint |
-| SEC-023 | Denied sign-in: a 401 from manageSession keeps the user out with an explanation (no silent anonymous fallback) | pass | todo |  |
+| SEC-022 | Session expiry: 401 redirects to login with returnTo and re-authenticates back to the page (initial load and m | pass | pass | exit 3 with the sign-in hint; TUI: a 401 mid-use opens sign-in on top of the screens; after signing in the same screen is back and refreshed (unit-tested only) |
+| SEC-023 | Denied sign-in: a 401 from manageSession keeps the user out with an explanation (no silent anonymous fallback) | pass | pass | TUI: a refused sign-in (TABLE_BASED 401) shows the reason, stores nothing, no anonymous fallback (unit-tested only) |
 | SEC-024 | Post-login returnTo is limited to in-app paths (open-redirect guard) | n/a | n/a |  |
-| SEC-025 | OAUTH2 authorization code + PKCE sign-in with an owned OIDC provider (discovery, authorize, callback, backend  | pass | partial | device flow and --browser (code + PKCE, loopback) verified against a sample on OAUTH2 with qqq-dev-idp; TUI: device flow screen; not tried against a provider |
-| SEC-026 | OAUTH2 sign-in failures: provider denial, tampered state and failed code exchange are reported and create no s | pass | todo | denial, forged state and a refused code exchange exit 3 and save nothing; the token is checked against the server first |
-| SEC-027 | OAUTH2 logout: backend session deleted, provider end-session called, next visit requires provider sign-in | pass | todo | logout --provider-logout: refresh token revoked (RFC 7009), end-session URL opened; bearer sign-ins have no server session |
-| SEC-028 | OAUTH2 session revoked server-side mid-use: 401 sends the user through the provider and back to the page | pass | todo | a refresh the provider refuses exits 3 with sign in again; refresh before expiry verified |
-| SEC-029 | AUTH_0 authorization code + PKCE with an owned Auth0-compatible provider (browser token exchange, backend JWT  | todo | todo |  |
+| SEC-025 | OAUTH2 authorization code + PKCE sign-in with an owned OIDC provider (discovery, authorize, callback, backend  | pass | pass | device flow and --browser (code + PKCE, loopback) verified against a sample on OAUTH2 with qqq-dev-idp; TUI: OAUTH2 sign-in in the browser: discovery, S256 PKCE authorize address shown, loopback callback, code exchanged with the verifier; device flow as the alternative (unit-tested only) |
+| SEC-026 | OAUTH2 sign-in failures: provider denial, tampered state and failed code exchange are reported and create no s | pass | pass | denial, forged state and a refused code exchange exit 3 and save nothing; the token is checked against the server first; TUI: tampered state, provider denial and a refused code exchange are reported and store nothing (unit-tested only) |
+| SEC-027 | OAUTH2 logout: backend session deleted, provider end-session called, next visit requires provider sign-in | pass | pass | logout --provider-logout: refresh token revoked (RFC 7009), end-session URL opened; bearer sign-ins have no server session; TUI: sign out: here, or also revoke the refresh token and open the provider end-session address (unit-tested only) |
+| SEC-028 | OAUTH2 session revoked server-side mid-use: 401 sends the user through the provider and back to the page | pass | pass | a refresh the provider refuses exits 3 with sign in again; refresh before expiry verified; TUI: a 401 after the refresh opens sign-in (browser or device) on top and returns to the refreshed screen (unit-tested only) |
+| SEC-029 | AUTH_0 authorization code + PKCE with an owned Auth0-compatible provider (browser token exchange, backend JWT  | todo | pass | TUI: AUTH_0: authorize at baseUrl with the audience (PKCE), code exchanged at /oauth/token, the token handed to manageSession, the session kept; sign-out offers v2/logout (unit-tested only) |
 | SEC-030 | AUTH_0 against a real Auth0 tenant | todo | todo |  |
 | SEC-031 | FULLY_ANONYMOUS authentication: session without an identity provider, anonymous identity, logout and sign-in a | pass | pass |  |
 | SEC-032 | Unsupported authentication type (a type this UI does not know, as a newer backend could declare) is reported,  | pass | pass | unknown type refused; TUI: unknown type refused with a message |
 | SEC-033 | Server-side logout invalidation: v1 logout expires every session cookie it issued and an ended Auth0 session c | n/a | n/a |  |
-| SEC-034 | TABLE_BASED sign-in: a deep link asks for username and password under the app branding, POST /qqq/v1/manageSes | todo | todo | TABLE_BASED sign-in (no API recipe yet) |
-| SEC-035 | TABLE_BASED sign-in failure: a wrong password or unknown user is refused with one message, stores no session,  | todo | todo |  |
-| SEC-036 | TABLE_BASED session expiry: a session idle past the inactivity timeout gets a 401, the user signs in again and | todo | todo |  |
-| SEC-037 | TABLE_BASED logout: POST /qqq/v1/logout deletes the stored session and clears both cookies, protected pages st | todo | todo |  |
+| SEC-034 | TABLE_BASED sign-in: a deep link asks for username and password under the app branding, POST /qqq/v1/manageSes | todo | pass | TABLE_BASED sign-in (no API recipe yet); TUI: TABLE_BASED: username then password (masked) under the app name, POST manageSession with Basic credentials, the session cookie kept, the password never stored (unit-tested only) |
+| SEC-035 | TABLE_BASED sign-in failure: a wrong password or unknown user is refused with one message, stores no session,  | todo | pass | TUI: a wrong password or unknown user: one message, no session stored, Enter tries again (unit-tested only) |
+| SEC-036 | TABLE_BASED session expiry: a session idle past the inactivity timeout gets a 401, the user signs in again and | todo | pass | TUI: an expired session gets a 401: sign-in on top, then back to the refreshed screen (unit-tested only) |
+| SEC-037 | TABLE_BASED logout: POST /qqq/v1/logout deletes the stored session and clears both cookies, protected pages st | todo | pass | TUI: sign out sends POST /logout with the session cookie, forgets the sign-in and shows sign-in (unit-tested only) |
 | SEC-038 | Dashboard documents carry a strict Content-Security-Policy (script-src self plus the hash of each inline scrip | n/a | n/a | browser security |
 | SEC-039 | The policy allows the configured identity provider origin (OAUTH2 discovery, AUTH_0 browser token exchange) an | n/a | n/a | browser security |
 | SEC-040 | Application override hook and metadata-derived origins: the application adds its own origins (QApplicationJava | n/a | n/a | browser security |
@@ -351,96 +351,96 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | SEC-050 | Optional QA capture (Jam, qbit-qa-capture qa-capture extension): Jam loads only for enabled users; Report a bu | n/a | n/a | browser security |
 | WID-001 | alert widget: severity from alertType, sanitized HTML and bullet list | pass | pass | rendered as text |
 | WID-002 | barChart widget: one bar per label in backend colors | pass | pass | rendered as text; TUI: bars in block characters |
-| WID-003 | chart output from an untyped widget renders as a bar chart | pass | todo | rendered as text |
+| WID-003 | chart output from an untyped widget renders as a bar chart | pass | pass | rendered as text; TUI: a payload with chartData and no type is drawn as a bar chart (unit-tested only) |
 | WID-004 | divider widget renders a rule without card chrome | pass | pass | rendered as text |
-| WID-005 | fieldValueList widget: labels, display values, prefix icons, indentation | pass | todo | rendered as text |
-| WID-006 | generic widget renders its common payload fields (sublabel, footer) | todo | todo | generic |
-| WID-007 | horizontalBarChart widget: horizontal bars with negative values left of zero | pass | todo | rendered as text |
-| WID-008 | html widget (no-code) renders sanitized user HTML | pass | todo | rendered as text |
+| WID-005 | fieldValueList widget: labels, display values, prefix icons, indentation | pass | pass | rendered as text; TUI: fieldValueList: labels, display values, prefix icon marks, indentation; empty state (unit-tested only) |
+| WID-006 | generic widget renders its common payload fields (sublabel, footer) | todo | pass | generic; TUI: generic widget: label, sublabel, text from HTML, footer (unit-tested only) |
+| WID-007 | horizontalBarChart widget: horizontal bars with negative values left of zero | pass | pass | rendered as text; TUI: horizontal bars around a zero axis: negative values left, positive right; live structure in the fake dashboard (unit-tested only) |
+| WID-008 | html widget (no-code) renders sanitized user HTML | pass | pass | rendered as text; TUI: html widget as text: tags and scripts dropped, links kept as text (unit-tested only) |
 | WID-009 | lineChart widget: line with a point per label and description | pass | pass | rendered as text; TUI: sparkline and table |
-| WID-010 | smallLineChart widget: compact line with title and HTML description | pass | todo | rendered as text |
-| WID-011 | location widget: image, title, description, address and footer | todo | todo | location |
+| WID-010 | smallLineChart widget: compact line with title and HTML description | pass | pass | rendered as text; TUI: smallLineChart: title, HTML description as the subtitle, sparkline (unit-tested only) |
+| WID-011 | location widget: image, title, description, address and footer | todo | pass | location; TUI: location: image address, title, description, address, footer (unit-tested only) |
 | WID-012 | multiStatistics widget: groups with icon, header, subheader and statistics | todo | pass | multiStatistics untested |
-| WID-013 | multiTable widget renders each table with its label and rows | pass | todo | rendered as text |
+| WID-013 | multiTable widget renders each table with its label and rows | pass | pass | rendered as text; TUI: multiTable: each table with its label and rows (unit-tested only) |
 | WID-014 | pieChart widget: colored slices, legend values and subheader | pass | pass | rendered as text; TUI: percentage bars |
-| WID-015 | quickSightChart widget embeds the provider URL (real renderer, owned local provider endpoint) | pass | todo | prints the URL |
+| WID-015 | quickSightChart widget embeds the provider URL (real renderer, owned local provider endpoint) | pass | n/a | prints the URL; TUI: embedding the QuickSight dashboard needs a browser frame; the TUI shows its address to open |
 | WID-016 | statistics widget: count, context, colored percentage change and links | pass | pass | rendered as text |
 | WID-017 | stackedBarChart widget stacks datasets with colors and legend | pass | pass | rendered as text; TUI: segments per dataset |
 | WID-018 | stepper widget: completed, current (with link) and upcoming steps | pass | pass | rendered as text |
 | WID-019 | table widget: headers, rows, alignment and fixed totals row | pass | pass | rendered as text |
-| WID-020 | usaMap widget plots each marker with name and coordinates | todo | todo | usaMap markers |
-| WID-021 | process widget runs the sample interactive process inline | todo | todo | process widget |
-| WID-022 | parentWidget renders its children in a 12-column grid | todo | todo | parent widget children |
+| WID-020 | usaMap widget plots each marker with name and coordinates | todo | pass | usaMap markers; TUI: usaMap: each marker with name and coordinates in a table, the count; the map itself is browser-only (unit-tested only) |
+| WID-021 | process widget runs the sample interactive process inline | todo | pass | process widget; TUI: process widget: Enter runs its process in the process screen with the payload default values (unit-tested only) |
+| WID-022 | parentWidget renders its children in a 12-column grid | todo | pass | parent widget children; TUI: parent widget: children loaded with the parent's selections, stacked (tabs layout: one tab at a time, switch from the menu) (unit-tested only) |
 | WID-023 | composite widget renders QQQ blocks (big numbers, up/down, links, tooltips) | pass | pass | rendered as text; TUI: big numbers, up/down |
-| WID-024 | childRecordList widget without association binding lists joined child records | pass | todo | rendered as text |
+| WID-024 | childRecordList widget without association binding lists joined child records | pass | pass | rendered as text; TUI: childRecordList without an association: its rows and count from the payload (unit-tested only) |
 | WID-025 | customComponent widget loads its bundle and renders the named component | n/a | n/a | customComponent is web-only |
-| WID-026 | cronUI widget shows the record's schedule expression, description and time zone | todo | todo | developer and editor widgets |
-| WID-027 | dynamicForm widget shows labeled values from the payload | todo | todo | developer and editor widgets |
-| WID-028 | dataBagViewer widget lists versions and shows the selected version contents | todo | todo | developer and editor widgets |
-| WID-029 | pivotTableSetup widget shows, edits and clears the saved report's pivot definition | todo | todo | developer and editor widgets |
-| WID-030 | filterAndColumnsSetup widget shows the saved report's filter, sort and columns | todo | todo | developer and editor widgets |
-| WID-070 | filterAndColumnsSetup edits a saved report's filter, sort, columns and variable values through the host form | todo | todo | developer and editor widgets |
-| WID-071 | a WIDGET-adorned process form field renders filter setup and writes its own value | todo | todo | developer and editor widgets |
-| WID-072 | API-versioned report setup loads table metadata and previews through the application API | todo | todo | developer and editor widgets |
-| WID-073 | report setup editor uses the full server-backed grid for paging, sorting and column sizing | todo | todo | developer and editor widgets |
-| WID-031 | rowBuilder widget without association binding shows its rows read-only | todo | todo | developer and editor widgets |
-| WID-032 | scriptViewer widget lists script revisions and shows the selected revision's files | todo | todo | developer and editor widgets |
-| WID-033 | quickSightChart against a real AWS QuickSight account and dashboard | n/a | todo | QuickSight |
+| WID-026 | cronUI widget shows the record's schedule expression, description and time zone | todo | pass | developer and editor widgets; TUI: cronUI: the record's cron expression, the server description, the time zone; "No schedule set" (unit-tested only) |
+| WID-027 | dynamicForm widget shows labeled values from the payload | todo | pass | developer and editor widgets; TUI: dynamicForm: labeled values, required marks, the no-fields message (unit-tested only) |
+| WID-028 | dataBagViewer widget lists versions and shows the selected version contents | todo | pass | developer and editor widgets; TUI: dataBagViewer: versions newest first (sequence, message, when, author) and the chosen version's contents pretty-printed (unit-tested only) |
+| WID-029 | pivotTableSetup widget shows, edits and clears the saved report's pivot definition | todo | pass | developer and editor widgets; TUI: pivotTableSetup: rows, columns, values shown; add rows/columns/values from the report columns; clear (unit-tested only) |
+| WID-030 | filterAndColumnsSetup widget shows the saved report's filter, sort and columns | todo | pass | developer and editor widgets; TUI: filterAndColumnsSetup: table, filter, sort and visible columns of the saved report (unit-tested only) |
+| WID-070 | filterAndColumnsSetup edits a saved report's filter, sort, columns and variable values through the host form | todo | pass | developer and editor widgets; TUI: edit the report filter and sort in the TUI filter dialog and the columns in a chooser; saved to the record (unit-tested only) |
+| WID-071 | a WIDGET-adorned process form field renders filter setup and writes its own value | todo | pass | developer and editor widgets; TUI: a WIDGET-adorned process field with a filter setup: Enter opens the filter dialog for the form's table and writes the filter JSON (unit-tested only) |
+| WID-072 | API-versioned report setup loads table metadata and previews through the application API | todo | pass | developer and editor widgets; TUI: API-versioned setup: fields from the application API metadata, preview rows and count through its query (unit-tested only) |
+| WID-073 | report setup editor uses the full server-backed grid for paging, sorting and column sizing | todo | pass | developer and editor widgets; TUI: Preview opens the report filter in the full grid (server paging, sort, view settings) (unit-tested only) |
+| WID-031 | rowBuilder widget without association binding shows its rows read-only | todo | pass | developer and editor widgets; TUI: rowBuilder without an association: rows read-only as a table (unit-tested only) |
+| WID-032 | scriptViewer widget lists script revisions and shows the selected revision's files | todo | pass | developer and editor widgets; TUI: scriptViewer: Enter opens the developer view of the script (revisions, files, logs) (unit-tested only) |
+| WID-033 | quickSightChart against a real AWS QuickSight account and dashboard | n/a | n/a | QuickSight; TUI: a real AWS QuickSight dashboard is an embedded browser page |
 | WID-040 | dashboard renders app widgets in declared order sized by gridColumns (twelfths) | todo | pass | widgets per app; TUI: widgets in declared order, laid out side by side by gridColumns on wide terminals, v reorders; live |
-| WID-041 | widget chrome: card vs plain (isCard=false), sublabel, metadata and payload footer HTML | todo | todo | footer text |
+| WID-041 | widget chrome: card vs plain (isCard=false), sublabel, metadata and payload footer HTML | todo | pass | footer text; TUI: label, sublabel, footer text or footer HTML as text; card vs plain is drawing only (unit-tested only) |
 | WID-042 | header icons (topLeftInsideCard/topRightInsideCard) with metadata colors | n/a | n/a | card chrome |
 | WID-043 | widget label tooltip from metadata on hover and keyboard focus | n/a | n/a | card chrome |
 | WID-044 | widget help content (HTML) on the label | n/a | n/a | card chrome |
 | WID-045 | reload button re-renders the widget from the backend | n/a | n/a | card chrome |
-| WID-046 | export button downloads the widget's csvData as CSV | pass | todo | rendered as text |
-| WID-047 | PVS dropdown from the widget payload: selection is sent as a parameter and re-renders | pass | todo | --input name=value |
-| WID-048 | DATE_PICKER dropdown sends the chosen date | pass | todo | --input |
-| WID-049 | required dropdowns: the parent waits with the backend message until selections are made | todo | todo | required dropdowns |
-| WID-050 | storeDropdownSelections persists selections across reload; stale stored options are dropped | n/a | todo |  |
+| WID-046 | export button downloads the widget's csvData as CSV | pass | pass | rendered as text; TUI: Export as CSV: the payload csvData (else the table rows) through the save dialog (unit-tested only) |
+| WID-047 | PVS dropdown from the widget payload: selection is sent as a parameter and re-renders | pass | pass | --input name=value; TUI: payload dropdowns in the widget menu: the choice is sent as a parameter and the widget reloads (unit-tested only) |
+| WID-048 | DATE_PICKER dropdown sends the chosen date | pass | pass | --input; TUI: DATE_PICKER dropdown: a date typed as YYYY-MM-DD is sent as the web sends it (M/D/YYYY) (unit-tested only) |
+| WID-049 | required dropdowns: the parent waits with the backend message until selections are made | todo | pass | required dropdowns; TUI: required dropdowns: the server message shows until a choice is made, then the data loads (unit-tested only) |
+| WID-050 | storeDropdownSelections persists selections across reload; stale stored options are dropped | n/a | pass | TUI: storeDropdownSelections: choices kept per widget in the shared config; a stale stored option is dropped (unit-tested only) |
 | WID-051 | failing widget renderer shows a contained error with the backend message and retry | pass | pass | rendered as text; TUI: error contained to the widget |
-| WID-052 | empty payloads show descriptive empty states for every display type | todo | todo | empty states |
+| WID-052 | empty payloads show descriptive empty states for every display type | todo | pass | empty states; TUI: empty states: no rows, no data to chart, no value, no values, no child widgets, no dashboard, no schedule (unit-tested only) |
 | WID-053 | malformed payloads are contained to their own widget | pass | pass | unknown shapes shown raw |
-| WID-054 | widget permissions: a denied widget is absent from metadata, not rendered and not requested; the API denies it | pass | todo | rendered as text |
+| WID-054 | widget permissions: a denied widget is absent from metadata, not rendered and not requested; the API denies it | pass | pass | rendered as text; TUI: a denied widget is drawn with the permission state and never requested (unit-tested only) |
 | WID-055 | parent widget TABS layout switches tabs and remembers the selected tab | n/a | n/a | card chrome |
-| WID-056 | parent widget skips denied and unknown children without requests | todo | todo |  |
-| WID-057 | composite renders every block type with its values and styles | todo | todo | every block type |
+| WID-056 | parent widget skips denied and unknown children without requests | todo | pass | TUI: a parent widget skips denied and unknown children without requests (unit-tested only) |
+| WID-057 | composite renders every block type with its values and styles | todo | pass | every block type; TUI: composite blocks: TEXT, BIG_NUMBER, NUMBER_ICON_BADGE, UP_OR_DOWN_NUMBER, PROGRESS_BAR, DIVIDER, TABLE_SUB_ROW_DETAIL_ROW, INPUT_FIELD, BUTTON, IMAGE, AUDIO, ICON (unit-tested only) |
 | WID-058 | composite layouts and slot links/tooltips | n/a | n/a | card chrome |
-| WID-059 | unsupported block type shows a contained warning | pass | todo | rendered as text |
+| WID-059 | unsupported block type shows a contained warning | pass | pass | rendered as text; TUI: an unsupported block type shows a contained warning (unit-tested only) |
 | WID-060 | record-view section widgets receive the record context (id, tableName) | pass | pass | --input id=…; TUI: record section widgets get the record id and table (unit-tested) |
-| WID-061 | process widget for a persona without process permission is contained | pass | todo | rendered as text |
+| WID-061 | process widget for a persona without process permission is contained | pass | pass | rendered as text; TUI: a process widget whose process the user may not run offers Run disabled with the reason (unit-tested only) |
 | WID-062 | custom component whose bundle cannot load shows a contained error | n/a | n/a | card chrome |
-| WID-063 | alerts with hideWidget or without HTML render nothing | pass | todo |  |
-| RPT-001 | TABLE report runs through its process and downloads CSV matching the database | todo | todo | report run exists; no sample report to verify |
-| RPT-002 | TABLE report downloads XLSX with the same rows | todo | todo |  |
-| RPT-003 | TABLE report downloads JSON with the same rows | todo | todo |  |
-| RPT-004 | SUMMARY report groups rows with counts and a totals row | todo | todo |  |
-| RPT-005 | PIVOT report produces a native pivot table in XLSX | todo | todo |  |
-| RPT-006 | report input fields: required validation and the value filters the rows | todo | todo | report inputs |
-| RPT-007 | report permissions: restricted report denied in UI and by the server | pass | todo | server |
+| WID-063 | alerts with hideWidget or without HTML render nothing | pass | pass | TUI: an alert with hideWidget or without content draws nothing (unit-tested only) |
+| RPT-001 | TABLE report runs through its process and downloads CSV matching the database | todo | pass | report run exists; no sample report to verify; TUI: a report with a process runs its screens and saves the file it produces (CSV chosen) (unit-tested only) |
+| RPT-002 | TABLE report downloads XLSX with the same rows | todo | pass | TUI: XLSX chosen from the report formats; the server's file saved as is (unit-tested only) |
+| RPT-003 | TABLE report downloads JSON with the same rows | todo | pass | TUI: JSON chosen from the report formats; the server's file saved as is (unit-tested only) |
+| RPT-004 | SUMMARY report groups rows with counts and a totals row | todo | pass | TUI: SUMMARY reports: the grouped file with totals is the server's; the TUI runs and saves it (unit-tested only) |
+| RPT-005 | PIVOT report produces a native pivot table in XLSX | todo | pass | TUI: PIVOT reports: the XLSX pivot is the server's; the TUI runs and saves it (unit-tested only) |
+| RPT-006 | report input fields: required validation and the value filters the rows | todo | pass | report inputs; TUI: report input fields are the report process's form: required checks, values sent with the run (unit-tested only) |
+| RPT-007 | report permissions: restricted report denied in UI and by the server | pass | pass | server; TUI: a restricted report is marked (no access) and refused with the reason; the server refuses too (unit-tested only) |
 | RPT-008 | reports appear in app navigation and open their run page | todo | pass | report list; TUI: reports appear in app navigation and run from there (unit-tested only) |
-| RPT-009 | saved report view shows its filter/columns and pivot setup | todo | todo | saved reports, schedules, sharing |
-| RPT-010 | saved report renders through renderSavedReport and downloads the saved columns and rows | todo | todo | saved reports, schedules, sharing |
+| RPT-009 | saved report view shows its filter/columns and pivot setup | todo | pass | saved reports, schedules, sharing; TUI: saved report record: filter, sort, columns and pivot setup drawn (unit-tested only) |
+| RPT-010 | saved report renders through renderSavedReport and downloads the saved columns and rows | todo | pass | saved reports, schedules, sharing; TUI: the record actions list the table processes (renderSavedReport) and run them on the record; the DOWNLOAD_FORM file is saved (process downloads unit-tested only) |
 | RPT-011 | streaming report route for reports without a process | todo | pass | saved reports, schedules, sharing; TUI: a report without a process streams from GET /reports/{name}?format= into the save dialog (unit-tested only) |
-| RPT-012 | scheduled report: create a schedule for a saved report and view its cron schedule | todo | todo | saved reports, schedules, sharing |
-| RPT-013 | sharing: the owner shares a saved report with a user (Read-Only) | todo | todo | saved reports, schedules, sharing |
-| RPT-014 | sharing: change a share's scope to Read and Edit | todo | todo | saved reports, schedules, sharing |
-| RPT-015 | sharing: remove a share | todo | todo | saved reports, schedules, sharing |
-| RPT-016 | sharing record security: another user cannot see an unshared report until it is shared | todo | todo | saved reports, schedules, sharing |
-| RPT-017 | sharing: only the owner may share | todo | todo | saved reports, schedules, sharing |
-| RPT-018 | sharing a saved view through the share dialog | todo | todo | saved reports, schedules, sharing |
+| RPT-012 | scheduled report: create a schedule for a saved report and view its cron schedule | todo | pass | saved reports, schedules, sharing; TUI: scheduled report: created on its form; the record shows the cron schedule (cronUI) (unit-tested only) |
+| RPT-013 | sharing: the owner shares a saved report with a user (Read-Only) | todo | pass | saved reports, schedules, sharing; TUI: share a saved report with a user Read-Only (Z, :share) (unit-tested only) |
+| RPT-014 | sharing: change a share's scope to Read and Edit | todo | pass | saved reports, schedules, sharing; TUI: change a share to Read and Edit (unit-tested only) |
+| RPT-015 | sharing: remove a share | todo | pass | saved reports, schedules, sharing; TUI: remove a share after a confirm (unit-tested only) |
+| RPT-016 | sharing record security: another user cannot see an unshared report until it is shared | todo | pass | saved reports, schedules, sharing; TUI: unshared reports are the server's to hide; the TUI lists what it returns and shows a refused link's message (unit-tested only) |
+| RPT-017 | sharing: only the owner may share | todo | pass | saved reports, schedules, sharing; TUI: only the owner may share: others see Share disabled with the reason (unit-tested only) |
+| RPT-018 | sharing a saved view through the share dialog | todo | pass | saved reports, schedules, sharing; TUI: saved views share through the same dialog (Saved views menu) (unit-tested only) |
 | WID-064 | cronUI schedule editor on record forms: Basic days/hours/minutes, Advanced expression, live description, valid | n/a | n/a | card chrome |
 | WID-065 | record view mounts only the active layout, so each section widget mounts and loads once | n/a | n/a | card chrome |
-| WID-066 | Widget metadata and widget data come from the v1 API | pass | todo |  |
-| WID-067 | a widget whose payload is a single leaf block (Material block widget) renders that block | todo | todo |  |
-| WID-068 | table widget Material extras: typed cells (numbers with separators, html, htmlAndTooltip, image, composite), h | todo | todo |  |
+| WID-066 | Widget metadata and widget data come from the v1 API | pass | pass | TUI: widget metadata from /metaData and data from POST /qqq/v1/widget/{name} (unit-tested only) |
+| WID-067 | a widget whose payload is a single leaf block (Material block widget) renders that block | todo | pass | TUI: a payload that is one block draws that block (unit-tested only) |
+| WID-068 | table widget Material extras: typed cells (numbers with separators, html, htmlAndTooltip, image, composite), h | todo | pass | TUI: table cells typed: numbers with separators, html and htmlAndTooltip as text, images, composites (unit-tested only) |
 | WID-069 | chart widget Material extras: theme color names, legend toggles, single-series legends (horizontal bars, line  | n/a | n/a | theme colors |
-| RPT-019 | render report input step shows only its fields; a report without variables adds no no-fields message | todo | todo | saved reports, schedules, sharing |
+| RPT-019 | render report input step shows only its fields; a report without variables adds no no-fields message | todo | pass | saved reports, schedules, sharing; TUI: a report input step shows only its fields; a step without fields continues with no message (unit-tested only) |
 | RPT-020 | Report files download from the v1 download and report routes | todo | pass | TUI: report files download from the report route and the process DOWNLOAD_FORM (unit-tested only) |
-| WID-074 | Standalone composite scalar controls and metadata editors | todo | todo | developer and editor widgets |
-| WID-075 | Standalone DATE_TIME blocks localize seeded instants without losing seconds | todo | todo | developer and editor widgets |
-| HLP-001 | App and widget help | pass | todo | qqq help show app/widget/instance; unit-tested (the sample carries no help content, finding 17) |
+| WID-074 | Standalone composite scalar controls and metadata editors | todo | pass | developer and editor widgets; TUI: standalone composite INPUT_FIELD blocks show their seeded values read-only by type (no standalone input target in a terminal) (unit-tested only) |
+| WID-075 | Standalone DATE_TIME blocks localize seeded instants without losing seconds | todo | pass | developer and editor widgets; TUI: standalone DATE_TIME blocks show seeded instants in the local zone with seconds (unit-tested only) |
+| HLP-001 | App and widget help | pass | pass | qqq help show app/widget/instance; unit-tested (the sample carries no help content, finding 17); TUI: F1 on an app home: app help and each widget's help (slot maps) (unit-tested only) |
 | HLP-002 | Table, field and section help | pass | pass | qqq help show table <t> [field]: table, section and field help; unit-tested (finding 17); TUI: table, field and section help by screen role in F1 (unit-tested only; the sample has none) |
-| HLP-003 | Query columns and table action help | pass | todo | field help is the column help; table action help slots printed with their slot name; unit-tested (finding 17) |
-| HLP-004 | Process, step and record action help | pass | todo | qqq help show process <p>: process, step, HELP_TEXT and step field help; unit-tested (finding 17) |
+| HLP-003 | Query columns and table action help | pass | pass | field help is the column help; table action help slots printed with their slot name; unit-tested (finding 17); TUI: the grid footer shows the help of the column under the cursor; table help slots in F1 (unit-tested only) |
+| HLP-004 | Process, step and record action help | pass | pass | qqq help show process <p>: process, step, HELP_TEXT and step field help; unit-tested (finding 17); TUI: F1 on a process: process, step and step field help; on a record: table, section and field help for the view role (unit-tested only) |
 | HLP-005 | Help search | pass | pass | qqq help-search; TUI: type in F1 |
-| HLP-006 | Help author affordance | n/a | todo | author affordance |
+| HLP-006 | Help author affordance | n/a | pass | author affordance; TUI: :helpkeys (F9 Help) turns on help-authoring mode: F1 shows every slot key, with or without content (unit-tested only) |

@@ -19,7 +19,7 @@ export const accMeta = {
   fields: {
     id: { name: 'id', label: 'Id', type: 'INTEGER', isEditable: false },
     name: { name: 'name', label: 'Name', type: 'STRING', helpContents: [{ contentAsText: 'Name help when editing.', roles: ['EDIT_SCREEN'] }], supplementalMetaData: { materialDashboard: { formAdjusterIdentifier: 'acc.name' } } },
-    status: { name: 'status', label: 'Status', type: 'STRING', adornments: [{ type: 'CHIP', values: { 'color.Active': 'success' } }] },
+    status: { name: 'status', label: 'Status', type: 'STRING', helpContents: [{ contentAsText: 'Where the account stands.', roles: ['QUERY_SCREEN'] }], adornments: [{ type: 'CHIP', values: { 'color.Active': 'success' } }] },
     payload: { name: 'payload', label: 'Payload', type: 'STRING', adornments: [{ type: 'WIDGET', values: { widgetName: 'payloadWidget' } }] },
     when: { name: 'when', label: 'When', type: 'DATE_TIME' },
     personId: { name: 'personId', label: 'Person', type: 'INTEGER', possibleValueSourceName: 'person' },
@@ -38,14 +38,14 @@ const partMeta = { name: 'part', label: 'Part', primaryKeyField: 'id', insertPer
 export const ACC_RECORD = { values: { id: 1, name: 'Alpha', status: 'Active', payload: { type: 'statistics', count: 42, countContext: 'in the payload' }, when: '2026-10-31T22:00:00Z', personId: 3 }, displayValues: { personId: 'Casey Sample' }, recordLabel: 'Alpha', associatedRecords: { parts: [] } }
 
 /** Handles acc routes; undefined when the request is not one of them. */
-const ADHOC_STEP = { name: 'scan', label: 'Scan', components: [{ type: 'WIDGET', values: { isAdHocWidget: true, blocks: [
+const ADHOC_STEP = { name: 'scan', label: 'Scan', helpContents: [{ contentAsText: 'Scan the order label.' }], components: [{ type: 'WIDGET', values: { isAdHocWidget: true, blocks: [
   { blockTypeName: 'TEXT', values: { text: 'Order ${orderNo}' } },
   { blockTypeName: 'TEXT', conditional: 'showHint', values: { text: 'Hint: scan the label' } },
   { blockTypeName: 'INPUT_FIELD', values: { fieldMetaData: { name: 'barcode', label: 'Barcode', type: 'STRING', isRequired: true }, submitOnEnter: true } },
   { blockTypeName: 'BUTTON', values: { label: 'Skip', actionCode: 'skip' } },
   { blockTypeName: 'BUTTON', values: { label: 'Finish', actionCode: 'finish' } },
 ] } }] }
-const ADHOC_META = { name: 'adhoc', label: 'Ad hoc', frontendSteps: [ADHOC_STEP, { name: 'done', label: 'Done', components: [{ type: 'VIEW_FORM' }], viewFields: [{ name: 'message', label: 'Message', type: 'STRING' }] }] }
+const ADHOC_META = { name: 'adhoc', label: 'Ad hoc', helpContents: [{ contentAsText: 'Scan orders one by one.' }], frontendSteps: [ADHOC_STEP, { name: 'done', label: 'Done', components: [{ type: 'VIEW_FORM' }], viewFields: [{ name: 'message', label: 'Message', type: 'STRING' }] }] }
 
 const ADHOC_FILE_META = { name: 'adhocfile', label: 'Ad hoc file', frontendSteps: [
   { name: 'up', label: 'Upload', components: [{ type: 'WIDGET', values: { isAdHocWidget: true, blocks: [{ blockTypeName: 'INPUT_FIELD', values: { fieldMetaData: { name: 'photo', label: 'Photo', type: 'BLOB', isRequired: true } } }, { blockTypeName: 'INPUT_FIELD', values: { fieldMetaData: { name: 'qty', label: 'Quantity', type: 'INTEGER', isRequired: true } } }] } }] },

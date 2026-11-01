@@ -185,7 +185,9 @@ export class WidgetView {
     }
     if (type === 'process') {
       const pm = (this.data?.processMetaData ?? {}) as J
-      if (pm.name) out.push({ label: `Run ${String(pm.label ?? pm.name)}`, run: () => void import('./nav').then(({ openProcess }) => openProcess(s, String(pm.name), { values: (this.data?.defaultValues ?? {}) as J })) })
+      const allowed = (this.store.meta?.processes as Record<string, { hasPermission?: boolean }> | undefined)?.[String(pm.name)]
+      if (pm.name && (!allowed || allowed.hasPermission === false)) out.push({ label: `Run ${String(pm.label ?? pm.name)}`, disabled: 'This process is not available to you.', run: () => undefined })
+      else if (pm.name) out.push({ label: `Run ${String(pm.label ?? pm.name)}`, run: () => void import('./nav').then(({ openProcess }) => openProcess(s, String(pm.name), { values: (this.data?.defaultValues ?? {}) as J })) })
     }
     if (type === 'dataBagViewer') {
       const id = String((this.data?.queryParams as J | undefined)?.id ?? this.options.record?.primaryKey ?? '')

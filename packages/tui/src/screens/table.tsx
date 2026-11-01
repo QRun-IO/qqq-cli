@@ -4,7 +4,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { ResultCursor, bulkProcesses, uploadTemplates, safeFileName, saveDownload, buildViewJson, filterDateTimesToUtc, relatedRecordTarget, planJoins, withJoinFields, type ExposedJoin, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
+import { helpEntryText, selectHelpContent, ResultCursor, bulkProcesses, uploadTemplates, safeFileName, saveDownload, buildViewJson, filterDateTimesToUtc, relatedRecordTarget, planJoins, withJoinFields, type ExposedJoin, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
@@ -772,7 +772,10 @@ export class TableScreen implements Screen {
       lines.push(<text flexShrink={0} wrapMode="none" key="bulk" fg={t.selFg} bg={t.acc}>{pad(` ${what} · b run a process on them · Ctrl+A select menu · Space toggle · Esc clear`, inner)}</text>)
     }
     const c = this.cursor
-    const filterText = `${printFilter(this.filter) || 'no filter'}${this.quick ? ` · quick "${this.quick}"` : ''}${this.variant ? ` · ${variantLabel(this.meta as never)} ${this.variant.name ?? this.variant.id}` : ''}`
+    // the column under the cursor: its help for query screens (field helpContents by role)
+    const colField = this.fields()[this.colCursor] as { label?: string; helpContents?: unknown } | undefined
+    const colHelp = colField ? helpEntryText(selectHelpContent(colField.helpContents, ['QUERY_SCREEN', 'READ_SCREENS', 'ALL_SCREENS'])) : ''
+    const filterText = `${printFilter(this.filter) || 'no filter'}${this.quick ? ` · quick "${this.quick}"` : ''}${this.variant ? ` · ${variantLabel(this.meta as never)} ${this.variant.name ?? this.variant.id}` : ''}${colHelp ? ` · ${colField!.label}: ${colHelp}` : ''}`
     lines.push(<text flexShrink={0} wrapMode="none" key="f" fg={t.dim}>{pad(` ${filterText}`, inner)}</text>)
     const status = c ? `${c.total === undefined ? '…' : num(c.total)} ${c.distinct !== undefined ? `rows (${num(c.distinct)} distinct)` : 'records'} · row ${num(c.index + 1)} · page ${this.rowsPage + 1}/${c.pageCount}${this.sort ? ` · sort ${this.sort.field} ${this.sort.asc ? 'asc' : 'desc'}` : ''} · col ${this.colCursor + 1}/${cols.length}${this.fetchMs !== undefined ? ` · ${this.fetchMs.toFixed(0)} ms` : ''}${this.loading ? ' · loading' : ''}` : 'loading…'
     const hint = this.store.singleKeys ? ' · a actions · s sort · f filter · q search · S stats · v view · x export · Space select' : ''

@@ -75,7 +75,10 @@ Keys (the function-key bar is the truth; F1 or `?` lists them; every action is a
 
 Things to try: `:table query person`, Enter on a row, PgDn through records, Esc (same row); F6, add a
 condition, Tab to the grammar and type `AND (fi` then Tab; `:table create placeAddress` (country, state, city
-narrow); Space on two people, `b`, Person Bulk Edit; `:app SampleWidgetsDashboard`; F9 Settings for themes,
+narrow); Space on two people, `b`, Bulk edit (Space switches a field on, Ctrl+S, review, submit); on the person
+grid `a` › Bulk insert from a file (a CSV with firstName,lastName,email: the mapping grid, review, result) and
+Bulk delete to remove those rows again; `:app SampleWidgetsDashboard`, Enter on a widget heading for its
+actions (export CSV, dropdowns); F9 Settings for themes,
 download folder, PIN and the screen lock; `:theme light`. See `packages/tui/README.md` for settings and for the
 keys your terminal or tmux may take (`qqq ui --check` finds them).
 

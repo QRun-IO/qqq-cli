@@ -113,9 +113,13 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown, au
           auth.sessions.add(uuid)
           return json({ uuid, values: { user: { username: user, name: user } } })
         }
+        if (auth.type === 'AUTH_0') {
+          const token = (body as { accessToken?: string } | undefined)?.accessToken
+          if (!token || token !== auth.values?.expectedToken) return json({ message: 'Unable to validate the access token' }, 401)
+        }
         const uuid = `s-${auth.sessions.size + 1}`
         auth.sessions.add(uuid)
-        return json({ uuid, values: { user: { name: 'Tester' } } })
+        return json({ uuid, values: { user: { name: 'Tester', email: 'auth0@fake.test' } } })
       }
       if (path === '/logout') {
         const uuid = /sessionUUID=([^;]+)/.exec(request.headers.get('cookie') ?? '')?.[1]
@@ -146,7 +150,7 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown, au
         appTree: [{ type: 'APP', name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] }],
         tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, order: { name: 'order', label: 'Order' }, acc: { name: 'acc', label: 'Acc', insertPermission: true }, part: { name: 'part', label: 'Part', insertPermission: true }, scriptRevisionFile: { name: 'scriptRevisionFile', label: 'Files' }, line: { name: 'line', label: 'Order Line' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true }, blk: { name: 'blk', label: 'Blk', insertPermission: true }, savedReport: { name: 'savedReport', label: 'Saved Report' }, savedView: { name: 'savedView', label: 'Saved View', isHidden: true }, ...secTables },
         processes: { ...bulkProcessesMeta, ...secProcesses, adhoc: { name: 'adhoc', label: 'Ad hoc' }, adhocfile: { name: 'adhocfile', label: 'Ad hoc file' }, setupProc: { name: 'setupProc', label: 'Report setup' }, sleeper: { name: 'sleeper', label: 'Sleeper', tableName: 'person' }, scanner: { name: 'scanner', label: 'Scanner' }, wizard: { name: 'wizard', label: 'Wizard' }, GetAuditsForRecord: { name: 'GetAuditsForRecord', label: 'Audits', isHidden: true }, columnStats: { name: 'columnStats', label: 'Stats', isHidden: true }, querySavedView: { name: 'querySavedView', label: 'q', isHidden: true } },
-        reports: { streamReport: { name: 'streamReport', label: 'Stream report' }, wizReport: { name: 'wizReport', label: 'Wizard report', processName: 'wizard' } },
+        reports: { deniedReport: { name: 'deniedReport', label: 'Denied report', hasPermission: false }, streamReport: { name: 'streamReport', label: 'Stream report' }, wizReport: { name: 'wizReport', label: 'Wizard report', processName: 'wizard' } },
         widgets: { ...dashWidgets, ...savedReportWidgets, ctxWidget: { name: 'ctxWidget', label: 'Context' }, stepWidget: { name: 'stepWidget', label: 'Step widget' }, payloadWidget: { name: 'payloadWidget', label: 'Payload' } }, branding: { appName: 'Fake' },
       })
     }

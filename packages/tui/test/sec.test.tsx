@@ -67,3 +67,18 @@ test('permission revoked mid-session: the save is refused with the server messag
   expect(f).toContain('After')
   expect(h.store.screen?.kind).toBe('form')
 })
+
+
+
+test('a denied report is refused; a record the server refuses shows its message; a process widget for a denied process offers no run', async () => {
+  h = await startTui(130, 60)
+  await command(h, 'report run deniedReport')
+  await waitFor(h, (x) => x.includes('you may not run Denied report'))
+  await command(h, 'table get locked 2')
+  await waitFor(h, (x) => x.includes('You do not have access to this Locked record'))
+  const { WidgetView } = await import('../src/widget-view')
+  const view = new WidgetView(h.store, 'procDenied')
+  await view.load()
+  const run = view.actions().find((a) => a.label === 'Run Deny Proc')!
+  expect(run.disabled).toBe('This process is not available to you.')
+})

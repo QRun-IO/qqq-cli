@@ -26,6 +26,12 @@ beforeAll(() => {
       const url = new URL(req.url)
       const base = `http://127.0.0.1:${provider.port}`
       if (url.pathname === '/.well-known/openid-configuration') return Response.json({ issuer: base, authorization_endpoint: `${base}/authorize`, token_endpoint: `${base}/token`, end_session_endpoint: `${base}/logout` })
+      if (url.pathname === '/oauth/token') {
+        const form = new URLSearchParams(await req.text())
+        exchanges.push(form)
+        if (!form.get('code_verifier')) return Response.json({ error: 'invalid_grant' }, { status: 400 })
+        return Response.json({ access_token: 'auth0-jwt', id_token: jwt, expires_in: 3600, token_type: 'Bearer' })
+      }
       if (url.pathname === '/token') {
         const form = new URLSearchParams(await req.text())
         exchanges.push(form)
@@ -72,7 +78,7 @@ test('OAUTH2 authorization code + PKCE: discovery, authorize address shown, loop
   expect(h.store.status.user).toBe('oidc@fake.test')
   const stored = JSON.parse(String(await secrets().get('fake@http://fake.test')))
   expect(stored.kind).toBe('oauth')
-  expect(h.log.requests.find((r) => r.path === '/metaData')!.auth).toBe(`Bearer ${jwt}`)
+  expect(h.log.requests.find((r) => r.path === '/version')!.auth).toBe(`Bearer ${jwt}`)
 })
 
 test('OAUTH2 failures: tampered state, provider denial and a refused code exchange are reported and store nothing', async () => {
@@ -90,4 +96,24 @@ test('OAUTH2 failures: tampered state, provider denial and a refused code exchan
   await waitFor(h, (x) => x.includes('the code was refused'))
   tokenAnswer = 'ok'
   expect(await secrets().get('fake@http://fake.test')).toBeUndefined()
+})
+
+
+
+test('AUTH_0: authorize with the audience, code exchanged with the verifier, access token handed to manageSession; the session is kept', async () => {
+  const secrets = memorySecrets()
+  const auth: FakeAuth = { type: 'AUTH_0', sessions: new Set(), values: { baseUrl: `http://127.0.0.1:${provider.port}/`, clientId: 'spa', audience: 'https://api.fake', expectedToken: 'auth0-jwt' } }
+  h = await startTui(120, 36, { auth, secrets, until: 'signin' })
+  let url: string | undefined
+  await waitFor(h, () => Boolean(url = (h!.store.screen as SignInScreen | undefined)?.browserUrl))
+  const authorize = new URL(url!)
+  expect(authorize.pathname).toBe('/authorize')
+  expect(authorize.searchParams.get('audience')).toBe('https://api.fake')
+  expect(authorize.searchParams.get('client_id')).toBe('spa')
+  const back = await fetch(`${authorize.searchParams.get('redirect_uri')}?code=c0&state=${authorize.searchParams.get('state')}`)
+  expect(back.status).toBe(200)
+  await waitFor(h, (x) => x.includes('Apps') && h!.store.screen?.kind === 'home')
+  const stored = JSON.parse(String(await secrets().get('fake@http://fake.test')))
+  expect([stored.kind, stored.authType, stored.sessionUUID]).toEqual(['session', 'AUTH_0', 's-1'])
+  expect(h.log.requests.find((r) => r.path === '/version')!.cookie).toBe('sessionUUID=s-1')
 })

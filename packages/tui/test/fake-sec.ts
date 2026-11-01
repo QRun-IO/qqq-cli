@@ -29,6 +29,7 @@ export async function secRoute(path: string, method: string): Promise<Response |
   if (path === '/table/ro/1' && method === 'GET') return json({ record: { values: { id: 1, name: 'One', pin: 'hunter2', internal: 'do-not-show' }, recordLabel: 'One' } })
   if (path === '/metaData/table/locked') return json(lockedMeta)
   if (path === '/table/locked/1' && method === 'GET') return json({ record: { values: { id: 1, name: 'Before' }, recordLabel: 'Before' } })
+  if (path === '/table/locked/2' && method === 'GET') return json({ error: 'You do not have access to this Locked record.' }, 403)
   if (path === '/table/locked/1' && method === 'PATCH') return json({ error: 'You do not have permission to edit Locked records.' }, 403)
   if (path === '/metaData/table/secret' || path.startsWith('/table/secret')) return json({ error: 'Permission denied' }, 403)
   return undefined

@@ -67,6 +67,8 @@ type Listener = () => void
 export class AppStore {
   routes: Screen[] = []
   overlays: Overlay[] = []
+  /** Help-authoring mode (:helpkeys): F1 shows every help slot's key. */
+  helpKeys = false
   focus: 'content' | 'sidebar' = 'content'
   width = 120
   height = 40
