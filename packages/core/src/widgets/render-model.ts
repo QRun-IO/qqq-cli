@@ -271,12 +271,30 @@ export function widgetToBlocks(data: unknown, context: WidgetContext = {}): Rend
       blocks.push({ kind: 'pairs', pairs: fields.map((f) => ({ label: `${str(f.label ?? f.name)}${f.isRequired ? ' *' : ''}`, value: str(display[String(f.name)] ?? values[String(f.name)] ?? '') })) })
       break
     }
-    case 'pivotTableSetup':
-      blocks.push(...pivotTableBlocks(context.record, fieldLabel))
+    // the setup widgets as label/value pairs (the TUI's record view); `qqq saved-report show` words them as the web does (filterAndColumnsBlocks, pivotTableBlocks)
+    case 'filterAndColumnsSetup': {
+      const rv = ((context.record?.values ?? context.record ?? {}) as J)
+      const filter = (parseJsonValue(rv[String(w.filterFieldName ?? 'queryFilterJson')]) ?? {}) as J
+      const crit = ((filter.criteria ?? []) as J[]).map((c) => `${fieldLabel(String(c.fieldName))} ${String(c.operator ?? '').toLowerCase().replace(/_/g, ' ')} ${((c.values ?? []) as unknown[]).map(str).join(', ')}${c.otherFieldName ? str(c.otherFieldName) : ''}`.trim())
+      const sorts = ((filter.orderBys ?? []) as J[]).map((o) => `${str(o.fieldName)} ${o.isAscending === false ? 'descending' : 'ascending'}`)
+      const rawColumns = parseJsonValue(rv[String(w.columnsFieldName ?? w.columnFieldName ?? 'columnsJson')])
+      const colList = Array.isArray(rawColumns) ? rawColumns : Array.isArray((rawColumns as J | undefined)?.columns) ? (rawColumns as J).columns as unknown[] : []
+      const cols = colList.map((c) => (typeof c === 'string' ? { name: c } : c as J)).filter((c) => c.isVisible !== false && c.name !== '__check__').map((c) => str(c.name))
+      const pairs = [{ label: 'Table', value: str(w.tableName ?? rv.tableName) || '(none)' }, { label: 'Filter', value: crit.length ? crit.join(` ${String(filter.booleanOperator ?? 'AND')} `) : '(no criteria)' }, { label: 'Sort', value: sorts.join(', ') || '(default)' }]
+      if (w.hideColumns !== true) pairs.push({ label: 'Columns', value: cols.join(', ') || '(all)' })
+      blocks.push({ kind: 'pairs', pairs })
       break
-    case 'filterAndColumnsSetup':
-      blocks.push(...filterAndColumnsBlocks(context.record, w, fieldLabel))
+    }
+    case 'pivotTableSetup': {
+      const rv = ((context.record?.values ?? context.record ?? {}) as J)
+      const pivot = parseJsonValue(rv.pivotTableJson) as J | undefined
+      if (!pivot || typeof pivot !== 'object') blocks.push({ kind: 'text', text: EMPTY_STATE.pivotTableSetup! })
+      else {
+        const names = (k: string) => ((pivot[k] ?? []) as J[]).map((x) => `${str(x.fieldName)}${x.function ? ` (${str(x.function).toLowerCase()})` : ''}`).join(', ') || '(none)'
+        blocks.push({ kind: 'pairs', pairs: [{ label: 'Rows', value: names('rows') }, { label: 'Columns', value: names('columns') }, { label: 'Values', value: names('values') }] })
+      }
       break
+    }
     case 'rowBuilder': {
       const dv = (meta.defaultValues ?? {}) as J
       const records = (w.records ?? []) as J[]

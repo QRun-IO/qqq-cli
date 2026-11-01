@@ -5,10 +5,10 @@ browser-only reason) or **blocked** (citing a server finding in `docs/server-fin
 `todo` at the end. The status source is `STATUS` in `scripts/parity-matrix.py`; regenerate with
 `python3 scripts/parity-matrix.py docs/parity/next-feature-matrix.md`.
 
-Start: 173 pass / 42 partial / 80 todo / 106 n/a of 401.
+Start: 173 pass / 42 partial / 80 todo / 106 n/a of 401 (branch `feat/m1-cli-parity` from `feat/m1-kernel-cli` 6c56b89).
 Checkpoint 1 (bulk load): 188 pass / 41 partial / 66 todo / 106 n/a.
 Checkpoint 2 (records, queries, processes, help): 232 pass / 1 partial / 60 todo / 106 n/a / 2 blocked.
-Checkpoint 3 (navigation, widgets, reports, security): 290 pass / 0 partial / 0 todo / 107 n/a / 4 blocked. Blocked: QRY-085 (finding 24, qqq#1355), REC-063 (finding 19, qqq#1351), SEC-029 and SEC-030 (finding 28: no AUTH_0 server; SEC-030 needs tenant credentials from James). New n/a: WID-074 (standalone composite controls are browser input editors). (branch `feat/m1-cli-parity` from `feat/m1-kernel-cli` 6c56b89).
+Checkpoint 3 (navigation, widgets, reports, security): 290 pass / 0 partial / 0 todo / 107 n/a / 4 blocked. Blocked: QRY-085 (finding 24, qqq#1355), REC-063 (finding 19, qqq#1351), SEC-029 and SEC-030 (finding 28, qqq#1359: no AUTH_0 server; SEC-030 also needs tenant credentials from James, qqq-cli#10). New n/a: WID-074 (standalone composite controls are browser input editors).
 
 "unit-tested" in a row note means the sample at :8077 cannot exercise the row (no fixture); the kernel and the
 command are covered by node tests (and a local stub server where a command is involved). Everything else is
@@ -104,8 +104,8 @@ Status column: **plan** = what the row becomes; **done** once the STATUS source 
 | SEC-002/008 DISABLED tables and processes | listed with the reason; use refused before the call; unit-tested | done |
 | SEC-006 copy needs insert | `table copy` refused without insert permission | done |
 | SEC-011 record-level security | server-enforced; listed as returned | done |
-| SEC-029/030 AUTH_0 | same device/PKCE code as OAUTH2 (verified with qqq-dev-idp); real tenant needs credentials | done |
-| SEC-034..037 TABLE_BASED | `qqq login` with username/password over HTTP Basic (the server's TableBasedAuthenticationModule creates the session and sets the cookie); unit-tested with a stub | done |
+| SEC-029/030 AUTH_0 | sign-in from the tenant, client id and audience (unit-tested); no AUTH_0 server to run it against | blocked (finding 28, qqq#1359; SEC-030 also qqq-cli#10) |
+| SEC-034..037 TABLE_BASED | `qqq login --username` over HTTP Basic (the server's TableBasedAuthenticationModule creates the session and sets the sessionId cookie); stub-server tested | done |
 
 ## Help
 

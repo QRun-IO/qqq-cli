@@ -101,7 +101,7 @@ describe('reports against a stub', () => {
     assert.match(list.stdout, /3,Open orders,order,you,,status EQUALS open/)
     assert.match(list.stdout, /4,Bob report,order,shared by bob@example.com/)
     const show = await qqq(['saved-report', 'show', 'Open orders', '-O', 'table'])
-    assert.match(show.stdout, /Match all of:\n {2}Status equals open\nColumns: Id, Name\nPivot table:\nThis report does not use a pivot table\./)
+    assert.match(show.stdout, /Match all of:\n {2}Status equals open\nColumns: Id, Name\nPivot table:\nNo pivot table: this report does not use one\./)
     const preview = await qqq(['saved-report', 'preview', '3', '-l', '1', '-O', 'table'])
     assert.match(preview.stdout, /Ann/)
     assert.match(preview.stdout, /2 in all/)
@@ -126,7 +126,7 @@ describe('reports against a stub', () => {
     const pivot = await qqq(['saved-report', 'pivot', '3', '--rows', 'state', '--values', 'SUM:total,COUNT:id'])
     assert.match(pivot.stdout, /Values +Sum of Total, Count of Id/)
     const clear = await qqq(['saved-report', 'pivot', '3', '--clear'])
-    assert.match(clear.stdout, /does not use a pivot table/)
+    assert.match(clear.stdout, /No pivot table/)
     assert.equal(saved.pivotTableJson, null)
   })
 
