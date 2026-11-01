@@ -18,7 +18,8 @@ import type { Key } from '../keys'
 import { openApp, openForm, openProcess, openRecord, openTable } from '../nav'
 import { ChoiceOverlay } from '../overlays/basic'
 import type { AppStore } from '../store'
-import { glyphs, theme } from '../theme'
+import { glyphs, isAscii, theme } from '../theme'
+import { iconGlyph } from '../icons'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
 import { WidgetView } from '../widget-view'
 import { errorText, num, pad, trunc } from '../util/text'
@@ -185,7 +186,9 @@ export class HomeScreen implements Screen {
             const icon = icons?.[a.name]?.icon?.name
             const widgets = icons?.[a.name]?.widgets?.length ?? 0
             const parts = [c.tables && `${num(c.tables)} tables`, c.processes && `${num(c.processes)} processes`, c.reports && `${num(c.reports)} reports`, c.apps && `${c.apps} apps`, widgets && `${widgets} widgets`].filter(Boolean) as string[]
-            return { label: a.label, run: () => openApp(s, a.name), card: [`${g.app} ${a.label}`, icon ? `[${icon}]` : '', parts.slice(0, 2).join(' · '), parts.slice(2).join(' · ')] }
+            // the app's Material icon as a glyph (ASCII under the ASCII setting); unknown icons fall back to the app mark
+            const glyph = iconGlyph(icon, isAscii()) ?? g.app
+            return { label: a.label, run: () => openApp(s, a.name), card: [`${glyph} ${a.label}`, parts.slice(0, 2).join(' · '), parts.slice(2).join(' · '), ''] }
           }),
         })
       } else if (id === 'work') {
