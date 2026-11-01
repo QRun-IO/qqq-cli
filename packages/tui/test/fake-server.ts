@@ -214,7 +214,9 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown, au
     if (path === '/metaData/process/sleeper') return json(processMeta)
     const filter = ((body as J | undefined)?.filter ?? {}) as { skip?: number; limit?: number; orderBys?: Array<{ fieldName: string; isAscending: boolean }>; criteria?: Array<{ fieldName: string; values: string[] }> }
     let people = [...PEOPLE]
-    for (const c of filter.criteria ?? []) people = people.filter((p) => String((p as J)[c.fieldName]) === String(c.values[0]))
+    const matches = (p: J, c: { fieldName: string; operator?: string; values: unknown[] }) => (c.operator === 'CONTAINS' ? String(p[c.fieldName] ?? '').toLowerCase().includes(String(c.values[0]).toLowerCase()) : String(p[c.fieldName]) === String(c.values[0]))
+    if ((filter as { booleanOperator?: string }).booleanOperator === 'OR' && filter.criteria?.length) people = people.filter((p) => filter.criteria!.some((c) => matches(p as J, c as never)))
+    else for (const c of filter.criteria ?? []) people = people.filter((p) => matches(p as J, c as never))
     const order = filter.orderBys?.[0]
     const key = (o: J) => (typeof o[order?.fieldName ?? 'id'] === 'number' ? (o[order?.fieldName ?? 'id'] as number) : String(o[order?.fieldName ?? 'id']))
     if (order) people.sort((a, b) => (key(a) < key(b) ? -1 : 1) * (order.isAscending ? 1 : -1))

@@ -340,7 +340,8 @@ export class AppStore {
       this.backslash = false
       return this.commands().help()
     }
-    if (key.name === 'f2' || (key.ctrl && key.name === 'k')) return this.commands().palette()
+    if (key.name === 'f2') return this.commands().search()
+    if (key.ctrl && key.name === 'k') return this.commands().palette()
     if (key.name === 'f9') return this.commands().menu()
     if (key.ctrl && key.name === 'o') return this.commands().servers()
     if (key.name === 'f10') return this.requestQuit()
@@ -587,7 +588,7 @@ export class AppStore {
 
   /** The function-key bar for the current context. */
   fkeys(): Array<{ n: number; label: string | null; global: string }> {
-    const defaults: Record<number, string> = { 1: 'Help', 2: 'Go to', 3: 'View', 4: 'Edit', 5: 'Refresh', 6: 'Filter', 7: 'New', 8: 'Delete', 9: 'Menu', 10: 'Quit' }
+    const defaults: Record<number, string> = { 1: 'Help', 2: 'Search', 3: 'View', 4: 'Edit', 5: 'Refresh', 6: 'Filter', 7: 'New', 8: 'Delete', 9: 'Menu', 10: 'Quit' }
     const overrides: FKeyLabels = this.screen?.fkeys?.() ?? { 3: null, 4: null, 6: null, 7: null, 8: null }
     return Object.entries(defaults).map(([n, label]) => {
       const k = Number(n)
@@ -621,6 +622,8 @@ export interface SidebarLike {
 export interface CommandsLike {
   help(): void
   palette(initial?: string): void
+  /** F2: the Search screen. */
+  search(initial?: string): void
   menu(): void
   /** The Servers dialog (Ctrl+O). */
   servers(): void

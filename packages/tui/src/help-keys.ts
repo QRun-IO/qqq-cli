@@ -17,11 +17,12 @@ export interface KeyGroup {
 }
 
 /** The one line under the keys that points at the three ways to find and run things. */
-export const HELP_POINTER = '/ search anything · F9 menu · : command line (:search <text> finds records)'
+export const HELP_POINTER = 'F2 search records · / find anything · F9 menu · : command line'
 
 const ANYWHERE: KeyRow[] = [
   ['F1  ?', 'this keyboard reference'],
-  ['F2  /  .  Ctrl+K', 'search: apps, tables, processes, widgets, records, commands'],
+  ['F2', 'Search: records across tables (quick search); :search <text>'],
+  ['/  .  Ctrl+K', 'find: apps, tables, processes, widgets, records, commands'],
   ['F9', 'menu: areas, then their actions'],
   ['Ctrl+O', 'servers: switch, add, edit'],
   [':', 'command line; Tab completes, ↑↓ history'],
@@ -66,7 +67,7 @@ function singleKey(keys: string): boolean {
 export function helpKeyGroups(kind: string | undefined, singleKeys: boolean, screenKeys: KeyRow[] = []): KeyGroup[] {
   const groups: KeyGroup[] = [{ title: 'Anywhere', keys: ANYWHERE }, { title: 'Move', keys: MOVE }]
   const change: KeyRow[] = []
-  if (kind === 'table' || kind === 'record' || kind === 'app' || kind === 'home' || kind === 'output') change.push(['F3  Enter', 'open, view'])
+  if (kind === 'table' || kind === 'record' || kind === 'app' || kind === 'home' || kind === 'output' || kind === 'search') change.push(['F3  Enter', 'open, view'])
   if (kind === 'table' || kind === 'record') change.push(['F4  e', 'edit'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['c', 'copy into a new record'])
   if (kind === 'record') change.push([']  [  PgDn PgUp', 'next / previous record'])
   if (kind === 'form') change.push(['Ctrl+S', 'save'], ['Tab  ↑↓', 'next field'], ['Ctrl+E', 'edit a long value in $EDITOR'])

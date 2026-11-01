@@ -140,7 +140,7 @@ test('F9 fits 80×24 at every level: nothing outside the frame, the footer intac
   await press(h, () => h!.setup.mockInput.typeText('g'))
   f = await press(h, () => h!.setup.mockInput.pressEnter())
   inside(f)
-  expect(f).toContain('Search apps, tables')
+  expect(f).toContain('Search records (quick search)')
   expect(f).toContain('← or Esc back')
   f = await press(h, () => h!.setup.mockInput.typeText('theme'))
   inside(f)

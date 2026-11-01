@@ -21,6 +21,7 @@ import { recordItem, type PaletteItem, type SearchHit } from './palette'
 import { SAVER_WORDS, SaverOverlay, saverCommand, saverMenuEntries } from './overlays/saver'
 import { chooseFolder } from './overlays/files-helpers'
 import { OutputScreen } from './screens/output'
+import { SearchScreen } from './screens/search'
 import { openReport } from './screens/report'
 import { TableDeveloperScreen } from './screens/developer'
 import { actionsOverlay } from './overlays/actions'
@@ -167,6 +168,19 @@ export class Commands implements CommandsLike {
   }
 
   /** The search (`/`): apps, tables, processes, widgets, reports, records (quick search), commands and help, grouped. */
+  /** F2: the Search screen (records through quick search); on it, back to its search line. */
+  search(initial?: string): void {
+    const s = this.store
+    if (!s.client) return
+    const top = s.screen as { kind?: string; focusLine?: () => void; setText?: (t: string) => void } | undefined
+    if (top?.kind === 'search') {
+      top.focusLine?.()
+      if (initial) top.setText?.(initial)
+      return s.bump()
+    }
+    s.push(new SearchScreen(s, initial ?? ''))
+  }
+
   palette(initial?: string): void {
     const s = this.store
     const meta = s.meta
@@ -302,7 +316,11 @@ export class Commands implements CommandsLike {
         case 'menu': return this.menu()
         case 'goto': case 'palette': return this.palette(rest.join(' ') || undefined)
         // :search <text> is the command-line form of the search (records through quick search, and everything else)
-        case 'search': case 'find':
+        // :search <text> is the command-line form of Search (F2: records through quick search); :find <text> the / search
+        case 'search':
+          if (!rest.some((a) => a.startsWith('-'))) return this.search(rest.join(' '))
+          break
+        case 'find':
           if (rest.length && !rest.some((a) => a.startsWith('-'))) return this.palette(rest.join(' '))
           break
         case 'view': return this.viewSettings()
@@ -666,7 +684,8 @@ export class Commands implements CommandsLike {
     // Go to
     out.push({ section: 'Go to', label: 'Reset: go to the home screen', key: 'F10', command: 'reset', detail: 'refreshes metadata, keeps the session', run: () => s.reset() })
     // places, records and commands are found with / (one home); the menu keeps the way there
-    out.push({ section: 'Go to', label: 'Search apps, tables, processes, records, commands…', key: '/ F2', command: 'search <text>', run: () => this.palette() })
+    out.push({ section: 'Go to', label: 'Search records (quick search)…', key: 'F2', command: 'search <text>', run: () => this.search() })
+    out.push({ section: 'Go to', label: 'Find apps, tables, processes, records, commands…', key: '/', command: 'find <text>', run: () => this.palette() })
     // the apps and recent records as groups of Go to (F9 shows five and more…, which opens the whole list)
     for (const n of ((meta?.appTree ?? []) as Array<{ type: string; name: string; label: string }>).filter((x) => x.type === 'APP')) out.push({ id: `app:${n.name}`, section: 'Go to', group: 'Apps', label: n.label, command: `app ${n.name}`, run: () => openApp(s, n.name) })
     try {

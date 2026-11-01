@@ -45,6 +45,7 @@ export async function collabRoute(path: string, method: string, body: unknown): 
     const hits = 'ada lovelace'.includes(term) ? [{ tableName: 'person', tableLabel: 'Person', recordId: '1', recordLabel: '1', highlights: [{ text: 'Ada Lovelace', fieldLabel: 'Name' }] }] : []
     return json({ results: hits, provider: { status: 'OK' } })
   }
+  if (path === '/qbit/quick-search/status' && on('quick-search')) return json({ state: 'OK', indexes: [{ tableName: 'person', enabled: true, documentCount: 30 }, { tableName: 'order', enabled: true, documentCount: 2 }], lastSuccessfulSync: '2026-11-01T10:12:00Z' })
   if (!path.startsWith('/qbit/collaboration') || !on('collaboration')) return undefined
   const rest = path.slice('/qbit/collaboration'.length)
   const rec = /^\/records\/([^/]+)\/([^/]+)\/(\w+)(\/preview)?$/.exec(rest)

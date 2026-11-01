@@ -112,7 +112,7 @@ function StatusLine({ store, width }: { store: AppStore; width: number }) {
 }
 
 /** Short labels for narrow terminals (below ~100 columns), so nothing clips at 80. */
-const SHORT: Record<string, string> = { Help: 'Help', 'Go to': 'Go', View: 'View', Edit: 'Edit', Refresh: 'Refr', Filter: 'Filt', New: 'New', Delete: 'Del', Menu: 'Menu', Quit: 'Quit', NewChild: 'Child', 'Re-run': 'Again', Open: 'Open' }
+const SHORT: Record<string, string> = { Help: 'Help', Search: 'Search', 'Go to': 'Go', View: 'View', Edit: 'Edit', Refresh: 'Refr', Filter: 'Filt', New: 'New', Delete: 'Del', Menu: 'Menu', Quit: 'Quit', NewChild: 'Child', 'Re-run': 'Again', Open: 'Open' }
 
 function FKeyBar({ store, width }: { store: AppStore; width: number }) {
   const t = theme()

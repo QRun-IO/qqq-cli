@@ -82,7 +82,9 @@ expect 10-process-done 'Finished in' 'Slept for 500'
 keys Escape F9
 expect 11-menu 'Menu  (F9)' 'Context' 'Go to'
 keys Escape 'T:?'
-expect 12-help 'Keys  (F1' 'Anywhere' '/ search anything'
+expect 12-help 'Keys  (F1' 'Anywhere' 'F2 search records'
+keys Escape F2
+expect 12b-search 'Search ▸'
 keys Escape T:: 'T:app SampleWidgetsDashboard' Enter
 expect 13-dashboard 'Sample Widgets Dashboard'
 if [[ -z "$server" || "${SAMPLE:-}" == 1 ]]; then

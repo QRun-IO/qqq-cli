@@ -12,10 +12,11 @@
  * the only requests are the optional counts, which load after it is shown.
  */
 
-import { Collaboration, readRecents, readViewSettings, writeViewSettings, type RecentItem, type RenderBlock } from '@qrun-io/qqq-core'
+import { Collaboration, quickSearchStatus, readRecents, readViewSettings, writeViewSettings, type RecentItem, type RenderBlock } from '@qrun-io/qqq-core'
 import type { AppTreeNode } from '../client'
 import type { Key } from '../keys'
 import { Zone } from '../mouse/zone'
+import { charOf, isPrintable } from '../keys'
 import { openApp, openForm, openProcess, openRecord, openTable } from '../nav'
 import { ChoiceOverlay } from '../overlays/basic'
 import type { AppStore } from '../store'
@@ -98,7 +99,7 @@ export class HomeScreen implements Screen {
   }
 
   fkeys(): FKeyLabels {
-    return { 3: 'Open', 4: null, 6: null, 7: null, 8: null }
+    return { 2: 'Search', 3: 'Open', 4: null, 6: null, 7: null, 8: null }
   }
 
   homeAppName(): string | undefined {
@@ -121,6 +122,9 @@ export class HomeScreen implements Screen {
       client.data<{ activeCount?: number; jobs?: unknown[] }>('listJobs', { query: { scope: 'mine', state: 'active' } })
         .then((r) => this.work.set('jobs', `${r.activeCount ?? r.jobs?.length ?? 0} active`)).catch(() => this.work.set('jobs', 'n/a')).finally(() => s.bump())
     }
+    if (s.extensions.has('quick-search')) {
+      client.data<Record<string, unknown>>('getQuickSearchStatus').then((st) => { this.searchTables = quickSearchStatus(st).tables.length }).catch(() => undefined).finally(() => s.bump())
+    }
     if (s.extensions.has('collaboration')) {
       const collab = new Collaboration(s.extensions.registry, { call: (id, input) => client.call(id, input) })
       collab.myWork().then((w) => this.work.set('mywork', `${w.openTaskCount ?? 0} open tasks · ${w.unreadMentionCount ?? 0} mentions`)).catch(() => undefined).finally(() => s.bump())
@@ -136,6 +140,15 @@ export class HomeScreen implements Screen {
   }
 
   favorites: Array<{ label: string; type: string; name: string; recordId?: string }> = []
+  /** Tables quick search covers (its status), for the search line. */
+  searchTables?: number
+
+  /** The search line's placeholder: what typing on Home searches. */
+  searchPlaceholder(): string {
+    if (!this.store.extensions.has('quick-search')) return 'type to search tables, apps and processes by name · F2 Search'
+    const n = this.searchTables
+    return `type to search records across ${n ?? 'the indexed'} table${n === 1 ? '' : 's'} (quick search) · F2 Search`
+  }
 
   dispose(): void {
     this.abort.abort()
@@ -230,6 +243,12 @@ export class HomeScreen implements Screen {
   }
 
   onKey(key: Key): boolean {
+    // the search line is first on Home: typing starts a search on the Search screen
+    const ch = charOf(key)
+    if (isPrintable(key) && ch && /^[\p{L}\p{N}"'#@_*-]$/u.test(ch)) {
+      this.store.commands().search(ch)
+      return true
+    }
     const panels = this.panels()
     const { panel, index } = this.current(panels)
     if (key.name === 'tab' && panels.length) {
@@ -300,6 +319,10 @@ export class HomeScreen implements Screen {
     const hour = new Date().getHours()
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
     const first = s.status.user.split(/[\s@]/)[0]
+    // the search line comes first: focused on arrival, typing starts a search (F2 opens the Search screen)
+    const inputWidth = Math.max(10, inner - 11)
+    lines.push([{ text: ' Search: ', fg: t.acc2, bold: true }, { text: ' ', fg: t.inputBg, bg: focused ? t.inputFg : t.inputBg }, { text: pad(trunc(this.searchPlaceholder(), inputWidth - 1), inputWidth - 1), fg: t.dim, bg: t.inputBg }])
+    lines.push([{ text: '' }])
     lines.push([{ text: ` ${greeting}${first ? `, ${first}` : ''} · ${brand}`, fg: t.acc, bold: true }])
     const profile = s.status.short && s.status.short !== s.status.profile ? `${s.status.profile} (${s.status.short})` : s.status.profile
     lines.push([{ text: ` ${s.status.server.replace(/^https?:\/\//, '')} · profile ${profile} · `, fg: t.dim }, { text: 'Ctrl+O switch', fg: t.acc2 }, { text: ` · ${s.status.auth} · UI API ${s.status.apiVersion} · ${s.extensions.describe()}`, fg: t.dim }])
@@ -370,7 +393,7 @@ export class HomeScreen implements Screen {
       if (f.activeRow !== undefined) activeLine = lines.length + f.activeRow
       lines.push(...f.rows)
     }
-    lines.push([{ text: ' Tab panels · arrows move · Enter opens · PgUp PgDn scroll · v panel order · F9 menu · : command line', fg: t.dim }])
+    lines.push([{ text: ' type to search · Tab panels · arrows move · Enter opens · PgUp PgDn scroll · F9 menu · : command line', fg: t.dim }])
     // keep the selection in view
     const view = height - 2
     if (activeLine < this.scroll) this.scroll = Math.max(0, activeLine - 1)

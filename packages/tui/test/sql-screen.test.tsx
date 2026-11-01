@@ -64,8 +64,8 @@ test('the Runner opens from its app, :sql, the palette and F9 › Work; SELECT 1
   // F9 › Work and the palette list it
   const entries = (h.store.commandsImpl!(h.store) as unknown as { entries(t: string): Array<{ label: string; section: string }> }).entries('')
   expect(entries.find((e) => e.label === 'SQL Runner')?.section).toBe('Work')
-  // the search (F2 or /): the SQL Workbench widget hit opens the Runner (never `widget get`)
-  await key('F2')
+  // the find (/): the SQL Workbench widget hit opens the Runner (never `widget get`)
+  await key('/')
   await type('sql')
   let f = await waitFor(h, (x) => x.includes('SQL Runner') && x.includes('SQL Workbench'))
   await press(h, () => h!.setup.mockInput.pressEnter())
