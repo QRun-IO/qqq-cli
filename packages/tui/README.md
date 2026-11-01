@@ -477,7 +477,7 @@ the plain sample server; one that fails shows `…`, then its last value dimmed 
 
 | Tile | Needs | Shows |
 |------|-------|-------|
-| Online | collaboration | people in presence across a few tables per refresh (favourites and recents first), who and on what; the signed-in user's other sessions as "you elsewhere" |
+| Online | the session store, or collaboration | who is signed in: with the session store qbit, the sessions active in the last 10 minutes and their users ("3 sessions · 2 users (you ×2, bob)"; your own sessions count); otherwise you plus the people in presence across a few tables per refresh (favourites and recents first), who and on what. It never says "nobody around" while you are signed in. A server that stores no sessions (mock auth) or merges presence per user cannot tell two terminals of one user apart: both show "1 online · you". The saver keeps the presence lease of the screen under it, so others see you still viewing it, not gone |
 | Jobs | `durableJobs` | running, queued and recently failed jobs (all users with jobs_admin, else yours) |
 | Health | health | the summary status and up / degraded / down / unknown counts |
 | Database | db-performance | live sessions, connections of the maximum, cache hit ratio, blocking chains |
@@ -497,7 +497,7 @@ the other tiles under it as one centred stack, rotating every 8 s). In a tall na
 the tile panel under Query. The block letters say the profile's
 short name when it has 6 characters or fewer (else the profile name), with the server host in plain text
 beneath; letters, digits, `-`, `_` and `.` are drawn in block letters, anything else falls back to plain
-text. Query blinks, wags and hops every ten seconds and faces the way he drifts; the art (braille, with a
+text. Query blinks, wags and hops every ten seconds and faces the way he drifts. His art is Query's own drawing from https://www.qrun.io/query/ (one colour, indigo `#818cf8`) rasterised into braille at three sizes (42×22, 25×13 and 17×9 cells; the medium is used where there is room, from 100 columns) by `scripts/gen-query-art.mjs`; the art (braille, with a
 line-art version for `--ascii`) is in `src/saver/query-art.ts`.
 
 Burn-in guard (F9 › Settings › Screen saver burn-in guard, `:saver burnin on|off`, default on): nothing

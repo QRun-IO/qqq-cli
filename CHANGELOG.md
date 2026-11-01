@@ -5,6 +5,10 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
 
 ## [Unreleased]
 
+### Fixed
+
+- The screen saver's Online tile said "nobody around" with two terminals signed in. It now counts signed-in sessions first (the session store's table: sessions active in the last 10 minutes and their users, your own included, "2 sessions · 1 user (you ×2)"), else you plus the people in collaboration presence; it never says nobody is around while you are signed in. The saver also keeps its presence lease on the screen under it (the extension has no idle state), so other clients see you still viewing it instead of gone. A server that stores no sessions and merges presence per user (mock auth) shows both terminals as "1 online · you".
+- Query in the screen saver looked like a different dog. All sizes are now generated from the drawing on https://www.qrun.io/query/ (`scripts/gen-query-art.mjs`) in its indigo, with a new medium size (25×13 cells, used where there is room) between the large (42×22) and the small (17×9).
 ### Added
 
 - **F12 shows and hides the Assistant panel** on every screen (Ctrl+G, `:ask` and a click on `12Ask` do
