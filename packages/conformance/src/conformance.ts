@@ -57,10 +57,13 @@ export async function runConformance(options: ConformanceOptions): Promise<Check
       else record({ name, ok: false, detail: error instanceof Error ? error.message : String(error) })
     }
   }
+  // One way of authenticating for every authenticated check (set once the authentication type is
+  // known, see authenticationFor): a check that names a token (null: none) sends only that.
+  let auth: Authentication = authenticationFor(options.token)
   const call = async (method: string, path: string, init: { token?: string | null; body?: unknown; headers?: Record<string, string> } = {}) => {
     const headers: Record<string, string> = { Accept: 'application/json', 'X-QQQ-Client': 'cli/qqq-ui-api-conformance', ...(init.headers ?? {}) }
-    const token = init.token === undefined ? options.token : init.token
-    if (token) headers.Authorization = `Bearer ${token}`
+    if (init.token === undefined) Object.assign(headers, auth.headers)
+    else if (init.token) headers.Authorization = `Bearer ${init.token}`
     if (init.body !== undefined) headers['Content-Type'] = 'application/json'
     const response = await fetchImpl(`${base}${path}`, { method, headers, body: init.body === undefined ? undefined : JSON.stringify(init.body) })
     const text = await response.text()
@@ -159,6 +162,8 @@ export async function runConformance(options: ConformanceOptions): Promise<Check
     record({ name: 'authenticated checks', ok: true, skipped: true, detail: 'no token given (--token or QQQ_TOKEN)' })
     return results
   }
+  // MOCK and FULLY_ANONYMOUS servers without a token: a server session, as the CLI signs in there
+  if (!options.token && anonymous) auth = await serverSessionAuthentication(fetchImpl, base, auth)
 
   let metaData: Json | undefined
   await check('GET /qqq/v1/metaData validates', async () => {
@@ -166,7 +171,7 @@ export async function runConformance(options: ConformanceOptions): Promise<Check
     expect(r.status === 200, `status ${r.status} ${r.text.slice(0, 200)}`)
     metaData = r.json
     validator?.response('get', '/qqq/v1/metaData', 200, r.json)
-    return `${Object.keys(metaData?.apps ?? {}).length} apps, ${Object.keys(metaData?.tables ?? {}).length} tables`
+    return `${Object.keys(metaData?.apps ?? {}).length} apps, ${Object.keys(metaData?.tables ?? {}).length} tables; authenticated with ${auth.label}`
   })
 
   const tableName = options.table ?? Object.values<Json>(metaData?.tables ?? {}).find((t) => t.readPermission !== false && !t.isHidden)?.name
@@ -223,7 +228,7 @@ export async function runConformance(options: ConformanceOptions): Promise<Check
   await check('GET /qqq/v1/jobs validates', async () => {
     if (!document?.paths?.['/qqq/v1/jobs']) throw new Skip('no jobs operation')
     const r = await call('GET', '/qqq/v1/jobs?scope=mine')
-    if (r.status === 403) throw new Skip('no jobs permission')
+    if (r.status === 403) throw new Skip(`no jobs permission (authenticated with ${auth.label}, as the other checks)`)
     if (r.status === 404) throw new Skip('jobs are not enabled on this server (no durable jobs tables)')
     expect(r.status === 200, `status ${r.status}`)
     validator?.response('get', '/qqq/v1/jobs', 200, r.json)
@@ -235,8 +240,7 @@ export async function runConformance(options: ConformanceOptions): Promise<Check
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 8000)
     try {
-      const headers: Record<string, string> = { Accept: 'text/event-stream' }
-      if (options.token) headers.Authorization = `Bearer ${options.token}`
+      const headers: Record<string, string> = { Accept: 'text/event-stream', 'X-QQQ-Client': 'cli/qqq-ui-api-conformance', ...auth.headers }
       const response = await fetchImpl(`${base}/qqq/v1/realtime/stream`, { headers, signal: controller.signal })
       if (response.status === 404 || response.status === 503) throw new Skip(`realtime disabled (${response.status})`)
       expect(response.ok && response.body, `status ${response.status}`)
@@ -328,4 +332,38 @@ function convert(node: unknown): unknown {
     else if (out.$ref || out.allOf || out.oneOf || out.anyOf) return { anyOf: [out, { type: 'null' }] }
   }
   return out
+}
+
+/** How the authenticated checks authenticate: the headers every one of them sends, and a label for details. */
+export interface Authentication {
+  headers: Record<string, string>
+  label: string
+}
+
+/**
+ * The authentication for a given token, as the CLI sends it: a JWT (an OAuth2 access token) as a
+ * bearer token; anything else is a server session UUID, sent as the `sessionUUID` cookie (how the
+ * CLI and the web client send a session) and as a bearer token (which servers also accept).
+ */
+export function authenticationFor(token?: string): Authentication {
+  if (!token) return { headers: {}, label: 'no credentials' }
+  if (token.split('.').length === 3) return { headers: { Authorization: `Bearer ${token}` }, label: 'a bearer token' }
+  return { headers: { Authorization: `Bearer ${token}`, Cookie: `sessionUUID=${token}` }, label: 'a session (cookie and bearer)' }
+}
+
+/**
+ * A server session from POST /manageSession, for MOCK and FULLY_ANONYMOUS servers (what `qqq login`
+ * does there); `fallback` when the server makes none.
+ */
+export async function serverSessionAuthentication(fetchImpl: typeof fetch, base: string, fallback: Authentication): Promise<Authentication> {
+  try {
+    const response = await fetchImpl(`${base}/qqq/v1/manageSession`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-QQQ-Client': 'cli/qqq-ui-api-conformance' }, body: '{}' })
+    if (!response.ok) return fallback
+    const body = await response.json().catch(() => ({})) as { uuid?: string }
+    const cookies: string[] = typeof response.headers.getSetCookie === 'function' ? response.headers.getSetCookie() : [response.headers.get('set-cookie') ?? '']
+    const uuid = body.uuid ?? cookies.map((c) => /(?:^|;\s*)sessionUUID=([^;]+)/.exec(c)?.[1]).find(Boolean)
+    return uuid ? { headers: { Cookie: `sessionUUID=${uuid}` }, label: 'a server session (manageSession cookie)' } : fallback
+  } catch {
+    return fallback
+  }
 }

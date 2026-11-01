@@ -25,7 +25,9 @@ qqq-ui-api-conformance --server http://127.0.0.1:4010                       # th
 ```
 
 `--server` defaults to `QQQ_SERVER` and `--token` (an OAuth2 access token or a session UUID) to
-`QQQ_TOKEN`. The exit code is 1 when any check fails, 2 on a usage error. Against the QQQ sample server:
+`QQQ_TOKEN`. Every authenticated check authenticates the same way, as the CLI does: a JWT as a bearer token,
+a session UUID also as the `sessionUUID` cookie, and on MOCK and FULLY_ANONYMOUS servers without a token a
+server session from `manageSession`. The exit code is 1 when any check fails, 2 on a usage error. Against the QQQ sample server:
 
 ```text
 PASS  GET /qqq/v1/metaData/authentication validates  (type MOCK)
