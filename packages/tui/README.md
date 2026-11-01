@@ -431,7 +431,9 @@ Styles (F9 › Settings › Screen saver style, `:saver style <s>`; `auto` cycle
 drift DVD-style and change colour at every wall, with the tiles in a panel riding beside them),
 **Starfield** (stars fly out of the centre, Query drifts through, the tiles float), **Flip clock** (big
 flip digits, the date and server, tiles beneath, Query peeking from a corner) and **Big numbers** (the most
-interesting metric in block digits beside Query, rotating every 8 s). The block letters say the profile's
+interesting metric in block digits with Query beside it, or below it on a narrow terminal, the caption and
+the other tiles under it as one centred stack, rotating every 8 s). In a tall narrow terminal Bounce stacks
+the tile panel under Query. The block letters say the profile's
 short name when it has 6 characters or fewer (else the profile name), with the server host in plain text
 beneath; letters, digits, `-`, `_` and `.` are drawn in block letters, anything else falls back to plain
 text. Query blinks, wags and hops every ten seconds and faces the way he drifts; the art (braille, with a
@@ -442,7 +444,7 @@ stays put, so an OLED or CRT does not keep a ghost of the saver. The clock · se
 "locked · any key to unlock" line move to a new place every 30 s (a random column, the top and bottom rows
 swapping); Bounce's tile panel follows the logo, on the side with room (if Query and the panel do not fit
 together, the panel shows for 20 s and then Query for 20 s, both drifting); the flip clock's cards and tiles
-drift a cell every few seconds inside a small box; Big numbers moves to another corner at each rotation;
+drift a cell every few seconds inside a small box; Big numbers moves its whole stack to another spot near the centre at each rotation;
 Starfield's tiles keep floating. The clock stays visible throughout. `off` keeps the fixed layout (clock
 and server on the top row, the hint on the last, tiles in the bottom-right corner).
 

@@ -132,6 +132,12 @@ function tileLine(c: Canvas, x: number, y: number, width: number, tile: SaverTil
   if (detailWidth > 3 && detail) c.put(x + label.length + 1 + value.length + 2, y, trunc(tile.stale ? `${detail} (stale)` : detail, detailWidth), { fg: t.dim, bg })
 }
 
+/** Cells a tile line takes at most: the label, the value and the detail, as `tileLine` draws them. */
+function tileNaturalWidth(tile: SaverTile, ramp: string): number {
+  const detail = tile.state.value?.detail ?? (tile.state.status === 'error' ? 'not answering, retrying' : '')
+  return LABEL_WIDTH + 1 + tileValue(tile, ramp).length + (detail ? 2 + detail.length + (tile.stale ? 8 : 0) : 0)
+}
+
 /** The tiles in a framed panel; returns its size. */
 function hudSize(input: SaverInput, maxW: number, maxH: number): { w: number; h: number } {
   const w = Math.max(0, Math.min(maxW, input.width >= 100 ? 56 : 46))
@@ -170,15 +176,16 @@ export function chromeLayout(input: SaverInput): ChromeLayout {
     return { headerRow: 0, headerX: 0, headerText: ` ${clock}  ${input.server}  ·  ${input.profile}`, footerRow: last, footerX: -1, footerText: footerText(input) }
   }
   const cycle = Math.floor(input.now / SHIFT_MILLIS)
-  const headerText = trunc(`${clock}  ${input.server}  ·  ${input.profile}  ·  ${input.brand}`, input.width)
+  // a left margin of one cell, and the row is the whole width
+  const headerText = trunc(`${clock}  ${input.server}  ·  ${input.profile}  ·  ${input.brand}`, input.width - 1)
   const text = footerText(input)
   const even = cycle % 2 === 0
   return {
     headerRow: even ? 0 : last,
-    headerX: Math.floor(rand(cycle * 2.7 + 1) * (input.width - headerText.length + 1)),
+    headerX: 1 + Math.floor(rand(cycle * 2.7 + 1) * Math.max(1, input.width - headerText.length)),
     headerText,
     footerRow: even ? last : 0,
-    footerX: Math.floor(rand(cycle * 3.1 + 2) * (input.width - text.length + 1)),
+    footerX: 1 + Math.floor(rand(cycle * 3.1 + 2) * Math.max(1, input.width - text.length)),
     footerText: text,
   }
 }
@@ -322,6 +329,20 @@ export function bounceLayout(input: SaverInput): BounceLayout {
     const panel = panelBeside(box, hud.w, hud.h, input.width, top, bodyH)
     if (panel) return { ...base, sprite: box, showSprite: true, panel }
   }
+  // tall and narrow: the panel under Query, the two drifting as one box
+  if (hud.w <= input.width - 2 && sprite.h + 1 + hud.h <= bodyH) {
+    const gw = Math.max(sprite.w, hud.w)
+    const gh = sprite.h + 1 + hud.h
+    const mx = Math.max(0, input.width - gw)
+    const my = Math.max(0, bodyH - gh)
+    const gx = bounce(step, mx)
+    const gy = top + bounce(ystep, my)
+    return {
+      ...base, dx: direction(step, mx), dy: direction(ystep, my), walls: (mx ? Math.floor(step / mx) : 0) + (my ? Math.floor(ystep / my) : 0),
+      sprite: { x: gx + Math.floor((gw - sprite.w) / 2), y: gy, w: sprite.w, h: sprite.h }, showSprite: true,
+      panel: { x: gx + Math.floor((gw - hud.w) / 2), y: gy + sprite.h + 1, w: hud.w, h: hud.h },
+    }
+  }
   // too small for both: the panel for 20 s, then Query for 20 s, each drifting
   if (Math.floor(input.now / ALTERNATE_MILLIS) % 2 === 0) {
     const panel = { x: bounce(step, Math.max(0, input.width - hud.w)), y: top + bounce(ystep, Math.max(0, bodyH - hud.h)), w: hud.w, h: hud.h }
@@ -422,28 +443,56 @@ function drift(input: SaverInput, periodMs: number, r: number): number {
   return input.burnin && r > 0 ? bounce(Math.floor(input.now / periodMs), 2 * r) - r : 0
 }
 
+/** Tile lines in columns from (x, y), each `colW` wide; returns the rows used. */
+function tileBlock(c: Canvas, x: number, y: number, tiles: SaverTile[], columns: number, colW: number, rows: number, input: SaverInput): void {
+  tiles.slice(0, rows * columns).forEach((tile, i) => {
+    const col = columns === 2 ? i % 2 : 0
+    const row = columns === 2 ? Math.floor(i / 2) : i
+    tileLine(c, x + col * (colW + 3), y + row, colW, tile, input)
+  })
+}
+
+/**
+ * Flip clock: the cards, the date and server, the tiles beneath and Query beside them are one
+ * group, centred (and, guarded, drifting a cell every few seconds inside the room that is left).
+ */
 function paintFlip(c: Canvas, input: SaverInput): void {
   const t = input.theme
   const bodyH = input.height - 2
   const now = hhmm(input.now)
   const before = hhmm(input.now - (input.now % 60_000) - 1)
   const half = flipping(input.now) && input.now % 60_000 < 250
-  const columns = input.width >= 100 ? 2 : 1
-  const tileRows = Math.ceil(input.tiles.length / columns)
+  const q = querySize('small')
+  const columns = input.tiles.length > 1 && input.width >= 100 ? 2 : 1
+  const wantRows = Math.ceil(input.tiles.length / columns)
   // double-size digits when the screen has room for them and the tiles
-  const scale = input.width >= 80 && bodyH >= FONT_HEIGHT * 2 + 2 + 5 + tileRows ? 2 : 1
+  // Query sits beside a single column of tiles and under two columns
+  const queryBeside = columns === 1
+  const reserve = queryBeside ? Math.max(wantRows, q.height) : wantRows + 1 + q.height
+  const scale = input.width >= 80 && bodyH >= FONT_HEIGHT * 2 + 2 + 5 + reserve ? 2 : 1
   const glyphW = 4 * scale
   const cardW = glyphW + 2
   const cardH = FONT_HEIGHT * scale + 2
   const gap = 1
   const colonW = 1 + 2 * scale
   const total = cardW * 4 + gap * 2 + colonW
-  const slackY = bodyH - (cardH + 4 + tileRows)
-  const x0 = Math.max(0, Math.floor((input.width - total) / 2) + drift(input, 4000, Math.min(4, Math.floor((input.width - total) / 2))))
-  const y0 = 1 + Math.max(0, Math.floor(slackY / 2) + drift(input, 7000, slackY >= 2 ? 1 : 0))
-  // the tiles and Query shift too, inside the room each keeps clear of the other
-  const tileShift = input.burnin ? bounce(Math.floor(input.now / 5000), 3) : 0
-  const queryShift = input.burnin ? bounce(Math.floor(input.now / 6000), 3) : 0
+  const date = trunc(new Date(input.now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), input.width - 4)
+  const host = trunc(`${input.server} · ${input.profile}`, input.width - 4)
+  // the tiles with Query beside them, bottom-aligned
+  const colW = Math.max(0, Math.min(columns === 2 ? 44 : 56, Math.floor((input.width - 6 - q.width - 3 - (columns - 1) * 3) / columns)))
+  const tilesW = input.tiles.length ? columns * colW + (columns - 1) * 3 : 0
+  const blockW = input.tiles.length ? (queryBeside ? tilesW + 3 + q.width : Math.max(tilesW, q.width)) : q.width
+  const rowsCap = Math.max(1, bodyH - (cardH + 4) - (queryBeside ? 0 : q.height + 1))
+  const tileRows = Math.min(wantRows, rowsCap)
+  const blockH = queryBeside ? Math.min(Math.max(tileRows, q.height), rowsCap) : tileRows + 1 + q.height
+  const groupW = Math.min(input.width, Math.max(total + 3, date.length, host.length, blockW))
+  const groupH = Math.min(bodyH, cardH + 4 + blockH)
+  const slackX = input.width - groupW
+  const slackY = bodyH - groupH
+  const gx = Math.max(0, Math.floor(slackX / 2) + drift(input, 4000, Math.min(4, Math.floor(slackX / 2))))
+  const gy = 1 + Math.max(0, Math.floor(slackY / 2) + drift(input, 7000, slackY >= 2 ? 1 : 0))
+  const x0 = gx + Math.floor((groupW - total) / 2)
+  const y0 = gy
   const positions = [x0, x0 + cardW + gap, x0 + cardW * 2 + gap + colonW, x0 + cardW * 3 + gap * 2 + colonW]
   const big = (ch: string) => blockText(ch, input.ascii).flatMap((r) => new Array<string>(scale).fill([...r].map((x) => x.repeat(scale)).join('')))
   for (let i = 0; i < 4; i++) {
@@ -470,33 +519,30 @@ function paintFlip(c: Canvas, input: SaverInput): void {
   }
   const seconds = String(new Date(input.now).getSeconds()).padStart(2, '0')
   c.put(x0 + total + 1, y0 + cardH - 1, seconds, { fg: t.dim })
-  const date = new Date(input.now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   let y = y0 + cardH + 1
-  for (const [text, style] of [[date, { fg: t.acc, bold: true }], [`${input.server} · ${input.profile}`, { fg: t.dim }]] as Array<[string, Style]>) {
-    const s = trunc(text, input.width - 2)
-    c.put(Math.floor((input.width - s.length) / 2) + (x0 - Math.max(0, Math.floor((input.width - total) / 2))), y++, s, style)
+  for (const [text, style] of [[date, { fg: t.acc, bold: true }], [host, { fg: t.dim }]] as Array<[string, Style]>) {
+    c.put(gx + Math.floor((groupW - text.length) / 2), y++, text, style)
   }
   y++
-  // the tiles beneath (two columns when wide); the right edge stays clear for Query
-  const colW = Math.floor((input.width - 4 - querySize('small').width - 2 - (columns - 1) * 3 - (input.burnin ? 3 : 0)) / columns)
-  const rows = Math.max(0, input.height - 1 - y)
-  input.tiles.slice(0, rows * columns).forEach((tile, i) => {
-    const col = columns === 2 ? i % 2 : 0
-    const row = columns === 2 ? Math.floor(i / 2) : i
-    tileLine(c, 2 + tileShift + col * (colW + 3), y + row, colW, tile, input)
-  })
-  // Query peeks up from the bottom-right corner: ears and eyes, all of him when he hops
-  const q = querySize('small')
+  const bx = gx + Math.floor((groupW - blockW) / 2)
+  if (input.tiles.length) tileBlock(c, bx, y, input.tiles, columns, colW, tileRows, input)
+  // Query peeks up beside the tiles: ears and eyes, all of him when he hops
   const pose = queryPoseAt(input.now, { dx: -1 })
-  const shown = pose.action ? q.height : 3
+  const shown = Math.min(blockH, pose.action ? q.height : 3)
   const frame = queryFrame('small', pose, input.ascii).slice(0, shown)
-  const qx = input.width - q.width - 1 - queryShift
-  c.fill(qx, input.height - 1 - shown, q.width, shown, {})
-  c.block(qx, input.height - 1 - shown, frame, { fg: t.acc2, bold: true })
+  const qx = input.tiles.length && queryBeside ? bx + tilesW + 3 : bx + Math.floor((blockW - q.width) / 2)
+  const qy = y + blockH - shown
+  c.fill(qx, qy, q.width, shown, {})
+  c.block(qx, qy, frame, { fg: t.acc2, bold: true })
 }
 
-/** Where Big numbers puts its group at each rotation (right?, bottom?): the four corners in a zig-zag. */
-const BIG_CORNERS: ReadonlyArray<readonly [boolean, boolean]> = [[false, false], [true, true], [true, false], [false, true]]
+/**
+ * Big numbers: the metric's name, the number in block digits with Query beside it (below it when the
+ * screen is too narrow for both), the caption, the page dots and the other tiles beneath are ONE group,
+ * laid out together and centred; guarded, the group moves as a unit between four spots around the
+ * centre, one per 8 s rotation, always fully on screen.
+ */
+const BIG_OFFSETS: ReadonlyArray<readonly [number, number]> = [[-1, -1], [1, 1], [1, -1], [-1, 1]]
 
 function paintBig(c: Canvas, input: SaverInput): void {
   const t = input.theme
@@ -508,52 +554,76 @@ function paintBig(c: Canvas, input: SaverInput): void {
     .map((e) => e.x)
   const q = querySize('small')
   const rotation = Math.floor(input.now / 8000)
-  const [atRight, atBottom] = input.burnin ? BIG_CORNERS[rotation % BIG_CORNERS.length]! : [false, false]
-  const columns = input.width >= 100 ? 2 : 1
-  const colW = columns === 2 ? Math.floor((input.width - 7) / 2) : input.width - 4
-  const othersCount = Math.max(0, input.tiles.length - 1)
-  // the group (label, Query and number, detail, dots) and the tiles under it; guarded: in a corner
-  const contentH = 12 + Math.ceil(othersCount / columns)
-  const y0 = input.burnin ? 1 + (atBottom ? Math.max(0, bodyH - contentH) : 0) : 1 + Math.max(1, Math.floor((bodyH - 14) / 2))
-  const centred = (width: number, left: boolean, right: boolean) => (left ? 2 : right ? Math.max(0, input.width - width - 2) : Math.max(0, Math.floor((input.width - width) / 2)))
-  const place = (width: number) => (input.burnin ? centred(width, !atRight, atRight) : centred(width, false, false))
-  if (!candidates.length) {
-    const pose = queryPoseAt(input.now)
-    const msg = input.tiles.length ? 'fetching the numbers…' : 'nothing to count on this server'
-    const gx = place(Math.max(q.width, msg.length))
-    drawQuery(c, gx + Math.floor((Math.max(q.width, msg.length) - q.width) / 2), y0, 'small', pose, input, t.acc2)
-    c.put(gx, y0 + q.height + 1, msg, { fg: t.dim })
-    return
-  }
-  const index = rotation % candidates.length
-  const tile = candidates[index]!
-  const v = tile.state.value!
-  const big = v.big!
-  const color = levelColor(t, tile) === t.fg ? t.acc2 : levelColor(t, tile)
-  const label = trunc(tile.state.label.toUpperCase(), input.width - 4)
-  const drawBlock = canDraw(big) && blockWidth(big) + q.width + 3 <= input.width - 4
-  const numW = drawBlock ? blockWidth(big) : big.length
-  const groupW = q.width + 3 + numW
-  const gx = place(groupW)
-  const centreOver = (text: string) => Math.max(0, Math.min(input.width - text.length, gx + Math.floor((groupW - text.length) / 2)))
-  c.put(centreOver(label), y0, label, { fg: t.acc, bold: true })
+  const avail = input.width - 4
+  const pose0 = queryPoseAt(input.now, { dx: 1 })
+  const tile = candidates.length ? candidates[rotation % candidates.length]! : undefined
+  const others = tile ? input.tiles.filter((x) => x !== tile) : []
+  const columns = others.length > 1 && input.width >= 100 ? 2 : 1
+  // the tile block is as wide as its longest line (so one tile sits centred under the number)
+  const natural = Math.max(24, ...others.map((o) => tileNaturalWidth(o, input.ramp)))
+  const colW = Math.max(0, Math.min(natural, columns === 2 ? 46 : 60, Math.floor((avail - (columns - 1) * 3) / columns)))
+  const tilesW = others.length ? columns * colW + (columns - 1) * 3 : 0
+
+  // the parts, top to bottom, each with its own width
+  const label = tile ? trunc(tile.state.label.toUpperCase(), avail) : ''
+  const v = tile?.state.value
+  const big = v?.big ?? ''
   const asleep = big === '0'
-  const pose: QueryPose = { ...queryPoseAt(input.now, { dx: 1 }), ...(asleep ? { blink: true, wag: false } : {}) }
-  drawQuery(c, gx, y0 + 2, 'small', pose, input, t.acc2)
-  if (asleep) c.put(gx + q.width - 1, y0 + 1, input.now % 2000 < 1000 ? 'z' : 'zZ', { fg: t.dim })
-  if (drawBlock) c.block(gx + q.width + 3, y0 + 2, blockText(big, input.ascii), { fg: color, bold: true })
-  else c.put(gx + q.width + 3, y0 + 4, big, { fg: color, bold: true })
-  const detail = trunc(`${v.value}${v.detail ? ` · ${v.detail}` : ''}${tile.stale ? ' (stale)' : ''}`, input.width - 4)
-  c.put(centreOver(detail), y0 + 2 + q.height + 1, detail, { fg: t.dim })
-  const dots = candidates.map((_, i) => (i === index ? (input.ascii ? '*' : '●') : (input.ascii ? '.' : '○'))).join(' ')
-  c.put(centreOver(dots), y0 + 2 + q.height + 2, trunc(dots, input.width - 2), { fg: t.dim })
-  // everything else on the lines beneath
-  const y = y0 + 2 + q.height + 4
-  const others = input.tiles.filter((x) => x !== tile)
-  const othersLeft = atRight ? Math.max(2, input.width - (columns * (colW + 3) - 3) - 2) : 2
-  others.slice(0, Math.max(0, (input.height - 1 - y) * columns)).forEach((o, i) => {
-    tileLine(c, othersLeft + (columns === 2 ? (i % 2) * (colW + 3) : 0), y + (columns === 2 ? Math.floor(i / 2) : i), colW, o, input)
-  })
+  const msg = input.tiles.length ? 'fetching the numbers…' : 'nothing to count on this server'
+  const drawBlock = Boolean(tile) && canDraw(big) && blockWidth(big) <= avail
+  const numW = tile ? (drawBlock ? blockWidth(big) : big.length) : 0
+  const numH = drawBlock ? FONT_HEIGHT : 1
+  // Query beside the number when both fit, else below it
+  const beside = !tile || q.width + 3 + numW <= avail
+  const heroW = !tile ? q.width : beside ? q.width + 3 + numW : Math.max(q.width, numW)
+  const heroH = !tile ? q.height : beside ? Math.max(q.height, numH) : numH + 1 + q.height
+  const caption = tile ? trunc(`${v!.value}${v!.detail ? ` · ${v!.detail}` : ''}${tile.stale ? ' (stale)' : ''}`, avail) : trunc(msg, avail)
+  const dots = candidates.length > 1 ? trunc(candidates.map((_, i) => (i === rotation % candidates.length ? (input.ascii ? '*' : '●') : (input.ascii ? '.' : '○'))).join(' '), avail) : ''
+  const fixedH = (tile ? 2 : 0) + heroH + 1 + 1 + (dots ? 1 : 0)
+  const rowsCap = Math.max(0, bodyH - fixedH - 1)
+  const tileRows = others.length ? Math.min(Math.ceil(others.length / columns), rowsCap) : 0
+  const groupW = Math.min(input.width, Math.max(label.length, heroW, caption.length, dots.length, tileRows ? tilesW : 0))
+  const groupH = Math.min(bodyH, fixedH + (tileRows ? 1 + tileRows : 0))
+
+  // where: centred; guarded, offset by up to a sixth of the width and an eighth of the height, never off the screen
+  const slackX = input.width - groupW
+  const slackY = bodyH - groupH
+  const [sx, sy] = input.burnin ? BIG_OFFSETS[rotation % BIG_OFFSETS.length]! : [0, 0]
+  const rx = Math.min(Math.floor(slackX / 2), Math.floor(input.width / 6))
+  const ry = Math.min(Math.floor(slackY / 2), Math.floor(bodyH / 8))
+  const gx = Math.max(0, Math.floor(slackX / 2) + sx * rx)
+  const gy = 1 + Math.max(0, Math.floor(slackY / 2) + sy * ry)
+  const centred = (width: number) => gx + Math.floor((groupW - width) / 2)
+
+  let y = gy
+  if (tile) {
+    c.put(centred(label.length), y, label, { fg: t.acc, bold: true })
+    y += 2
+  }
+  const color = tile ? (levelColor(t, tile) === t.fg ? t.acc2 : levelColor(t, tile)) : t.acc2
+  const heroX = centred(heroW)
+  if (!tile) {
+    drawQuery(c, heroX, y, 'small', queryPoseAt(input.now), input, t.acc2)
+  } else {
+    const pose: QueryPose = { ...pose0, ...(asleep ? { blink: true, wag: false } : {}) }
+    const numberAt = (x: number, ny: number) => {
+      if (drawBlock) c.block(x, ny, blockText(big, input.ascii), { fg: color, bold: true })
+      else c.put(x, ny, big, { fg: color, bold: true })
+    }
+    if (beside) {
+      drawQuery(c, heroX, y, 'small', pose, input, t.acc2)
+      if (asleep) c.put(heroX + q.width - 1, y - 1, input.now % 2000 < 1000 ? 'z' : 'zZ', { fg: t.dim })
+      numberAt(heroX + q.width + 3, y + Math.floor((heroH - numH) / 2))
+    } else {
+      numberAt(heroX + Math.floor((heroW - numW) / 2), y)
+      drawQuery(c, heroX + Math.floor((heroW - q.width) / 2), y + numH + 1, 'small', pose, input, t.acc2)
+      if (asleep) c.put(heroX + Math.floor((heroW + q.width) / 2) - 1, y + numH, input.now % 2000 < 1000 ? 'z' : 'zZ', { fg: t.dim })
+    }
+  }
+  y += heroH + 1
+  c.put(centred(caption.length), y++, caption, { fg: t.dim })
+  if (dots) c.put(centred(dots.length), y++, dots, { fg: t.dim })
+  if (tileRows) tileBlock(c, centred(tilesW), y + 1, others, columns, colW, tileRows, input)
 }
 
 /** One frame of the saver. */

@@ -468,6 +468,133 @@ describe('burn-in guard', () => {
     })
   }
 
+  const LAYOUT_SIZES = [[75, 95], [200, 30], [80, 24], [120, 40], [160, 50]] as const
+  const ONE_TILE = [tile('events', 'Events', { value: '0/min', detail: 'last: no events yet', big: '0', interest: 16 }), tile('server', 'Server', { value: '19 ms', detail: 'UI API 1.8.0 · stream connected', level: 'ok', big: '19', interest: 20 })]
+
+  /** Spans of the non-blank cells of every body row (the header and the lock line live in the first and last). */
+  function bodySpans(text: string, height: number): Array<{ y: number; from: number; to: number }> {
+    const out: Array<{ y: number; from: number; to: number }> = []
+    text.split('\n').forEach((l, y) => {
+      if (y === 0 || y === height - 1) return
+      const cells = [...l]
+      const from = cells.findIndex((ch) => ch !== ' ')
+      if (from < 0) return
+      let to = cells.length - 1
+      while (cells[to] === ' ') to--
+      out.push({ y, from, to })
+    })
+    return out
+  }
+
+  for (const [width, height] of LAYOUT_SIZES) {
+    for (const style of ['bounce', 'flip', 'big'] as const) {
+      for (const [name, tiles] of [['seven tiles', TILES], ['one tile', ONE_TILE.slice(0, 1)], ['two tiles', ONE_TILE], ['no tiles', []]] as const) {
+        test(`${style} at ${width}×${height} with ${name}: one group, nothing more than 40% of the screen from its centre, the clock visible`, () => {
+          for (let i = 0; i < 24; i++) {
+            const now = 1_000_000_000 + i * 8_300
+            const frame = paintSaver(input({ style, width, height, now, burnin: true, tiles: [...tiles] }))
+            const text = frame.text()
+            expect(text).toMatch(/\d\d:\d\d:\d\d/)
+            if (style === 'bounce') {
+              // Query with its name and the tile panel: the centres of the two boxes stay together
+              const l = bounceLayout(input({ style, width, height, now, burnin: true, tiles: [...tiles] }))
+              if (l.panel && l.showSprite) {
+                const boxes = [l.sprite, l.panel]
+                const ux = (Math.min(...boxes.map((b) => b.x)) + Math.max(...boxes.map((b) => b.x + b.w))) / 2
+                const uy = (Math.min(...boxes.map((b) => b.y)) + Math.max(...boxes.map((b) => b.y + b.h))) / 2
+                for (const b of boxes) {
+                  expect(Math.abs(b.x + b.w / 2 - ux)).toBeLessThanOrEqual(width * 0.4)
+                  expect(Math.abs(b.y + b.h / 2 - uy)).toBeLessThanOrEqual(height * 0.4)
+                }
+              }
+              continue
+            }
+            const spans = bodySpans(text, height)
+            expect(spans.length).toBeGreaterThan(0)
+            const minX = Math.min(...spans.map((r) => r.from))
+            const maxX = Math.max(...spans.map((r) => r.to))
+            const minY = spans[0]!.y
+            const maxY = spans[spans.length - 1]!.y
+            const cx = (minX + maxX) / 2
+            const cy = (minY + maxY) / 2
+            for (const r of spans) {
+              expect(Math.abs((r.from + r.to) / 2 - cx)).toBeLessThanOrEqual(width * 0.4)
+              expect(Math.abs(r.y - cy)).toBeLessThanOrEqual(height * 0.4 + 1)
+            }
+            {
+              // the group as a whole stays near the middle of the screen, fully on it
+              expect(Math.abs(cx - (width - 1) / 2)).toBeLessThanOrEqual(width * 0.4)
+              expect(Math.abs(cy - (height - 1) / 2)).toBeLessThanOrEqual(height * 0.4)
+              expect(minX).toBeGreaterThanOrEqual(0)
+              expect(maxX).toBeLessThanOrEqual(width - 1)
+            }
+          }
+        })
+      }
+    }
+
+    test(`header at ${width}×${height}: a left margin of at least one, the whole width over time, never in the group's rows`, () => {
+      const xs = new Set<number>()
+      for (let cycle = 0; cycle < 40; cycle++) {
+        const i = input({ style: 'big', width, height, now: 1_000_000_000 + cycle * SHIFT_MILLIS + 2_000, burnin: true })
+        const c = chromeLayout(i)
+        expect(c.headerX).toBeGreaterThanOrEqual(1)
+        expect(c.headerX + c.headerText.length).toBeLessThanOrEqual(width)
+        expect(c.footerX).toBeGreaterThanOrEqual(1)
+        xs.add(c.headerX)
+        const lines = paintSaver(i).text().split('\n')
+        expect(lines[c.headerRow]!.trim()).toBe(c.headerText)
+        expect(lines[c.footerRow]!.trim()).toBe(c.footerText)
+        expect(bodySpans(lines.join('\n'), height).every((r) => r.y > 0 && r.y < height - 1)).toBe(true)
+      }
+      const room = width - chromeLayout(input({ style: 'big', width, height, burnin: true })).headerText.length
+      expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(room * 0.5)
+    })
+  }
+
+  test('Big numbers: the number, Query, caption and tiles are one stack; one tile is centred under the number; the group moves as a unit', () => {
+    const rows = (now: number) => paintSaver(input({ style: 'big', width: 75, height: 95, now, burnin: true, tiles: ONE_TILE })).text().split('\n')
+    const centreOf = (lines: string[], needle: RegExp) => {
+      const y = lines.findIndex((l, i) => i > 0 && i < lines.length - 1 && needle.test(l))
+      expect(y).toBeGreaterThan(0)
+      // the centre of everything on that row (each row of the stack holds one thing)
+      return { y, x: (lines[y]!.search(/\S/) + lines[y]!.trimEnd().length - 1) / 2 }
+    }
+    const seen = new Set<string>()
+    const offsets = new Set<number>()
+    for (let r = 0; r < 4; r++) {
+      const lines = rows(1_000_000_000 + r * 8000)
+      const label = centreOf(lines, /SERVER|EVENTS/)
+      const caption = centreOf(lines, /UI API 1\.8\.0|last: no events yet/)
+      const tileLine = centreOf(lines, /Events +0\/min|Server +19 ms/)
+      expect(Math.abs(label.x - caption.x)).toBeLessThanOrEqual(8)
+      // the tile block sits a row or two under the dots, centred under the caption
+      expect(tileLine.y - caption.y).toBeLessThanOrEqual(4)
+      expect(Math.abs(tileLine.x - caption.x)).toBeLessThanOrEqual(12)
+      seen.add(`${label.y},${Math.round(label.x)}`)
+      // the tile keeps its place relative to the label at every rotation: they move as one
+      offsets.add(tileLine.y - label.y)
+    }
+    expect(offsets.size).toBe(1)
+    expect(seen.size).toBe(4)
+  })
+
+  test('Bounce in a tall narrow terminal: the panel under Query, drifting as one box', () => {
+    const [w, h] = [75, 95]
+    const places = new Set<string>()
+    for (let i = 0; i < 80; i++) {
+      const l = bounceLayout(input({ style: 'bounce', width: w, height: h, now: 1_000_000_000 + i * 500, burnin: true }))
+      expect(l.showSprite).toBe(true)
+      const p = l.panel!
+      expect(p.y).toBe(l.sprite.y + l.sprite.h + 1)
+      expect(p.x).toBeGreaterThanOrEqual(0)
+      expect(p.x + p.w).toBeLessThanOrEqual(w)
+      expect(p.y + p.h).toBeLessThanOrEqual(h - 1)
+      places.add(`${p.x},${p.y}`)
+    }
+    expect(places.size).toBeGreaterThan(20)
+  })
+
   test('too small for Query and the panel together: the panel for 20 s, then Query for 20 s, both drifting', () => {
     const w = 40
     const h = 18
