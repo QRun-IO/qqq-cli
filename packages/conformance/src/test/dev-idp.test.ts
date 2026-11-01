@@ -66,6 +66,16 @@ test('dev IdP: authorization code with S256 PKCE on a loopback redirect, revocat
     const more = await (await fetch(discovery.token_endpoint, form({ client_id: 'cli', grant_type: 'authorization_code', code: new URL((await authorize(base)).headers.get('location')!).searchParams.get('code')!, code_verifier: verifier, redirect_uri: redirect }))).json() as Record<string, string>
     assert.equal((await fetch(`${discovery.end_session_endpoint}?client_id=cli&id_token_hint=${more.id_token}`)).status, 200)
     assert.equal((await fetch(discovery.token_endpoint, form({ client_id: 'cli', grant_type: 'refresh_token', refresh_token: more.refresh_token }))).status, 400)
+    // end-session goes back only to a loopback post_logout_redirect_uri; any other is refused with 400
+    const endSession = (back: string) => fetch(`${discovery.end_session_endpoint}?client_id=cli&post_logout_redirect_uri=${encodeURIComponent(back)}`, { redirect: 'manual' })
+    for (const back of ['http://127.0.0.1:7777/signed-out?x=1', 'http://localhost:7777/', 'http://[::1]:7777/bye', 'http://localhost/']) {
+      const answer = await endSession(back)
+      assert.equal(answer.status, 302, back)
+      assert.equal(answer.headers.get('location'), back)
+    }
+    for (const back of ['https://evil.test/cb', 'http://127.0.0.1.evil.test/', 'http://evil.test@127.0.0.1:7777/', 'https://127.0.0.1:7777/', '//evil.test/', 'javascript:alert(1)', 'not a url']) {
+      assert.equal((await endSession(back)).status, 400, back)
+    }
   } finally {
     await idp.close()
   }

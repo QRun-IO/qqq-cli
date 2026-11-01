@@ -16,13 +16,17 @@
  * approves a code (or start it with --auto-approve). GET /application/o/authorize/ shows an
  * Approve / Deny page (or redirects at once with --auto-approve); only S256 PKCE and loopback
  * redirect URIs (127.0.0.1 or localhost, any port) are accepted. End-session and revocation
- * invalidate the user's refresh tokens for that client.
+ * invalidate the user's refresh tokens for that client; a post_logout_redirect_uri must be loopback too
+ * (else 400).
  *
  *   qqq-dev-idp --port 9400 --client sample-app --client sample-cli --user dev@example.com --groups admins [--auto-approve]
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createHash, createSign, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto'
+
+/** The loopback hosts a redirect URI may name (as URL.hostname gives them). */
+const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '[::1]']
 
 interface CodeGrant {
   clientId: string
@@ -93,14 +97,23 @@ export async function startDevIdp(options: DevIdpOptions): Promise<DevIdp> {
     return { access_token: `${input}.${signature}`, token_type: 'Bearer', expires_in: lifetime, refresh_token: refresh, id_token: idToken, scope }
   }
 
-  const isLoopback = (uri: string): boolean => {
+  /**
+   * The redirect URI rebuilt from its parts when every client may use it (RFC 8252 loopback, any
+   * port: http on 127.0.0.1, localhost or [::1]), else undefined. The host in the result is one of
+   * those constants and the port a number, so nothing but a loopback address can come out.
+   */
+  const allowedRedirect = (uri: string): string | undefined => {
+    let u: URL
     try {
-      const u = new URL(uri)
-      return u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]')
+      u = new URL(uri)
     } catch {
-      return false
+      return undefined
     }
+    const host = LOOPBACK_HOSTS.find((h) => h === u.hostname)
+    if (u.protocol !== 'http:' || !host || u.username || u.password) return undefined
+    return `http://${host}${u.port ? `:${Number(u.port)}` : ''}${u.pathname}${u.search}${u.hash}`
   }
+  const isAllowedRedirect = (uri: string): boolean => allowedRedirect(uri) !== undefined
 
   /** Redirects back to the client with a code (approved) or access_denied. */
   const finishAuthorization = (res: ServerResponse, pending: { clientId: string; scope: string; redirectUri: string; challenge: string; state: string }, approved: boolean): void => {
@@ -161,7 +174,7 @@ export async function startDevIdp(options: DevIdpOptions): Promise<DevIdp> {
       const clientId = q.get('client_id') ?? ''
       const redirectUri = q.get('redirect_uri') ?? ''
       if (!options.clients.includes(clientId)) return send(400, 'Unknown client_id.', 'text/plain')
-      if (!isLoopback(redirectUri)) return send(400, 'redirect_uri must be a loopback URI (http://127.0.0.1:{port}/... or http://localhost:{port}/...).', 'text/plain')
+      if (!isAllowedRedirect(redirectUri)) return send(400, 'redirect_uri must be a loopback URI (http://127.0.0.1:{port}/... or http://localhost:{port}/...).', 'text/plain')
       if (q.get('response_type') !== 'code') return send(400, 'response_type must be code.', 'text/plain')
       if (!q.get('code_challenge') || q.get('code_challenge_method') !== 'S256') return send(400, 'PKCE with code_challenge_method=S256 is required.', 'text/plain')
       if (q.get('nonce')) log('note: the authorization request carries a nonce (UI-API-CLIENTS.md section 7 says not to send one)')
@@ -254,8 +267,10 @@ export async function startDevIdp(options: DevIdpOptions): Promise<DevIdp> {
       const n = revokeClient(clientId)
       log(`end-session for ${clientId}: ${n} refresh token(s) revoked`)
       const back = url.searchParams.get('post_logout_redirect_uri')
-      if (back && isLoopback(back)) {
-        res.writeHead(302, { Location: back })
+      if (back) {
+        const target = allowedRedirect(back)
+        if (!target) return send(400, 'post_logout_redirect_uri must be a loopback URI (http://127.0.0.1:{port}/... or http://localhost:{port}/...).', 'text/plain')
+        res.writeHead(302, { Location: target })
         res.end()
         return
       }
