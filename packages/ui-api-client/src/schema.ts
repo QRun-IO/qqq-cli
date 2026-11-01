@@ -3751,6 +3751,346 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/qqq/v1/qbit/printing/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Session
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/bind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Bind
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingBind"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/devices/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Enroll
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingEnroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Heartbeat
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingHeartbeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/printers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Printing Inventory
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        put: operations["printingInventory"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Claim
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingClaim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/queued": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Queued
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingQueued"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Content
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Event
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/test-print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Test
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Retry
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingRetry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Cancel
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingCancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/control/poll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Poll
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingPoll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/control/commands/{commandId}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Receipt
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/admin/devices/{deviceId}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Action
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/admin/devices/{deviceId}/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Commands
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingCommands"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/admin/devices/{deviceId}/commands/{commandId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Command
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingCommand"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -10567,6 +10907,203 @@ export interface components {
         };
         SqlWorkbenchVersionsV1: {
             versions?: components["schemas"]["SqlWorkbenchVersionSummaryV1"][];
+        };
+        PrintingAcknowledgmentV1: {
+            accepted: boolean;
+        };
+        PrintingActionRequestV1: {
+            requestId: string;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            issuedAt: string;
+            /** @enum {string} */
+            action: "PAUSE_DISPATCH" | "RESUME_DISPATCH" | "DISCONNECT" | "RECONNECT" | "REVOKE" | "REFRESH_INVENTORY" | "CLEAR_QUEUE" | "CANCEL_SPOOL";
+            jobId?: string;
+        };
+        PrintingActionV1: {
+            commandId: string;
+            requestId: string;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            issuedAt: string;
+            deviceId: string;
+            /** @enum {string} */
+            action: "PAUSE_DISPATCH" | "RESUME_DISPATCH" | "DISCONNECT" | "RECONNECT" | "REVOKE" | "REFRESH_INVENTORY" | "CLEAR_QUEUE" | "CANCEL_SPOOL";
+            /** @enum {string} */
+            status: "PENDING" | "SUCCEEDED" | "FAILED" | "EXPIRED" | "OUTCOME_UNKNOWN";
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            expiresAt: string;
+            jobId?: string;
+            resultCode?: string;
+            cancelledJobCount?: number;
+            receipt?: components["schemas"]["PrintingReceiptRequestV1"];
+        };
+        PrintingActionsV1: {
+            commands: components["schemas"]["PrintingActionV1"][];
+            nextCursor: string | null;
+        };
+        PrintingClaimV1: {
+            job: components["schemas"]["PrintingJobV1"];
+        };
+        PrintingCommandV1: {
+            commandId: string;
+            requestId: string;
+            /** @enum {string} */
+            action: "REFRESH_INVENTORY" | "CANCEL_SPOOL";
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            expiresAt: string;
+            jobId?: string;
+        };
+        PrintingControlPollRequestV1: {
+            controlVersion: number;
+            agentVersion: string;
+            capabilities: ("REFRESH_INVENTORY" | "CANCEL_SPOOL")[];
+            lastAppliedRevision: number;
+        };
+        PrintingControlPollV1: {
+            controlVersion: number;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            serverTime: string;
+            pollIntervalSeconds: number;
+            desiredState: components["schemas"]["PrintingDesiredStateV1"];
+            commands: components["schemas"]["PrintingCommandV1"][];
+        };
+        PrintingDesiredStateV1: {
+            revision: number;
+            dispatchPaused: boolean;
+            /** @enum {string} */
+            connectionState: "CONNECTED" | "DISCONNECTED";
+        };
+        PrintingEmptyV1: Record<string, never>;
+        PrintingEnrollmentRequestV1: {
+            enrollmentCode: string;
+            deviceName: string;
+            agentVersion: string;
+        };
+        PrintingEnrollmentV1: {
+            protocolVersion: number;
+            deviceId: string;
+            /** @description Private device proof, returned once; never log. */
+            deviceToken: string;
+            pollIntervalSeconds: number;
+        };
+        PrintingEventRequestV1: {
+            eventId: string;
+            /** @enum {string} */
+            status: "RECEIVED" | "SUBMITTING" | "SPOOLED" | "SPOOLER_COMPLETED" | "FAILED" | "OUTCOME_UNKNOWN";
+            message?: string;
+            spoolerJobId?: string;
+        };
+        PrintingHeartbeatRequestV1: {
+            agentVersion: string;
+            profile?: components["schemas"]["PrintingProfileV1"];
+        };
+        PrintingHeartbeatV1: {
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            serverTime: string;
+        };
+        PrintingInventoryRequestV1: {
+            printers: components["schemas"]["PrintingPrinterV1"][];
+        };
+        PrintingJobV1: {
+            jobId: string;
+            deviceId: string;
+            printerId: string;
+            title: string;
+            /** @enum {string} */
+            format: "PDF" | "ZPL";
+            contentSha256: string;
+            contentLength: number;
+            options: components["schemas"]["PrintingOptionsV1"];
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            createdAt: string;
+            /** @enum {string} */
+            status: "QUEUED" | "CLAIMED" | "RECEIVED" | "SUBMITTING" | "SPOOLED" | "SPOOLER_COMPLETED" | "FAILED" | "OUTCOME_UNKNOWN";
+            message?: string;
+            spoolerJobId?: string;
+        };
+        PrintingJobsV1: {
+            jobs: components["schemas"]["PrintingJobV1"][];
+        };
+        PrintingOptionsV1: {
+            copies?: number;
+            /** @enum {string} */
+            scale?: "ACTUAL_SIZE" | "FIT";
+            paperWidthMm?: number;
+            paperHeightMm?: number;
+        };
+        PrintingPrinterV1: {
+            printerId: string;
+            name: string;
+            driverName?: string;
+            portName?: string;
+            /** @enum {string} */
+            status?: "READY" | "OFFLINE" | "PAUSED" | "ERROR" | "UNKNOWN";
+            formats: ("PDF" | "ZPL")[];
+            displayName?: string;
+            description?: string;
+            location?: string;
+        };
+        PrintingProfileV1: {
+            name?: string | null;
+            description?: string | null;
+            location?: string | null;
+        };
+        PrintingReceiptRequestV1: {
+            receiptId: string;
+            /** @enum {string} */
+            outcome: "INVENTORY_REFRESHED" | "CANCEL_REQUESTED" | "ALREADY_ABSENT" | "OWNERSHIP_MISMATCH" | "UNSUPPORTED" | "FAILED" | "EXPIRED" | "OUTCOME_UNKNOWN";
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            completedAt: string;
+            message?: string;
+        };
+        PrintingRetryRequestV1: {
+            requestId: string;
+            confirmDuplicateRisk?: boolean;
+        };
+        PrintingSessionV1: {
+            principalId: string;
+            tenantId: string;
+            deviceId?: string;
+        };
+        PrintingTestRequestV1: {
+            requestId: string;
+            printerId: string;
+            /** @enum {string} */
+            format: "PDF" | "ZPL";
+            testProfile?: string;
         };
     };
     responses: never;
@@ -27132,6 +27669,1538 @@ export interface operations {
                 };
             };
             /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-QQQ-Device-Id"?: string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingSessionV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingBind: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEmptyV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingEnroll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEnrollmentRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingEnrollmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingHeartbeat: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingHeartbeatRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingHeartbeatV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingInventory: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingInventoryRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingClaim: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEmptyV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingClaimV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingQueued: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingJobsV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingContent: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified retained document bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingEvent: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEventRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingTest: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingTestRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingJobV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingRetry: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingRetryRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingJobV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingCancel: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEmptyV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingPoll: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingControlPollRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingControlPollV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingReceipt: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                commandId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingReceiptRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingActionRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingActionV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingCommands: {
+        parameters: {
+            query?: {
+                /** @description 1 through 200; default 50. */
+                limit?: number;
+                before?: string;
+            };
+            header?: never;
+            path: {
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingActionsV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingCommand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deviceId: string;
+                commandId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingActionV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
             429: {
                 headers: {
                     [name: string]: unknown;

@@ -80,6 +80,9 @@ const FACTS: Record<string, Facts> = {
   'release-notes': { label: 'Release notes', repository: 'qbit-release-notes' },
   'secured-data': { label: 'Secured data', repository: 'qbit-secured-data', minUiApi: '1.6.0' },
   'sql-workbench': { label: 'SQL workbench', repository: 'qbit-sql-workbench' },
+  // qbit-printing docs/REALTIME.md: 2.0.0 makes the authenticated realtime channel the agent's
+  // prerequisite; the person's side (printers, jobs, Print) is unchanged tables and processes.
+  printing: { label: 'Printing', repository: 'qbit-printing', minVersion: '2.0.0' },
 }
 
 /** Every extension the client has a document for, in document order. */

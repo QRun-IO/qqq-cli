@@ -91,6 +91,13 @@
       "document": "qbit-sql-workbench/src/main/resources/openapi/qqq-v1/sql-workbench.yaml",
       "branch": "develop",
       "commit": "a182076"
+    },
+    {
+      "name": "printing",
+      "version": "2.0.0",
+      "document": "qbit-printing/src/main/resources/openapi/qqq-v1/printing.yaml",
+      "branch": "main",
+      "commit": "2dd1afb"
     }
   ]
 }

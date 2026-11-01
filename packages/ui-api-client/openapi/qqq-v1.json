@@ -247,6 +247,31 @@
           "sqlWorkbenchDeleteSnapshot",
           "sqlWorkbenchExportResult"
         ]
+      },
+      {
+        "name": "printing",
+        "version": "2.0.0",
+        "description": "Native current-user printing with secondary device proof, device-control-v1 and realtime-v1.",
+        "pathPrefix": "/qbit/printing",
+        "operations": [
+          "printingSession",
+          "printingBind",
+          "printingEnroll",
+          "printingHeartbeat",
+          "printingInventory",
+          "printingClaim",
+          "printingQueued",
+          "printingContent",
+          "printingEvent",
+          "printingTest",
+          "printingRetry",
+          "printingCancel",
+          "printingPoll",
+          "printingReceipt",
+          "printingAction",
+          "printingCommands",
+          "printingCommand"
+        ]
       }
     ]
   },
@@ -319,6 +344,10 @@
     {
       "description": "Operations of the sql-workbench extension.",
       "name": "sql-workbench"
+    },
+    {
+      "description": "Operations of the printing extension.",
+      "name": "printing"
     }
   ],
   "paths": {
@@ -26090,6 +26119,2390 @@
           "sql-workbench"
         ]
       }
+    },
+    "/qqq/v1/qbit/printing/session": {
+      "get": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingSession",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": false,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": false,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingSessionV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Session",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/bind": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingBind",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingEmptyV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingAcknowledgmentV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Bind",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/devices/enroll": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingEnroll",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingEnrollmentRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingEnrollmentV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Enroll",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/heartbeat": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingHeartbeat",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingHeartbeatRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingHeartbeatV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Heartbeat",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/printers": {
+      "put": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingInventory",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingInventoryRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingAcknowledgmentV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Inventory",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/jobs/claim": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingClaim",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingEmptyV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingClaimV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Claim",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/jobs/queued": {
+      "get": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingQueued",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingJobsV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Queued",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/content": {
+      "get": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingContent",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Verified retained document bytes"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Content",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/events": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingEvent",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingEventRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingAcknowledgmentV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Event",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/test-print": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingTest",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingTestRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingJobV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Test",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/retry": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingRetry",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingRetryRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingJobV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Retry",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/cancel": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingCancel",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingEmptyV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingAcknowledgmentV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Cancel",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/control/poll": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingPoll",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingControlPollRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingControlPollV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Poll",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/device/control/commands/{commandId}/receipt": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingReceipt",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-QQQ-Device-Id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Private secondary device proof; never log.",
+            "in": "header",
+            "name": "X-QQQ-Device-Token",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "commandId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingReceiptRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingAcknowledgmentV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Receipt",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/admin/devices/{deviceId}/actions": {
+      "post": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingAction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deviceId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintingActionRequestV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingActionV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Action",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/admin/devices/{deviceId}/commands": {
+      "get": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingCommands",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deviceId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "description": "1 through 200; default 50.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingActionsV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Commands",
+        "tags": [
+          "printing"
+        ]
+      }
+    },
+    "/qqq/v1/qbit/printing/admin/devices/{deviceId}/commands/{commandId}": {
+      "get": {
+        "description": "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.",
+        "operationId": "printingCommand",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deviceId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "commandId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintingActionV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Native QQQ sign-in required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Permission, device proof or user binding denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "State or request conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Request or content expired"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicErrorResponseV1"
+                }
+              }
+            },
+            "description": "Bounded capacity reached"
+          }
+        },
+        "security": [
+          {
+            "sessionUuidCookie": [
+              "N/A"
+            ]
+          },
+          {
+            "bearerAuth": [
+              "N/A"
+            ]
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Printing Command",
+        "tags": [
+          "printing"
+        ]
+      }
     }
   },
   "components": {
@@ -44469,6 +46882,716 @@
             "type": "array"
           }
         },
+        "type": "object"
+      },
+      "PrintingAcknowledgmentV1": {
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted"
+        ],
+        "type": "object"
+      },
+      "PrintingActionRequestV1": {
+        "properties": {
+          "requestId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "issuedAt": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "PAUSE_DISPATCH",
+              "RESUME_DISPATCH",
+              "DISCONNECT",
+              "RECONNECT",
+              "REVOKE",
+              "REFRESH_INVENTORY",
+              "CLEAR_QUEUE",
+              "CANCEL_SPOOL"
+            ],
+            "type": "string"
+          },
+          "jobId": {
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "issuedAt",
+          "action"
+        ],
+        "type": "object"
+      },
+      "PrintingActionV1": {
+        "properties": {
+          "commandId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "issuedAt": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "deviceId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "PAUSE_DISPATCH",
+              "RESUME_DISPATCH",
+              "DISCONNECT",
+              "RECONNECT",
+              "REVOKE",
+              "REFRESH_INVENTORY",
+              "CLEAR_QUEUE",
+              "CANCEL_SPOOL"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "SUCCEEDED",
+              "FAILED",
+              "EXPIRED",
+              "OUTCOME_UNKNOWN"
+            ],
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "jobId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "resultCode": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "cancelledJobCount": {
+            "type": "integer"
+          },
+          "receipt": {
+            "$ref": "#/components/schemas/PrintingReceiptRequestV1"
+          }
+        },
+        "required": [
+          "commandId",
+          "requestId",
+          "issuedAt",
+          "deviceId",
+          "action",
+          "status",
+          "createdAt",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "PrintingActionsV1": {
+        "properties": {
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/PrintingActionV1"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "maxLength": 128,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "commands",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "PrintingClaimV1": {
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/PrintingJobV1",
+            "nullable": true
+          }
+        },
+        "required": [
+          "job"
+        ],
+        "type": "object"
+      },
+      "PrintingCommandV1": {
+        "properties": {
+          "commandId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "REFRESH_INVENTORY",
+              "CANCEL_SPOOL"
+            ],
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "jobId": {
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId",
+          "requestId",
+          "action",
+          "createdAt",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "PrintingControlPollRequestV1": {
+        "properties": {
+          "controlVersion": {
+            "type": "integer"
+          },
+          "agentVersion": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "capabilities": {
+            "items": {
+              "enum": [
+                "REFRESH_INVENTORY",
+                "CANCEL_SPOOL"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "lastAppliedRevision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "controlVersion",
+          "agentVersion",
+          "capabilities",
+          "lastAppliedRevision"
+        ],
+        "type": "object"
+      },
+      "PrintingControlPollV1": {
+        "properties": {
+          "controlVersion": {
+            "type": "integer"
+          },
+          "serverTime": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "pollIntervalSeconds": {
+            "type": "integer"
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/PrintingDesiredStateV1"
+          },
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/PrintingCommandV1"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "controlVersion",
+          "serverTime",
+          "pollIntervalSeconds",
+          "desiredState",
+          "commands"
+        ],
+        "type": "object"
+      },
+      "PrintingDesiredStateV1": {
+        "properties": {
+          "revision": {
+            "type": "integer"
+          },
+          "dispatchPaused": {
+            "type": "boolean"
+          },
+          "connectionState": {
+            "enum": [
+              "CONNECTED",
+              "DISCONNECTED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "dispatchPaused",
+          "connectionState"
+        ],
+        "type": "object"
+      },
+      "PrintingEmptyV1": {
+        "type": "object"
+      },
+      "PrintingEnrollmentRequestV1": {
+        "properties": {
+          "enrollmentCode": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "deviceName": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "agentVersion": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "required": [
+          "enrollmentCode",
+          "deviceName",
+          "agentVersion"
+        ],
+        "type": "object"
+      },
+      "PrintingEnrollmentV1": {
+        "properties": {
+          "protocolVersion": {
+            "type": "integer"
+          },
+          "deviceId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "deviceToken": {
+            "description": "Private device proof, returned once; never log.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "pollIntervalSeconds": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "protocolVersion",
+          "deviceId",
+          "deviceToken",
+          "pollIntervalSeconds"
+        ],
+        "type": "object"
+      },
+      "PrintingEventRequestV1": {
+        "properties": {
+          "eventId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "RECEIVED",
+              "SUBMITTING",
+              "SPOOLED",
+              "SPOOLER_COMPLETED",
+              "FAILED",
+              "OUTCOME_UNKNOWN"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "spoolerJobId": {
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "eventId",
+          "status"
+        ],
+        "type": "object"
+      },
+      "PrintingHeartbeatRequestV1": {
+        "properties": {
+          "agentVersion": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/PrintingProfileV1"
+          }
+        },
+        "required": [
+          "agentVersion"
+        ],
+        "type": "object"
+      },
+      "PrintingHeartbeatV1": {
+        "properties": {
+          "serverTime": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          }
+        },
+        "required": [
+          "serverTime"
+        ],
+        "type": "object"
+      },
+      "PrintingInventoryRequestV1": {
+        "properties": {
+          "printers": {
+            "items": {
+              "$ref": "#/components/schemas/PrintingPrinterV1"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "printers"
+        ],
+        "type": "object"
+      },
+      "PrintingJobV1": {
+        "properties": {
+          "jobId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "deviceId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "printerId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "PDF",
+              "ZPL"
+            ],
+            "type": "string"
+          },
+          "contentSha256": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "contentLength": {
+            "type": "integer"
+          },
+          "options": {
+            "$ref": "#/components/schemas/PrintingOptionsV1"
+          },
+          "createdAt": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "QUEUED",
+              "CLAIMED",
+              "RECEIVED",
+              "SUBMITTING",
+              "SPOOLED",
+              "SPOOLER_COMPLETED",
+              "FAILED",
+              "OUTCOME_UNKNOWN"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "spoolerJobId": {
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "jobId",
+          "deviceId",
+          "printerId",
+          "title",
+          "format",
+          "contentSha256",
+          "contentLength",
+          "options",
+          "createdAt",
+          "status"
+        ],
+        "type": "object"
+      },
+      "PrintingJobsV1": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/PrintingJobV1"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "jobs"
+        ],
+        "type": "object"
+      },
+      "PrintingOptionsV1": {
+        "properties": {
+          "copies": {
+            "type": "integer"
+          },
+          "scale": {
+            "enum": [
+              "ACTUAL_SIZE",
+              "FIT"
+            ],
+            "type": "string"
+          },
+          "paperWidthMm": {
+            "type": "number"
+          },
+          "paperHeightMm": {
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "PrintingPrinterV1": {
+        "properties": {
+          "printerId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "driverName": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "portName": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "READY",
+              "OFFLINE",
+              "PAUSED",
+              "ERROR",
+              "UNKNOWN"
+            ],
+            "type": "string"
+          },
+          "formats": {
+            "items": {
+              "enum": [
+                "PDF",
+                "ZPL"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "displayName": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "location": {
+            "maxLength": 512,
+            "type": "string"
+          }
+        },
+        "required": [
+          "printerId",
+          "name",
+          "formats"
+        ],
+        "type": "object"
+      },
+      "PrintingProfileV1": {
+        "properties": {
+          "name": {
+            "maxLength": 512,
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4096,
+            "nullable": true,
+            "type": "string"
+          },
+          "location": {
+            "maxLength": 512,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PrintingReceiptRequestV1": {
+        "properties": {
+          "receiptId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "INVENTORY_REFRESHED",
+              "CANCEL_REQUESTED",
+              "ALREADY_ABSENT",
+              "OWNERSHIP_MISMATCH",
+              "UNSUPPORTED",
+              "FAILED",
+              "EXPIRED",
+              "OUTCOME_UNKNOWN"
+            ],
+            "type": "string"
+          },
+          "completedAt": {
+            "description": "RFC3339 UTC ending in uppercase Z.",
+            "format": "date-time",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "receiptId",
+          "outcome",
+          "completedAt"
+        ],
+        "type": "object"
+      },
+      "PrintingRetryRequestV1": {
+        "properties": {
+          "requestId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "confirmDuplicateRisk": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requestId"
+        ],
+        "type": "object"
+      },
+      "PrintingSessionV1": {
+        "properties": {
+          "principalId": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "tenantId": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "deviceId": {
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "principalId",
+          "tenantId"
+        ],
+        "type": "object"
+      },
+      "PrintingTestRequestV1": {
+        "properties": {
+          "requestId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "printerId": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "PDF",
+              "ZPL"
+            ],
+            "type": "string"
+          },
+          "testProfile": {
+            "maxLength": 40,
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "printerId",
+          "format"
+        ],
         "type": "object"
       }
     },

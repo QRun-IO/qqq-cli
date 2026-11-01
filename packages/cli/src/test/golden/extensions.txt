@@ -13,6 +13,7 @@ quick-search    qqq quick-search               not installed  1.1.0            2
 release-notes   qqq release-notes              not installed  1.0.0            3
 secured-data    qqq secured-data               not installed  1.1.0            3
 sql-workbench   qqq sql-workbench              not installed  1.1.0            21
-(installed: esb 1.1.0; 136 extension operations in this client)
+printing        qqq printing                   not installed  2.0.0   2.0.0    17
+(installed: esb 1.1.0; 153 extension operations in this client)
 --- stderr ---
 --- exit 0
