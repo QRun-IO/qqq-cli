@@ -6,7 +6,8 @@
 #
 # It only ever signals the pid it started (pid file in the state dir) and the two Docker
 # containers it names (qqq-enterprise-redis, qqq-enterprise-opensearch). It never touches the
-# 8077 sample server.
+# 8077 sample server. A MinIO container (qqq-enterprise-minio, :9310) backs the Object Storage qbit
+# (collaboration attachments); its credentials are generated into the state dir on first start.
 #
 # Env:
 #   QQQ_ALL_ENTERPRISE_DIR  qqq-all checkout on feat/enterprise-terminal-test
@@ -18,8 +19,8 @@
 #                           missing = the sample app is left out)
 #   QQQ_ENTERPRISE_STATE    pid, log and data directory (default ${TMPDIR:-/tmp}/qqq-enterprise-8078)
 #   QQQ_ENTERPRISE_PORT     HTTP port (default 8078)
-#   QQQ_ENTERPRISE_DOCKER   0 = do not start Redis/OpenSearch containers (quick search and redis are
-#                           then left out of the instance)
+#   QQQ_ENTERPRISE_DOCKER   0 = do not start the Redis/OpenSearch/MinIO containers (quick search, redis
+#                           and object storage are then left out of the instance)
 #   QQQ_ALL_ENTERPRISE_EXCLUDE  comma-separated feature names to leave out (see EnterpriseFeatures)
 set -euo pipefail
 
@@ -40,17 +41,23 @@ data_dir="$state_dir/data"
 jar="$qqq_all/qqq-all-app/target/qqq-all-app.jar"
 redis_name="qqq-enterprise-redis";        redis_port=6390
 search_name="qqq-enterprise-opensearch";  search_port=9210
+minio_name="qqq-enterprise-minio";        minio_port=9310
+minio_env="${QQQ_ENTERPRISE_MINIO_ENV:-${tmp_root%/}/qqq-enterprise-minio.env}"   # generated credentials for the shared container, 0600, never in git
+minio_bucket="qqq-enterprise-attachments"
 mkdir -p "$state_dir"
 
 running() { [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; }
 use_docker() { [[ "${QQQ_ENTERPRISE_DOCKER:-1}" != "0" ]] && command -v docker > /dev/null && docker info > /dev/null 2>&1; }
 
-container_up() # name image port container-port [docker args...]
+container_up() # name image port container-port [docker args...] [-- command args...]
 {
    local name="$1" image="$2" host_port="$3" container_port="$4"; shift 4
+   local run_args=() command_args=()
+   while [[ $# -gt 0 && "$1" != "--" ]]; do run_args+=("$1"); shift; done
+   [[ "${1:-}" == "--" ]] && { shift; command_args=("$@"); }
    if [[ "$(docker inspect -f '{{.State.Running}}' "$name" 2>/dev/null)" == "true" ]]; then return 0; fi
    if docker inspect "$name" > /dev/null 2>&1; then docker start "$name" > /dev/null; return 0; fi
-   docker run -d --name "$name" -p "127.0.0.1:$host_port:$container_port" "$@" "$image" > /dev/null
+   docker run -d --name "$name" -p "127.0.0.1:$host_port:$container_port" "${run_args[@]}" "$image" "${command_args[@]}" > /dev/null
 }
 
 build()
@@ -78,8 +85,21 @@ case "${1:---start}" in
          for _ in $(seq 1 60); do curl -sf -m 2 "http://127.0.0.1:$search_port/_cluster/health" > /dev/null 2>&1 && break; sleep 2; done
          env_args+=(QQQ_ALL_OPENSEARCH_HOST=127.0.0.1 QQQ_ALL_OPENSEARCH_PORT="$search_port"
             QQQ_ALL_REDIS_HOST=127.0.0.1 QQQ_ALL_REDIS_PORT="$redis_port")
+         if [[ ! -f "$minio_env" ]]; then
+            ( umask 077; printf 'S3_ACCESS_KEY=%s\nS3_SECRET_KEY=%s\n' "qqq-$(openssl rand -hex 6)" "$(openssl rand -hex 24)" > "$minio_env" )
+         fi
+         # shellcheck disable=SC1090
+         set -a; . "$minio_env"; set +a
+         echo "starting MinIO ($minio_name, :$minio_port) with bucket $minio_bucket"
+         container_up "$minio_name" minio/minio:latest "$minio_port" 9000 \
+            -e "MINIO_ROOT_USER=$S3_ACCESS_KEY" -e "MINIO_ROOT_PASSWORD=$S3_SECRET_KEY" -- server /data
+         if [[ "$(docker inspect -f '{{.State.Running}}' "$minio_name" 2>/dev/null)" != "true" ]]; then echo "MinIO did not start"; exit 1; fi
+         for _ in $(seq 1 30); do curl -sf -m 2 "http://127.0.0.1:$minio_port/minio/health/live" > /dev/null 2>&1 && break; sleep 1; done
+         docker exec "$minio_name" sh -c 'mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" > /dev/null && mc mb -p "local/$1" > /dev/null' sh "$minio_bucket"
+         env_args+=(S3_ENDPOINT="http://127.0.0.1:$minio_port" S3_ACCESS_KEY="$S3_ACCESS_KEY" S3_SECRET_KEY="$S3_SECRET_KEY"
+            S3_ATTACHMENTS_BUCKET="$minio_bucket")
       else
-         echo "Docker not used: quick search and redis are left out"
+         echo "Docker not used: quick search, redis and object storage are left out"
       fi
       classpath="$jar"
       if [[ -d "$sample_classes" ]]; then classpath="$jar:$sample_classes"; else echo "no sample classes at $sample_classes: sample app left out"; fi
@@ -107,7 +127,7 @@ case "${1:---start}" in
          echo "not running (no live pid in $pid_file)"
       fi
       rm -f "$pid_file"
-      if use_docker; then docker stop "$redis_name" "$search_name" > /dev/null 2>&1 && echo "stopped containers $redis_name $search_name" || true; fi
+      if use_docker; then docker stop "$redis_name" "$search_name" "$minio_name" > /dev/null 2>&1 && echo "stopped containers $redis_name $search_name $minio_name" || true; fi
       ;;
    --status|status)
       if running; then
