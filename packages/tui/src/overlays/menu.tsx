@@ -29,7 +29,7 @@ export const AREAS: Area[] = ['Context', 'Go to', 'Work', 'Connection', 'Setting
 /** What each area holds, for level 1 (Context is described from the screen). */
 const SUMMARY: Record<Area, string> = {
   Context: 'actions of this screen',
-  'Go to': 'home, go to anything, apps, recent records, favorites',
+  'Go to': 'home, search (/), apps, recent records, favorites',
   Work: 'jobs, notifications, my work, extensions',
   Connection: 'servers (Ctrl+O), profile, stream, metadata, sign out',
   Settings: 'theme, view, shortcuts, layout, lock, PIN, folders, preferences',
@@ -420,7 +420,7 @@ export class MenuOverlay implements Overlay {
       keys = [{ text: `${sel.length} of ${total} entries` }, { text: '↑↓', drop: 1 }, { text: 'Tab next area', drop: 3 }, { text: 'Enter runs' }, { text: 'Backspace clears', drop: 2 }, { text: 'Esc or F9 closes' }]
     } else if (this.level === 1) {
       crumb = ' Menu'
-      keys = [{ text: `${total} entries` }, { text: this.summary, drop: 4 }, { text: 'type to search', drop: 1 }, { text: '↑↓ → Enter opens' }, { text: 'letter jumps', drop: 3 }, { text: 'Esc or F9 closes' }]
+      keys = [{ text: `${total} entries` }, { text: 'type to search', drop: 1 }, { text: '↑↓ → Enter opens' }, { text: 'letter jumps', drop: 3 }, { text: 'Esc or F9 closes' }]
     } else if (this.level === 2) {
       const n = all.filter((e) => e.section === this.area).length
       crumb = ` Menu ${g.closed} ${this.area}`
@@ -431,7 +431,7 @@ export class MenuOverlay implements Overlay {
     }
     return (
       <Frame title="Menu  (F9)" width={width} height={height} screenWidth={sw} screenHeight={sh} top={1}>
-        <box paddingLeft={1}><EditorLine editor={this.filter} width={inner - 2} placeholder={`type to search every command${this.summary ? ` and ${this.summary}` : ''}`} /></box>
+        <box paddingLeft={1}><EditorLine editor={this.filter} width={inner - 2} placeholder={`type to search the menu · / searches ${this.summary || 'apps, tables, processes and records'}`} /></box>
         <Line text={pad(crumb, inner - more.length) + more} width={inner} fg={t.acc} />
         {lines}
         <Line text={` ${hint(keys, inner - 2)}`} width={inner} fg={t.dim} />

@@ -71,7 +71,8 @@ Keys (the function-key bar is the truth; F1 or `?` lists the keys of the screen;
 | F6 `f` | filter: guided builder or the grammar with completion | Space / `b` | select rows / run a process on them |
 | F7 `n` | new (a child on a child list) | `x` `g` `v` | export, go to by key, view settings |
 | F8 `d` | delete, asks | Ctrl+S | save a form or continue a process step |
-| F9 | menu: every action by section | `:` | command line, history and completion |
+| F9 | menu: areas, then each area's entries; places and records are found with `/` | `:` | command line, history and completion |
+| Ctrl+O | servers: switch profile, add, edit | | |
 | F10 | Quit, Reset to home, or Cancel (`:reset`) | Ctrl+C | quit now |
 | `a` | actions: bulk insert/edit/delete, processes, saved views | `A` `D` `t` `Z` | audits, developer, tags, share (record) |
 | `C` `P` `K` `T` `W` | comments, attachments, tasks, timeline, follow (record, collaboration extension) | `J` | raw JSON of an extension operation's output |
@@ -152,7 +153,9 @@ Linux, DPAPI on Windows; `QQQ_KEYRING=file` for a 0600 file). The first sign-in 
 
 ```sh
 qqq login --server http://localhost:8077 --profile sample   # creates the profile; the Keychain gets an item "qqq"
-qqq config profile list ; qqq config profile use sample ; qqq config show
+qqq profile list --probe ; qqq profile use sample ; qqq config show
+qqq profile add enterprise http://localhost:8078 --short ent --description "22 apps" --check
+qqq profile edit enterprise --auth-mode device   # in qqq ui: Ctrl+O lists them, Enter switches
 qqq --profile sample table count person ; QQQ_PROFILE=sample qqq whoami
 ```
 

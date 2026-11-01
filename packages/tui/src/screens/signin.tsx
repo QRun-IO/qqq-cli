@@ -4,7 +4,7 @@
  */
 
 import { UiApiError, decodeJwtClaims, deviceSignIn, getAuthenticationMetaData, getNativeSignInConfig } from '@qrun-io/qqq-ui-api-client'
-import { PasswordRefusedError, loginFetch, profileNameForServer, readConfig, readLogin, signInWithPassword, signInWithSession, writeLogin, type SecretStore } from '@qrun-io/qqq-core'
+import { PasswordRefusedError, loginFetch, profileNameForServer, readConfig, readLogin, shortNameOf, signInWithPassword, signInWithSession, touchProfile, writeLogin, type SecretStore } from '@qrun-io/qqq-core'
 import { TUI_CHANNEL, TuiClient } from '../client'
 import type { Key } from '../keys'
 import { ChoiceOverlay, PromptOverlay } from '../overlays/basic'
@@ -38,6 +38,7 @@ export async function connect(store: AppStore, target: Target, deps: SignInDeps)
   const client = new TuiClient({ server: target.server, fetch: fetchImpl })
   store.target = target
   store.status.profile = target.name
+  store.status.short = shortNameOf(target.name, readConfig().profiles[target.name])
   store.status.server = target.server
   if (login?.kind === 'session') {
     const u = login.user ?? {}
@@ -59,6 +60,12 @@ export async function connect(store: AppStore, target: Target, deps: SignInDeps)
   } catch (e) {
     if (e instanceof UiApiError && (e.status === 401 || e.status === 403)) throw new NeedsSignIn('your sign-in expired; sign in again')
     throw e
+  }
+  try {
+    // last used and who, for the Servers dialog (Ctrl+O); the profile exists once a sign-in was saved
+    touchProfile(target.name, { user: store.status.user })
+  } catch {
+    // config.json unreadable: not critical here
   }
   while (store.routes.length) store.routes.pop()?.dispose?.()
   store.push(new HomeScreen(store))
@@ -205,7 +212,9 @@ export class SignInScreen implements Screen {
     }
     if (type === 'OAUTH2') {
       const config = await getNativeSignInConfig(target.server, this.deps.fetch)
-      const how = process.env.QQQ_UI_SIGN_IN === 'device' ? 'device' : process.env.QQQ_UI_SIGN_IN === 'browser' ? 'browser' : await this.choice<'browser' | 'device'>(`Sign in to ${target.server}`, [
+      // QQQ_UI_SIGN_IN, else the profile's sign-in mode (Servers dialog, qqq profile edit --auth-mode), else ask
+      const mode = process.env.QQQ_UI_SIGN_IN ?? readConfig().profiles[target.name]?.authMode
+      const how = mode === 'device' ? 'device' : mode === 'browser' ? 'browser' : await this.choice<'browser' | 'device'>(`Sign in to ${target.server}`, [
         { label: 'In the browser (authorization code with PKCE)', value: 'browser', detail: 'opens your browser' },
         { label: 'With a code on another device (device flow)', value: 'device', detail: 'no browser here' },
       ])

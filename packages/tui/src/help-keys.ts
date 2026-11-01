@@ -22,7 +22,8 @@ export const HELP_POINTER = '/ search anything · F9 menu · : command line (:se
 const ANYWHERE: KeyRow[] = [
   ['F1  ?', 'this keyboard reference'],
   ['F2  /  .  Ctrl+K', 'search: apps, tables, processes, widgets, records, commands'],
-  ['F9', 'menu: every action by section'],
+  ['F9', 'menu: areas, then their actions'],
+  ['Ctrl+O', 'servers: switch, add, edit'],
   [':', 'command line; Tab completes, ↑↓ history'],
   ['F10', 'quit, reset or cancel'],
   ['Ctrl+C', 'quit now'],

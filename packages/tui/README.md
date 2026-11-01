@@ -44,9 +44,10 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 | F6, `f` | filter: condition rows (field, operator, value) with a live match count; F2 types the grammar | ← → | columns, tree |
 | F7, `n` | new record (on a child list: a child of this record) | `s` | sort by the column under the cursor |
 | F8, `d` | delete, after a question | `]` `[`, Ctrl+N Ctrl+P, PgDn PgUp in a record | next and previous record of the list it came from |
-| F9 | the menu: every action by section (Context, Go to, Work, Connection, Settings, Help); places and records are found with `/` | `b` | run a table process on the selection |
+| F9 | the menu in two levels: the areas (Context, Go to, Work, Connection, Settings, Help), then an area's entries; places and records are found with `/` | `b` | run a table process on the selection |
 | F10, `:quit` | Quit, Reset (home screen, metadata refreshed, session kept) or Cancel; `:reset` and `:home` reset | `x`, `g`, `v` | export, go to by key, view settings |
 | `:` | command line (history ↑↓, Ctrl+R, Tab completes) | Ctrl+S | save a form, continue a process step |
+| Ctrl+O, `:servers` | Servers: switch to another saved profile, add, edit | | |
 | Ctrl+C | quit at once (the terminal is restored) | `c` | copy a record |
 | `a` | actions here (the F9 Context entries) | `A`, `D` | audits, developer view (record or grid) |
 | `t` | tags of a record (collaboration extension) | Esc then 1..0, Ctrl+1..0 | F1..F10 when the terminal takes the F-keys |
@@ -102,6 +103,67 @@ opens the value viewer, which wraps it in full. `y` copies the selected value (p
 xsel when present, else the terminal's OSC 52). Links of the web UI become TUI actions (the table
 developer view, a record, a grid, a process); those with no TUI screen, such as the ESB overview, show
 their URL marked "browser only". Design notes: [docs/developer-view.md](docs/developer-view.md).
+
+## The F9 menu
+
+Two levels, as a menu bar. Level 1 lists the areas with a count and what each holds:
+
+| Area | Holds |
+|---|---|
+| Context | the actions of the screen you are on (record, grid, process, form, app), and Back |
+| Go to | Reset (home), search (`/`), the apps and the recent records (groups: five and `more…`), favorites |
+| Work | jobs, notifications, my work, extensions |
+| Connection | the server in use (short name and host), Servers (Ctrl+O), profile, stream, metadata, sign out |
+| Settings | theme, view settings, shortcuts, layout, ASCII, lock, PIN, idle timeout, folders, server preferences |
+| Help | keys and help, search help, check the terminal, help-authoring mode, about, quit |
+
+↑↓ moves, Enter or → opens an area, a letter jumps to the area starting with it (again: the next one, so
+`c` `c` is Connection). In an area: ↑↓ and Enter run an entry (its key is on the right), ← or Esc go back
+to the areas, Tab and Shift+Tab step to the next and previous area, a letter jumps to the entry starting
+with it. Go to lists the apps and the recent records as groups; a group of more than 5 entries (any entry
+can name its `group`) shows its first 5 and `more…`, which opens the whole group.
+
+Two or more typed characters search every entry of every area (labels, details, `:` commands, keys;
+`/` is the search over tables, processes, widgets and records) and list the matches by area; Tab jumps between areas, Backspace back to nothing
+returns to the areas, Esc or F9 closes. An entry that opens a dialog leaves the menu underneath and comes
+back to the same entry; an entry that navigates closes it. The menu fits 80×24.
+
+## Servers
+
+Ctrl+O (also `:servers`, F9 › Connection › Servers) opens the saved profiles, one per two lines:
+
+```
+    Name       Short  Server                 Status       Last used
+▶*● sample     sample http://localhost:8077  UI API 1.8.0 just now
+     Tester · mock session · QQQ sample server
+    enterprise ent    http://localhost:8078  UI API 1.9.0 2 h ago
+     Admin · mock session · Enterprise demo: 22 apps, 182 tables
+```
+
+`*` is the default profile, `●` the one in use. Status is probed in the background (GET `/qqq/v1/version`
+and the authentication metadata, 2.5 s timeout): `…` while probing, the UI API version, or `unreachable`.
+The second line is who is signed in (the keyring's sign-in, else who signed in last), the sign-in, and
+the description.
+
+| Key | Does |
+|---|---|
+| ↑↓ PgUp PgDn | move |
+| Enter | switch: the stored sign-in is reused when it is still valid, else the sign-in runs; Home opens on that server with its metadata fetched again |
+| `n`, F7 | add a profile: name, short name, description, server, sign-in mode (`auto`, `browser`, `device`); saving checks the server answers `/qqq/v1/version` (Ctrl+S again saves an unreachable one anyway) |
+| `e`, F4 | edit the profile (a new name keeps its sign-in; a new server drops it) |
+| `d`, F8 | remove the profile and its sign-in, after a question (not the one in use) |
+| `*` | make it the default (what `qqq` and `qqq ui` use without `--profile`) |
+| `r`, F5 | probe every server again |
+| typing | filter on name, short name, description and server; `/` first to filter by a word starting with n, e, d or r |
+| Esc | clear the filter, then close |
+
+The **short name** (2 to 6 characters) is what the footer's connection segment (`localhost:8077 · sample ·
+mock session`), the Home header and the F9 Connection line show; without one it is the name up to 6
+characters, else the initials of a name in parts (`acme-prod-eu` › `ape`) or its first 3 characters
+(`enterprise` › `ent`). The CLI edits the same file: `qqq profile list [--probe]`, `qqq profile add <name>
+<url> [--short s] [--description d] [--auth-mode m] [--check] [--default]`, `qqq profile edit <name>
+[--server url] [--short s] [--description d] [--auth-mode m] [--rename new]`, `qqq profile use <name>`,
+`qqq profile remove <name>` (also as `qqq config profile …`).
 
 ## Screens
 
@@ -171,7 +233,7 @@ help-authoring mode (F1 shows every help slot key).
 TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `menu`, `search <text>` (also `find`, `goto`, `palette`), `view`,
 `views`, `share`, `actions`, `audits`, `dev`, `tags`, `report run <name>`, `theme <name>`, `ascii on|off`,
 `linear on|off`, `shortcuts on|off`, `lock`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
-`export <format>`, `jobs`, `profile [name]`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
+`export <format>`, `jobs`, `profile [name]`, `servers`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
 `app <name>`, `record <table> <key>`. `table query|get|create|update|delete` and `process run` open screens;
 any other CLI command runs in-process (`runCli` from `@qrun-io/qqq-cli/program`) and shows its output;
 an extension operation (`:alerts get-inbox`, `:collab get-records-tasks customer 1`, `:api <operationId>`)
@@ -190,7 +252,9 @@ serves a generated 1000-table, 500-process, 3000-widget instance on port 8099 to
 Everything below is local to the machine and shared with the CLI; nothing is sent to the server.
 
 - `~/.config/qqq/config.json` (`QQQ_CONFIG_DIR`), owned by the kernel:
-  - `profiles` (`server`, an optional `note`, and `ui.theme` for that profile only) and `defaultProfile`.
+  - `profiles` (`server`; optional `short`, `description`, `authMode` (`auto`, `browser`, `device`), the
+    1.0.0-rc.1 `note`, `lastUsedAt` and `user` recorded by the UI, and `ui.theme` for that profile only)
+    and `defaultProfile`. Fields are only ever added: a 1.0.0-rc.1 file loads unchanged.
     Sign-ins themselves are in the OS keychain (or the file keyring), one per profile.
   - `ui.theme`: the theme for every profile without its own.
   - `ui.views`: per screen. `table:<name>` columns (in order), widths, fit (content or fill), stripes,

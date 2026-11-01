@@ -36,6 +36,8 @@ export interface Settings {
 export interface Status {
   server: string
   profile: string
+  /** The profile's short name (2 to 6 characters) for the footer and the Home header. */
+  short?: string
   user: string
   /** The id saved records carry for their owner (email, id reference, user name or subject). */
   userId?: string
@@ -96,6 +98,8 @@ export class AppStore {
   lastMenuSection = 0
   lastInput = Date.now()
   sidebarFactory?: (store: AppStore) => SidebarLike
+  /** The next connect fetches the metadata again instead of using the cache (a server switch). */
+  refreshMetaOnConnect = false
   /** How to sign in again (profile switch, sign out); set by main. */
   signInDeps?: import('./screens/signin').SignInDeps
   /** Opens text in $EDITOR and returns the edited text (set by main; suspends the renderer). */
@@ -120,13 +124,20 @@ export class AppStore {
       stream: 'off', lastEvent: 'no events yet', jobs: 'n/a', build: options.build ?? 'dev', clock: clock(),
     }
     this.printTracker = new PrintTracker(this, 1000, Boolean(options.timers))
-    if (options.timers) {
-      this.timers.push(setInterval(() => {
-        this.status.clock = clock()
-        this.checkIdle()
-        this.bump()
-      }, 1000))
-    }
+    if (options.timers) this.startClock()
+  }
+
+  private clockTimer?: ReturnType<typeof setInterval>
+
+  /** The footer clock and the idle check; started again by `connect` after a server switch disposed it. */
+  private startClock(): void {
+    if (this.clockTimer) return
+    this.clockTimer = setInterval(() => {
+      this.status.clock = clock()
+      this.checkIdle()
+      this.bump()
+    }, 1000)
+    this.timers.push(this.clockTimer)
   }
 
   // ---- rendering ----
@@ -328,6 +339,7 @@ export class AppStore {
     }
     if (key.name === 'f2' || (key.ctrl && key.name === 'k')) return this.commands().palette()
     if (key.name === 'f9') return this.commands().menu()
+    if (key.ctrl && key.name === 'o') return this.commands().servers()
     if (key.name === 'f10') return this.requestQuit()
     if (this.focus === 'sidebar' && this.sidebar && this.showSidebar) {
       if (this.sidebar.onKey(key)) return
@@ -430,6 +442,7 @@ export class AppStore {
   dispose(): void {
     for (const t of this.timers) clearInterval(t)
     this.timers = []
+    this.clockTimer = undefined
     this.streamAbort?.abort()
     this.printTracker.dispose()
     for (const s of this.routes) s.dispose?.()
@@ -441,7 +454,9 @@ export class AppStore {
   async connect(client: TuiClient, options: { timers?: boolean } = {}): Promise<void> {
     this.client = client
     this.status.server = client.server
-    const [version, meta] = await Promise.all([client.version(), client.metaData()])
+    const refresh = this.refreshMetaOnConnect
+    this.refreshMetaOnConnect = false
+    const [version, meta] = await Promise.all([client.version(), client.metaData(refresh)])
     this.version = version
     this.setMeta(meta)
     this.extensions.load(version)
@@ -449,6 +464,7 @@ export class AppStore {
     this.status.apiVersion = version.apiVersion
     this.sidebar = this.sidebarFactory?.(this)
     if (options.timers) {
+      this.startClock()
       const ping = () => client.ping().then((ms) => { this.status.pingMs = ms }).catch(() => { this.status.pingMs = null }).finally(() => this.bump())
       ping()
       this.timers.push(setInterval(ping, 5000))
@@ -588,6 +604,8 @@ export interface CommandsLike {
   help(): void
   palette(initial?: string): void
   menu(): void
+  /** The Servers dialog (Ctrl+O). */
+  servers(): void
   commandLine(initial?: string): void
   viewSettings(): void
   lock(): void

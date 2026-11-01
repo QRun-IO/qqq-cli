@@ -23,6 +23,7 @@ import { openReport } from './screens/report'
 import { TableDeveloperScreen } from './screens/developer'
 import { actionsOverlay } from './overlays/actions'
 import { SignInScreen } from './screens/signin'
+import { ServersOverlay } from './overlays/servers'
 import type { AppStore, CommandsLike } from './store'
 import type { MenuEntry } from './types'
 import { errorText, shellSplit } from './util/text'
@@ -41,7 +42,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app']
 
 export class Commands implements CommandsLike {
   constructor(private store: AppStore) {}
@@ -173,6 +174,13 @@ export class Commands implements CommandsLike {
       }))
     } : undefined
     s.open(new PaletteOverlay(s, { recents, commands, searchIndex, searchRecords, searchHelp, quick, summary: s.index?.describe() ?? '', initial }))
+  }
+
+  /** The Servers dialog: saved profiles, probed in the background; Enter switches. */
+  servers(): void {
+    const s = this.store
+    if (s.overlays.some((o) => o instanceof ServersOverlay)) return
+    s.open(new ServersOverlay(s, (row) => this.reconnect({ name: row.name, server: row.server })))
   }
 
   menu(): void {
@@ -321,6 +329,7 @@ export class Commands implements CommandsLike {
         }
         case 'doctor': case 'check': return this.doctor()
         case 'profile': return rest[0] ? this.switchProfile(rest[0]) : this.chooseProfile()
+        case 'servers': return this.servers()
         case 'server': return rest[0] ? this.switchServer(rest[0]) : fail('server <url>')
         case 'signout': return this.signOut()
         case 'connection': return this.connection()
@@ -498,6 +507,10 @@ export class Commands implements CommandsLike {
     s.client = undefined
     s.meta = undefined
     s.sidebar = undefined
+    s.overlays = []
+    s.refreshMetaOnConnect = true
+    // the footer names the server being connected to, not the one left
+    Object.assign(s.status, { server: target.server, profile: target.name, short: undefined, user: '', userId: undefined, auth: '', apiVersion: '…', pingMs: null, stream: 'off', jobs: 'n/a', lastEvent: 'no events yet' })
     while (s.routes.length) s.routes.pop()
     const screen = new SignInScreen(s, deps, target)
     s.push(screen)
@@ -600,6 +613,18 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Go to', label: 'Reset: go to the home screen', key: 'F10', command: 'reset', detail: 'refreshes metadata, keeps the session', run: () => s.reset() })
     // places, records and commands are found with / (one home); the menu keeps the way there
     out.push({ section: 'Go to', label: 'Search apps, tables, processes, records, commands…', key: '/ F2', command: 'search <text>', run: () => this.palette() })
+    // the apps and recent records as groups of Go to (F9 shows five and more…, which opens the whole list)
+    for (const n of ((meta?.appTree ?? []) as Array<{ type: string; name: string; label: string }>).filter((x) => x.type === 'APP')) out.push({ id: `app:${n.name}`, section: 'Go to', group: 'Apps', label: n.label, command: `app ${n.name}`, run: () => openApp(s, n.name) })
+    try {
+      for (const r of s.client ? readRecents(s.client.server).slice(0, 15) : []) {
+        const where = r.table ? meta?.tables?.[r.table]?.label ?? r.table : 'process'
+        if (r.kind === 'record' && r.table) out.push({ id: `recent:${r.table}:${r.key}`, section: 'Go to', group: 'Recent', label: `${where} › ${r.label}`, run: () => openRecord(s, r.table!, r.key) })
+        else if (r.kind === 'table' && r.table) out.push({ id: `recent:table:${r.table}`, section: 'Go to', group: 'Recent', label: r.label, detail: 'table', run: () => openTable(s, r.table!) })
+        else if (r.kind === 'process' && r.name) out.push({ id: `recent:process:${r.name}`, section: 'Go to', group: 'Recent', label: r.label, detail: 'process', run: () => openProcess(s, r.name!) })
+      }
+    } catch {
+      // no recents
+    }
     out.push({ section: 'Go to', label: 'Favorites', disabled: s.extensions.has('collaboration') ? undefined : 'needs the collaboration extension' })
     // Work
     out.push({ section: 'Work', label: 'Jobs', detail: `active ${s.status.jobs}`, command: 'jobs', disabled: (s.version?.features ?? []).includes('durableJobs') ? undefined : 'n/a: the server lists no jobs', run: () => this.jobs() })
@@ -611,6 +636,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Connection', label: `Server ${s.status.server}`, detail: `UI API ${s.status.apiVersion}`, command: 'connection', run: () => this.connection() })
     out.push({ section: 'Connection', label: `Profile ${s.status.profile}`, detail: s.status.user, run: () => this.connection() })
     out.push({ section: 'Connection', label: `Stream ${s.status.stream}`, detail: `ping ${s.status.pingMs === null ? '--' : s.status.pingMs.toFixed(0) + ' ms'}`, run: () => this.connection() })
+    out.push({ section: 'Connection', label: 'Servers…', key: 'Ctrl+O', command: 'servers', detail: 'saved profiles: switch, add, edit', run: () => this.servers() })
     out.push({ section: 'Connection', label: 'Switch profile…', command: 'profile', run: () => this.chooseProfile() })
     out.push({ section: 'Connection', label: 'Connect to another server…', command: 'server <url>', run: () => s.open(new PromptOverlay(s, 'Connect to a server', 'The server URL.', (u) => this.switchServer(u.trim()), 'http://localhost:8077')) })
     out.push({ section: 'Connection', label: 'Refresh metadata', run: () => s.run(s.client!.metaData(true), (m) => { s.setMeta(m); s.client!.clearCaches(); s.flash('metadata refreshed') }) })

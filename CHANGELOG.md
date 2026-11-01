@@ -55,6 +55,13 @@ candidate's, plus the changes since it listed first.
   dimmed, "records: install the quick search extension". F1/`?` is only the keyboard reference of the
   screen (keys grouped by what they do, the screen's help text and a pointer to `/`, F9 and `:`); F9 no
   longer lists every app, recent record and metadata match (they are found with `/`).
+- The UI's F9 menu has two levels, like a menu bar: first the areas (Context, Go to, Work, Connection,
+  Settings, Help) with a count and a one-line summary each (Connection names the server in use), then one
+  area's entries with their keys. ↑↓ moves, Enter or → opens an area, its first letter jumps to it (`c`
+  twice reaches Connection), ← or Esc goes back, Tab steps to the next area. Go to holds the apps and the
+  recent records as groups (the first 5 and `more…`, which opens the whole list), and favorites. Typing two
+  or more characters searches every menu entry, listed by area; clearing the search returns to the areas.
+  It fits 80×24.
 - The UI's filter dialog (F6) was reworked for clarity: every condition is a row of three cells (field,
   operator, value) edited the way its type asks (text and numbers in place, choices from a searchable
   list, Space cycles true/false, dates with presets or typed, operators from a list that fits the field),
@@ -112,6 +119,22 @@ candidate's, plus the changes since it listed first.
 
 ### Added since 1.0.0-rc.1
 
+- **Servers dialog** in the UI (Ctrl+O, `:servers`, F9 › Connection › Servers): every saved profile with
+  its short name, server, status (UI API version, probed in the background with a 2.5 s timeout; `…`
+  while probing), last use, who is signed in, the sign-in and its description. Enter switches (the stored
+  sign-in is reused, else the sign-in runs) and Home opens on that server with fresh metadata; `n` adds,
+  `e` edits, `d` removes (asks), `*` makes the default, `r` probes again, typing filters on name, short
+  name, description and server. Adding or editing checks that the server answers `/qqq/v1/version`.
+  Home shows the server and "Ctrl+O switch"; the footer shows the profile's short name.
+- Profiles gain a **short name** (2 to 6 characters, for the footer and the Home header; by default the
+  name itself up to 6 characters, else initials or its first 3), a **description**, a **sign-in mode**
+  for OAuth2 servers (`auto` asks, `browser`, `device`), and the last use and user. All additive in
+  `config.json`: files written by 1.0.0-rc.1 load unchanged and keep their `note` (shown when there is no
+  description).
+- `qqq profile list|add|edit|use|remove` (also under `qqq config profile`): `add` and `edit` take
+  `--short`, `--description`, `--auth-mode` and `--check` (refuse unless the server answers); `edit`
+  takes `--server` and `--rename`, and an empty value removes a field; `list --probe` adds each server's
+  status. `use` sets the default, as `*` does in the dialog.
 - The UI's record view has the collaboration extension's features: a line with the record's comments,
   attachments and open tasks and whether you follow it, the people viewing it now, and in `a`/F9 (keys
   `C` `P` `K` `T` `W`): comments (list, add, reply), follow and stop following, attachments (list,

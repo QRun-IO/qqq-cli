@@ -170,7 +170,8 @@ display values; DATE_TIME values are shown in your zone (`--utc` for raw instant
 an exact-case match.
 
 **Profiles and sign-ins.** Profiles name servers, as `aws --profile` does: `qqq --profile prod ...`,
-`QQQ_PROFILE`, `qqq config profile list|use|remove`. Sign-ins live in the OS keyring (macOS Keychain,
+`QQQ_PROFILE`, `qqq profile list|add|edit|use|remove` (each with a short name and a description; also
+`qqq config profile …`), and Ctrl+O in `qqq ui` switches between them. Sign-ins live in the OS keyring (macOS Keychain,
 Secret Service on Linux, DPAPI on Windows) or a 0600 file with `QQQ_KEYRING=file` for headless hosts.
 OAuth2 tokens are refreshed before they expire; `qqq logout --provider-logout` also revokes them at the
 provider. `QQQ_TOKEN` overrides everything with a bearer token, and `QQQ_PASSWORD` answers a

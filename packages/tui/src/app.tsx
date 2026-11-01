@@ -87,11 +87,13 @@ function StatusLine({ store, width }: { store: AppStore; width: number }) {
   }
   const ping = s.pingMs === null ? 'ping --' : `ping ${s.pingMs.toFixed(0)} ms`
   const streamColor = s.stream === 'connected' ? t.ok : s.stream === 'reconnecting' ? t.warn : t.statusFg
-  const left = ` ${s.server.replace(/^https?:\/\//, '')} · ${s.profile}${s.auth ? ` · ${s.auth}` : ''} · UI API ${s.apiVersion} · ${ping} · `
+  // the connection segment: server · profile short name · sign-in (Ctrl+O switches)
+  const profile = s.short || s.profile
+  const left = ` ${s.server.replace(/^https?:\/\//, '')} · ${profile}${s.auth ? ` · ${s.auth}` : ''} · UI API ${s.apiVersion} · ${ping} · `
   const stream = `stream ${s.stream}`
   const right = ` · jobs ${s.jobs}${s.print ? ` · ${s.print}` : ''}${presence.count ? ` · ${presence.count} viewing` : ''} · ${s.lastEvent} · ${s.build} · ${s.clock} `
   if (left.length + stream.length + right.length > width) {
-    const short = ` ${s.profile} · ${ping} · ${stream} · jobs ${s.jobs}${s.print ? ` · ${s.print}` : ''} · ${s.clock} `
+    const short = ` ${profile} · ${ping} · ${stream} · jobs ${s.jobs}${s.print ? ` · ${s.print}` : ''} · ${s.clock} `
     return <text flexShrink={0} wrapMode="none" fg={t.statusFg} bg={t.statusBg}>{pad(short, width)}</text>
   }
   return (

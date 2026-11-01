@@ -299,7 +299,8 @@ export class HomeScreen implements Screen {
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
     const first = s.status.user.split(/[\s@]/)[0]
     lines.push([{ text: ` ${greeting}${first ? `, ${first}` : ''} · ${brand}`, fg: t.acc, bold: true }])
-    lines.push([{ text: ` ${s.status.server.replace(/^https?:\/\//, '')} · profile ${s.status.profile} · ${s.status.auth} · UI API ${s.status.apiVersion} · ${s.extensions.describe()}`, fg: t.dim }])
+    const profile = s.status.short && s.status.short !== s.status.profile ? `${s.status.profile} (${s.status.short})` : s.status.profile
+    lines.push([{ text: ` ${s.status.server.replace(/^https?:\/\//, '')} · profile ${profile} · `, fg: t.dim }, { text: 'Ctrl+O switch', fg: t.acc2 }, { text: ` · ${s.status.auth} · UI API ${s.status.apiVersion} · ${s.extensions.describe()}`, fg: t.dim }])
     lines.push([{ text: ` ${s.index?.describe() ?? ''}`, fg: t.fg }])
     lines.push([{ text: '' }])
     const panels = this.panels()

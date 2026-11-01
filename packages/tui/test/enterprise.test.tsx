@@ -160,10 +160,14 @@ test('? is a keyboard reference only: keys by group and the pointer line, no com
   for (const notThere of ['What you can do here', 'Switch profile', 'App: People', 'Help search', 'type to search']) expect(f).not.toContain(notThere)
 })
 
-test('F9 keeps its sections but no longer lists apps, recents or metadata matches (those live in /)', async () => {
+test('F9 keeps its sections but no longer lists apps, recents or metadata matches flat (apps and recents are Go to groups; places live in /)', async () => {
   h = await startTui(130, 44)
   await press(h, () => h!.setup.mockInput.pressKey(KeyCodes.F9))
-  const f = await waitFor(h, (x) => x.includes('Menu  (F9)'))
+  let f = await waitFor(h, (x) => x.includes('Menu  (F9)'))
   expect(f).not.toContain('App: People')
+  await press(h, () => h!.setup.mockInput.typeText('g'))
+  f = await press(h, () => h!.setup.mockInput.pressEnter())
   expect(f).toContain('Search apps, tables, processes, records, commands')
+  expect(f).not.toContain('App: People')
+  expect(f).not.toContain('Table: ')
 })
