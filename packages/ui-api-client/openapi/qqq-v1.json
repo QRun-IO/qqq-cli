@@ -250,8 +250,8 @@
       },
       {
         "name": "printing",
-        "version": "2.0.0",
-        "description": "Native current-user printing with secondary device proof, device-control-v1 and realtime-v1.",
+        "version": "2.1.0",
+        "description": "Native current-user printing with secondary device proof, device-control-v1 and realtime-v1; record, table-list and text printing processes.",
         "pathPrefix": "/qbit/printing",
         "operations": [
           "printingSession",

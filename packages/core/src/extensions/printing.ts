@@ -13,6 +13,9 @@
  * - `printingPrintRecords_{table}`: Print on the records of a table the server enabled it for
  *   (values `printingPrinterId`, `printingCopies`; the queued job ids come back in `printingJobIds`)
  * - `printingCancelSelectedJobs`: cancel jobs still queued in QQQ
+ * - `printingPrintTableList` (printing 2.1): a table list of any table: columns, widths, filter and
+ *   sort, the current page or all rows (up to 10,000); `printingPrintText`: text such as a screen
+ *   capture, as a monospace PDF
  *
  * Every call needs the extension (ExtensionNotInstalledError otherwise). The printer chosen last
  * is remembered per profile in config.json (`printing.printers[profile]`).
@@ -28,6 +31,12 @@ export const CANCEL_JOBS_PROCESS = 'printingCancelSelectedJobs'
 export const PRINTER_FIELD = 'printingPrinterId'
 export const COPIES_FIELD = 'printingCopies'
 export const JOB_IDS_VALUE = 'printingJobIds'
+export const TABLE_LIST_PROCESS = 'printingPrintTableList'
+export const TEXT_PROCESS = 'printingPrintText'
+/** The most rows the server prints in one table list. */
+export const MAX_LIST_ROWS = 10_000
+/** "All rows" is the default list choice up to this many rows (or whenever the grid is filtered). */
+export const SMALL_LIST_ROWS = 2_000
 
 /** Job states after which nothing more happens to a job. */
 export const FINAL_JOB_STATES = ['SPOOLED', 'SPOOLER_COMPLETED', 'FAILED', 'OUTCOME_UNKNOWN'] as const
@@ -189,6 +198,43 @@ export function printProcessName(table: string): string {
   return `${PRINT_PROCESS_PREFIX}${table}`
 }
 
+/** Whether the server can print table lists and text (printing 2.1 processes in the metadata). */
+export function canPrintLists(meta: { processes?: Record<string, unknown> } | undefined): boolean {
+  return Boolean(meta?.processes?.[TABLE_LIST_PROCESS]) && Boolean(meta?.processes?.[TEXT_PROCESS])
+}
+
+/** What a grid print covers. */
+export type ListScope = { kind: 'all' } | { kind: 'page'; skip: number; limit: number } | { kind: 'selected'; ids: string[] } | { kind: 'sheets'; ids: string[] }
+
+export interface ListScopeChoice {
+  label: string
+  value: ListScope
+  detail?: string
+}
+
+/**
+ * The choices of a grid print, the default first: all rows (current filter and sort; the default
+ * when the grid is filtered or has at most SMALL_LIST_ROWS rows), this page, the selected rows as a
+ * list, and a record sheet per selected row (when the table has Print). Over MAX_LIST_ROWS, "all"
+ * says it prints the first 10,000.
+ */
+export function listScopeChoices(grid: { total?: number; pageIndex: number; pageSize: number; pageRows: number; selected: string[]; filtered: boolean; recordSheets: boolean }): ListScopeChoice[] {
+  const total = grid.total
+  const fmt = (n: number) => n.toLocaleString('en-US')
+  const all: ListScopeChoice = total !== undefined && total > MAX_LIST_ROWS
+    ? { label: `First ${fmt(MAX_LIST_ROWS)} of ${fmt(total)} rows (current filter and sort)`, value: { kind: 'all' }, detail: `the print limit is ${fmt(MAX_LIST_ROWS)} rows; narrow the filter for the rest` }
+    : { label: `All ${total === undefined ? '' : `${fmt(total)} `}rows (current filter and sort)`, value: { kind: 'all' } }
+  const skip = grid.pageIndex * grid.pageSize
+  const page: ListScopeChoice = { label: `This page (rows ${fmt(grid.pageRows ? skip + 1 : 0)}-${fmt(skip + grid.pageRows)})`, value: { kind: 'page', skip, limit: grid.pageSize } }
+  const allFirst = grid.filtered || total === undefined || total <= SMALL_LIST_ROWS
+  const out = allFirst ? [all, page] : [page, all]
+  if (grid.selected.length) {
+    out.push({ label: `Selected rows (${fmt(grid.selected.length)}) as a list`, value: { kind: 'selected', ids: grid.selected } })
+    if (grid.recordSheets) out.push({ label: `A record sheet for each selected row (${fmt(grid.selected.length)})`, value: { kind: 'sheets', ids: grid.selected } })
+  }
+  return out
+}
+
 /** Whether metadata offers Print on a table. */
 export function tableHasPrint(meta: { processes?: Record<string, unknown> } | undefined, table: string): boolean {
   return Boolean(meta?.processes?.[printProcessName(table)])
@@ -264,6 +310,75 @@ export interface PrintRequest {
   copies?: number
 }
 
+export interface TableListRequest {
+  table: string
+  /** Field names in the order the grid shows them. */
+  columns: string[]
+  /** The grid's column widths in characters, same order (optional). */
+  widths?: number[]
+  /** The grid's query filter, with its orderBys. */
+  filter: Record<string, unknown>
+  scope: ListScope
+  title?: string
+  /** The filter as the user sees it (for the page header). */
+  filterDescription?: string
+  /** Printer row id. */
+  printer: string
+  copies?: number
+  orientation?: 'AUTO' | 'PORTRAIT' | 'LANDSCAPE'
+  pageSize?: 'LETTER' | 'A4'
+  /** The primary key field, for a selection. */
+  primaryKeyField?: string
+}
+
+export interface TextRequest {
+  title: string
+  subtitle?: string
+  text: string
+  printer: string
+  copies?: number
+  orientation?: 'PORTRAIT' | 'LANDSCAPE'
+}
+
+/** What a list or text print queued, and the server's note (a row-limit message). */
+export interface PrintOutcome {
+  jobIds: string[]
+  message?: string
+  truncated?: boolean
+}
+
+/** The process values of a table list print (exported for tests and other clients). */
+export function tableListValues(request: TableListRequest): Record<string, unknown> {
+  const { orderBys, ...rest } = request.filter as { orderBys?: unknown }
+  const base: Record<string, unknown> = { criteria: [], booleanOperator: 'AND', ...rest, ...(orderBys ? { orderBys } : {}) }
+  delete base.skip
+  delete base.limit
+  let filter: Record<string, unknown> = base
+  let scope = 'ALL'
+  if (request.scope.kind === 'page') {
+    filter = { ...base, skip: request.scope.skip, limit: request.scope.limit }
+    scope = 'PAGE'
+  } else if (request.scope.kind === 'selected') {
+    filter = { criteria: [{ fieldName: request.primaryKeyField ?? 'id', operator: 'IN', values: request.scope.ids }], booleanOperator: 'AND', ...(orderBys ? { orderBys } : {}) }
+  } else if (request.scope.kind === 'sheets') {
+    throw new Error('record sheets are printed with print(), not as a list')
+  }
+  return {
+    tableName: request.table,
+    columns: request.columns.join(','),
+    ...(request.widths?.length === request.columns.length ? { columnWidths: request.widths.join(',') } : {}),
+    filterJSON: JSON.stringify(filter),
+    scope,
+    maxRows: MAX_LIST_ROWS,
+    ...(request.title ? { title: request.title } : {}),
+    ...(request.filterDescription ? { filterDescription: request.filterDescription } : {}),
+    orientation: request.orientation ?? 'AUTO',
+    pageSize: request.pageSize ?? 'LETTER',
+    [PRINTER_FIELD]: request.printer,
+    [COPIES_FIELD]: request.copies ?? 1,
+  }
+}
+
 export interface WatchOptions {
   /** Called whenever any job's state changes (and once at the start). */
   onChange?: (jobs: PrintJob[]) => void
@@ -325,6 +440,21 @@ export class Printing {
     if (!Number.isInteger(copies) || copies < 1 || copies > 100) throw new Error('copies must be 1 to 100')
     const values = await this.transport.runProcess(printProcessName(request.table), { values: { [PRINTER_FIELD]: request.printer, [COPIES_FIELD]: copies }, recordIds: request.ids })
     return jobIdsOf(values)
+  }
+
+  /** Prints a table list (needs printing 2.1); returns the job and the server's row-limit note. */
+  async printTableList(request: TableListRequest): Promise<PrintOutcome> {
+    this.require()
+    const values = await this.transport.runProcess(TABLE_LIST_PROCESS, { values: tableListValues(request), recordIds: [] })
+    return { jobIds: jobIdsOf(values), message: values.printingMessage === undefined ? undefined : String(values.printingMessage), truncated: values.printingTruncated === true || values.printingTruncated === 'true' }
+  }
+
+  /** Prints text, such as a screen capture, as a monospace PDF (needs printing 2.1). */
+  async printText(request: TextRequest): Promise<PrintOutcome> {
+    this.require()
+    if (!request.text.trim()) throw new Error('nothing to print: the text is empty')
+    const values = await this.transport.runProcess(TEXT_PROCESS, { values: { title: request.title, ...(request.subtitle ? { subtitle: request.subtitle } : {}), text: request.text, orientation: request.orientation ?? 'PORTRAIT', pageSize: 'LETTER', [PRINTER_FIELD]: request.printer, [COPIES_FIELD]: request.copies ?? 1 }, recordIds: [] })
+    return { jobIds: jobIdsOf(values) }
   }
 
   /** Cancels jobs still queued in QQQ (jobs a device has taken must be handled at the device). */

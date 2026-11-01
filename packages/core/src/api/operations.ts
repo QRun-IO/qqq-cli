@@ -43,7 +43,7 @@ export const DOCUMENT_EXTENSIONS: DocumentExtension[] = [
   {"name":"release-notes","version":"1.0.0","pathPrefix":"/qbit/release-notes","description":"What's new: published release notes and each user's unread count"},
   {"name":"secured-data","version":"1.1.0","pathPrefix":"/qbit/secured-data","description":"Reveal grants and break-glass status"},
   {"name":"sql-workbench","version":"1.1.0","pathPrefix":"/sql-workbench","description":"Audited SQL execution and notebooks"},
-  {"name":"printing","version":"2.0.0","pathPrefix":"/qbit/printing","description":"Native current-user printing with secondary device proof, device-control-v1 and realtime-v1."},
+  {"name":"printing","version":"2.1.0","pathPrefix":"/qbit/printing","description":"Native current-user printing with secondary device proof, device-control-v1 and realtime-v1; record, table-list and text printing processes."},
 ]
 
 export const OPERATIONS: OperationInfo[] = [

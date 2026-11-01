@@ -26,7 +26,7 @@ Versions merged on 2026-10-31 (machine-readable copy: `packages/ui-api-client/op
 | release-notes | 1.0.0 | `/qbit/release-notes` | 3 | qbit-release-notes `develop` 8fed18e | |
 | secured-data | 1.1.0 | `/qbit/secured-data` | 3 | qbit-secured-data `develop` 7b302ed | |
 | sql-workbench | 1.1.0 | `/sql-workbench` | 21 | qbit-sql-workbench `develop` a182076 | |
-| printing | 2.0.0 | `/qbit/printing` | 17 | qbit-printing `main` 2dd1afb | 2.0.0 (realtime-v1; added 2026-11-01) |
+| printing | 2.1.0 | `/qbit/printing` | 17 | qbit-printing `feat/print-anything` | 2.0.0 (realtime-v1); 2.1.0 adds the table-list and text prints Ctrl+P uses |
 
 219 operations in all, 153 from extensions (printing was appended on 2026-11-01 with
 `scripts/merge-spec.mjs`, keeping the other documents as they were). No extension document conflicted with core or another

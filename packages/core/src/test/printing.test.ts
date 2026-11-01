@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import type { CallInput, CallResult } from '../api/call.js'
 import { ExtensionNotInstalledError, ExtensionRegistry, knownExtension } from '../extensions/registry.js'
-import { Printing, canPrintTo, isFinalJobState, jobIdsOf, jobOf, jobStateSummary, printProcessName, printerOf, readRememberedPrinter, resolvePrinter, tableHasPrint, whyNotPrintable, writeRememberedPrinter, type PrintingTransport } from '../extensions/printing.js'
+import { MAX_LIST_ROWS, Printing, canPrintLists, canPrintTo, listScopeChoices, tableListValues, isFinalJobState, jobIdsOf, jobOf, jobStateSummary, printProcessName, printerOf, readRememberedPrinter, resolvePrinter, tableHasPrint, whyNotPrintable, writeRememberedPrinter, type PrintingTransport } from '../extensions/printing.js'
 import { readConfig, upsertProfile } from '../session/profiles.js'
 
 const withPrinting = ExtensionRegistry.fromVersion({ extensions: [{ name: 'printing', version: '2.0.0' }] })
@@ -154,4 +154,50 @@ test('the chosen printer is remembered per profile and other config is kept', ()
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('table list values: the grid filter and sort; the page keeps skip/limit, all drops them, selected filters by key', () => {
+  const filter = { criteria: [{ fieldName: 'lastName', operator: 'EQUALS', values: ['Odd'] }], booleanOperator: 'AND', orderBys: [{ fieldName: 'id', isAscending: false }], skip: 40, limit: 20 }
+  const base = { table: 'person', columns: ['id', 'firstName'], widths: [4, 20], filter, printer: 'p1', title: 'Person', filterDescription: 'lastName = Odd' }
+  const all = tableListValues({ ...base, scope: { kind: 'all' } })
+  assert.equal(all.scope, 'ALL')
+  assert.deepEqual(JSON.parse(String(all.filterJSON)), { criteria: filter.criteria, booleanOperator: 'AND', orderBys: filter.orderBys })
+  assert.deepEqual([all.tableName, all.columns, all.columnWidths, all.maxRows, all.orientation, all.printingPrinterId, all.printingCopies, all.filterDescription], ['person', 'id,firstName', '4,20', MAX_LIST_ROWS, 'AUTO', 'p1', 1, 'lastName = Odd'])
+  const page = tableListValues({ ...base, scope: { kind: 'page', skip: 20, limit: 20 } })
+  assert.equal(page.scope, 'PAGE')
+  assert.deepEqual([JSON.parse(String(page.filterJSON)).skip, JSON.parse(String(page.filterJSON)).limit], [20, 20])
+  const selected = tableListValues({ ...base, primaryKeyField: 'id', scope: { kind: 'selected', ids: ['3', '5'] } })
+  assert.deepEqual(JSON.parse(String(selected.filterJSON)).criteria, [{ fieldName: 'id', operator: 'IN', values: ['3', '5'] }])
+  assert.equal(tableListValues({ ...base, widths: [4], scope: { kind: 'all' } }).columnWidths, undefined, 'widths that do not match the columns are left out')
+  assert.throws(() => tableListValues({ ...base, scope: { kind: 'sheets', ids: ['1'] } }), /record sheets/)
+})
+
+test('printTableList and printText run the qbit processes without a record selection and pass the row-limit note on', async () => {
+  const { runs, transport } = fake(() => ({}), async (name) => (name === 'printingPrintTableList' ? { printingJobIds: 'j9', printingTruncated: true, printingMessage: 'Printed the first 10000 of 12000 rows' } : { printingJobIds: 'j10' }))
+  const printing = new Printing(withPrinting, transport)
+  const list = await printing.printTableList({ table: 'person', columns: ['id'], filter: {}, scope: { kind: 'all' }, printer: 'p1' })
+  assert.deepEqual(list, { jobIds: ['j9'], message: 'Printed the first 10000 of 12000 rows', truncated: true })
+  assert.deepEqual([runs[0]!.name, runs[0]!.recordIds], ['printingPrintTableList', []])
+  assert.deepEqual(await printing.printText({ title: 'Dashboard', text: 'a\nb', printer: 'p1' }), { jobIds: ['j10'] })
+  assert.deepEqual([runs[1]!.name, runs[1]!.values.title, runs[1]!.values.text, runs[1]!.values.orientation], ['printingPrintText', 'Dashboard', 'a\nb', 'PORTRAIT'])
+  await assert.rejects(printing.printText({ title: 't', text: '  ', printer: 'p1' }), /empty/)
+  await assert.rejects(new Printing(without, transport).printTableList({ table: 'person', columns: ['id'], filter: {}, scope: { kind: 'all' }, printer: 'p1' }), ExtensionNotInstalledError)
+})
+
+test('grid print choices: all rows first when filtered or small, this page first on a large unfiltered grid, the limit named, selections added', () => {
+  const grid = { pageIndex: 2, pageSize: 20, pageRows: 20, selected: [] as string[], recordSheets: true }
+  const small = listScopeChoices({ ...grid, total: 150, filtered: false })
+  assert.deepEqual(small.map((c) => c.label), ['All 150 rows (current filter and sort)', 'This page (rows 41-60)'])
+  assert.deepEqual(small[1]!.value, { kind: 'page', skip: 40, limit: 20 })
+  const large = listScopeChoices({ ...grid, total: 5000, filtered: false })
+  assert.equal(large[0]!.label, 'This page (rows 41-60)')
+  assert.equal(listScopeChoices({ ...grid, total: 5000, filtered: true })[0]!.label, 'All 5,000 rows (current filter and sort)')
+  const huge = listScopeChoices({ ...grid, total: 25000, filtered: true })
+  assert.equal(huge[0]!.label, 'First 10,000 of 25,000 rows (current filter and sort)')
+  assert.match(huge[0]!.detail!, /print limit is 10,000/)
+  const picked = listScopeChoices({ ...grid, total: 150, filtered: false, selected: ['1', '2'] })
+  assert.deepEqual(picked.slice(2).map((c) => c.value.kind), ['selected', 'sheets'])
+  assert.equal(listScopeChoices({ ...grid, total: 150, filtered: false, selected: ['1'], recordSheets: false }).length, 3)
+  assert.equal(canPrintLists({ processes: { printingPrintTableList: {}, printingPrintText: {} } }), true)
+  assert.equal(canPrintLists({ processes: { printingPrintTableList: {} } }), false)
 })

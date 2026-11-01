@@ -94,10 +94,10 @@
     },
     {
       "name": "printing",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "document": "qbit-printing/src/main/resources/openapi/qqq-v1/printing.yaml",
-      "branch": "main",
-      "commit": "2dd1afb"
+      "branch": "feat/print-anything",
+      "commit": "bda172a"
     }
   ]
 }
