@@ -3,7 +3,9 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { FormSession, ProcessError, runProcess, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter } from '@qrun-io/qqq-core'
+import { BACK, FormSession, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
+import { saveFile } from '../overlays/files-helpers'
+import { blockLines, tableLines } from '../widgets'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
 import type { AppStore } from '../store'
@@ -51,6 +53,10 @@ export class ProcessScreen implements Screen {
   log: string[] = []
   processUUID?: string
   private cancelled = false
+  /** The current step's screen (help, HTML, view values, records, widgets, downloads) as text lines, from the kernel. */
+  screenLines: string[] = []
+  backStep?: string
+  downloads: Array<{ fileName: string; query: Record<string, string> }> = []
   /** Files chosen in a step's form, handed to the kernel runner (sent with that step). */
   private stepFiles: Record<string, { name: string; bytes: Uint8Array }> = {}
   private pending?: { resolve: (v: FieldValues) => void; reject: (e: Error) => void }
@@ -114,6 +120,7 @@ export class ProcessScreen implements Screen {
     const client = this.store.client!
     const work = async () => {
       this.meta = await client.processMeta(this.processName)
+      await checkInputRecords(this.meta, this.options.recordIds?.length ? { ids: this.options.recordIds } : this.options.filter ? { filter: this.options.filter } : undefined, (f) => client.count(this.meta!.tableName ?? '', f as QueryFilter))
       this.store.remember({ kind: 'process', name: this.processName, label: this.meta.label ?? this.processName })
       return runProcess({
         baseUrl: client.server,
@@ -138,10 +145,19 @@ export class ProcessScreen implements Screen {
           }
           this.store.bump()
         },
-        provide: (context) => this.provide(context.step, context.fields, context.values, context.response.values ?? {}),
+        provide: (context) => {
+          this.showScreen(context.screen)
+          this.backStep = context.backStep
+          return this.provide(context.step, context.fields, context.values, context.response.values ?? {})
+        },
+        present: (context) => {
+          this.showScreen(context.screen)
+          this.note(`${context.step.label ?? context.step.name}${context.isLast ? '' : ' (shown)'}`)
+        },
       })
     }
     work().then((outcome) => {
+      if (outcome.lastScreen) this.showScreen(outcome.lastScreen)
       this.result = { values: outcome.values, lastStep: outcome.lastStep }
       this.phase = 'done'
       this.finished = Date.now()
@@ -157,6 +173,27 @@ export class ProcessScreen implements Screen {
       this.finished = Date.now()
       this.store.bump()
     })
+  }
+
+  /** Turns the kernel's screen blocks into lines (tables aligned, widgets drawn) and notes downloads. */
+  showScreen(blocks: ScreenBlock[]): void {
+    const width = 100
+    this.downloads = blocks.filter((b): b is Extract<ScreenBlock, { kind: 'download' }> => b.kind === 'download').map((b) => ({ fileName: b.fileName, query: b.query }))
+    const visible = blocks.filter((b) => b.kind !== 'form' && b.kind !== 'review' && b.kind !== 'summary')
+    const text = screenToText(visible, {
+      table: (rows, columns, headers) => tableLines(headers, rows.map((r) => columns.map((c) => String(r[c] ?? ''))), width).map((l) => l.text).join('\n'),
+      widget: (w) => blockLines(w, width).map((l) => l.text).join('\n'),
+    })
+    this.screenLines = text ? text.split('\n') : []
+    this.store.bump()
+  }
+
+  /** Saves a DOWNLOAD_FORM file through the save dialog. */
+  saveDownloadFile(): void {
+    const d = this.downloads[0]
+    if (!d) return this.store.flash('this step offers no file')
+    const c = this.store.client!
+    this.store.run(downloadProcessFile(c.server, c.fetch, d), ({ bytes }) => saveFile(this.store, `Save ${d.fileName}`, safeFileName(d.fileName), (path) => this.store.message(`Saved ${saveDownload(path, bytes, { explicit: true })} (${bytes.length} bytes).`)))
   }
 
   note(text: string): void {
@@ -234,12 +271,23 @@ export class ProcessScreen implements Screen {
   }
 
   fkeys(): FKeyLabels {
-    return { 3: null, 4: null, 6: null, 7: null, 8: null, 5: this.phase === 'done' || this.phase === 'error' || this.phase === 'cancelled' ? 'Re-run' : null }
+    return { 3: null, 4: this.pending && this.backStep ? 'Back' : null, 6: null, 7: null, 8: null, 5: this.phase === 'done' || this.phase === 'error' || this.phase === 'cancelled' ? 'Re-run' : null }
   }
 
   onKey(key: Key): boolean {
     if (key.name === 'escape') {
       this.cancel()
+      return true
+    }
+    if (key.name === 'f4' && this.pending && this.backStep) {
+      const pending = this.pending
+      this.pending = undefined
+      this.phase = 'running'
+      pending.resolve(BACK as unknown as FieldValues)
+      return true
+    }
+    if (charOf(key) === 'w' && this.downloads.length && this.phase !== 'form') {
+      this.saveDownloadFile()
       return true
     }
     if (this.phase === 'form') {
@@ -335,7 +383,8 @@ export class ProcessScreen implements Screen {
     }
     if (this.phase === 'done') {
       lines.push({ text: `Finished in ${this.elapsed(this.started)}`, fg: t.ok, bold: true })
-      lines.push(...this.summaryLines(inner))
+      if (!this.screenLines.length) lines.push(...this.summaryLines(inner))
+      else lines.push(...this.summaryLines(inner).filter((l) => /^(OK|ERROR|WARNING|INFO)/.test(l.text)))
       lines.push({ text: '' })
       lines.push({ text: 'Enter or Esc closes · F5 or r runs it again', fg: t.dim })
     }
@@ -351,7 +400,12 @@ export class ProcessScreen implements Screen {
     }
     body.push(<text flexShrink={0} wrapMode="none" key="stepper" fg={t.dim}>{pad(` ${trunc(stepper, inner - 1)}`, inner)}</text>)
     body.push(<text flexShrink={0} wrapMode="none" key="sp">{pad('', inner)}</text>)
-    for (const h of help) for (const l of wrap(h, inner - 2)) body.push(<text flexShrink={0} wrapMode="none" key={`h${body.length}`} fg={t.dim}>{pad(` ${l}`, inner)}</text>)
+    // the step's screen from the kernel (help, HTML, view values, records, widgets, downloads), else the step's help text
+    const screen = this.screenLines.length ? this.screenLines : help.flatMap((h) => wrap(h, inner - 2))
+    const maxScreen = this.phase === 'form' ? Math.max(0, Math.min(screen.length, Math.floor(height / 3))) : Math.max(0, Math.min(screen.length, height - 12))
+    for (const l of screen.slice(0, maxScreen)) body.push(<text flexShrink={0} wrapMode="none" key={`h${body.length}`} fg={t.fg}>{pad(` ${l}`, inner)}</text>)
+    if (screen.length > maxScreen) body.push(<text flexShrink={0} wrapMode="none" key="hmore" fg={t.dim}>{pad(` … ${screen.length - maxScreen} more lines`, inner)}</text>)
+    if (this.downloads.length && this.phase !== 'form') body.push(<text flexShrink={0} wrapMode="none" key="dl" fg={t.acc2}>{pad(` w saves ${this.downloads[0]!.fileName}`, inner)}</text>)
     let used = body.length
     if (this.phase === 'form' && this.editor) {
       body.push(<text flexShrink={0} wrapMode="none" key="title" fg={t.acc}><strong>{pad(` ${this.step?.label ?? this.step?.name ?? ''}${this.editor.options.bulkEdit ? '  (Ctrl+T marks a field to apply)' : ''}`, inner)}</strong></text>)
