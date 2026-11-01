@@ -42,12 +42,10 @@ Nobody else can do these; each says what happens without it.
       `xattr -d com.apple.quarantine ./qqq-darwin-arm64`, or Finder, right-click, Open.
 - [ ] **Windows Authenticode certificate** (the KofTwentyTwo release standard). Without it SmartScreen
       warns on first run ("Windows protected your PC", More info, Run anyway); Scoop installs still work.
-- [ ] **Create `QRun-IO/homebrew-tap`** by copying `docs/packaging/homebrew-tap/` into a new public
-      repository (main branch) and following it in CircleCI (the qqq-orb `homebrew-tap` profile is
-      already in `.qqq-ci.yml`). Without it: no `brew install`; the curl installer still works.
-- [ ] **Create `QRun-IO/scoop-bucket`** from ScoopInstaller/BucketTemplate, with `docs/packaging/qqq.json`
-      as `bucket/qqq.json` (`scoop bucket add qrun https://github.com/QRun-IO/scoop-bucket`). Without it:
-      Windows users download the `.exe` from the release.
+- [x] **`QRun-IO/homebrew-tap` and `QRun-IO/scoop-bucket` exist** (created from `docs/packaging/homebrew-tap/` and
+      `docs/packaging/qqq.json`). After the GitHub release, run `scripts/update-packaging.mjs` on the uploaded
+      `SHA256SUMS` and commit the filled `Formula/qqq.rb` and `bucket/qqq.json` to them. Without that commit
+      `brew install` and `scoop install` fail their checksum (the curl installer and the download still work).
 - [ ] **CircleCI context** `qqq-maven-registry-credentials` holds a `GITHUB_TOKEN` that can write the
       four `@qrun-io` packages (the orb checks it authenticates; write access is only proven by a publish).
 - [ ] **Go for 1.0.0 final**: the 1.0.0-rc.1 feedback is accepted and no blocker is open.

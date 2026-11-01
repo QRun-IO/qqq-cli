@@ -2,7 +2,7 @@
 
 A typed TypeScript client for the [QQQ](https://github.com/QRun-IO/qqq) UI API (`/qqq/v1`), the API the
 QQQ web UI, the `qqq` CLI and the terminal UI all use. It is generated from the merged OpenAPI document
-(the core API plus the extension documents of 13 QBits) and adds what a native client needs around it:
+(the core API plus the extension documents of 14 QBits) and adds what a native client needs around it:
 OAuth2 device-flow and PKCE sign-in, token refresh, server sessions, typed errors and a realtime (SSE)
 reader.
 

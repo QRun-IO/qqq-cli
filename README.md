@@ -249,7 +249,7 @@ follows the UI API version of the document it is generated from (1.8.0 here), an
 |---|---|---|
 | [`@qrun-io/qqq-cli`](packages/cli) | 1.0.0 | `qqq`, the CLI, and its program as a library (`runCli`) |
 | [`@qrun-io/qqq-core`](packages/core) | 1.0.0 | the client kernel: sessions and keyring, metadata cache, filter grammar, forms, processes, records, render model, output formats. No terminal code |
-| [`@qrun-io/qqq-ui-api-client`](packages/ui-api-client) | 1.8.0 | a typed TypeScript client generated from the merged UI API document (core plus 13 extensions), with OAuth2 device-flow and PKCE sign-in, token refresh and the realtime (SSE) stream |
+| [`@qrun-io/qqq-ui-api-client`](packages/ui-api-client) | 1.8.0 | a typed TypeScript client generated from the merged UI API document (core plus 14 extensions), with OAuth2 device-flow and PKCE sign-in, token refresh and the realtime (SSE) stream |
 | [`@qrun-io/qqq-ui-api-conformance`](packages/conformance) | 1.6.0 | a read-only conformance suite for any UI API server, and `qqq-dev-idp`, a local OIDC provider for testing native clients |
 | [`packages/tui`](packages/tui) | in the binaries | `qqq ui`, the full-screen terminal UI (OpenTUI on Bun), bundled into every `qqq` binary; not an npm package |
 
