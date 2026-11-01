@@ -159,6 +159,10 @@ First release candidate of `qqq` 1.0: the command-line client and the full-scree
 - `npm test` runs on Node 20 (the test glob is expanded by the shell; `node --test` only expands globs
   from Node 21).
 - A question closed with Ctrl-D no longer hangs on Node 22.12 (readline left the question pending).
+- In the UI's grid, adorned cells are drawn like the record view: REVEAL values stay masked, HTML shows
+  as text and chips in brackets (they showed secrets and raw HTML before).
+- The UI's create form asks for a text primary key (such as a file name) and leaves out generated
+  numeric keys.
 - The hardening review (`docs/review-2026-10-31.md`): option collisions, `table update` on contingent
   fields, corrupt config and secrets files no longer overwritten, awaited 0.1 imports, Ctrl-C and Ctrl-D at
   prompts, REVEAL values masked in query cells, one DATE_TIME, help and download path, checked numeric
