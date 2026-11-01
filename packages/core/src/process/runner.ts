@@ -295,6 +295,8 @@ export const INPUT_COMPONENTS = ['EDIT_FORM', 'BULK_EDIT_FORM', 'VALIDATION_REVI
  */
 export function hasInputs(step: ProcessStep): boolean {
   const types = (step.components ?? []).map((c) => c.type)
+  const controls = adHocControls(step)
+  if (controls.inputs.length || controls.buttons.length) return true
   if (types.length) return types.some((t) => INPUT_COMPONENTS.includes(t))
   return (step.formFields?.length ?? 0) > 0
 }
@@ -303,11 +305,51 @@ export function hasInputs(step: ProcessStep): boolean {
 export function inputFields(step: ProcessStep, response: StepResponse & { type: 'COMPLETE' }): FieldMeta[] {
   const adjusted = response.processMetaDataAdjustment?.updatedFields ?? {}
   const types = (step.components ?? []).map((c) => c.type)
-  if (types.length && !types.some((t) => t !== 'VALIDATION_REVIEW_SCREEN' && INPUT_COMPONENTS.includes(t))) return []
   const base = step.formFields ?? []
   const names = new Set<string>()
   for (const c of step.components ?? []) if (c.type !== 'VIEW_FORM') for (const n of ((c.values?.includeFieldNames as string[] | undefined) ?? [])) names.add(n)
   const fields = base.map((f) => ({ ...f, ...(adjusted[f.name] ?? {}) }))
-  if (names.size === 0) return fields.filter((f) => f.isEditable !== false)
-  return fields.filter((f) => names.has(f.name) && f.isEditable !== false)
+  // INPUT_FIELD blocks of an ad hoc composite WIDGET are inputs of the step too
+  const adHocAll = adHocControls(step).inputs.map((i) => ({ ...(base.find((f) => f.name === i.field.name) ?? i.field), ...(adjusted[i.field.name] ?? {}) }))
+  if (types.length && !types.some((t) => t !== 'VALIDATION_REVIEW_SCREEN' && INPUT_COMPONENTS.includes(t))) return adHocAll
+  const adHoc = adHocAll.filter((f) => !base.some((b) => b.name === f.name))
+  if (names.size === 0) return [...fields.filter((f) => f.isEditable !== false), ...adHoc]
+  return [...fields.filter((f) => names.has(f.name) && f.isEditable !== false), ...adHoc]
+}
+
+/** An ad hoc composite WIDGET's controls: INPUT_FIELD blocks (fields the step asks for) and BUTTON blocks. */
+export interface AdHocControls {
+  inputs: Array<{ field: FieldMeta; submitOnEnter: boolean }>
+  /** Buttons: an `actionCode` submits the step with it; a `controlCode` (showModal:x, …) only changes what shows. */
+  buttons: Array<{ label: string; actionCode?: string; controlCode?: string }>
+}
+
+/**
+ * The inputs and buttons of a step's ad hoc composite widgets (blocks nested in `blocks`,
+ * `subBlocks` or a block's `values.blocks`). With `values`, blocks whose `conditional` names a
+ * false value are left out, as the web does.
+ */
+export function adHocControls(step: Pick<ProcessStep, 'components'>, values?: FieldValues): AdHocControls {
+  const out: AdHocControls = { inputs: [], buttons: [] }
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) return node.forEach(visit)
+    if (!node || typeof node !== 'object') return
+    const b = node as Record<string, unknown>
+    if (values && typeof b.conditional === 'string' && b.conditional && !values[b.conditional]) return
+    const v = (b.values ?? {}) as Record<string, unknown>
+    if (b.blockTypeName === 'INPUT_FIELD' && v.fieldMetaData && typeof (v.fieldMetaData as FieldMeta).name === 'string' && !(v.fieldMetaData as FieldMeta).isHidden) {
+      const f = v.fieldMetaData as FieldMeta
+      if (!out.inputs.some((i) => i.field.name === f.name)) out.inputs.push({ field: { ...f, label: f.label ?? f.name, type: f.type ?? 'STRING' }, submitOnEnter: v.submitOnEnter === true })
+    }
+    if (b.blockTypeName === 'BUTTON') {
+      const actionCode = typeof v.actionCode === 'string' && v.actionCode ? v.actionCode : undefined
+      const controlCode = typeof v.controlCode === 'string' && v.controlCode ? v.controlCode : undefined
+      if (actionCode || controlCode) out.buttons.push({ label: String(v.label ?? actionCode ?? controlCode), ...(actionCode ? { actionCode } : {}), ...(controlCode ? { controlCode } : {}) })
+    }
+    visit(b.blocks)
+    visit(b.subBlocks)
+    visit(v.blocks)
+  }
+  for (const c of step.components ?? []) if (c.type === 'WIDGET' && c.values?.isAdHocWidget === true) visit([c.values.blocks, c.values.subBlocks])
+  return out
 }

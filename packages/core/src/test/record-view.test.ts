@@ -128,3 +128,22 @@ test('one help text rule: help show, the record view and process screens agree',
   }
   assert.deepEqual(entries.map((e) => helpContentText(e)), ['Use this', 'md', 'plain', 'from server'])
 })
+
+test('CHIP colors and icons by value; tables measure colored cells by what shows', async () => {
+  const { chipStyle } = await import('../records/record-view.js')
+  const { chipAnsi, formatTable } = await import('../render/output.js')
+  const chip: FieldMeta = { name: 's', label: 'S', type: 'STRING', adornments: [{ type: 'CHIP', values: { 'color.ACTIVE': 'success', 'icon.ACTIVE': 'check_circle', 'color.LATE': 'error' } }] } as FieldMeta
+  assert.deepEqual(chipStyle(chip, 'ACTIVE'), { color: 'success', icon: 'check_circle' })
+  assert.deepEqual(chipStyle(chip, 'OTHER'), { color: 'default' })
+  assert.deepEqual(chipStyle({ ...chip, adornments: [{ type: 'CHIP', values: { colorMap: { Error: 'red' } } }] } as FieldMeta, 'Error'), { color: 'error' })
+  const shown = valueText(chip, { values: { s: 'ACTIVE' } } as RecordLike)
+  assert.equal(shown.text, '[ACTIVE] (icon check_circle)')
+  assert.deepEqual(shown.chip, { color: 'success', icon: 'check_circle' })
+  assert.equal(valueText(chip, { values: { s: 'ACTIVE' } } as RecordLike, { cell: true }).text, '[ACTIVE]')
+  const table = formatTable([{ a: chipAnsi('[LATE]', 'error'), b: 'x' }, { a: 'long value', b: 'y' }], ['a', 'b'])
+  assert.equal(table.replace(/\x1b\[[0-9;]*m/g, ''), 'a           b\n----------  -\n[LATE]      x\nlong value  y')
+})
+
+test('HTML fields show as text', () => {
+  assert.equal(valueText({ name: 'h', label: 'H', type: 'HTML' } as FieldMeta, { values: { h: '<p>Hi <b>there</b></p>' } } as RecordLike).text, 'Hi there')
+})

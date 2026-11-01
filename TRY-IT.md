@@ -327,6 +327,20 @@ fields:
 keyFields: id                 # bulk edit with a file
 ```
 
+Records, queries and developer tools added for parity:
+
+```sh
+qqq table columns person id lastName email      # the columns table query shows, kept per table (shared with the TUI); --reset
+qqq table query pet -w "speciesId = Cat"        # possible-value labels in filters are sent as ids
+qqq table query person -w "weekday(birthDate) IN 1,7" --print-filter   # ISO weekdays; the sample's H2 fails it (finding 24)
+qqq table update fieldLab 3 -e htmlValue        # edit an HTML or code field in $VISUAL/$EDITOR; HTML shows as text
+qqq table get person 1 --copy email             # copy a value (REVEAL values unmasked) to the clipboard
+qqq table query <variant table> --variant -     # the variant chosen for a table is remembered; - forgets it
+qqq table api-call <t> <api> <version> GET <path>   # try a request against an application API (none in the sample)
+qqq script test <t> <pk> <field> -v input=value     # run a script against test inputs (no scripts in the sample)
+qqq table widget-form <t> <pk> <widget> --set f=v   # edit a dynamicForm widget on a record form (none in the sample)
+```
+
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
 the CLI: jobs on a durable-jobs server, TABLE_BASED sign-in. Built but not verifiable against this sample, which has none of them:
 saved views, server-side column statistics (columnStats), audits, a variant-backed table, exposed joins (joins were

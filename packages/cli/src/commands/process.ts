@@ -7,7 +7,7 @@ import { mkdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
-import { BACK, displayDateTime, formatValue, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpToText, isMissingValue, processHelp, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, variantParam, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, adHocControls, displayDateTime, formatValue, FormInputError, FormSession, ProcessCancelledError, ProcessError, blocksToText, checkInputRecords, downloadProcessFile, formatTable, helpToText, isMissingValue, processHelp, processHelpText, runProcess, safeFileName, saveDownload, screenToText, summaryLines, variantParam, type FieldMeta, type ProcessMeta, type RunOutcome, type ScreenBlock } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { ask, promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -185,6 +185,19 @@ export function registerProcess(program: Command, ctx: () => Context): void {
               if (Object.keys(problems).length) throw new UiApiError(400, { code: 'BAD_REQUEST', message: `Step "${step.label ?? step.name}" has invalid values`, fieldErrors: Object.entries(problems).map(([field, message]) => ({ field, message: `${session.fields[field]?.label ?? field} ${message}` })) })
               for (const f of fields) if (session.values[f.name] !== undefined) out[f.name] = session.values[f.name]
             }
+            // an ad hoc composite widget's buttons: an actionCode submits the step with it
+            const buttons = adHocControls(step, values).buttons.filter((b) => b.actionCode)
+            if (buttons.length && given.actionCode === undefined) {
+              if (canPrompt) {
+                buttons.forEach((b, i) => c.note(`  ${i + 1}. ${b.label}`))
+                const answer = await ask(`Choose a button (1-${buttons.length})${inputs.length ? ', or Enter to submit the values' : ''}: `, { signal: abort.signal })
+                const chosen = buttons[Number(answer) - 1] ?? buttons.find((b) => b.label.toLowerCase() === answer.toLowerCase() || b.actionCode === answer)
+                if (chosen) out.actionCode = chosen.actionCode
+                else if (answer || !inputs.length) throw new UsageError(`No button "${answer}" (${buttons.map((b) => b.label).join(', ')})`)
+              } else if (!inputs.length) {
+                throw new UsageError(`Step "${step.label ?? step.name}" offers buttons: pass --values actionCode=<code> (${buttons.map((b) => `${b.actionCode} = ${b.label}`).join(', ')})`)
+              }
+            } else if (given.actionCode !== undefined) out.actionCode = given.actionCode
             if (backStep && canPrompt) {
               const backLabel = outcomeStepLabel(meta, backStep)
               const answer = await ask(`Enter to continue, b to go back to ${backLabel}: `, { signal: abort.signal })

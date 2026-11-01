@@ -254,7 +254,7 @@ export async function buildScreen(options: ScreenOptions): Promise<ScreenBlock[]
       case 'WIDGET': {
         if (cv.isAdHocWidget === true) {
           const nested = (cv.blocks ?? cv.subBlocks) as unknown
-          blocks.push({ kind: 'widget', blocks: widgetToBlocks({ type: 'composite', blocks: interpolate(Array.isArray(nested) ? nested : [], values) }) })
+          blocks.push({ kind: 'widget', blocks: widgetToBlocks({ type: 'composite', blocks: interpolate(shownBlocks(Array.isArray(nested) ? nested : [], values), values) }) })
           break
         }
         const name = typeof cv.widgetName === 'string' ? cv.widgetName : ''
@@ -289,6 +289,18 @@ export async function buildScreen(options: ScreenOptions): Promise<ScreenBlock[]
     }
   }
   return blocks
+}
+
+/** Leaves out blocks whose `conditional` names a false process value (Material's dynamic evaluation). */
+function shownBlocks(blocks: unknown[], values: FieldValues): unknown[] {
+  return blocks.filter((b) => !(b && typeof b === 'object' && typeof (b as Record<string, unknown>).conditional === 'string' && (b as Record<string, unknown>).conditional && !values[(b as Record<string, string>).conditional!]))
+    .map((b) => {
+      if (!b || typeof b !== 'object') return b
+      const o = { ...(b as Record<string, unknown>) }
+      for (const k of ['blocks', 'subBlocks']) if (Array.isArray(o[k])) o[k] = shownBlocks(o[k] as unknown[], values)
+      if (o.values && typeof o.values === 'object' && Array.isArray((o.values as Record<string, unknown>).blocks)) o.values = { ...(o.values as Record<string, unknown>), blocks: shownBlocks((o.values as Record<string, unknown>).blocks as unknown[], values) }
+      return o
+    })
 }
 
 /** Replaces `${name}` in the text values of ad hoc widget blocks with process values. */
