@@ -148,7 +148,7 @@ qqq table create pet --set name=Pixel --set personId=2 --set speciesId=Dog
 qqq table bulk-insert person --file people.csv --dry-run          # map, validate and review; --yes loads
 qqq home                                                          # what you may open, with the command for each
 qqq find person                                                   # the command palette as a command
-qqq api getTableMetaData --path tableName=person -Q 'fields.*.label'   # any of the 202 operations by id
+qqq api getTableMetaData --path tableName=person -Q 'fields.*.label'   # any of the 219 operations by id
 eval "$(qqq completion zsh)"                                      # also bash, fish and PowerShell
 ```
 
@@ -159,6 +159,7 @@ eval "$(qqq completion zsh)"                                      # also bash, f
 | `home`, `find`, `apps`, `search`, `tail`, `whoami` | the landing page, the command palette, app homes (`--widgets`), global search, the live event stream, who you are |
 | `report`, `saved-report`, `saved-view`, `share`, `bulk-profile`, `audit`, `widget`, `script`, `job`, `prefs`, `help-search` | reports and saved reports (pivots, schedules), saved views, sharing, saved bulk-load mappings, audit history, dashboard widgets as text, associated scripts, jobs, preferences, help |
 | `api <operationId>` | any UI API operation by id: the escape hatch |
+| `print`, `printer` | print records (`print person 1 2`), follow and cancel print jobs (`print job list\|status\|cancel`), printers and print agents (`printer list\|use\|show\|forget\|devices`); needs the printing extension |
 | `extensions`, and one noun per extension | `esb`, `collab`, `health`, `alerts`, `assistant`, `sql-workbench`, ..., offered when the server has the extension installed |
 | `login`, `logout`, `config`, `cache`, `completion`, `doctor`, `ui` | sign-in, profiles and settings, the metadata cache, shell completion, the environment check, the terminal UI |
 
@@ -178,6 +179,15 @@ TABLE_BASED password prompt.
 **Exit codes:** 0 ok, 1 error, 2 usage or bad filter, 3 auth, 4 server unreachable or rate limited,
 5 not found, 6 validation, 70 server error, 130 interrupted. Every request carries
 `X-QQQ-Client: cli/qqq-cli <version>` for the server's audit trail.
+
+**Printing.** On a server with the printing extension (qbit-printing 2.x) and a print agent connected,
+`qqq printer list` shows the printers (approved, exposed by their agent, formats), `qqq printer devices`
+the agents and their health, and `qqq print person 1 2 --printer "Virtual PDF printer"` renders each
+record as a record sheet, queues one job per record and follows them until they have printed (`--no-wait`
+returns at once; `qqq print job status <id> --watch` follows later; `qqq print job cancel <id>` cancels a
+job still queued). The printer given with `--printer` (or `qqq printer use`) is remembered per profile.
+Tables print only where the server enabled Print for them. For local testing without hardware,
+`scripts/print-agent.sh` runs qqq-print-agent's virtual file printer, which writes each job to a directory.
 
 [TRY-IT.md](TRY-IT.md) walks through every command against the sample server.
 
@@ -208,7 +218,9 @@ qqq ui --theme light                                      # high-contrast (defau
 
 Grids page on the server, sort, filter with a guided builder or the grammar, quick search, show column
 statistics and export; records open with their sections, child lists and next/previous; forms handle
-contingent fields, uploads and validation; processes run as a wizard with progress and cancel. Keys, screens
+contingent fields, uploads and validation; processes run as a wizard with progress and cancel. With the
+printing extension, `p` (Print…) on a record or a grid selection opens a printer picker and the jobs are
+followed in the status line (`print 1/3 RECEIVED`), with `:printjobs` for the recent ones. Keys, screens
 and settings: [`packages/tui/README.md`](packages/tui/README.md).
 
 ## Compatibility

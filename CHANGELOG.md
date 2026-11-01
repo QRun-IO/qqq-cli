@@ -11,6 +11,23 @@ binary per platform. Packages: `@qrun-io/qqq-cli` 1.0.0, `@qrun-io/qqq-core` 1.0
 to 2.0. Released as 1.0.0-rc.1 first (tags `v1.8.0-rc.2`, `cli-v1.0.0-rc.1`); this entry is that
 candidate's, plus the changes since it listed first.
 
+### Added since 1.0.0-rc.1
+
+- Printing (the printing extension, qbit-printing 2.x). The CLI: `qqq print <table> <id...>` renders each
+  record as a record sheet through the table's Print process, queues one job per record and follows them
+  until they have printed (`--printer`, `--copies`, `--no-wait`, `--timeout`; exit 1 when a job failed, 4
+  when they are still running at the timeout); `qqq print job list|status [--watch]|cancel`; `qqq printer
+  list|use|show|forget|devices` (printers with approval, exposure and formats; print agents with their
+  health). The printer chosen is remembered per profile (`printing.printers` in config.json). The UI: `p`
+  (Print…) on a record or a grid selection opens a printer picker (unprintable printers shown with the
+  reason, the last used one preselected), the jobs are followed in the title bar and status line, and
+  `:printjobs` lists recent jobs. The kernel: `Printing` (printers, devices, jobs, print, cancel, watch)
+  and the remembered-printer helpers. Without the extension the commands exit 5 with the installed list
+  and the UI offers no Print action. The client document carries the printing 2.0.0 operations
+  (219 operations; `qqq printing ...` for the agent-side ones), and the conformance suite checks
+  `GET /qbit/printing/session` and the printing tables when a server lists printing.
+  `scripts/print-agent.sh` runs qqq-print-agent's virtual file printer against a local server.
+
 ### Changed since 1.0.0-rc.1
 
 - **One meaning for `-o` across the CLI: `-o`/`--out` is always the output file; the sort is `--order`**
