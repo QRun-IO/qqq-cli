@@ -19,7 +19,7 @@ Checked on 2026-10-31 by running the orb's own `cli_verify.sh` in Docker on the 
 | Image | Result |
 |---|---|
 | `node:20-bookworm-slim` (Node 20.20.2) | all green |
-| `cimg/node:22.12` (the orb's image) | **fails**: two tests in `packages/cli/src/test/prompt.test.ts` (Ctrl-D and Ctrl-C at a question) end with "Promise resolution is still pending but the event loop has already resolved". They pass on Node 20.20, 22.23 and 24.22; it is a readline behaviour of 22.12. The fix belongs in the test or `prompt.ts`, or the orb image moves to a current 22.x. |
+| `cimg/node:22.12` (the orb's image) | all green since 2026-10-31. Before, two prompt tests (Ctrl-D and Ctrl-C at a question) hung: on 22.12 readline leaves a pending question unsettled when Ctrl-D closes the interface. `prompt.ts` now also settles the question when the interface closes; checked on Node 20.20, 22.12 and 24.22. |
 
 Gaps in the profile, to fix in the orb:
 
@@ -37,7 +37,48 @@ Gaps in the profile, to fix in the orb:
   `git diff --exit-code` line (`scripts/release.mjs` already checks both).
 - The TUI (`npm run test:tui`, `typecheck:tui`) needs Bun, which the image does not have.
 
-## Proposal: platform lanes
+## Proposal for James: two orb changes
+
+Ready to send as is. Nothing has been opened or pushed; both changes are in `kingsrook/qqq-orb` and
+need an orb release (0.8.x patch) before this repository picks them up.
+
+> **Subject: qqq-orb `cli` profile: publish @qrun-io/qqq-core, and opt-in macOS/Windows lanes**
+>
+> qqq-cli 1.0.0-rc.1 is ready to tag except for two things only the orb can fix.
+>
+> **1. Publish `@qrun-io/qqq-core` (blocking).** The CLI now depends on the kernel package
+> `@qrun-io/qqq-core`, but `cli_publish.sh` publishes only the client, conformance and CLI. A tagged
+> release would publish a CLI that `npm install` cannot resolve. Change (src/scripts/cli_publish.sh):
+>
+> ```diff
+>  const packages = [
+>    ['packages/ui-api-client/package.json', '@qrun-io/qqq-ui-api-client'],
+> +  ['packages/core/package.json', '@qrun-io/qqq-core'],
+>    ['packages/conformance/package.json', '@qrun-io/qqq-ui-api-conformance'],
+>    ['packages/cli/package.json', '@qrun-io/qqq-cli'],
+>  ];
+> @@
+>  npm publish -w @qrun-io/qqq-ui-api-client --registry https://npm.pkg.github.com --tag rc
+> +npm publish -w @qrun-io/qqq-core --registry https://npm.pkg.github.com --tag rc
+>  npm publish -w @qrun-io/qqq-ui-api-conformance --registry https://npm.pkg.github.com --tag rc
+>  npm publish -w @qrun-io/qqq-cli --registry https://npm.pkg.github.com --tag rc
+> ```
+>
+> Core already has `publishConfig` for GitHub Packages, so the destination check passes. While there,
+> `cli_verify.sh` should also run `npm run lint` (it now checks that the release versions agree) and
+> diff `packages/core/src/api/operations.ts` next to `schema.ts`. Workaround until then: publish core
+> by hand right after the orb job (`scripts/release.mjs` prints the command).
+>
+> **2. Opt-in platform lanes (not blocking 1.0.0-rc.1, wanted before 1.0).** The CLI ships binaries for
+> macOS, Linux and Windows and has three keyring backends, but CI runs only Linux. Proposal: a new orb
+> job `cli_platform` (the YAML below) and a manifest key `platforms: [macos-arm64, windows-x64]` that
+> `cli_template` turns into one job per platform, required before publishing on tags. macOS and
+> Windows executors cost more credits and need the plan to include `m4pro.medium` and
+> `windows.medium`. A repository without the key gets exactly today's pipeline.
+>
+> Details and the job YAML: `docs/ci-lanes.md` in qqq-cli (branch `feat/m5-cli-release`).
+
+## Platform lanes in detail
 
 Two lanes, both on pull requests and tags: **macOS arm64** (tier 1 in the design, Keychain) and
 **Windows x64** (tier 2, DPAPI, PowerShell completion, the cross-compiled `.exe` actually run). Each
