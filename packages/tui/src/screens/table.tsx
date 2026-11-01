@@ -29,6 +29,8 @@ export interface GridColumn {
   type: string
   width: number
   numeric: boolean
+  /** The field's adornments: cells are drawn as the record view draws them (REVEAL masked, HTML as text…). */
+  adornments?: FieldMetaData['adornments']
 }
 
 /** The default column order: primary key, then section fields by tier, then the rest (hidden and heavy left out). */
@@ -55,7 +57,7 @@ export function layoutColumns(fields: FieldMetaData[], rows: QueryRecord[], avai
     const numeric = ['INTEGER', 'LONG', 'DECIMAL'].includes(f.type) && !f.possibleValueSourceName
     const longest = Math.max(f.label.length + 1, ...rows.map((r) => fieldCell(r, f).length), 3)
     const saved = view.widths?.[f.name]
-    return { name: f.name, label: f.label, type: f.type, numeric, longest, width: saved ?? Math.min(40, longest) }
+    return { name: f.name, label: f.label, type: f.type, adornments: f.adornments, numeric, longest, width: saved ?? Math.min(40, longest) }
   })
   const total = () => cols.reduce((a, c) => a + c.width + gap, 0)
   let spare = available - total()

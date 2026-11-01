@@ -64,6 +64,11 @@ function textOf(value: unknown): string {
  * fields. Keys are read from the object's state (no React closures), so a burst of keys lands in
  * the field that had focus when each key was read. Used by table forms and process steps.
  */
+/** A primary key the server makes (a number, or not editable): not asked on create; a text key is typed in. */
+function generatedKey(f: { type?: string; isEditable?: boolean | null } | undefined): boolean {
+  return !f || f.isEditable === false || f.type === 'INTEGER' || f.type === 'LONG'
+}
+
 export class FormEditor {
   index = 0
   top = 0
@@ -395,7 +400,7 @@ export class FormScreen implements Screen {
       this.originals = { ...initial }
       for (const f of Object.values(meta.fields)) if (f.type === 'DATE_TIME' && isInstant(initial[f.name])) initial[f.name] = utcToLocalInput(String(initial[f.name]), defaultTimeZone())
       const fields = Object.values(meta.fields) as FieldMeta[]
-      const session = new FormSession({ baseUrl: client.server, fetch: client.fetch, scope: { table: this.tableName }, fields, initialValues: initial, tableMeta: meta as never, exclude: this.options.mode === 'edit' ? [] : [meta.primaryKeyField] })
+      const session = new FormSession({ baseUrl: client.server, fetch: client.fetch, scope: { table: this.tableName }, fields, initialValues: initial, tableMeta: meta as never, exclude: this.options.mode === 'edit' || !generatedKey(meta.fields[meta.primaryKeyField]) ? [] : [meta.primaryKeyField] })
       for (const [k, v] of Object.entries(display)) if (session.hasChoices(k) && !isMissingValue(initial[k])) session.displayValues[k] = v
       // labels for prefilled possible values (create child: the parent's id)
       for (const [k, v] of Object.entries(this.options.initial ?? {})) {

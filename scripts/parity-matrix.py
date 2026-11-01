@@ -393,6 +393,39 @@ TUI.update({
 TUI.update({
  'SEC-030': (B, 'needs a real Auth0 tenant: [qqq-cli#10](https://github.com/QRun-IO/qqq-cli/issues/10); the sample has no AUTH_0 configuration ([qqq#1359](https://github.com/QRun-IO/qqq/issues/1359), finding 28); the Auth0 protocol path is SEC-029'),
 })
+# Verified live on a private server from the qqq fix branch 8bf6a5a66 (UI API 1.9.0, sample with
+# -Dqqq.sample.sharing=true) on port 8091; :8077 runs the released sample.
+FIX = 'live on fix branch 8bf6a5a66'
+LIVE = {
+ 'QRY-085': (P, f'weekday(birthDate) IN 1,7 returns its 2 people ({FIX}; on the released sample it fails, finding 24, qqq#1355)'),
+ 'QRY-010': (None, f'text matches ignore case (CASE_INSENSITIVE), Match exact case on request ({FIX})'),
+ 'QRY-019': (None, f'q avery finds Avery (CASE_INSENSITIVE); =Text matches exact case ({FIX})'),
+ 'NAV-030': (None, f'{FIX}: recordSearch is no longer advertised and the palette says so; POST /search still has no provider (finding 21)'),
+ 'PRC-020': (None, 'still blocked on the fix branch (finding 13)'),
+ 'REC-022': (None, f'upload into uploadedFileArchive (text primary key typed on create) and download of the same 22 bytes ({FIX})'),
+ 'REC-028': (None, f'adornmentLab carrier LINK ({FIX})'),
+ 'REC-029': (None, f'adornmentLab CHIP [ACTIVE] in the grid and the record ({FIX})'),
+ 'REC-030': (None, f'adornmentLab SIZE ({FIX})'),
+ 'REC-032': (None, f'adornmentLab RENDER_HTML as text in the grid and the record ({FIX})'),
+ 'REC-033': (None, f'adornmentLab REVEAL masked in the grid and the record ({FIX})'),
+ 'REC-034': (None, f'adornmentLab FILE_DOWNLOAD ({FIX})'),
+ 'REC-036': (None, f'adornmentLab TOOLTIP ({FIX})'),
+ 'REC-037': (None, f'adornmentLab WIDGET field with a plain value shows the value ({FIX})'),
+ 'REL-007': (None, f'adornmentLab tags through the composite association ({FIX})'),
+ 'REL-008': (None, f'a new adornmentLab tag gets adornmentLabId and labKey ({FIX})'),
+ 'SEC-012': (None, f'adornmentLabLocker 2 answers Permission denied, shown on the record screen ({FIX})'),
+ 'SEC-011': (None, f'sharing demo: the owner sample:alice shares her saved report ({FIX})'),
+ 'RPT-009': (None, f'saved report Pet Species Report: filter, sort, columns, pivot ({FIX})'),
+ 'RPT-013': (None, f'shared Pet Species Report Read-Only ({FIX})'),
+ 'RPT-014': (None, f'changed to Read and Edit ({FIX})'),
+ 'RPT-015': (None, f'removed the share ({FIX})'),
+ 'HLP-002': (None, f'F1 on adornmentLab: table and section help ({FIX})'),
+}
+for _rid, (_st, _extra) in LIVE.items():
+    _cur = TUI.get(_rid, (P, ''))
+    _note = _cur[1].replace(' (unit-tested only)', '').replace('(unit-tested only)', '').strip()
+    TUI[_rid] = (_st or _cur[0], _extra if _st else (f'{_note}; {_extra}' if _note else _extra))
+
 rows = []
 for line in open(SRC, encoding='utf-8', errors='replace'):
     m = re.match(r'^\|\s*([A-Z]{3}-\d{3})\s*\|\s*(.*?)\s*\|', line)

@@ -315,7 +315,10 @@ export class RecordScreen implements Screen {
       const widgetFields = fields.filter((f) => f.adornments?.some((a) => a.type === 'WIDGET') && rec.values?.[f.name] && typeof rec.values[f.name] === 'object')
       for (const f of widgetFields) {
         rows.push({ text: `  ${f.label}`, fg: t.fg, bold: true })
-        rows.push(...blockLines(widgetToBlocks(rec.values![f.name]), inner - 6).map((l) => ({ ...l, text: `    ${l.text}` })))
+        const wv = rec.values![f.name]
+        // a WIDGET-adorned field whose value is plain text (not a widget payload) shows the text
+        if (wv !== null && typeof wv !== 'object') rows.push({ text: `    ${String(wv)}` })
+        else rows.push(...blockLines(widgetToBlocks(wv), inner - 6).map((l) => ({ ...l, text: `    ${l.text}` })))
       }
       const plainFields = fields.filter((f) => !widgetFields.includes(f))
       for (let i = 0; i < plainFields.length; i += two ? 2 : 1) {
