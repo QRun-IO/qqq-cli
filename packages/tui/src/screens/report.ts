@@ -4,7 +4,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import type { FieldValues } from '@qrun-io/qqq-core'
+import { exportFileName, type FieldValues } from '@qrun-io/qqq-core'
 import { openProcess } from '../nav'
 import { ChoiceOverlay } from '../overlays/basic'
 import { saveFile } from '../overlays/files-helpers'
@@ -59,7 +59,7 @@ export function openReport(store: AppStore, name: string, values: FieldValues = 
   chooseFormat((format) => {
     store.run(c.call('runReport', { path: { reportName: name }, query: { format: format.toLowerCase() } }), (r) => {
       const bytes = r.bytes ?? new TextEncoder().encode(typeof r.data === 'string' ? r.data : JSON.stringify(r.data ?? ''))
-      saveFile(store, `Save ${meta.label ?? name}`, `${name}.${format.toLowerCase()}`, (path) => {
+      saveFile(store, `Save ${meta.label ?? name}`, exportFileName(name, format.toLowerCase()), (path) => {
         try {
           writeFileSync(path, bytes)
           store.message(`Wrote ${path} (${num(bytes.length)} bytes).`)

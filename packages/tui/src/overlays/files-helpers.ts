@@ -4,7 +4,8 @@
  */
 
 import { existsSync } from 'node:fs'
-import { readFilePreferences, safeFileName, silentDownloadPath, startDirForSave, startDirForUpload } from '@qrun-io/qqq-core'
+import { basename, dirname, join } from 'node:path'
+import { alternativeNames, readFilePreferences, safeFileName, silentDownloadPath, startDirForSave, startDirForUpload } from '@qrun-io/qqq-core'
 import type { AppStore } from '../store'
 import { FileDialog } from './files'
 
@@ -17,7 +18,11 @@ export function saveFile(store: AppStore, title: string, suggested: string, writ
   if (prefs.downloadMode === 'silent') {
     const base = silentDownloadPath(safeFileName(suggested), prefs)
     let path = base
-    for (let i = 1; existsSync(path); i++) path = base.replace(/(\.[^./]*)?$/, (ext) => `-${i}${ext}`)
+    // taken: the date and time go before the extension, then -1, -2, ...
+    for (const candidate of alternativeNames(basename(base))) {
+      path = join(dirname(base), candidate)
+      if (!existsSync(path)) break
+    }
     write(path)
     return
   }

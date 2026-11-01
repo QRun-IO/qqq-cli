@@ -13,7 +13,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { htmlToText, datePickerValue, readViewSettings, reconcileSelections, resolveDropdowns, safeFileName, widgetCsv, widgetParams, widgetToBlocks, writeViewSettings, type QueryFilter, type RenderBlock, type WidgetContext, type WidgetControlMeta } from '@qrun-io/qqq-core'
+import { exportFileName, htmlToText, datePickerValue, readViewSettings, reconcileSelections, resolveDropdowns, safeFileName, widgetCsv, widgetParams, widgetToBlocks, writeViewSettings, type QueryFilter, type RenderBlock, type WidgetContext, type WidgetControlMeta } from '@qrun-io/qqq-core'
 import { esbOverviewBlocks } from './esb'
 import { htmlRowBlocks } from './html-rows'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
@@ -242,7 +242,7 @@ export class WidgetView {
   exportCsv(): void {
     const csv = widgetCsv(this.data)
     if (csv === undefined) return this.store.flash('There is no data available to export.')
-    saveFile(this.store, `Export ${this.label}`, `${safeFileName(this.label)}.csv`, (path) => {
+    saveFile(this.store, `Export ${this.label}`, exportFileName(this.label, 'csv'), (path) => {
       try {
         writeFileSync(path, csv)
         this.store.message(`Wrote ${path} (${num(csv.length)} bytes).`)

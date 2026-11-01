@@ -38,7 +38,7 @@ function qqq(args: string[], env: Record<string, string> = {}, input?: string): 
 
 function normalize(text: string): string {
   // paths under the sandbox home are compared with / separators, so the golden files hold on Windows too
-  return text.split(server.url).join('http://fake').split(box.env.HOME!).join('<home>').replace(/<home>[^\s"']*/g, (path) => path.replace(/\\/g, '/')).replace(/\r\n/g, '\n')
+  return text.split(server.url).join('http://fake').split(box.env.HOME!).join('<home>').replace(/<home>[^\s"']*/g, (path) => path.replace(/\\/g, '/')).replace(/_\d{4}-\d{2}-\d{2}_\d{6}/g, '_<stamp>').replace(/\r\n/g, '\n')
 }
 
 /** Compares a run with its golden file (or writes it with UPDATE_GOLDEN=1). */
@@ -106,10 +106,16 @@ describe('writes', () => {
     const get = await qqq(['config', 'get', 'download-dir', '-O', 'json'])
     assert.equal(JSON.parse(get.stdout), dir)
     golden('export-download-dir', await qqq(['table', 'export', 'person']))
-    assert.equal(readFileSync(join(dir, 'person.csv'), 'utf8'), 'id,firstName\n1,Avery\n2,Blair\n')
+    const [first] = readdirSync(dir)
+    assert.match(first!, /^person_\d{4}-\d{2}-\d{2}_\d{6}\.csv$/)
+    assert.equal(readFileSync(join(dir, first!), 'utf8'), 'id,firstName\n1,Avery\n2,Blair\n')
+    // a second export in the same second takes the next free name; a later one has its own stamp
     const again = await qqq(['table', 'export', 'person'])
-    assert.match(again.stderr, /person-1\.csv/)
-    assert.deepEqual(readdirSync(dir).sort(), ['person-1.csv', 'person.csv'])
+    assert.match(again.stderr, /person_\d{4}-\d{2}-\d{2}_\d{6}(-1)?\.csv/)
+    assert.equal(readdirSync(dir).length, 2)
+    // an explicit --out is left exactly as given
+    await qqq(['table', 'export', 'person', '-o', join(dir, 'person.csv')])
+    assert.ok(readdirSync(dir).includes('person.csv'))
     await qqq(['config', 'set', 'download-dir', ''])
   })
 })

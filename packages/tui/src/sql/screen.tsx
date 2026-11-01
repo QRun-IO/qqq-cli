@@ -23,7 +23,7 @@ import { visibleFrom, type GridColumn } from '../screens/table'
 import type { AppStore } from '../store'
 import { borderProps, glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Screen } from '../types'
-import { readViewSettings } from '@qrun-io/qqq-core'
+import { exportFileName, readViewSettings } from '@qrun-io/qqq-core'
 import { cellWidth, errorText, fitSegments, num, pad, padLeft, shellQuote, trunc } from '../util/text'
 import { runnerApps } from './apps'
 import {
@@ -935,7 +935,7 @@ export class SqlRunnerScreen implements Screen {
     const uuid = st.response?.executionUuid
     if (!pager || !uuid) return
     if (target === 'clipboard') return this.copyAll()
-    saveFile(this.store, `Export the result as ${target}`, `sql-result-${uuid.slice(0, 8)}.${target}`, (path) => {
+    saveFile(this.store, `Export the result as ${target}`, exportFileName(`sql-result-${uuid.slice(0, 8)}`, target), (path) => {
       const done = (bytes: Uint8Array) => {
         writeFileSync(path, bytes)
         this.store.message(`Wrote ${path} (${num(pager.total)} row${pager.total === 1 ? '' : 's'}, ${num(bytes.length)} bytes).`)

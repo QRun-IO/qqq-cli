@@ -5,7 +5,7 @@
 
 import { SELECT_HINT } from '../mouse/settings'
 import { writeFileSync } from 'node:fs'
-import { auditSource, displayDateTime, getAudits, getRecordDeveloper, getScriptLogs, getScriptRevisionFiles, getTableApiDocument, listDeveloperPanels, listTableApis, scriptText, storeScript, testScript, type AssociatedScript, type AuditEntry, type DeveloperPanel, type RecordDeveloper, type TableApi } from '@qrun-io/qqq-core'
+import { exportFileName, auditSource, displayDateTime, getAudits, getRecordDeveloper, getScriptLogs, getScriptRevisionFiles, getTableApiDocument, listDeveloperPanels, listTableApis, scriptText, storeScript, testScript, type AssociatedScript, type AuditEntry, type DeveloperPanel, type RecordDeveloper, type TableApi } from '@qrun-io/qqq-core'
 import type { TableMetaData } from '../client'
 import { emptySection, esbTableItems, loadingSection, metadataItems, panelSection, SectionNav, type Item, type LinkContext, type LinkTarget, type Section } from '../developer/model'
 import { itemLines, PaneModel, sectionBar, sectionTitle, segColor, viewableText, type PaneLine, type Viewable } from '../developer/pane'
@@ -280,7 +280,7 @@ function apiDocument(view: DeveloperView, store: AppStore, tableName: string, ap
     const text = JSON.stringify(doc, null, 2)
     store.open(new ChoiceOverlay(store, `${api} ${version} OpenAPI document`, [{ label: 'View it here', value: 'view' }, { label: 'Save it to a file', value: 'save' }], (what) => {
       if (what === 'view') view.view({ title: `${api} ${version} · ${tableName}`, value: doc })
-      else saveFile(store, 'Save the OpenAPI document', `${tableName}-${api}-${version}.json`, (path) => { writeFileSync(path, text); store.message(`Wrote ${path}.`) })
+      else saveFile(store, 'Save the OpenAPI document', exportFileName(`${tableName}-${api}-${version}`, 'json'), (path) => { writeFileSync(path, text); store.message(`Wrote ${path}.`) })
     }))
   })
 }

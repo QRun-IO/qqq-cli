@@ -6,7 +6,7 @@
 import { afterEach, beforeAll, expect, test } from 'bun:test'
 import { KeyCodes } from '@opentui/core/testing'
 import type { TableScreen } from '../src/screens/table'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readTheme, writeFilePreferences } from '@qrun-io/qqq-core'
@@ -186,8 +186,22 @@ test('export from a filtered grid: the filter and the visible columns go to the 
     expect(b.format).toBe('csv')
     expect(b.filter.criteria).toEqual([{ fieldName: 'lastName', operator: 'EQUALS', values: ['Odd'] }])
     expect(b.fieldNames).toEqual(['id', 'firstName', 'lastName', 'birthDate'])
-    const text = readFileSync(join(dir, 'person.csv'), 'utf8')
+    const text = readFileSync(join(dir, readdirSync(dir).find((n) => /^person_\d{4}-\d{2}-\d{2}_\d{6}\.csv$/.test(n))!), 'utf8')
     expect(text.split('\n').length).toBe(16)
+  } finally {
+    writeFilePreferences({ downloadDir: undefined, downloadMode: undefined })
+  }
+})
+
+test('the export dialog is pre-filled with a name stamped with the local date and time', async () => {
+  writeFilePreferences({ downloadDir: mkdtempSync(join(tmpdir(), 'qqq-export-')), downloadMode: 'ask' })
+  try {
+    h = await startTui(120, 30)
+    await command(h, 'table query person')
+    await waitFor(h, (x) => x.includes('records'))
+    await command(h, 'export csv')
+    const frame = await waitFor(h, (x) => /person_\d{4}-\d{2}-\d{2}_\d{6}\.csv/.test(x))
+    expect(frame).toMatch(/person_\d{4}-\d{2}-\d{2}_\d{6}\.csv/)
   } finally {
     writeFilePreferences({ downloadDir: undefined, downloadMode: undefined })
   }
@@ -218,7 +232,7 @@ test('a file field: chosen in the file dialog, sent as a multipart part; a store
     await press(h, () => h!.setup.mockInput.typeText('save content'))
     await press(h, () => h!.setup.mockInput.pressEnter())
     await waitFor(h, (x) => x.includes('Saved'))
-    expect(readFileSync(join(dir, 'doc-5-content'), 'utf8')).toBe('file body')
+    expect(readFileSync(join(dir, readdirSync(dir).find((n) => /^doc-5-content_\d{4}-\d{2}-\d{2}_\d{6}$/.test(n))!), 'utf8')).toBe('file body')
   } finally {
     writeFilePreferences({ downloadDir: undefined, downloadMode: undefined })
   }

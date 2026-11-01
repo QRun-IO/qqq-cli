@@ -261,6 +261,11 @@ in parentheses mark the changes made after the candidate.
 
 ### Changed
 
+- **Default export names carry the local date and time**: `person_2026-11-01_102316.csv`, not `person.csv`,
+  for `table export`, `widget --csv`, report downloads, field saves from a record, and every TUI export, save
+  dialog and screen-text capture (`<name>_<YYYY-MM-DD>_<HHmmss>.<ext>`, 24-hour, no colons). A name you give
+  (`-o`, a name typed in the file dialog) is used exactly as given, and a name the server chooses is kept
+  unless it is taken, when the stamp goes before the extension.
 - **One meaning for `-o` across the CLI: `-o`/`--out` is always the output file; the sort is `--order`**
   (no short form). `table export -o people.csv` used to sort by a field named `people.csv` (the server
   answered 403); it now writes the file. Migration: write `--order` wherever `-o` meant the sort. On the

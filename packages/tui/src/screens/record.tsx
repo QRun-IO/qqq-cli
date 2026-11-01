@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { FormSession, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, type DynamicFormPayload, ResultCursor, associationGroups, childFilter, exposedJoins, formatSize, helpEntryText, selectHelpContent, planJoins, readViewSettings, withJoinFields, readChildRows, relatedRecordTarget, saveDownload, widgetAssociation, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { exportFileName, FormSession, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, type DynamicFormPayload, ResultCursor, associationGroups, childFilter, exposedJoins, formatSize, helpEntryText, selectHelpContent, planJoins, readViewSettings, withJoinFields, readChildRows, relatedRecordTarget, saveDownload, widgetAssociation, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
 import { openShareDialog, shareState } from '../overlays/share'
 import { FieldsFormScreen } from './fields-form'
 import { WidgetView } from '../widget-view'
@@ -56,7 +56,7 @@ export function blobText(record: QueryRecord, field: string): string {
 /** Saves a BLOB value (base64 in the record) through the save dialog. */
 export function saveBlob(store: AppStore, record: QueryRecord, table: string, pk: string, f: FieldMetaData): void {
   const bytes = new Uint8Array(Buffer.from(String(record.values?.[f.name] ?? ''), 'base64'))
-  saveFile(store, `Save ${f.label}`, `${table}-${pk}-${f.name}`, (path) => {
+  saveFile(store, `Save ${f.label}`, exportFileName(`${table}-${pk}-${f.name}`, ''), (path) => {
     const out = saveDownload(path, bytes, { explicit: true })
     store.message(`Saved ${out} (${bytes.length} bytes).`)
   })

@@ -17,7 +17,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { FAILED_JOB_STATES, MAX_LIST_ROWS, Printing, canPrintLists, isFinalJobState, listScopeChoices, readRememberedPrinter, resolvePrinter, runProcess, tableHasPrint, whyNotPrintable, writeRememberedPrinter, type ListScope, type Printer, type PrintJob, type PrintOutcome, type ProcessMeta } from '@qrun-io/qqq-core'
+import { exportFileName, FAILED_JOB_STATES, MAX_LIST_ROWS, Printing, canPrintLists, isFinalJobState, listScopeChoices, readRememberedPrinter, resolvePrinter, runProcess, tableHasPrint, whyNotPrintable, writeRememberedPrinter, type ListScope, type Printer, type PrintJob, type PrintOutcome, type ProcessMeta } from '@qrun-io/qqq-core'
 import { ChoiceOverlay, type Choice } from './overlays/basic'
 import type { AppStore } from './store'
 import type { Screen } from './types'
@@ -216,7 +216,7 @@ function saveInstead(store: AppStore, target: PrintTarget): void {
   const text = captureScreenText(store)
   if (!text.trim()) return store.flash(`Print: ${why}, and there is nothing on the screen to save.`, 'error')
   const title = target.kind === 'record' ? target.what : target.kind === 'text' ? target.title : target.grid.label
-  saveFile(store, `Print: ${why}. Save the screen as text`, `${title.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-|-$/g, '') || 'screen'}.txt`, (path) => {
+  saveFile(store, `Print: ${why}. Save the screen as text`, exportFileName(title.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-|-$/g, '') || 'screen', 'txt'), (path) => {
     writeFileSync(path, text + '\n')
     store.message(`Saved the screen to ${path}.`, 'info', 'Print')
   })

@@ -49,6 +49,7 @@ qqq table get person 1                               # one record, by section
 qqq table query person -g "(firstName = Avery OR firstName = Blair) AND birthDate > now(-40y)"
 qqq table create pet --set name=Pixel --set personId=2 --set speciesId=Dog
 qqq table export person -w "id <= 5" --order -id --fields id,firstName,email -o people.xlsx
+qqq table export person    # no -o: person_2026-11-01_102316.csv in the download directory (local time)
 qqq alerts get-inbox --columns id,severity,title    # extension lists print as sub-tables
 qqq process run greetInteractive -r 1,2 -v greetingPrefix=Hi
 qqq api getTableMetaData --path tableName=person -Q 'fields.*.label'

@@ -5,7 +5,7 @@
 
 import { basename } from 'node:path'
 import type { Command } from 'commander'
-import { deniedTableReason, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, readViewSettings, writeViewSettings, type DynamicFormPayload, withJoinFields, AssociationError, FilterLabelError, resolveFilterLabels, associationJoin, buildFilter, columnStatsAvailability, combineWithQuickSearch, computeColumnStats, copyRecordValues, defaultJoinColumns, exposedJoins, fieldLabel, filterDateTimesToUtc, findRecordByKey, findSavedView, FormInputError, FormSession, gotoKeys, isGotoKey, JoinError, joinFieldNames, listSavedViews, listTableVariants, parentLinkValues, planJoins, printFilter, quickSearchFields, quickSearchFilter, relatedRecordTarget, resolveField, runColumnStats, safeFileName, saveDownload, SavedViewError, savedViewProcesses, variantBody, variantParam, viewToQuery, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin, type RecordLike, type TableMetaLike } from '@qrun-io/qqq-core'
+import { exportFileName, deniedTableReason, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, readViewSettings, writeViewSettings, type DynamicFormPayload, withJoinFields, AssociationError, FilterLabelError, resolveFilterLabels, associationJoin, buildFilter, columnStatsAvailability, combineWithQuickSearch, computeColumnStats, copyRecordValues, defaultJoinColumns, exposedJoins, fieldLabel, filterDateTimesToUtc, findRecordByKey, findSavedView, FormInputError, FormSession, gotoKeys, isGotoKey, JoinError, joinFieldNames, listSavedViews, listTableVariants, parentLinkValues, planJoins, printFilter, quickSearchFields, quickSearchFilter, relatedRecordTarget, resolveField, runColumnStats, safeFileName, saveDownload, SavedViewError, savedViewProcesses, variantBody, variantParam, viewToQuery, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin, type RecordLike, type TableMetaLike } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -662,7 +662,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('--format <fmt>', 'csv, xlsx, json or tsv (default: from the --out extension, else csv)')
     .option('-f, --fields <names>', 'comma-separated fields to include, in column order (default: the server\'s)')
     .option('-l, --limit <n>', 'most records')
-    .option('-o, --out <file>', 'output file, or - for stdout (default: <table>.<format> in the download directory; name-1.<format> when taken)')
+    .option('-o, --out <file>', 'output file, or - for stdout (default: <table>_<date>_<time>.<format> in the download directory)')
     .option('--no-header', 'leave out the header row (csv, tsv, xlsx)')
     .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
     .option(...VARIANT_OPTION)
@@ -684,7 +684,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const variant = await chooseVariant(c, meta, options.variant)
       const result = await c.call('exportTable', { path: { tableName: name }, json: { format, filter, fieldNames: columns, limit: exportLimit, ...(options.header === false ? { includeHeaderRow: false } : {}), ...variantBody(variant) } })
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
-      const written = writeDownload(options.out, safeFileName(`${name}.${format}`), bytes)
+      const written = writeDownload(options.out, exportFileName(name, format), bytes)
       if (written) c.note(`wrote ${written} (${bytes.length} bytes, ${result.contentType})`)
     })
 

@@ -4,7 +4,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { helpEntryText, selectHelpContent, ResultCursor, bulkProcesses, uploadTemplates, safeFileName, saveDownload, buildViewJson, filterDateTimesToUtc, relatedRecordTarget, planJoins, withJoinFields, type ExposedJoin, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
+import { exportFileName, helpEntryText, selectHelpContent, ResultCursor, bulkProcesses, uploadTemplates, safeFileName, saveDownload, buildViewJson, filterDateTimesToUtc, relatedRecordTarget, planJoins, withJoinFields, type ExposedJoin, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
@@ -783,7 +783,7 @@ export class TableScreen implements Screen {
         this.store.message(`Wrote ${out} (${num(bytes.length)} bytes).`)
       })
     }
-    saveFile(this.store, `Export ${this.title()} as ${format}`, `${this.tableName}.${format}`, write)
+    saveFile(this.store, `Export ${this.title()} as ${format}`, exportFileName(this.tableName, format), write)
   }
 
   render(width: number, height: number, focused: boolean) {

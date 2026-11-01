@@ -5,7 +5,7 @@
 
 import { afterEach, beforeAll, expect, test } from 'bun:test'
 import { KeyCodes } from '@opentui/core/testing'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeFilePreferences } from '@qrun-io/qqq-core'
@@ -266,7 +266,7 @@ test('reports: a streaming report asks the format and saves; a process report ch
     await press(h, () => h!.setup.mockInput.pressArrow('down'))
     await enter()
     await waitFor(h, (x) => x.includes('Wrote'))
-    expect(readFileSync(join(dir, 'streamReport.csv'), 'utf8')).toBe('fmt,csv\n')
+    expect(readFileSync(join(dir, readdirSync(dir).find((n) => /^streamReport_\d{4}-\d{2}-\d{2}_\d{6}\.csv$/.test(n))!), 'utf8')).toBe('fmt,csv\n')
     await esc()
     await command(h, 'report run wizReport')
     await waitFor(h, (x) => x.includes('Wizard report: format'))

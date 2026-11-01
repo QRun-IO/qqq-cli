@@ -84,7 +84,7 @@ export function downloadDir(): string {
 /**
  * The one way a command writes a downloaded file: `-` writes to stdout; a path the user named is
  * written as given (replacing a file); otherwise `defaultName` (already a safe file name) goes
- * into the download directory without replacing anything (name-1.ext, …). Returns the path
+ * into the download directory without replacing anything (the date and time go before the extension, then -1, -2, …). Returns the path
  * written, or undefined for stdout.
  */
 export function writeDownload(out: string | undefined, defaultName: string, bytes: Uint8Array): string | undefined {

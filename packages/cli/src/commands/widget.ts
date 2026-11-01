@@ -4,7 +4,7 @@
  */
 
 import type { Command } from 'commander'
-import { ReportError, blocksToText, formatCsv, listReports, loadWidget, reportFormat, reportRunPlan, safeFileName, widgetRows } from '@qrun-io/qqq-core'
+import { exportFileName, ReportError, blocksToText, formatCsv, listReports, loadWidget, reportFormat, reportRunPlan, safeFileName, widgetRows } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { authenticatedFetch } from '../session.js'
 import { UsageError, type Context } from '../context.js'
@@ -56,7 +56,7 @@ export function registerWidget(program: Command, ctx: () => Context): void {
         const rows = widgetRows(loaded.blocks)
         if (!rows) throw new UsageError(`Widget ${name} has no table or series to export.`)
         const csv = formatCsv(rows.rows, rows.columns, rows.headers)
-        const written = writeDownload(typeof options.csv === 'string' ? options.csv : '-', safeFileName(`${name}.csv`), new TextEncoder().encode(csv))
+        const written = writeDownload(typeof options.csv === 'string' ? options.csv : '-', exportFileName(name, 'csv'), new TextEncoder().encode(csv))
         if (written) c.note(`wrote ${written} (${rows.rows.length} rows)`)
         return
       }
@@ -83,7 +83,7 @@ export function registerWidget(program: Command, ctx: () => Context): void {
     .description('Run a report: through its process (input fields asked, or given with -v; the file comes from the download route) or, for a report without a process, the report route. TABLE, SUMMARY and PIVOT reports come back as the server writes them.')
     .option('--format <fmt>', 'csv, xlsx, json or tsv (pdf where the report allows)', 'csv')
     .option('-v, --values <name=value...>', 'report input values (report variables)')
-    .option('-o, --out <file>', 'report route: output file, replaced if it exists, or - for stdout (default: <report>.<format> in the download directory)')
+    .option('-o, --out <file>', 'report route: output file, replaced if it exists, or - for stdout (default: <report>_<date>_<time>.<format> in the download directory)')
     .option('--out-dir <dir>', 'report process: where the file is saved (default: the download directory, else the current one)')
     .option('--route', 'use the report route even when the report has a process')
     .action(async (name: string, options: { format: string; values?: string[]; out?: string; outDir?: string; route?: boolean }) => {
@@ -106,7 +106,7 @@ export function registerWidget(program: Command, ctx: () => Context): void {
       // a report without a process (or --route): the streaming report route
       const result = await c.call('runReport', { path: { reportName: name }, query: { format: format.toLowerCase(), ...parsePairs(options.values, '--values') } })
       const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
-      const written = writeDownload(options.out, safeFileName(`${name}.${format.toLowerCase()}`), bytes)
+      const written = writeDownload(options.out, exportFileName(name, format.toLowerCase()), bytes)
       if (written) c.note(`wrote ${written} (${bytes.length} bytes, ${result.contentType})`)
     })
 

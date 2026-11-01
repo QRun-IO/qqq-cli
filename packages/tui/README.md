@@ -357,7 +357,7 @@ an error under the editor with its SQL position marked in the text, and the sche
 | F7 | your audited runs (status, time, rows, SQL); type to filter, Enter opens the SQL in the editor, Ctrl+R re-runs it |
 | Shift+Tab, Esc | to the results and back; Esc also cancels a running statement and, from the editor, leaves (asking about unsaved changes) |
 | results: ↑↓ PgUp PgDn ←→ | move; rows load page by page from the server's cached result |
-| F8, results: `x` | the export dialog: csv, tsv, xlsx or json of every row of the result (the server writes csv/xlsx/json from its cached result; tsv is read page by page) through the file navigator and the download-folder preference, or copy to the clipboard for small results |
+| F8, results: `x` | the export dialog: csv, tsv, xlsx or json of every row of the result (the server writes csv/xlsx/json from its cached result; tsv is read page by page) through the file navigator and the download-folder preference (the name is pre-filled and editable, e.g. `sql-result-1a2b3c4d_2026-11-01_102316.csv`), or copy to the clipboard for small results |
 | results: `s` `V` `y` `Y` Ctrl+Y | sort by the column (the server sorts: asc, desc, off), the whole value, copy the cell, the row (TSV), the whole result (TSV) |
 | results: Shift+←→, `a` | scroll the columns (◂ ▸ show more off screen); the actions menu (export, copy, chart…) |
 | results: `g` `c` `p` | grid, quick chart (text bars of a number column; ←→ value column, `l` label column), plan |

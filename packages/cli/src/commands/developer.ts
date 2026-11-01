@@ -4,7 +4,7 @@
  */
 
 import type { Command } from 'commander'
-import { DeveloperError, blocksToText, callTableApi, testScript, findAssociatedScript, getRecordDeveloper, getScriptLogs, getScriptRevisionFiles, getTableApiDocument, listDeveloperPanels, listTableApis, panelToBlocks, pickRevision, safeFileName, saveDownload, scriptText, storeScript } from '@qrun-io/qqq-core'
+import { exportFileName, DeveloperError, blocksToText, callTableApi, testScript, findAssociatedScript, getRecordDeveloper, getScriptLogs, getScriptRevisionFiles, getTableApiDocument, listDeveloperPanels, listTableApis, panelToBlocks, pickRevision, safeFileName, saveDownload, scriptText, storeScript } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch } from '../session.js'
 import { editText, parsePairs, readJson, type Json } from './shared.js'
@@ -44,7 +44,7 @@ export function registerDeveloper(program: Command, ctx: () => Context): void {
         process.stdout.write(text)
         return
       }
-      const written = saveDownload(options.out ?? safeFileName(`${name}-${api}-${version}.json`), new TextEncoder().encode(text), { explicit: Boolean(options.out) })
+      const written = saveDownload(options.out ?? exportFileName(`${name}-${api}-${version}`, 'json'), new TextEncoder().encode(text), { explicit: Boolean(options.out) })
       c.note(`wrote ${written} (${text.length} bytes)`)
     })
 

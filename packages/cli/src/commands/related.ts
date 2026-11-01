@@ -10,7 +10,7 @@
  */
 
 import type { Command } from 'commander'
-import {
+import { exportFileName,
   associationGroups, associationLabel, chipAnsi, associationsOf, childListFields, fetchChildren, fileDownload, safeFileName, findAssociation, helpToText, recordView, relationshipValues, tableHelp, VIEW_SCREEN_HELP_ROLES,
   defaultJoinColumns, withJoinFields, fieldLabel, variantBody, variantParam, type ExposedJoin, type RecordLike, type TableMetaLike, type WidgetMetaLike,
 } from '@qrun-io/qqq-core'
@@ -193,7 +193,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
 
   table.command('download <table> <primaryKey> <field>')
     .description('Save a file stored in a record field (FILE_DOWNLOAD through GET /table/{t}/{pk}/{field}/{file}, or a BLOB value).')
-    .option('-o, --out <file>', 'where to write, replacing an existing file (default: the file name in the download directory, name-1.ext when taken; - for stdout)')
+    .option('-o, --out <file>', 'where to write, replacing an existing file (default: the file name in the download directory, the date and time go before the extension when taken; - for stdout)')
     .option(...VARIANT_OPTION)
     .action(async (name: string, primaryKey: string, fieldName: string, options: { out?: string; variant?: string }) => {
       const c = ctx()
@@ -218,7 +218,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
         if (raw === null || raw === undefined || raw === '') throw new UsageError(`${meta.label} ${primaryKey} has no file in ${field.label}.`)
         if (typeof raw !== 'string' || field.type !== 'BLOB') throw new UsageError(`${field.label} is not a file field (no FILE_DOWNLOAD adornment, not a BLOB).`)
         bytes = new Uint8Array(Buffer.from(raw, 'base64'))
-        fileName = safeFileName(`${name}-${primaryKey}-${fieldName}`)
+        fileName = exportFileName(`${name}-${primaryKey}-${fieldName}`, '')
       }
       const written = writeDownload(options.out, fileName, bytes)
       if (written) c.note(`wrote ${written} (${bytes.length} bytes)`)
