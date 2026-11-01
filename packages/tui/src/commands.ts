@@ -11,6 +11,7 @@
 
 import { createProgram, runCli } from '@qrun-io/qqq-cli/program'
 import { setMouseSetting } from './mouse/settings'
+import { readSplash, setSplashSetting } from './boot-plan'
 import { THEMES } from './theme'
 import { metaHelp, processHelp, tableHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeConfig, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
@@ -54,7 +55,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'ask', 'dates', 'history', 'fkeys']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'splash', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'ask', 'dates', 'history', 'fkeys']
 
 /** One line on each TUI command, for the `:` line's completion popup. */
 export const TUI_COMMAND_HELP: Record<string, string> = {
@@ -357,6 +358,7 @@ export class Commands implements CommandsLike {
         case 'linear': s.settings.linear = rest[0] !== 'off'; s.bump(); return s.flash(`linear layout ${s.settings.linear ? 'on' : 'off'}`)
         case 'shortcuts': return this.setShortcuts(rest[0] !== 'off')
         case 'mouse': return setMouseSetting(s, rest[0] === undefined ? !s.settings.mouse : rest[0] !== 'off')
+        case 'splash': return setSplashSetting(s, rest[0] === undefined ? !readSplash() : rest[0] !== 'off')
         case 'idle': {
           const m = Number(rest[0])
           if (!Number.isFinite(m)) return fail('idle <minutes>: 0 turns the screen saver timeout off')
@@ -764,6 +766,8 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Settings', label: `Linear layout: ${s.settings.linear ? 'on' : 'off'}`, command: `linear ${s.settings.linear ? 'off' : 'on'}`, run: () => { s.settings.linear = !s.settings.linear; s.bump() } })
     out.push({ id: 'settings:mouse', section: 'Settings', label: `Mouse: ${s.settings.mouse ? 'on' : 'off'}`, command: `mouse ${s.settings.mouse ? 'off' : 'on'}`, detail: s.settings.mouse ? 'off restores plain terminal text selection' : undefined, run: () => setMouseSetting(s, !s.settings.mouse) })
     out.push({ id: 'settings:fkeys', section: 'Settings', label: `F-key bar: ${s.settings.fkeyBar ?? 'auto'}`, command: 'fkeys one|two|auto', detail: describeFKeyBar(s.settings.fkeyBar ?? 'auto'), run: () => s.open(new ChoiceOverlay<FKeyBarMode>(s, 'F-key bar', FKEY_BAR_MODES.map((m) => ({ label: m, value: m, detail: describeFKeyBar(m) })), (m) => setFKeyBar(s, m), 'Enter chooses')) })
+    const splash = readSplash()
+    out.push({ id: 'settings:splash', section: 'Settings', label: `Splash on start: ${splash ? 'on' : 'off'}`, command: `splash ${splash ? 'off' : 'on'}`, detail: 'Query and the boot steps while qqq ui starts', run: () => setSplashSetting(s, !splash) })
     out.push({ section: 'Settings', label: `ASCII glyphs: ${s.settings.ascii ? 'on' : 'off'}`, command: `ascii ${s.settings.ascii ? 'off' : 'on'}`, run: () => s.setAscii(!s.settings.ascii) })
     out.push({ section: 'Settings', label: 'Screen saver / lock', command: 'lock', run: () => this.lock() })
     let idle = 0

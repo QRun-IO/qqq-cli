@@ -30,7 +30,7 @@ function sameAction(command: string | undefined): string | undefined {
  * `:` commands the TUI does itself (theme, lock, the Servers dialog …): logged as `:…`, re-run on
  * the `:` line only. Everything else on the `:` line is a CLI command (`qqq …`).
  */
-const TUI_ONLY = new Set(['quit', 'q', 'exit', 'home', 'reset', 'tags', 'audits', 'audit', 'dev', 'developer', 'actions', 'back', 'help', 'menu', 'goto', 'palette', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates', 'helpkeys', 'views', 'share', 'doctor', 'check', 'history'])
+const TUI_ONLY = new Set(['quit', 'q', 'exit', 'home', 'reset', 'tags', 'audits', 'audit', 'dev', 'developer', 'actions', 'back', 'help', 'menu', 'goto', 'palette', 'view', 'theme', 'ascii', 'linear', 'mouse', 'splash', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates', 'helpkeys', 'views', 'share', 'doctor', 'check', 'history'])
 
 let last: { action?: string; at: number; words?: string[] } = { at: 0 }
 

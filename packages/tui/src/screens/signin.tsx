@@ -22,6 +22,10 @@ export interface SignInDeps {
   /** Runs after the home screen is shown (the route given on the command line). */
   afterConnect?: (store: AppStore) => void
   timers?: boolean
+  /** Boot steps as they happen (the splash's status line): connecting, loading metadata. */
+  progress?: (text: string) => void
+  /** Awaited once connected, before Home replaces the screens (the splash's minimum display time). */
+  beforeHome?: () => Promise<void>
 }
 
 /** Connects the store to a profile: the stored sign-in, a client, metadata; then the home screen. */
@@ -57,7 +61,9 @@ export async function connect(store: AppStore, target: Target, deps: SignInDeps)
     store.status.auth = 'QQQ_TOKEN'
   }
   try {
+    deps.progress?.('loading metadata…')
     await store.connect(client, { timers: deps.timers })
+    deps.progress?.(`loaded metadata (${Object.keys(store.meta?.tables ?? {}).length} tables)`)
   } catch (e) {
     if (e instanceof UiApiError && (e.status === 401 || e.status === 403)) throw new NeedsSignIn('your sign-in expired; sign in again')
     throw e
@@ -69,6 +75,7 @@ export async function connect(store: AppStore, target: Target, deps: SignInDeps)
     // config.json unreadable: not critical here
   }
   history.record(store, { kind: 'auth', summary: `Signed in to ${target.server}${store.status.user ? ` as ${store.status.user}` : ''} (${store.status.auth})` })
+  await deps.beforeHome?.()
   while (store.routes.length) store.routes.pop()?.dispose?.()
   store.push(new HomeScreen(store))
   deps.afterConnect?.(store)

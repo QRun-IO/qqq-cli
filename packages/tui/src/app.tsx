@@ -143,6 +143,19 @@ export function App({ store }: { store: AppStore }) {
   const contentWidth = w - sidebarWidth - assistantWidth
   const screen = store.screen
   const top = store.overlays[store.overlays.length - 1]
+  const overlays = store.overlays.map((o, i) => <MouseLayer key={o.id} layer={i + 1}><ErrorBoundary resetKey={o.id} width={Math.min(60, w)} label="Dialog">{o.render(w, h)}</ErrorBoundary></MouseLayer>)
+  if (screen?.kind === 'splash') {
+    // the start-up splash has the whole terminal: no title bar, status line or key bar yet
+    return (
+      <MouseRoot dispatcher={mouse} press={store.pressKey}>
+      <box flexDirection="column" overflow="hidden" width={w} height={h}>
+        <ErrorBoundary resetKey={screen.id} width={w} label="Splash">{screen.render(w, h, !top)}</ErrorBoundary>
+        {overlays}
+        <MouseCapture width={w} height={h} />
+      </box>
+      </MouseRoot>
+    )
+  }
   return (
     <MouseRoot dispatcher={mouse} press={store.pressKey}>
     <box flexDirection="column" overflow="hidden" width={w} height={h}>
@@ -161,7 +174,7 @@ export function App({ store }: { store: AppStore }) {
       <StatusLine store={store} width={w} />
       {rows === 1 && store.shiftRowShown() ? <ShiftRow store={store} width={w} slots={store.fkeys().length} /> : <FKeyBar store={store} width={w} />}
       {rows === 2 && <ShiftRow store={store} width={w} slots={store.fkeys().length} />}
-      {store.overlays.map((o, i) => <MouseLayer key={o.id} layer={i + 1}><ErrorBoundary resetKey={o.id} width={Math.min(60, w)} label="Dialog">{o.render(w, h)}</ErrorBoundary></MouseLayer>)}
+      {overlays}
       {store.lock && <ErrorBoundary key="lock" resetKey="lock" width={w} label="Lock">{store.lock.render(w, h)}</ErrorBoundary>}
       <MouseCapture width={w} height={h} />
     </box>

@@ -7,7 +7,9 @@
 #   packages/tui/scripts/smoke.sh [profile]                    a profile of your own config
 #   packages/tui/scripts/smoke.sh --server URL [--profile NAME]  any server, in an isolated config
 #                                                              (MOCK or anonymous sign-in; your
-#                                                              config, keyring and cache untouched)
+#                                                              config, keyring and cache untouched;
+#                                                              two profiles, so it starts at the
+#                                                              start-up picker and connects with Enter)
 #   OUT=dir WIDTH=160 HEIGHT=45
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,11 +28,12 @@ done
 out="${OUT:-$(mktemp -d)}"
 env_prefix=""
 if [[ -n "$server" ]]; then
-  # an isolated config with one profile for the server, so the TUI signs in there instead of showing the picker
+  # an isolated config with two profiles: the start-up picker opens with this one (the last used) preselected
   profile="${profile:-smoke}"
   cfg="$(mktemp -d)"
   mkdir -p "$cfg/config"
-  printf '{"profiles":{"%s":{"server":"%s"}},"defaultProfile":"%s"}\n' "$profile" "${server%/}" "$profile" > "$cfg/config/config.json"
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"profiles":{"%s":{"server":"%s","lastUsedAt":"%s"},"smoke-other":{"server":"%s","lastUsedAt":"2020-01-01T00:00:00Z"}},"defaultProfile":"smoke-other"}\n' "$profile" "${server%/}" "$now" "${server%/}" > "$cfg/config/config.json"
   env_prefix="QQQ_CONFIG_DIR='$cfg/config' QQQ_CACHE_DIR='$cfg/cache' QQQ_STATE_DIR='$cfg/state' QQQ_KEYRING=file"
 fi
 profile="${profile:-sample}"
@@ -54,7 +57,13 @@ expect() { # name text...
   echo "FAIL $name (wanted: $*)"; fails=$((fails + 1))
 }
 echo "smoke: profile $profile${server:+ at $server (isolated config)}; captures in $out"
-tmux new-session -d -s "$s" -x "$w" -y "$h" "cd '$pkg' && $env_prefix bun run src/main.tsx --no-check --profile '$profile'; sleep 5"
+if [[ -n "$server" ]]; then
+  tmux new-session -d -s "$s" -x "$w" -y "$h" "cd '$pkg' && $env_prefix bun run src/main.tsx --no-check; sleep 5"
+  expect 00-picker 'Connect to a server' 'Enter connects' 'Esc quits' 'Terminal client for QQQ' "$profile"
+  keys Enter
+else
+  tmux new-session -d -s "$s" -x "$w" -y "$h" "cd '$pkg' && $env_prefix bun run src/main.tsx --no-check --profile '$profile'; sleep 5"
+fi
 expect 01-home 'Apps' 'UI API' 'Recently viewed' 'Quick actions'
 keys T:: 'T:table query person' Enter
 expect 02-grid 'records ·' 'First Name'
