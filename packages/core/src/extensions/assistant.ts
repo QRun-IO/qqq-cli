@@ -347,7 +347,10 @@ export function parseAppHref(href: string, tables?: Set<string>): AppHrefTarget 
   const filter = url.searchParams.get('filter')
   if (filter) {
     try {
-      const parsed = JSON.parse(filter) as unknown
+      // JSON, or the base64 (UTF-8) JSON the server's links carry, as the web UI reads them
+      const trimmed = filter.trim()
+      const text = trimmed.startsWith('{') ? trimmed : new TextDecoder().decode(Uint8Array.from(atob(trimmed), (c) => c.charCodeAt(0)))
+      const parsed = JSON.parse(text) as unknown
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) target.filter = parsed as Json
     } catch {
       // an unreadable filter opens the table unfiltered

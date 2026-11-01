@@ -8,6 +8,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { App } from '../src/app'
 import { chatLines, contextLabel, plainText, wrap } from '../src/assistant/model'
 import { boot, parseArgs } from '../src/boot'
+import { linkFilter } from '../src/links'
 import { fakeFetch, type FakeLog } from './fake-server'
 import { command, isolate, press, sessionSecrets, waitFor, type Harness } from './helpers'
 
@@ -161,6 +162,13 @@ test('assistant off (no model provider): the panel shows the reason and what to 
   await key('RETURN')
   await waitFor(h, (x) => x.includes('assistant off (NOT_CONFIGURED)'))
   expect(state.turns.length).toBe(0)
+})
+
+test('link filters: JSON or the base64 form the server writes; empty criteria allowed', () => {
+  const b64 = Buffer.from('{"booleanOperator":"AND","criteria":[{"fieldName":"lastName","operator":"EQUALS","values":["Odd"]}]}').toString('base64')
+  expect(linkFilter(b64)?.criteria).toEqual([{ fieldName: 'lastName', operator: 'EQUALS', values: ['Odd'] }] as never)
+  expect(linkFilter(Buffer.from('{"booleanOperator":"AND"}').toString('base64'))?.criteria).toEqual([])
+  expect(linkFilter('not base64 json')).toBeUndefined()
 })
 
 test('chat lines wrap to the width, number links across exchanges and drop markdown', () => {

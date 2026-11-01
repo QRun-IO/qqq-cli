@@ -43,7 +43,11 @@ const NAME = /^[A-Za-z_][A-Za-z0-9_.-]{0,199}$/
 export function linkFilter(text: string | null): QueryFilter | undefined {
   if (!text || text.length > 20_000) return undefined
   try {
-    const f = JSON.parse(text) as QueryFilter
+    const f = JSON.parse(filterJson(text)) as QueryFilter
+    // the server's links leave out empty criteria ({"booleanOperator":"AND"})
+    // (only a filter made of filter keys; anything else is still not a QueryFilter)
+    const FILTER_KEYS = ['booleanOperator', 'subFilters', 'orderBys', 'limit', 'skip']
+    if (f && typeof f === 'object' && (f as { criteria?: unknown }).criteria === undefined && Object.keys(f).every((k) => FILTER_KEYS.includes(k))) (f as { criteria: unknown[] }).criteria = []
     const ok = (g: unknown, depth: number): boolean => {
       if (!g || typeof g !== 'object' || depth > 5) return false
       const x = g as { criteria?: unknown; subFilters?: unknown; booleanOperator?: unknown }
@@ -56,6 +60,13 @@ export function linkFilter(text: string | null): QueryFilter | undefined {
   } catch {
     return undefined
   }
+}
+
+/** A `filter` parameter as JSON text: as written, or decoded from the base64 (UTF-8) form the web UI and the assistant use. */
+export function filterJson(text: string): string {
+  const trimmed = text.trim()
+  if (trimmed.startsWith('{')) return trimmed
+  return new TextDecoder().decode(Uint8Array.from(atob(trimmed), (c) => c.charCodeAt(0)))
 }
 
 /**

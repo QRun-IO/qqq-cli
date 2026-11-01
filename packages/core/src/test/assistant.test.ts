@@ -157,6 +157,8 @@ test('app hrefs: record, table, filter, nested apps', () => {
   assert.deepEqual(parseAppHref('/app/customer'), { path: '/app/customer', tableName: 'customer' })
   assert.deepEqual(parseAppHref('/app/customer?filter=' + encodeURIComponent('{"criteria":[{"fieldName":"id","operator":"EQUALS","values":[1]}]}'))?.filter,
     { criteria: [{ fieldName: 'id', operator: 'EQUALS', values: [1] }] })
+  const b64 = Buffer.from('{"booleanOperator":"AND","criteria":[{"fieldName":"name","operator":"EQUALS","values":["Zoë"]}]}', 'utf8').toString('base64')
+  assert.deepEqual(parseAppHref(`/app/customer?filter=${encodeURIComponent(b64)}`)?.filter, { booleanOperator: 'AND', criteria: [{ fieldName: 'name', operator: 'EQUALS', values: ['Zoë'] }] })
   assert.deepEqual(parseAppHref('/app/sales/customer/7', new Set(['customer'])), { path: '/app/sales/customer/7', tableName: 'customer', recordId: '7' })
   assert.equal(parseAppHref('/app/customer/create')?.recordId, undefined)
   assert.equal(parseAppHref('https://evil.example/x'), undefined)
