@@ -8,7 +8,7 @@ import { Option } from 'commander'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chipAnsi, deniedTableReason, displayDateTime, type TableAction, readFilePreferences, safeFileName, saveDownload, valueText as recordValueText, type DisplayOptions, type FieldMeta, type RecordLike } from '@qrun-io/qqq-core'
+import { chipAnsi, deniedTableReason, parseColumnList, displayDateTime, type TableAction, readFilePreferences, safeFileName, saveDownload, valueText as recordValueText, type DisplayOptions, type FieldMeta, type RecordLike } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { UsageError } from '../context.js'
 
@@ -133,6 +133,19 @@ export function orderFrom(note: (text: string) => void, options: { order?: strin
   }
   return order.length ? order : undefined
 }
+
+/**
+ * The columns of a list command: --columns (or the global --fields), else its defaults. A chosen
+ * column the prepared rows do not have is read from the item as the server sent it.
+ */
+export function chooseColumns(given: string | undefined, fields: string[] | undefined, defaults: string[], rows: Json[], items: readonly unknown[]): { rows: Json[]; columns: string[] } {
+  const chosen = parseColumnList(given) ?? fields
+  if (!chosen) return { rows, columns: defaults }
+  return { rows: rows.map((row, i) => ({ ...(items[i] as Json | undefined), ...row })), columns: chosen }
+}
+
+/** The --columns option of list commands. */
+export const COLUMNS_OPTION = ['--columns <names>', 'columns to show, comma-separated (also any field of the item as the server sends it)'] as const
 
 /** The footer every list ends with: `(3 records; joined: pet; more may exist: …)`. */
 export function countFooter(n: number, singular: string, parts: Array<string | number | false | undefined | null> = [], pluralForm?: string): string {

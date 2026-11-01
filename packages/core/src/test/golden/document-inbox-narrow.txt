@@ -1,0 +1,10 @@
+total   2
+offset  0
+limit   25
+
+items (2)
+id  title        severity  category  age    unread
+--  -----------  --------  --------  -----  ------
+7   Send Test …  ERROR     JOB       4 min  true
+6   Calculate …  ERROR     JOB       7 min  false
+(2 more columns did not fit: href, actions; --columns chooses, --json shows everything)

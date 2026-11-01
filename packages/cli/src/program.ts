@@ -110,6 +110,8 @@ export interface RunCliIo {
   stderr: (text: string) => void
   /** Whether the output may use terminal formatting (default false: table output is still chosen by --output). */
   isTTY?: boolean
+  /** The width nested results are fitted to in table output (default: none). */
+  width?: number
 }
 
 /**
@@ -118,10 +120,11 @@ export interface RunCliIo {
  * would ask need their values or --yes. One run at a time.
  */
 export async function runCli(argv: string[], options: RunCliIo): Promise<number> {
-  const saved = { out: io.out, err: io.err, isTTY: io.isTTY, stdoutWrite: process.stdout.write, stderrWrite: process.stderr.write, stdinTTY: Object.getOwnPropertyDescriptor(process.stdin, 'isTTY') }
+  const saved = { out: io.out, err: io.err, isTTY: io.isTTY, width: io.width, stdoutWrite: process.stdout.write, stderrWrite: process.stderr.write, stdinTTY: Object.getOwnPropertyDescriptor(process.stdin, 'isTTY') }
   io.out = options.stdout
   io.err = options.stderr
   io.isTTY = () => options.isTTY ?? false
+  io.width = () => options.width
   // a few commands write to the process streams directly; capture those too while the command runs
   process.stdout.write = ((chunk: string | Uint8Array) => { options.stdout(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk)); return true }) as typeof process.stdout.write
   process.stderr.write = ((chunk: string | Uint8Array) => { options.stderr(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk)); return true }) as typeof process.stderr.write
@@ -140,6 +143,7 @@ export async function runCli(argv: string[], options: RunCliIo): Promise<number>
     io.out = saved.out
     io.err = saved.err
     io.isTTY = saved.isTTY
+    io.width = saved.width
     process.stdout.write = saved.stdoutWrite
     process.stderr.write = saved.stderrWrite
     if (saved.stdinTTY) Object.defineProperty(process.stdin, 'isTTY', saved.stdinTTY)

@@ -5,7 +5,7 @@
 
 import { basename } from 'node:path'
 import type { Command } from 'commander'
-import { OPERATIONS, operation, type OperationInfo } from '@qrun-io/qqq-core'
+import { OPERATIONS, defaultListColumns, operation, parseColumnList, type OperationInfo } from '@qrun-io/qqq-core'
 import type { Context } from '../context.js'
 import { UsageError } from '../context.js'
 import { parsePairs, readFileArg, readJson, writeDownload } from './shared.js'
@@ -44,6 +44,8 @@ export interface OperationOptions {
   form?: string[]
   bytes?: string
   out?: string
+  /** Table output: the columns of the result's lists (comma-separated). */
+  columns?: string
 }
 
 /**
@@ -77,5 +79,11 @@ export async function runOperation(c: Context, op: OperationInfo, options: Opera
     process.stdout.write(result.data.endsWith('\n') ? result.data : result.data + '\n')
     return
   }
-  c.print({ data: result.data })
+  c.print({ data: result.data, layout: { columns: listColumns(c, op, options) } })
+}
+
+/** The list columns for table output: --columns, else the global --fields, else the operation's defaults. */
+export function listColumns(c: Context, op: OperationInfo, options: { columns?: string }): Record<string, string[]> | undefined {
+  const chosen = parseColumnList(options.columns) ?? c.fields
+  return chosen ? { '*': chosen } : defaultListColumns(op.id)
 }

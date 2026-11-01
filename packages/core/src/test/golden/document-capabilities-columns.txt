@@ -1,0 +1,11 @@
+version          1.0.0
+canWrite         false
+limits.maxRows   10000
+limits.pageSize  500
+dialects         h2, postgres
+notebooks        (none)
+
+backends (1)
+name  owner.name  schemas
+----  ----------  ------------
+h2    Admin       PUBLIC, INFO

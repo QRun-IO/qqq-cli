@@ -22,6 +22,8 @@ export const io = {
   out: (text: string): void => { process.stdout.write(text) },
   err: (text: string): void => { process.stderr.write(text) },
   isTTY: (): boolean => Boolean(process.stdout.isTTY),
+  /** The terminal width table output fits nested results in; undefined when not on a terminal. */
+  width: (): number | undefined => (process.stdout.isTTY ? process.stdout.columns : undefined),
 }
 
 /** Exit codes, as in the design doc (KofTwentyTwo ADR-0031 shape). */
@@ -88,7 +90,7 @@ export class Context {
 
   /** Prints a result in the chosen format, after --query. */
   print(printable: Printable): void {
-    io.out(render(printable, this.format, this.options.query) + '\n')
+    io.out(render(printable, this.format, this.options.query, { width: io.width() }) + '\n')
   }
 
   /** Reshapes data with --query without printing (for callers that print themselves). */

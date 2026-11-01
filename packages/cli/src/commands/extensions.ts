@@ -63,6 +63,7 @@ export function addOperationCommands(noun: Command, extension: string, pathPrefi
     if (op.bodyTypes.includes('application/json') || op.bodyTypes.length === 0) cmd.option('-b, --body-json <json|file|->', 'JSON request body (inline, a file, or - for stdin)')
     if (op.bodyTypes.includes('multipart/form-data')) cmd.option('-F, --form <name=value|name=@file...>', 'multipart form fields; @file uploads a file')
     cmd.option('-o, --out <file>', 'write a binary response to a file (- for stdout)')
+    cmd.option('--columns <names>', 'table output: the columns of the result\'s lists, comma-separated (nested fields as a.b)')
     cmd.action(async (...actionArgs: unknown[]) => {
       const values = actionArgs.slice(0, op.pathParams.length) as (string | undefined)[]
       const options = actionArgs[op.pathParams.length] as OperationOptions
