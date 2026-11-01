@@ -5,17 +5,17 @@ QQQ server only through the **UI API** (`/qqq/v1`), the API the web UI uses too.
 application is built in: apps, tables, fields, processes, widgets and extensions all come from the
 server's metadata, so the same binary works against any QQQ application.
 
-This is **1.0.0-rc.1**, the first release candidate. It works with servers that serve UI API 1.6.0 up to
+This is **1.0.0**. It works with servers that serve UI API 1.6.0 up to
 2.0 (QQQ 4.1.0-RC.15 or later); `qqq --version` prints the range.
 
 The repository also holds the libraries the CLI is built on, for anyone writing a CLI, TUI or native client:
 
 | Package | Version | What it is |
 |---|---|---|
-| [`@qrun-io/qqq-cli`](packages/cli) | 1.0.0-rc.1 | `qqq`, the CLI |
-| [`@qrun-io/qqq-core`](packages/core) | 1.0.0-rc.1 | the client kernel: sessions and keyring, metadata cache, filter grammar, forms, processes, records, render model, output formats. No terminal code |
-| [`@qrun-io/qqq-ui-api-client`](packages/ui-api-client) | 1.8.0-rc.2 | a typed TypeScript client generated from the merged UI API document (core plus 13 extensions), with OAuth2 device-flow and PKCE sign-in, token refresh and the realtime (SSE) stream |
-| [`@qrun-io/qqq-ui-api-conformance`](packages/conformance) | 1.6.0-rc.2 | a read-only conformance suite for any UI API server, and `qqq-dev-idp`, a local OIDC provider for testing native clients |
+| [`@qrun-io/qqq-cli`](packages/cli) | 1.0.0 | `qqq`, the CLI |
+| [`@qrun-io/qqq-core`](packages/core) | 1.0.0 | the client kernel: sessions and keyring, metadata cache, filter grammar, forms, processes, records, render model, output formats. No terminal code |
+| [`@qrun-io/qqq-ui-api-client`](packages/ui-api-client) | 1.8.0 | a typed TypeScript client generated from the merged UI API document (core plus 13 extensions), with OAuth2 device-flow and PKCE sign-in, token refresh and the realtime (SSE) stream |
+| [`@qrun-io/qqq-ui-api-conformance`](packages/conformance) | 1.6.0 | a read-only conformance suite for any UI API server, and `qqq-dev-idp`, a local OIDC provider for testing native clients |
 | [`packages/tui`](packages/tui) | in the binaries | `qqq ui`, the full-screen terminal UI (OpenTUI on Bun), bundled into every `qqq` binary; not an npm package |
 
 ## Install
@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/instal
 ```
 
 The installer picks the right build and checks it against the release's `SHA256SUMS`
-(`--version 1.0.0-rc.1`, `--dir /usr/local/bin`). Homebrew (`brew install qrun-io/tap/qqq`) and Scoop
+(`--version 1.0.0`, `--dir /usr/local/bin`). Homebrew (`brew install qrun-io/tap/qqq`) and Scoop
 packages are prepared in [`docs/packaging`](docs/packaging/README.md) and land with the release.
 
 **macOS, downloaded with a browser:** until the binaries are notarized, Gatekeeper stops a binary that a
@@ -42,7 +42,7 @@ Or the CLI alone from npm (GitHub Packages), with Node.js 20 or later (no `qqq u
 
 ```sh
 echo "@qrun-io:registry=https://npm.pkg.github.com" >> ~/.npmrc
-npm install -g @qrun-io/qqq-cli@rc
+npm install -g @qrun-io/qqq-cli
 ```
 
 ## First sign-in

@@ -70,6 +70,20 @@ smoke against the sample server), linux-x64 glibc, linux-arm64 glibc and linux-a
 
 ## 2. Versions: release candidate to final
 
+**For 1.0.0 this step is already done** on the branch `release/1.0.0` (one commit on top of the rc.1
+commit 6517373): all four packages final, the exact workspace pins, `## [1.0.0] - YYYY-MM-DD` in the
+CHANGELOG (fill in the date), `docs/release-notes/1.0.0.md`, and the README at 1.0.0. The day rc.1
+feedback is accepted, that branch is fast-forwarded onto `main` (after any rc fixes have been merged into
+it); nothing else changes versions:
+
+```sh
+git checkout main && git pull --ff-only
+git merge --ff-only release/1.0.0      # fails if main moved: rebase release/1.0.0 onto main first
+git push origin main
+```
+
+For later releases, the table below is the recipe.
+
 On a branch `release/1.0.0` from `main`:
 
 | File | Change |

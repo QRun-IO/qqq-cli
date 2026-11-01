@@ -1,6 +1,6 @@
 {
   "name": "@qrun-io/qqq-ui-api-conformance",
-  "version": "1.6.0-rc.2",
+  "version": "1.6.0",
   "description": "Black-box conformance suite for QQQ UI API (/qqq/v1) servers, plus qqq-dev-idp, a local OIDC provider for testing native clients.",
   "license": "Apache-2.0",
   "type": "module",

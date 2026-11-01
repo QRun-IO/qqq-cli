@@ -6,7 +6,7 @@ field and process comes from the server's metadata.
 
 ```sh
 echo "@qrun-io:registry=https://npm.pkg.github.com" >> ~/.npmrc
-npm install -g @qrun-io/qqq-cli@rc
+npm install -g @qrun-io/qqq-cli
 qqq login --server https://admin.example.com
 qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5
 ```

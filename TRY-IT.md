@@ -21,12 +21,12 @@ and say when a new build is ready. After a reboot, `qqq-sample-server start` aga
 
 ## Try the release binary (`qqq-bin`)
 
-`qqq-bin` on this machine (`~/.local/bin/qqq-bin`) is the darwin-arm64 release-candidate binary: the CLI
+`qqq-bin` on this machine (`~/.local/bin/qqq-bin`) is the darwin-arm64 release binary: the CLI
 and the terminal UI in one file, no Node or Bun. It is the same build a user downloads; `qqq` stays the
 from-source launcher. Both use the same profiles and keychain items.
 
 ```sh
-qqq-bin --version                 # qqq 1.0.0-rc.1 (darwin-arm64 binary with ui, <commit>, bun 1.4.4)
+qqq-bin --version                 # qqq 1.0.0 (darwin-arm64 binary with ui, <commit>, bun 1.4.4)
 qqq-bin doctor                    # first line: the build, runtime and platform; then server, sign-in, terminal
 qqq-bin --profile sample ui       # the terminal UI from the binary
 qqq-bin ui --check                # the terminal check, with the build line support asks for
