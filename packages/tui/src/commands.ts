@@ -160,14 +160,18 @@ export class Commands implements CommandsLike {
       // no recents
     }
     for (const e of this.entries('')) if (e.run && !e.disabled && e.section !== 'Context' && e.section !== 'Go to') idle.push({ label: e.label, kind: 'command', context: e.command ? `:${e.command}` : e.section, run: e.run })
+    // palette search ignores case; text starting with = matches exact case
     const searchIndex = (text: string, limit: number) => {
-      const r = s.index?.search(text, { limit, kinds: ['app', 'table', 'process', 'report'] }) ?? { entries: [], total: 0 }
-      return { total: r.total, items: r.entries.map((e) => ({ label: e.label, kind: e.kind, context: e.path.join(' › ') || e.name, run: () => this.openEntry(e.kind, e.name) })) }
+      const exact = text.startsWith('=')
+      const term = exact ? text.slice(1) : text
+      const r = s.index?.search(term, { limit: exact ? limit * 5 : limit, kinds: ['app', 'table', 'process', 'report'] }) ?? { entries: [], total: 0 }
+      const entries = exact ? r.entries.filter((e) => term.trim().split(/\s+/).every((w) => e.label.includes(w) || e.name.includes(w))).slice(0, limit) : r.entries
+      return { total: exact ? entries.length : r.total, items: entries.map((e) => ({ label: e.label, kind: e.kind, context: e.path.join(' › ') || e.name, run: () => this.openEntry(e.kind, e.name) })) }
     }
     const features = s.version?.features ?? []
     const quick = s.extensions.has('quick-search') || s.extensions.has('qbit-quick-search')
     const search = quick || features.includes('recordSearch') ? async (text: string): Promise<PaletteItem[]> => {
-      const data = await s.client!.data<{ results?: Array<{ tableName?: string; table?: string; primaryKey?: unknown; recordLabel?: string; label?: string }>; provider?: { status?: string } }>('searchRecords', { json: { query: text, searchTerm: text, limit: 20 } })
+      const data = await s.client!.data<{ results?: Array<{ tableName?: string; table?: string; primaryKey?: unknown; recordLabel?: string; label?: string }>; provider?: { status?: string } }>('searchRecords', { json: { query: text.replace(/^=/, ''), searchTerm: text.replace(/^=/, ''), limit: 20, ...(text.startsWith('=') ? { caseSensitive: true } : {}) } })
       if (data.provider?.status === 'NONE') return [{ label: 'No record search on this server (search provider: none)', kind: 'note', context: 'navigation only', run: () => undefined }]
       return (data.results ?? []).map((r) => {
         const table = r.tableName ?? r.table ?? ''

@@ -174,7 +174,10 @@ export class TableScreen implements Screen {
   }
 
   fullFilter(): QueryFilter {
-    const quick = this.meta && this.quick.trim() ? quickSearchFilter(this.quick, quickSearchFields(this.meta as never, this.fields().map((f) => f.name))) : undefined
+    // quick search ignores case; a term starting with = matches exact case
+    const exact = this.quick.trim().startsWith('=')
+    const term = exact ? this.quick.trim().slice(1) : this.quick
+    const quick = this.meta && term.trim() ? quickSearchFilter(term, quickSearchFields(this.meta as never, this.fields().map((f) => f.name)), { caseSensitive: exact }) : undefined
     const base = combineWithQuickSearch(JSON.parse(JSON.stringify(this.filter)) as QueryFilter, quick)
     // DATE_TIME criteria typed in the local zone go out as UTC instants (expressions stay for the server)
     if (this.fullMeta ?? this.meta) filterDateTimesToUtc(base, (this.fullMeta ?? this.meta)!.fields as never)
@@ -192,7 +195,7 @@ export class TableScreen implements Screen {
   }
 
   quickSearch(): void {
-    this.store.open(new PromptOverlay(this.store, `Quick search ${this.title()}`, 'Text matched (contains) in the visible text columns, together with the filter; empty clears.', (text) => {
+    this.store.open(new PromptOverlay(this.store, `Quick search ${this.title()}`, 'Text matched (contains, any case) in the visible text columns, together with the filter; start with = for exact case; empty clears.', (text) => {
       this.quick = text.trim()
       this.newCursor(0)
     }, this.quick))

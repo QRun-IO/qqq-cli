@@ -233,7 +233,7 @@ export class PaletteOverlay implements Overlay {
     const footer = !typed ? `recents and commands · ${this.summary} · type to search` : `${total} matches${more}${this.searchRecords ? (this.searching ? ' · searching records…' : ' · records searched by the server') : ' · no record search on this server'}`
     return (
       <Frame title="Go to  (F2  /  .  Ctrl+K)" width={width} height={rows + 5} screenWidth={sw} screenHeight={sh} top={2}>
-        <box paddingLeft={1}><EditorLine editor={this.input} width={inner - 2} placeholder="a table, process, app, report, recent record, command, or text to find records" /></box>
+        <box paddingLeft={1}><EditorLine editor={this.input} width={inner - 2} placeholder="a table, process, app, report, recent record, command, or text to find records (any case; =Text for exact case)" /></box>
         {items.slice(top, top + rows).map((it, i) => {
           const sel = top + i === this.index
           return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? t.selFg : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${pad(it.label, 38)} ${pad(it.kind, 10)} ${it.context ?? ''}`, inner)}</text>

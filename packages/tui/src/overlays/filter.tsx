@@ -15,7 +15,7 @@
 
 import {
   FilterSyntaxError, LIST_OPERATORS, OPERATORS, UNARY_OPERATORS, WEEKDAY_OF_DATE, WEEKDAY_OF_DATE_TIME, applyFieldTypes, applyCompletion, completeFilter, describeFilter, expressionCandidates, locateFilterError,
-  operatorsForField, parseFilter, parseValue, printCriterion, printFilter, printValue, resolvePossibleValue, searchPossibleValues,
+  operatorsForField, parseFilter, textMatchOptions, TEXT_MATCH_OPERATORS, CASE_INSENSITIVE, parseValue, printCriterion, printFilter, printValue, resolvePossibleValue, searchPossibleValues,
   type Completion, type CompletionResult, type Criterion, type FilterValue, type Operator, type QueryFilter,
 } from '@qrun-io/qqq-core'
 import type { FieldMetaData, TableMetaData } from '../client'
@@ -63,6 +63,17 @@ export function splitPasted(text: string): string[] {
 
 function clone(f: QueryFilter): QueryFilter {
   return JSON.parse(JSON.stringify(f)) as QueryFilter
+}
+
+/** A text match without CASE_INSENSITIVE matches exact case. */
+export function isCaseSensitive(c: Pick<Criterion, 'operator' | 'options'>): boolean {
+  return TEXT_MATCH_OPERATORS.has(c.operator as never) && !(c.options ?? []).includes(CASE_INSENSITIVE)
+}
+
+/** The grammar for the editor: exact-case text matches print as OPERATOR:CS so they survive a round trip. */
+export function printWithCase(f: QueryFilter): string {
+  const mark = (g: QueryFilter): QueryFilter => ({ ...g, criteria: g.criteria.map((c) => (isCaseSensitive(c) ? { ...c, operator: `${c.operator}:CS` as never } : c)), ...(g.subFilters ? { subFilters: (g.subFilters as QueryFilter[]).map(mark) } : {}) })
+  return printFilter(mark(f))
 }
 
 export class FilterOverlay implements Overlay {
@@ -168,7 +179,7 @@ export class FilterOverlay implements Overlay {
       return `${f?.label ?? c.fieldName}: day ${c.operator === 'NOT_IN' ? 'is none of' : 'is any of'} ${c.values.map((v) => DAYS[Number(v) - 1] ?? String(v)).join(', ')}`
     }
     const op = c.operator.toLowerCase().replace(/_/g, ' ')
-    return `${f?.label ?? c.fieldName} ${op}${c.values.length ? ` ${this.valueText(c)}` : ''}`
+    return `${f?.label ?? c.fieldName} ${op}${c.values.length ? ` ${this.valueText(c)}` : ''}${isCaseSensitive(c) ? '  (exact case)' : ''}`
   }
 
   /** Field, then operator, then value; calls back with the criterion. */
@@ -196,7 +207,9 @@ export class FilterOverlay implements Overlay {
       }
       pickOp((op) => {
         if (UNARY_OPERATORS.has(op)) return done({ fieldName: f.name, operator: op, values: [] })
-        this.editValues(f, op, start.values ?? [], (values) => done({ fieldName: f.name, operator: op, values }))
+        // text matches ignore case unless the condition asks for exact case (kept when the comparison changes)
+        const caseSensitive = start.operator !== undefined && start.values !== undefined && isCaseSensitive(start as Criterion)
+        this.editValues(f, op, start.values ?? [], (values) => done({ fieldName: f.name, operator: op, values, ...textMatchOptions(op, caseSensitive) }))
       })
     })
   }
@@ -325,10 +338,16 @@ export class FilterOverlay implements Overlay {
       this.store.open(new ChoiceOverlay(this.store, this.critText(c), [
         { label: 'Change the value', value: 'value', disabled: UNARY_OPERATORS.has(c.operator) ? 'this comparison has no value' : undefined },
         { label: 'Change the comparison', value: 'op' },
+        ...(TEXT_MATCH_OPERATORS.has(c.operator as never) ? [{ label: isCaseSensitive(c) ? 'Ignore case (the default)' : 'Match exact case', value: 'case' as const }] : []),
         { label: 'Change the field', value: 'field' },
         { label: 'Remove this condition', value: 'remove' },
       ], (what) => {
         if (what === 'remove') g.criteria.splice(r.index, 1)
+        else if (what === 'case') {
+          const { options: _drop, ...rest } = c
+          g.criteria[r.index] = { ...rest, ...textMatchOptions(c.operator, !isCaseSensitive(c)) }
+          this.store.bump()
+        }
         else if (what === 'value' && f) this.editValues(f, c.operator, c.values, (values) => { c.values = values; this.store.bump() })
         else if (what === 'op') this.buildCriterion({ fieldName: c.fieldName }, (n) => { g.criteria[r.index] = n; this.store.bump() })
         else this.buildCriterion({}, (n) => { g.criteria[r.index] = n; this.store.bump() })
@@ -376,7 +395,7 @@ export class FilterOverlay implements Overlay {
   // ---- advanced ----
 
   toAdvanced(): void {
-    this.text.set(printFilter(this.normalized()))
+    this.text.set(printWithCase(this.normalized()))
     this.mode = 'advanced'
     this.complete()
   }
@@ -621,7 +640,7 @@ export class FilterOverlay implements Overlay {
         lines.push(<text flexShrink={0} wrapMode="none" key={`r${i}`} fg={sel ? t.selFg : fg} bg={sel ? t.selBg : undefined}>{pad(`${sel ? g.pointer : ' '}${text}`, inner)}</text>)
       })
       for (let i = lines.length; i < body + 2; i++) lines.push(<Line key={`p${i}`} text="" width={inner} />)
-      grammar = printFilter(this.normalized())
+      grammar = printWithCase(this.normalized())
       lines.push(<Line key="help" text=" a add · e edit · d remove · o AND/OR · g group · s sort · c clear · Enter applies · Esc cancels" width={inner} fg={t.dim} />)
     } else {
       lines.push(<box key="ed" paddingLeft={1}><EditorLine editor={this.text} width={inner - 2} placeholder="lastName STARTS_WITH S AND (birthDate > now(-40y) OR email IS_BLANK)" /></box>)

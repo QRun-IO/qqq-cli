@@ -282,3 +282,45 @@ test('help: app and widget help on an app home, step and process help, column he
   await press(h, () => h!.setup.mockInput.pressArrow('right'))
   f = await waitFor(h, (x) => x.includes('Status: Where the account stands.'))
 })
+
+
+
+test('case: quick search and guided text conditions ignore case by default; = and "Match exact case" ask for exact case, kept through the grammar', async () => {
+  h = await startTui(130, 40)
+  await command(h, 'table query person')
+  await waitFor(h, (x) => x.includes('records'))
+  await key('q')
+  await type('odd')
+  await enter()
+  await waitFor(h, () => h!.log.requests.some((r) => r.path === '/table/person/query' && JSON.stringify(r.body).includes('"odd"')))
+  let q = h.log.requests.filter((r) => r.path === '/table/person/query').at(-1)!
+  expect(JSON.stringify(q.body)).toContain('"options":["CASE_INSENSITIVE"]')
+  await key('q')
+  await key('u', { ctrl: true })
+  await type('=Odd')
+  await enter()
+  await waitFor(h, () => JSON.stringify(h!.log.requests.filter((r) => r.path === '/table/person/query').at(-1)!.body).includes('"Odd"'))
+  q = h.log.requests.filter((r) => r.path === '/table/person/query').at(-1)!
+  expect(JSON.stringify(q.body)).not.toContain('CASE_INSENSITIVE')
+  const { FilterOverlay } = await import('../src/overlays/filter')
+  const grid = h.store.screen as unknown as { meta: never }
+  let applied: unknown
+  const o = new FilterOverlay(h.store, grid.meta, { criteria: [], booleanOperator: 'AND' }, undefined, (f) => { applied = f })
+  h.store.open(o)
+  o.buildCriterion({ fieldName: 'lastName', operator: 'CONTAINS' }, (c) => o.filter.criteria.push(c))
+  await press(h, () => undefined)
+  await type('od')
+  await enter()
+  await waitFor(h, () => o.filter.criteria.length === 1)
+  expect(o.filter.criteria[0]!.options).toEqual(['CASE_INSENSITIVE'])
+  ;(o as unknown as { editRow: (r: unknown) => void }).editRow({ kind: 'crit', group: -1, index: 0 })
+  await type('Match exact')
+  await enter()
+  await waitFor(h, (x) => x.includes('(exact case)'))
+  expect(o.filter.criteria[0]!.options).toBeUndefined()
+  o.toAdvanced()
+  expect(o.text.value).toContain('CONTAINS:CS')
+  await key('s', { ctrl: true })
+  await waitFor(h, () => applied !== undefined)
+  expect(JSON.stringify(applied)).not.toContain('CASE_INSENSITIVE')
+})
