@@ -201,10 +201,15 @@ export class AppStore {
     this.bump()
   }
 
-  /** Tells the presence source which scope is on top (called on every repaint; cheap when unchanged). */
+  /**
+   * Tells the presence source which scope is on top (called on every repaint; cheap when unchanged).
+   * The screen saver or lock keeps the lease on the scope that was on top (the extension has no idle
+   * state: the user stays as a viewer rather than vanishing from the others' screens, as a person
+   * who stepped away from a record) and waking re-syncs.
+   */
   private syncPresence(): void {
-    const scope = this.lock ? undefined : this.screen?.presenceScope?.()
-    presenceSource().enter?.(scope)
+    if (this.lock) return
+    presenceSource().enter?.(this.screen?.presenceScope?.())
   }
 
   /** Replaces the top screen (a form that saved becomes the record). */

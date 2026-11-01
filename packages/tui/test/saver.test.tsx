@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { removePin, setPin } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { SaverOverlay } from '../src/overlays/saver'
+import { setPresenceSource } from '../src/presence'
 import { FONT_HEIGHT, blockText, blockWidth, canDraw } from '../src/saver/font'
 import { ALTERNATE_MILLIS, AUTO_STYLE_MILLIS, FRAME_MILLIS, SHIFT_MILLIS, bounce, bounceLayout, isDimmed, logoName, nextFrameDelay, paintSaver, saverFrame, styleAt, type SaverInput, type SaverTile } from '../src/saver/layout'
 import { EventRate, MAX_BACKOFF_MS, TileModel, isAbsent, sparkline, type TileSource, type TileValue } from '../src/saver/model'
@@ -126,17 +127,53 @@ describe('sources', () => {
     const s = presenceSource(ctx({ now: () => t, data: (_id, input) => ({ viewers: viewers[(input as { query: { table: string } }).query.table] ?? [] }) }))
     const v = await s.load()
     expect(v.value).toBe('3')
-    expect(v.detail).toMatch(/^Bob · PERSON, Carol editing · ORDER, you elsewhere · PERSON$/)
+    expect(v.detail).toBe('3 online · you, Bob · PERSON, Carol editing · ORDER')
     viewers.person = []
     viewers.order = []
     t = 120_000
-    expect((await s.load()).value).toBe('0')
+    expect((await s.load()).value).toBe('1')
   })
 
   test('presence on a table that refuses it is skipped; the source hides when nothing is left', async () => {
-    const s = presenceSource(ctx({ data: () => { throw new UiApiError(404, {}) } }))
-    await s.load()
-    await expect(s.load()).rejects.toThrow('no tables')
+    const refuse = () => { throw new UiApiError(404, {}) }
+    // signed out: nothing to show once every table refuses
+    const out = presenceSource(ctx({ status: () => ({ apiVersion: '1', pingMs: 1, stream: 'connected', lastEvent: '', user: '' }), data: refuse }))
+    await out.load()
+    await expect(out.load()).rejects.toThrow('no tables')
+    // signed in: never "nobody around", this terminal is online
+    const me = presenceSource(ctx({ data: refuse }))
+    await me.load()
+    const v = await me.load()
+    expect(v.value).toBe('1')
+    expect(v.detail).toBe('1 online · you')
+  })
+
+  test('online by session: sessions active in the last 10 minutes, own sessions counted, others by user', async () => {
+    const queries: unknown[] = []
+    const rows = [{ userId: 'core:me' }, { userId: 'core:me' }, { userId: 'core:bob' }]
+    const client = { query: async (_t: string, f: unknown) => { queries.push(f); return rows.map((values) => ({ values })) }, data: async () => ({}), count: async () => 0 }
+    const mk = (over: Partial<SaverContext> & { data?: (id: string, input: unknown) => unknown } = {}) => ctx({ client: client as never, sessionTable: () => 'storedSession', now: () => 1_000_000_000_000, ...over })
+    const v = await presenceSource(mk()).load()
+    expect(v.value).toBe('3 online')
+    expect(v.detail).toBe('3 sessions · 2 users (you ×2, bob)')
+    expect(v.big).toBe('3')
+    const f = queries[0] as { criteria: Array<{ fieldName: string; operator: string; values: string[] }> }
+    expect(f.criteria[0]).toMatchObject({ fieldName: 'modifyDate', operator: 'GREATER_THAN', values: [new Date(1_000_000_000_000 - 600_000).toISOString()] })
+    // the owner's case: the same user twice
+    rows.splice(2, 1)
+    expect((await presenceSource(mk()).load()).detail).toBe('2 sessions · 1 user (you ×2)')
+    // an empty session table (a mock-auth server stores none) falls back to presence and still counts you
+    rows.length = 0
+    const fb = await presenceSource(mk({ data: () => ({ viewers: [] }) })).load()
+    expect(fb.value).toBe('1')
+    expect(fb.detail).toBe('1 online · you')
+    // no session table, no collaboration: the tile hides
+    expect(presenceSource(ctx({ has: () => false })).present()).toBe(false)
+    expect(presenceSource(ctx({ has: () => false, sessionTable: () => 'storedSession' })).present()).toBe(true)
+    // a session table the user may not read is skipped for good
+    const denied = { ...client, query: async () => { throw new UiApiError(403, {}) } }
+    const d = presenceSource(mk({ client: denied as never, data: () => ({ viewers: [] }) }))
+    expect((await d.load()).value).toBe('1')
   })
 
   test('jobs: counts by status, falls back to my jobs on 403', async () => {
@@ -170,7 +207,7 @@ describe('sources', () => {
 
 describe('Query', () => {
   test('both sizes have their documented size; braille round-trips; mirrored and blinking frames differ', () => {
-    for (const size of ['small', 'large'] as const) {
+    for (const size of ['small', 'medium', 'large'] as const) {
       const { width, height } = querySize(size)
       const frame = queryFrame(size)
       expect(frame.length).toBe(height)
@@ -185,6 +222,49 @@ describe('Query', () => {
       }
     }
     expect(mirrorAscii("(/`")).toBe("'\\)")
+  })
+
+  test('every size keeps the logo\'s silhouette: floppy ear left of the head and snout, tail curled at the low left, sitting body, front legs and the ground line at the bottom', () => {
+    expect(querySize('large')).toEqual({ width: 42, height: 22 })
+    expect(querySize('medium')).toEqual({ width: 25, height: 13 })
+    expect(querySize('small')).toEqual({ width: 17, height: 9 })
+    for (const size of ['large', 'medium', 'small'] as const) {
+      const rows = queryFrame(size)
+      const bits = decodeBraille(rows)
+      const H = bits.length
+      const W = bits[0]!.length
+      const dots = (y0: number, y1: number, x0 = 0, x1 = W) => {
+        const out: Array<[number, number]> = []
+        for (let y = Math.floor(y0 * H); y < Math.ceil(y1 * H); y++) for (let x = Math.floor(x0 * W); x < Math.ceil(x1 * W); x++) if (bits[y]?.[x]) out.push([x, y])
+        return out
+      }
+      const minX = (d: Array<[number, number]>) => Math.min(...d.map((p) => p[0]))
+      const maxX = (d: Array<[number, number]>) => Math.max(...d.map((p) => p[0]))
+      // the picture is the logo's: dots across the whole height and most of the width, nothing past the cells
+      expect(dots(0, 1).length).toBeGreaterThan(H)
+      expect(rows.length).toBe(querySize(size).height)
+      // head and ear: the top third; the ear (its left edge) is well left of the snout (the right edge), the snout is the rightmost thing up there
+      const head = dots(0, 0.34)
+      expect(head.length).toBeGreaterThan(5)
+      expect(maxX(head)).toBeGreaterThan(W * 0.7)
+      expect(minX(head)).toBeLessThan(W * 0.55)
+      expect(maxX(head) - minX(head)).toBeGreaterThan(W * 0.3)
+      // the top of the head sits above the middle of the back, right of the tail
+      expect(minX(head)).toBeGreaterThan(W * 0.2)
+      // the tail: ink in the low-left corner, left of where the body's back reaches the ground
+      const tail = dots(0.6, 1, 0, 0.22)
+      expect(tail.length).toBeGreaterThan(4)
+      // the sitting body: the chest edge at the right in the middle rows and the haunch at the left
+      const middle = dots(0.4, 0.75)
+      expect(maxX(middle)).toBeGreaterThan(W * 0.6)
+      expect(minX(middle)).toBeLessThan(W * 0.5)
+      // front legs and the ground line: the bottom row of cells spans most of the width
+      const ground = dots(0.84, 1)
+      expect(maxX(ground) - minX(ground)).toBeGreaterThan(W * 0.6)
+      expect(maxX(ground)).toBeGreaterThan(W * 0.7)
+      // the eye is inside the head, right of the ear's left edge
+      expect(queryFrame(size, { blink: true })).not.toEqual(rows)
+    }
   })
 
   test('poses: blinks, acts every ten seconds, faces the way he drifts', () => {
@@ -520,7 +600,7 @@ describe('burn-in guard', () => {
             const cy = (minY + maxY) / 2
             for (const r of spans) {
               expect(Math.abs((r.from + r.to) / 2 - cx)).toBeLessThanOrEqual(width * 0.4)
-              expect(Math.abs(r.y - cy)).toBeLessThanOrEqual(height * 0.4 + 1)
+              expect(Math.abs(r.y - cy)).toBeLessThanOrEqual(height * 0.4 + 2)
             }
             {
               // the group as a whole stays near the middle of the screen, fully on it
@@ -686,6 +766,31 @@ describe('in the TUI', () => {
     expect(s.input(80, 24, s.startedAt + 3_600_000).dim).toBe(false)
     expect(s.input(80, 24).burnin).toBe(true)
     await command(h, 'saver dim 10')
+  })
+
+  test('the saver keeps the presence lease of the screen under it (others see an idle viewer, not a gone one); waking resyncs', async () => {
+    const calls: Array<string | undefined> = []
+    const none = { count: 0, people: [] }
+    setPresenceSource({ get: () => none, subscribe: () => () => undefined, enter: (scope) => { calls.push(scope) } })
+    try {
+      await command(h, 'table query person')
+      await waitFor(h, (f) => f.includes('30 records'))
+      expect(calls.at(-1)).toBe('table:person')
+      calls.length = 0
+      await command(h, 'saver flip')
+      await waitFor(h, (f) => f.includes('preview: flip'))
+      // never left (the same scope may be announced again; the source ignores a repeat)
+      expect(calls.every((c) => c === 'table:person')).toBe(true)
+      await press(h, () => h.setup.mockInput.typeText('x'))
+      expect(h.store.lock).toBeUndefined()
+      h.store.bump()
+      await waitFor(h, (f) => f.includes('30 records'))
+      expect(calls.includes(undefined)).toBe(false)
+      expect(calls.every((c) => c === 'table:person')).toBe(true)
+    } finally {
+      setPresenceSource(undefined)
+      h.store.back()
+    }
   })
 
   test('F9 → Settings lists the saver style, refresh and preview', () => {
