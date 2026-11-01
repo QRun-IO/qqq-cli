@@ -294,12 +294,45 @@ drives it in tmux at 80x24 and 120x36 against a server with the extension (defau
 
 TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `menu`, `search <text>` (also `find`, `goto`, `palette`), `view`,
 `views`, `share`, `actions`, `audits`, `dev`, `tags`, `report run <name>`, `theme <name>`, `ascii on|off`,
-`linear on|off`, `shortcuts on|off`, `dates [order ymd|mdy|dmy] [clock 24h|12h] [week monday|sunday] [weeknumbers on|off] [enter picker|next]`, `lock`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
+`linear on|off`, `shortcuts on|off`, `dates [order ymd|mdy|dmy] [clock 24h|12h] [week monday|sunday] [weeknumbers on|off] [enter picker|next]`, `lock`, `saver [style|style <s>|refresh <s>|tables <a,b>]`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
 `export <format>`, `jobs`, `profile [name]`, `servers`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
 `app <name>`, `record <table> <key>`, `sql [statement | open <id>]`. `table query|get|create|update|delete` and `process run` open screens;
 any other CLI command runs in-process (`runCli` from `@qrun-io/qqq-cli/program`) and shows its output;
 an extension operation (`:alerts get-inbox`, `:collab get-records-tasks customer 1`, `:api <operationId>`)
 shows its JSON as key/value rows and sub-tables, with `J` for the raw JSON.
+
+## Screen saver and lock
+
+`:lock`, F9 › Settings › Screen saver / lock, or the idle timeout (`:idle <minutes>`) shows the screen
+saver; any key wakes it. With a PIN set (`:pin`) the PIN prompt opens over the saver, which keeps
+animating; Esc goes back to the saver. `:saver` previews it at once (no PIN asked), `:saver bounce`,
+`starfield`, `flip` or `big` previews one style.
+
+Live tiles, refreshed every 10 to 30 s (`:saver refresh <seconds>`, F9 › Settings) and only while the
+saver shows. A tile whose extension is missing or that answers 403/404 is hidden, so the saver works on
+the plain sample server; one that fails shows `…`, then its last value dimmed as stale, and backs off
+(interval × 2ⁿ, at most five minutes).
+
+| Tile | Needs | Shows |
+|------|-------|-------|
+| Online | collaboration | people in presence across a few tables per refresh (favourites and recents first), who and on what; the signed-in user's other sessions as "you elsewhere" |
+| Jobs | `durableJobs` | running, queued and recently failed jobs (all users with jobs_admin, else yours) |
+| Health | health | the summary status and up / degraded / down / unknown counts |
+| Database | db-performance | live sessions, connections of the maximum, cache hit ratio, blocking chains |
+| ESB | esb | queue depth, dead letters, in flight, broker down |
+| Alerts | alerts | unread notifications and the latest one |
+| Events | `realtime` | events per minute on the stream the TUI keeps open, with a ten-minute sparkline |
+| Server | — | ping and UI API version (no request) |
+| *table* | — | record counts of up to three favourite tables: `:saver tables person,order` (per profile) |
+
+Styles (F9 › Settings › Screen saver style, `:saver style <s>`; `auto` cycles every three minutes):
+**Bounce** (Query, the qrun.io mascot, and the `qqq` logo drift DVD-style and change colour at every
+wall, tiles in a corner), **Starfield** (stars fly out of the centre, Query drifts through, the tiles
+float), **Flip clock** (big flip digits, the date and server, tiles beneath, Query peeking from a corner)
+and **Big numbers** (the most interesting metric in block digits beside Query, rotating every 8 s). The
+clock, server and profile stay on the top row. Query blinks, wags and hops every ten seconds and faces the
+way he drifts; the art (braille, with a line-art version for `--ascii`) is in `src/saver/query-art.ts`.
+Animation runs at 4 frames a second at most and about one when nothing moves; only the saver repaints.
 
 ## Large instances
 
@@ -327,6 +360,7 @@ Everything below is local to the machine and shared with the CLI; nothing is sen
     `app:<name>` widget order; `widget:<name>` dropdown choices of widgets that ask to keep them.
   - `ui.files`: download and upload folders and whether a download asks or saves silently.
   - `ui.lock`: the screen-lock PIN (a salted hash, never the PIN) and the idle minutes (0 = off).
+  - `saver`: the screen saver style and refresh seconds; `profiles.<name>.saver.tables`: favourite tables.
   - `ui.doctor`: the answers to the terminal check; `ui.recents`: recently viewed, per server.
 - `~/.local/state/qqq/` (`QQQ_STATE_DIR`): the `:` and filter histories (`history-commands`,
   `history-filters`); lines that look like secrets are not kept.

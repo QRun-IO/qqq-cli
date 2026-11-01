@@ -1,0 +1,229 @@
+/*
+ * Copyright 2026 QRun.IO, Inc.
+ * Licensed under the Apache License, Version 2.0 (see LICENSE).
+ */
+
+/**
+ * Query, the qrun.io mascot, for the screen saver.
+ *
+ * Source: the sitting-dog line drawing on Query's page, https://www.qrun.io/query/ (the inline SVG,
+ * viewBox 0 0 331.41 348.44, that the page's hero bounces). The large art is that drawing traced
+ * into braille dots (2×4 dots per cell, 66×76 dots); the small art is hand-drawn on a 24×24 dot
+ * grid after it. Each braille cell is a bitmap, so the frames are made from the art itself: blink
+ * (the eye's dots cleared), tail wag (the tail's dots moved), mirrored to face the way he drifts,
+ * eyes glancing up or down. The ASCII glyph set gets a plain line-art version of the same bitmap
+ * (hand-drawn for the small size).
+ */
+
+export type QuerySize = 'small' | 'large'
+
+/** Large Query, 33×19 cells, facing right. */
+const LARGE = [
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡴⠞⠛⠛⠛⠛⠳⢦⣄⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡾⠋⠀⠀⠀⠀⠀⠀⢀⡀⠹⣇⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡟⠀⠀⢠⡆⠀⠀⠀⠀⠸⠗⠀⠻⣤⣤⣤⣀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠁⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠈⢿⡀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡼⠋",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣧⠀⠀⠀⠀⢸⡇⠀⠀⠀⠘⣿⠛⠛⠋⠉⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢷⣤⣀⣤⡾⠁⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡟⠁⠉⠀⠀⠀⠀⠀⠀⠀⣿⡀⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡾⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⡆⠀⠀⠀⠀",
+  "⠀⠀⠀⠀⠀⠀⠀⢀⡾⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠁⠀⠀⠀⠀",
+  "⠀⣀⣀⠀⠀⠀⢀⡾⠁⠀⠀⠀⠀⣤⡴⠶⠶⠶⠶⣤⡀⠀⠀⠀⠀⠀⣰⠏⠀⠀⠀⠀⠀",
+  "⠀⠙⣿⣷⠀⠀⣼⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⣆⠀⠀⠀⢰⡏⠀⠀⠀⠀⠀⠀",
+  "⠀⠀⣿⣿⠃⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⡏⠀⠀⠀⠈⣷⠀⠀⠀⠀⠀⠀",
+  "⠀⢠⡿⣿⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠟⠀⠀⡀⠀⠀⣿⡀⠀⠀⠀⠀⠀",
+  "⠀⣼⢻⡇⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠟⠁⠀⠀⠀⢿⡀⠀⢸⡇⠀⠀⠀⠀⠀",
+  "⠀⣿⡈⠷⠶⠟⢁⠀⠀⠀⠀⠀⠀⠀⠀⠘⠛⠛⠛⠛⠛⠳⣦⡸⣧⠀⠈⠛⠳⣦⡀⠀⠀",
+  "⠀⠈⠳⣦⣤⡴⠛⢧⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣼⡇⠹⣦⣤⣤⣤⣬⡗⠀⠀",
+]
+
+/** Small Query, 12×6 cells, facing right (hand-drawn on 24×24 dots). */
+const SMALL = [
+  '⠀⠀⠀⠀⢀⠤⠒⠒⠢⢄⠀⠀',
+  '⠀⠀⠀⠀⡇⢸⠀⠁⣀⣀⡩⠕',
+  '⠀⠀⠀⠀⡨⠃⠀⠀⢇⠀⠀⠀',
+  '⠀⡀⢠⠊⢀⠤⢄⠀⢸⠀⠀⠀',
+  '⠀⢇⡇⠀⠀⠀⡠⠃⢸⠀⠀⠀',
+  '⠀⠀⠣⠤⠤⠼⠶⠶⠮⠵⠀⠀',
+]
+
+/** Small Query for the ASCII glyph set, 12×6 cells, facing right. */
+const SMALL_ASCII = [
+  '     .--.   ',
+  '    /(  o`-.',
+  "    \\_)  .-'",
+  '  _ /    |  ',
+  ' ( |  _/ |  ',
+  "  `-'--'-'  ",
+]
+
+interface Parts {
+  /** Dot boxes [x0, y0, x1, y1] (inclusive) of the eye and the tail, facing right. */
+  eye: [number, number, number, number]
+  tail: [number, number, number, number]
+}
+
+const PARTS: Record<QuerySize, Parts> = {
+  large: { eye: [51, 7, 53, 10], tail: [2, 51, 8, 68] },
+  small: { eye: [14, 4, 14, 4], tail: [2, 15, 3, 18] },
+}
+
+// braille dot bits by (column, row) inside a cell
+const DOT = [[0x01, 0x02, 0x04, 0x40], [0x08, 0x10, 0x20, 0x80]] as const
+
+/** A dot bitmap: rows of booleans. */
+export type Bitmap = boolean[][]
+
+/** Decodes braille rows into dots (blank and U+2800 cells are empty). */
+export function decodeBraille(rows: readonly string[]): Bitmap {
+  const width = Math.max(0, ...rows.map((r) => [...r].length)) * 2
+  const out: Bitmap = Array.from({ length: rows.length * 4 }, () => new Array<boolean>(width).fill(false))
+  rows.forEach((row, cy) => {
+    ;[...row].forEach((ch, cx) => {
+      const code = ch.codePointAt(0)! - 0x2800
+      if (code <= 0 || code > 0xff) return
+      for (let dx = 0; dx < 2; dx++) for (let dy = 0; dy < 4; dy++) if (code & DOT[dx]![dy]!) out[cy * 4 + dy]![cx * 2 + dx] = true
+    })
+  })
+  return out
+}
+
+/** Encodes dots as braille rows (empty cells become spaces). */
+export function encodeBraille(bits: Bitmap): string[] {
+  const height = Math.ceil(bits.length / 4)
+  const width = Math.ceil((bits[0]?.length ?? 0) / 2)
+  const rows: string[] = []
+  for (let cy = 0; cy < height; cy++) {
+    let line = ''
+    for (let cx = 0; cx < width; cx++) {
+      let code = 0
+      for (let dx = 0; dx < 2; dx++) for (let dy = 0; dy < 4; dy++) if (bits[cy * 4 + dy]?.[cx * 2 + dx]) code |= DOT[dx]![dy]!
+      line += code ? String.fromCodePoint(0x2800 + code) : ' '
+    }
+    rows.push(line)
+  }
+  return rows
+}
+
+/** Plain line art from dots: each 2×4 cell becomes the ASCII character closest to its stroke. */
+export function asciiFromBits(bits: Bitmap): string[] {
+  const height = Math.ceil(bits.length / 4)
+  const width = Math.ceil((bits[0]?.length ?? 0) / 2)
+  const rows: string[] = []
+  for (let cy = 0; cy < height; cy++) {
+    let line = ''
+    for (let cx = 0; cx < width; cx++) {
+      const dots: Array<[number, number]> = []
+      for (let dx = 0; dx < 2; dx++) for (let dy = 0; dy < 4; dy++) if (bits[cy * 4 + dy]?.[cx * 2 + dx]) dots.push([dx, dy])
+      line += strokeChar(dots)
+    }
+    rows.push(line)
+  }
+  return rows
+}
+
+function strokeChar(dots: Array<[number, number]>): string {
+  if (!dots.length) return ' '
+  if (dots.length >= 7) return '#'
+  const ys = dots.map((d) => d[1])
+  const xs = dots.map((d) => d[0])
+  const top = Math.min(...ys)
+  const bottom = Math.max(...ys)
+  const avgY = ys.reduce((a, b) => a + b, 0) / ys.length
+  const bothColumns = xs.includes(0) && xs.includes(1)
+  if (bottom - top <= 1) {
+    if (!bothColumns && dots.length === 1) return avgY < 2 ? "'" : '.'
+    return avgY >= 2.5 ? '_' : avgY < 1 ? '-' : '-'
+  }
+  if (!bothColumns) return '|'
+  // both columns over several rows: the slope of the stroke
+  const leftY = avg(dots.filter((d) => d[0] === 0).map((d) => d[1]))
+  const rightY = avg(dots.filter((d) => d[0] === 1).map((d) => d[1]))
+  if (rightY < leftY - 0.75) return '/'
+  if (leftY < rightY - 0.75) return '\\'
+  return '|'
+}
+
+function avg(values: number[]): number {
+  return values.reduce((a, b) => a + b, 0) / Math.max(1, values.length)
+}
+
+const MIRROR: Record<string, string> = { '/': '\\', '\\': '/', '(': ')', ')': '(', '<': '>', '>': '<', '`': "'", "'": '`', '[': ']', ']': '[' }
+
+/** An ASCII row mirrored left to right (slashes and brackets swapped). */
+export function mirrorAscii(row: string): string {
+  return [...row].reverse().map((c) => MIRROR[c] ?? c).join('')
+}
+
+const BASE: Record<QuerySize, Bitmap> = { large: decodeBraille(LARGE), small: decodeBraille(SMALL) }
+
+/** Width and height in cells of Query at a size. */
+export function querySize(size: QuerySize): { width: number; height: number } {
+  return size === 'large' ? { width: 33, height: 19 } : { width: 12, height: 6 }
+}
+
+export interface QueryPose {
+  /** Faces left (mirrored) when drifting left; the art faces right. */
+  facing?: 'left' | 'right'
+  /** Eyes closed. */
+  blink?: boolean
+  /** Tail out to one side (alternate it for a wag). */
+  wag?: boolean
+  /** Eyes glance up (-1) or down (1). */
+  glance?: -1 | 0 | 1
+}
+
+/** One frame of Query: rows of text (braille, or ASCII line art), all the same width. */
+export function queryFrame(size: QuerySize, pose: QueryPose = {}, ascii = false): string[] {
+  if (ascii && size === 'small') {
+    let rows = SMALL_ASCII.map((r) => (pose.blink ? r.replace('o', '-') : r))
+    if (pose.wag) rows = rows.map((r, i) => (i === 3 ? ` _${r.slice(2)}` : i === 4 ? `(  ${r.slice(3)}` : r))
+    if (pose.facing === 'left') rows = rows.map(mirrorAscii)
+    return rows
+  }
+  const parts = PARTS[size]
+  const bits = BASE[size].map((r) => [...r])
+  const [ex0, ey0, ex1, ey1] = parts.eye
+  if (pose.blink || pose.glance) {
+    const eye: Array<[number, number]> = []
+    for (let y = ey0; y <= ey1; y++) for (let x = ex0; x <= ex1; x++) if (bits[y]![x]) { eye.push([x, y]); bits[y]![x] = false }
+    if (pose.blink) {
+      // a closed eye: a short line (two dots at least) across the bottom of the eye
+      for (let x = Math.min(ex0, ex1 - 1); x <= ex1; x++) bits[ey1]![x] = true
+    } else {
+      for (const [x, y] of eye) if (bits[y + pose.glance!]) bits[y + pose.glance!]![x] = true
+    }
+  }
+  if (pose.wag) {
+    const [tx0, ty0, tx1, ty1] = parts.tail
+    const moved: Array<[number, number]> = []
+    for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) if (bits[y]![x]) { moved.push([x, y]); bits[y]![x] = false }
+    const shift = size === 'large' ? 2 : 1
+    for (const [x, y] of moved) {
+      // the tip swings the most: dots higher up the tail move further out
+      const lift = y < (ty0 + ty1) / 2 ? shift : Math.max(1, shift - 1)
+      const nx = Math.max(0, x - lift)
+      bits[Math.max(0, y - 1)]![nx] = true
+    }
+  }
+  if (pose.facing === 'left') for (const row of bits) row.reverse()
+  return ascii ? asciiFromBits(bits) : encodeBraille(bits)
+}
+
+/**
+ * Query's pose at a moment: blinks every ~4 s, wags and hops every ~10 s (the hop is returned as
+ * `dy`, cells to lift him), glances the way he drifts. Pure: the same time gives the same frame.
+ */
+export function queryPoseAt(nowMillis: number, motion: { dx?: number; dy?: number } = {}): QueryPose & { dy: number; action: boolean } {
+  const blink = nowMillis % 4000 < 220
+  const cycle = nowMillis % 10_000
+  const action = cycle >= 9000
+  const wag = action && Math.floor(cycle / 250) % 2 === 0
+  const dy = action && cycle >= 9250 && cycle < 9750 ? -1 : 0
+  const facing = (motion.dx ?? 1) < 0 ? 'left' : 'right'
+  const glance = (motion.dy ?? 0) < 0 ? -1 : (motion.dy ?? 0) > 0 ? 1 : 0
+  return { blink, wag, facing, glance: blink ? 0 : glance, dy, action }
+}

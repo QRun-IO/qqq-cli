@@ -14,9 +14,10 @@ import { THEMES } from './theme'
 import { metaHelp, processHelp, tableHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeConfig, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
-import { CommandLineOverlay, HelpOverlay, LockOverlay, MenuOverlay, PaletteOverlay } from './overlays/center'
+import { CommandLineOverlay, HelpOverlay, MenuOverlay, PaletteOverlay } from './overlays/center'
 import { helpKeyGroups, type KeyRow } from './help-keys'
 import { recordItem, type PaletteItem, type SearchHit } from './palette'
+import { SAVER_WORDS, SaverOverlay, saverCommand, saverMenuEntries } from './overlays/saver'
 import { chooseFolder } from './overlays/files-helpers'
 import { OutputScreen } from './screens/output'
 import { openReport } from './screens/report'
@@ -45,7 +46,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates']
 
 export class Commands implements CommandsLike {
   constructor(private store: AppStore) {}
@@ -206,7 +207,7 @@ export class Commands implements CommandsLike {
   }
 
   lock(): void {
-    this.store.lock = new LockOverlay(this.store)
+    this.store.lock = new SaverOverlay(this.store)
     this.store.bump()
   }
 
@@ -225,6 +226,7 @@ export class Commands implements CommandsLike {
     const noun = words[0]!
     if (pos === 1 && NOUNS[noun]?.length) return pick(NOUNS[noun]!)
     if (noun === 'theme' && pos === 1) return pick(Object.keys(THEMES))
+    if (noun === 'saver' && pos === 1) return pick(SAVER_WORDS)
     if ((noun === 'table' && pos === 2) || (noun === 'open' && pos === 1) || (noun === 'record' && pos === 1)) return pick(Object.keys(meta?.tables ?? {}))
     if (noun === 'process' && pos === 2) return pick(Object.keys(meta?.processes ?? {}))
     if (noun === 'widget' && pos === 2) return pick(Object.keys(meta?.widgets ?? {}))
@@ -261,6 +263,7 @@ export class Commands implements CommandsLike {
           break
         case 'view': return this.viewSettings()
         case 'lock': return this.lock()
+        case 'saver': return saverCommand(s, rest, fail)
         case 'refresh': return s.screen?.refresh?.()
         case 'theme': {
           const name = rest[0]
@@ -662,6 +665,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Settings', label: hasPin() ? 'Change PIN' : 'Set PIN', command: 'pin', run: () => this.setPin() })
     if (hasPin()) out.push({ section: 'Settings', label: 'Remove PIN', command: 'pin remove', run: () => this.removePin() })
     out.push({ section: 'Settings', label: `Copy CLI commands to the clipboard automatically: ${s.settings.copyCli ? 'on' : 'off'}`, run: () => this.setCopyCli(!s.settings.copyCli) })
+    out.push(...saverMenuEntries(s))
     const fp = readFilePreferences()
     out.push({ section: 'Settings', label: `Download folder: ${fp.downloadDir ?? '(last used, else ~/Downloads)'}`, run: () => chooseFolder(s, 'Default download folder', startDirForSave(fp), (dir) => { writeFilePreferences({ downloadDir: dir }); s.flash(`downloads go to ${dir}`) }) })
     out.push({ section: 'Settings', label: `Downloads: ${fp.downloadMode === 'silent' ? 'save silently to the download folder' : 'ask every time'}`, run: () => { writeFilePreferences({ downloadMode: fp.downloadMode === 'silent' ? 'ask' : 'silent' }); s.flash('download mode changed') } })

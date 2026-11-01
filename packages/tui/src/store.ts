@@ -18,6 +18,7 @@ import { ChoiceOverlay, ConfirmOverlay, CliCommandOverlay, MessageOverlay } from
 import { Extensions } from './extensions'
 import { PrintTracker } from './printing'
 import { collaborationPresence, presenceSource, setPresenceSource } from './presence'
+import { realtimeEvents } from './saver/model'
 import { setAscii, setTheme, theme } from './theme'
 import type { FKeyLabels, Overlay, Screen } from './types'
 import { errorText } from './util/text'
@@ -517,7 +518,10 @@ export class AppStore {
               delay = 1000
               this.status.stream = 'connected'
               if (message.event === 'hello') heartbeat = Number((message.data as { heartbeatSeconds?: number })?.heartbeatSeconds ?? 30) * 1000
-              else this.status.lastEvent = `${message.event} @ ${clock()}`
+              else {
+                this.status.lastEvent = `${message.event} @ ${clock()}`
+                realtimeEvents.note()
+              }
               this.onRealtime?.(message.event, message.data)
               this.bump()
             }

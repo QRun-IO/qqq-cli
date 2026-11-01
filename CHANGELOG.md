@@ -239,6 +239,12 @@ candidate's, plus the changes since it listed first.
 - **Terminal care**: `qqq ui --check` (and a quick check at startup) finds tmux key and colour problems and
   offers fixes; mouse off by default (`--mouse`), `--ascii`, `--linear` and light, classic and
   high-contrast themes; Ctrl+C or a crash always restores the terminal.
+- **A live screen saver** (`:lock`, the idle timeout, `:saver [style]` to preview): tiles refreshed every
+  10 to 30 s for people online (collaboration presence), running, queued and failed jobs, health,
+  database sessions, ESB depth and dead letters, unread alerts, realtime events per minute, ping and the
+  profile's favourite table counts, each hidden when its extension is absent and dimmed when stale; four
+  styles (Bounce, Starfield, Flip clock, Big numbers, or auto) starring an animated Query, the qrun.io
+  mascot; at most 4 frames a second. With a PIN set the prompt opens over the saver.
 
 ### Added: the CLI and the kernel
 

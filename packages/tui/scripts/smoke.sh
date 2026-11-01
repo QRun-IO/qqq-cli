@@ -97,6 +97,9 @@ else
   echo "skip 13b-13d (sample data: person 12 and its ESB events)"
 fi
 keys Escape
+keys T:: 'T:saver flip' Enter
+expect 13e-saver 'preview: flip' 'Server' 'any key returns'
+keys T:x
 keys F10
 expect 14-quit-confirm 'Quit qqq?' 'Reset: go to the home screen'
 keys Enter
