@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-/** The F9 command center, the F2 palette, the F1 help, the `:` command line and the screen lock. */
+/** The F9 command center, the / search, the F1 keyboard reference, the `:` command line and the screen lock. */
 
 import { hasPin, pinDelayMillis, verifyPin, type History } from '@qrun-io/qqq-core'
 import type { Key } from '../keys'
@@ -14,6 +14,8 @@ import { glyphs, theme } from '../theme'
 import type { MenuEntry, Overlay } from '../types'
 import { center, errorText, pad, trunc } from '../util/text'
 import { EditorLine, overlayId, wrap } from './basic'
+import { HELP_POINTER, type KeyGroup } from '../help-keys'
+import { paletteGroups, paletteRows, type PaletteGroup, type PaletteItem, type RecordState } from '../palette'
 import { Frame, Line } from './frame'
 
 const SECTIONS: MenuEntry['section'][] = ['Context', 'Go to', 'Work', 'Connection', 'Settings', 'Help']
@@ -158,87 +160,133 @@ export class MenuOverlay implements Overlay {
   }
 }
 
-export interface PaletteItem {
-  label: string
-  kind: string
-  context?: string
-  run: () => void
+export type { PaletteItem } from '../palette'
+
+export interface PaletteOptions {
+  recents: PaletteItem[]
+  commands: PaletteItem[]
+  /** The metadata index (ranked), a page at a time. */
+  searchIndex: (text: string, limit: number) => { items: PaletteItem[]; total: number }
+  /** Record search (quick search, else the server's search); absent when the server has none. */
+  searchRecords?: (text: string) => Promise<{ items: PaletteItem[]; none?: boolean }>
+  /** The application's help search. */
+  searchHelp?: (text: string) => Promise<PaletteItem[]>
+  /** The quick search extension is installed. */
+  quick: boolean
+  summary?: string
+  initial?: string
 }
 
 /**
- * The palette (F2, /, ., Ctrl+K): jump to anything by label. Search-first: with no text it shows
- * recents and commands; typed text searches the kernel metadata index (a page at a time, "more…"
- * on scrolling) and, when the server can, records.
+ * The search (`/`, F2, `.`, Ctrl+K): one place for apps, tables, processes, widgets, reports,
+ * records (quick search) and commands, grouped under headers with the best match first. With no
+ * text it shows recents and commands. Records and help are searched by the server as you type
+ * (debounced); Enter opens or runs the selected entry.
  */
 export class PaletteOverlay implements Overlay {
   readonly id = overlayId('palette')
-  readonly input = new LineEditor('')
+  readonly input: LineEditor
+  /** Position among the selectable entries. */
   index = 0
-  records: PaletteItem[] = []
-  searching = false
+  records: RecordState
+  help: PaletteItem[] = []
   pages = 1
   private timer?: ReturnType<typeof setTimeout>
   private generation = 0
 
-  constructor(private store: AppStore, readonly idle: PaletteItem[], readonly searchIndex: (text: string, limit: number) => { items: PaletteItem[]; total: number }, readonly searchRecords?: (text: string) => Promise<PaletteItem[]>, readonly summary = '') {}
+  constructor(private store: AppStore, readonly options: PaletteOptions) {
+    this.input = new LineEditor(options.initial ?? '')
+    this.records = { status: options.searchRecords ? 'idle' : 'absent', quick: options.quick, items: [] }
+    if (options.initial) this.search()
+  }
 
-  list(): { items: PaletteItem[]; total: number } {
+  /** The placeholder: what can be searched here. */
+  placeholder(): string {
+    return this.options.searchRecords
+      ? `type to search apps, tables, processes, commands and records${this.options.quick ? ' (quick search)' : ''}`
+      : 'type to search apps, tables, processes, widgets and commands'
+  }
+
+  groups(): { groups: PaletteGroup[]; total: number } {
     const text = this.input.value.trim()
-    if (!text) return { items: this.idle, total: this.idle.length }
-    const needle = text.toLowerCase()
-    const r = this.searchIndex(text, 50 * this.pages)
-    const commands = this.idle.filter((i) => i.kind === 'command' && i.label.toLowerCase().includes(needle)).slice(0, 10)
-    return { items: [...r.items, ...commands, ...this.records], total: r.total + commands.length + this.records.length }
+    const index = text ? this.options.searchIndex(text, 50 * this.pages) : { items: [], total: 0 }
+    const records: RecordState = !text ? { ...this.records, status: 'idle' } : this.records
+    const groups = paletteGroups({ text, index: index.items, commands: this.options.commands, records, help: text ? this.help : [], recents: this.options.recents })
+    return { groups, total: index.total }
+  }
+
+  private search(): void {
+    clearTimeout(this.timer)
+    this.help = []
+    const text = this.input.value.trim()
+    const records = this.options.searchRecords
+    if (!records) this.records = { status: 'absent', quick: false, items: [] }
+    else this.records = { status: text.replace(/^=/, '').length >= 2 ? 'searching' : 'idle', quick: this.options.quick, items: [] }
+    if (text.replace(/^=/, '').length < 2) return
+    const gen = ++this.generation
+    this.timer = setTimeout(() => {
+      if (records) {
+        records(text).then((r) => {
+          if (gen === this.generation) this.records = { status: r.none ? 'none' : 'done', quick: this.options.quick, items: r.items }
+        }).catch((e) => {
+          if (gen === this.generation) this.records = { status: 'error', quick: this.options.quick, items: [], error: errorText(e) }
+        }).finally(() => this.store.bump())
+      }
+      this.options.searchHelp?.(text).then((h) => { if (gen === this.generation) this.help = h }).catch(() => undefined).finally(() => this.store.bump())
+    }, 250)
   }
 
   onKey(key: Key): void {
-    const { items } = this.list()
+    const { groups, total } = this.groups()
+    const { rows, selectable } = paletteRows(groups)
     if (key.name === 'escape') return this.store.closeOverlay(this)
-    if (key.name === 'down') this.index = Math.min(items.length - 1, this.index + 1)
+    if (key.name === 'down') this.index = Math.min(selectable.length - 1, this.index + 1)
     else if (key.name === 'up') this.index = Math.max(0, this.index - 1)
-    else if (key.name === 'pagedown') this.index = Math.min(items.length - 1, this.index + 10)
+    else if (key.name === 'pagedown') this.index = Math.min(selectable.length - 1, this.index + 10)
     else if (key.name === 'pageup') this.index = Math.max(0, this.index - 10)
     else if (key.name === 'return') {
-      const it = items[this.index]
-      if (!it) return
+      const it = rows[selectable[this.index] ?? -1]?.item
+      if (!it?.run) return
       this.store.closeOverlay(this)
       it.run()
+      return
     } else if (this.input.handle(key)) {
       this.index = 0
       this.pages = 1
-      this.records = []
-      clearTimeout(this.timer)
-      const text = this.input.value.trim()
-      if (this.searchRecords && text.length >= 2) {
-        this.timer = setTimeout(() => {
-          const gen = ++this.generation
-          this.searching = true
-          this.searchRecords!(text).then((r) => { if (gen === this.generation) this.records = r }).catch(() => undefined).finally(() => { this.searching = false; this.store.bump() })
-        }, 250)
-      }
+      this.search()
     }
-    // scrolling to the end of a page reveals the next page
-    if (this.index >= items.length - 1 && this.list().total > items.length) this.pages++
+    // scrolling to the end reveals the next page of metadata matches
+    const indexCount = groups.filter((g) => !/^(Records|Commands|Help)/.test(g.title)).reduce((n, g) => n + g.items.length, 0)
+    if (this.index >= selectable.length - 1 && total > indexCount) this.pages++
   }
 
   render(sw: number, sh: number) {
     const t = theme()
     const width = Math.min(sw - 4, 110)
     const inner = width - 2
-    const { items, total } = this.list()
-    const rows = Math.max(5, Math.min(20, sh - 10))
-    const top = Math.max(0, Math.min(this.index - Math.floor(rows / 2), items.length - rows))
+    const { groups, total } = this.groups()
+    const { rows: all, selectable } = paletteRows(groups)
+    if (this.index >= selectable.length) this.index = Math.max(0, selectable.length - 1)
+    const selRow = selectable[this.index] ?? -1
+    const rows = Math.max(5, Math.min(22, sh - 10))
+    const top = Math.max(0, Math.min(selRow - Math.floor(rows / 2), all.length - rows))
     const typed = Boolean(this.input.value.trim())
-    const more = total > items.length ? ` · ${total - items.length} more (scroll)` : ''
-    const footer = !typed ? `recents and commands · ${this.summary} · type to search` : `${total} matches${more}${this.searchRecords ? (this.searching ? ' · searching records…' : ' · records searched by the server') : ' · no record search on this server'}`
+    const indexCount = groups.filter((g) => !/^(Records|Commands|Help)/.test(g.title)).reduce((n, g) => n + g.items.length, 0)
+    const more = total > indexCount ? ` · ${total - indexCount} more (scroll)` : ''
+    const footer = !typed
+      ? `recent and commands${this.options.summary ? ` · ${this.options.summary}` : ''} · type to search`
+      : `${selectable.length} matches${more} · ↑↓ · Enter opens or runs · Esc`
     return (
-      <Frame title="Go to  (F2  /  .  Ctrl+K)" width={width} height={rows + 5} screenWidth={sw} screenHeight={sh} top={2}>
-        <box paddingLeft={1}><EditorLine editor={this.input} width={inner - 2} placeholder="a table, process, app, report, recent record, command, or text to find records (any case; =Text for exact case)" /></box>
-        {items.slice(top, top + rows).map((it, i) => {
-          const sel = top + i === this.index
-          return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? t.selFg : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${pad(it.label, 38)} ${pad(it.kind, 10)} ${it.context ?? ''}`, inner)}</text>
+      <Frame title="Search  (/  F2  .  Ctrl+K)" width={width} height={rows + 5} screenWidth={sw} screenHeight={sh} top={2}>
+        <box paddingLeft={1}><EditorLine editor={this.input} width={inner - 2} placeholder={this.placeholder()} /></box>
+        {all.slice(top, top + rows).map((r, i) => {
+          if (r.header) return <text flexShrink={0} wrapMode="none" key={i} fg={t.acc}><strong>{pad(` ${r.header}`, inner)}</strong></text>
+          const it = r.item!
+          const sel = top + i === selRow
+          const note = !it.run
+          return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? t.selFg : note ? t.dim : t.fg} bg={sel ? t.selBg : undefined}>{pad(note ? `   ${it.label}` : `   ${pad(it.label, 40)} ${it.context ?? ''}`, inner)}</text>
         })}
-        {Array.from({ length: Math.max(0, rows - Math.min(rows, items.length - top)) }, (_, i) => <Line key={`e${i}`} text={i === 0 && !items.length ? (typed ? ' (nothing matches)' : ' (no recents yet; type to search)') : ''} width={inner} fg={t.dim} />)}
+        {Array.from({ length: Math.max(0, rows - Math.min(rows, all.length - top)) }, (_, i) => <Line key={`e${i}`} text={i === 0 && !all.length ? (typed ? ' (nothing matches)' : ' (no recents yet; type to search)') : ''} width={inner} fg={t.dim} />)}
         <Line text="" width={inner} />
         <Line text={` ${footer}`} width={inner} fg={t.dim} />
       </Frame>
@@ -246,90 +294,71 @@ export class PaletteOverlay implements Overlay {
   }
 }
 
-/** The F1 / ? help: keys for this screen, what can be done here, the topic's help text, and help search. */
+/**
+ * The F1 / ? keyboard reference: the keys of the screen on top grouped by what they do, the
+ * screen's help text from the server, and one line pointing at search, the menu and the command
+ * line. It lists no commands and no places to go (those live in / and F9).
+ */
 export class HelpOverlay implements Overlay {
   readonly id = overlayId('help')
-  readonly input = new LineEditor('')
   top = 0
-  results: Array<{ label: string; detail: string; run?: () => void }> = []
-  index = 0
-  private timer?: ReturnType<typeof setTimeout>
 
-  constructor(private store: AppStore, readonly keys: Array<[string, string]>, readonly actions: MenuEntry[], readonly topicHelp: string[], readonly search: (q: string) => Promise<Array<{ label: string; detail: string; run?: () => void }>>) {}
+  constructor(private store: AppStore, readonly groups: KeyGroup[], readonly topicHelp: string[], readonly pointer = HELP_POINTER) {}
 
   onKey(key: Key): void {
-    if (key.name === 'escape' || key.name === 'f1') return this.store.closeOverlay(this)
-    if (this.input.value && this.results.length) {
-      if (key.name === 'down') return void (this.index = Math.min(this.results.length - 1, this.index + 1))
-      if (key.name === 'up') return void (this.index = Math.max(0, this.index - 1))
-      if (key.name === 'return') {
-        const r = this.results[this.index]
-        if (r?.run) {
-          this.store.closeOverlay(this)
-          r.run()
-        }
-        return
-      }
-    }
+    if (key.name === 'escape' || key.name === 'f1' || charOf(key) === '?' || key.name === 'return') return this.store.closeOverlay(this)
     if (key.name === 'down') this.top++
     else if (key.name === 'up') this.top = Math.max(0, this.top - 1)
-    else if (key.name === 'pagedown') this.top += 10
+    else if (key.name === 'pagedown' || key.name === 'space') this.top += 10
     else if (key.name === 'pageup') this.top = Math.max(0, this.top - 10)
-    else if (key.name === 'return' && !this.input.value) {
-      const a = this.actions.find((e) => e.run && !e.disabled)
-      void a
-    } else if (this.input.handle(key)) {
-      this.index = 0
-      clearTimeout(this.timer)
-      const q = this.input.value.trim()
-      if (!q) {
-        this.results = []
-        return
+  }
+
+  /** The body lines (keys in two columns per group, then the screen's help). */
+  lines(inner: number): Array<{ text: string; fg?: string }> {
+    const t = theme()
+    const body: Array<{ text: string; fg?: string }> = []
+    const half = Math.floor((inner - 3) / 2)
+    for (const g of this.groups) {
+      if (body.length) body.push({ text: '' })
+      body.push({ text: ` ${g.title}`, fg: t.acc })
+      const keyWidth = Math.min(22, Math.max(...g.keys.map(([k]) => k.length)) + 2)
+      // two columns when every entry fits in half the width, else one per line (nothing is cut)
+      const two = g.keys.every(([k, w]) => keyWidth + w.length + 2 <= half)
+      if (!two) {
+        for (const [k, w] of g.keys) body.push({ text: `   ${pad(k, keyWidth)}${w}` })
+        continue
       }
-      this.timer = setTimeout(() => {
-        this.search(q).then((r) => { this.results = r }).catch((e) => { this.results = [{ label: errorText(e), detail: '' }] }).finally(() => this.store.bump())
-      }, 250)
+      const n = Math.ceil(g.keys.length / 2)
+      for (let i = 0; i < n; i++) {
+        const a = g.keys[i]!
+        const b = g.keys[i + n]
+        body.push({ text: `   ${pad(a[0], keyWidth)}${pad(a[1], half - keyWidth)}${b ? `${pad(b[0], keyWidth)}${b[1]}` : ''}` })
+      }
     }
+    if (this.topicHelp.length) {
+      body.push({ text: '' })
+      body.push({ text: ' About this screen', fg: t.acc })
+      for (const p of this.topicHelp) for (const l of wrap(p, inner - 4)) body.push({ text: `   ${l}` })
+    }
+    return body
   }
 
   render(sw: number, sh: number) {
     const t = theme()
-    const width = Math.min(sw - 4, 110)
+    const width = Math.min(sw - 4, 120)
     const inner = width - 2
-    const height = Math.min(sh - 2, 40)
-    const body: Array<{ text: string; fg?: string; bg?: string }> = []
-    if (this.input.value) {
-      body.push({ text: ` Help search: ${this.results.length} results (Enter opens)`, fg: t.acc })
-      this.results.forEach((r, i) => body.push({ text: `   ${pad(r.label, 40)} ${r.detail}`, fg: i === this.index ? t.selFg : t.fg, bg: i === this.index ? t.selBg : undefined }))
-    } else {
-      body.push({ text: ' Keys', fg: t.acc })
-      const half = Math.ceil(this.keys.length / 2)
-      for (let i = 0; i < half; i++) {
-        const a = this.keys[i]!
-        const b = this.keys[i + half]
-        body.push({ text: `   ${pad(a[0], 14)}${pad(a[1], Math.floor(inner / 2) - 17)}${b ? `${pad(b[0], 14)}${b[1]}` : ''}` })
-      }
-      if (this.topicHelp.length) {
-        body.push({ text: '' })
-        body.push({ text: ' About this screen', fg: t.acc })
-        for (const p of this.topicHelp) for (const l of wrap(p, inner - 4)) body.push({ text: `   ${l}` })
-      }
-      if (this.actions.length) {
-        body.push({ text: '' })
-        body.push({ text: ' What you can do here (also in F9)', fg: t.acc })
-        for (const a of this.actions) body.push({ text: `   ${pad(a.label, inner - 22)} ${a.key ?? ''}`, fg: a.disabled ? t.dim : t.fg })
-      }
-    }
+    const height = Math.min(sh - 2, 44)
+    const body = this.lines(inner)
     const rows = height - 5
     this.top = Math.min(this.top, Math.max(0, body.length - rows))
-    const shown = body.slice(this.input.value ? 0 : this.top, (this.input.value ? 0 : this.top) + rows)
+    const shown = body.slice(this.top, this.top + rows)
     return (
-      <Frame title="Help  (F1  ?)" width={width} height={height} screenWidth={sw} screenHeight={sh} top={1}>
-        <box paddingLeft={1}><EditorLine editor={this.input} width={inner - 2} placeholder="type to search the application's help" /></box>
-        {shown.map((l, i) => <Line key={i} text={l.text} width={inner} fg={l.fg} bg={l.bg} />)}
+      <Frame title="Keys  (F1  ?)" width={width} height={height} screenWidth={sw} screenHeight={sh} top={1}>
+        {shown.map((l, i) => <Line key={i} text={trunc(l.text, inner)} width={inner} fg={l.fg} />)}
         {Array.from({ length: Math.max(0, rows - shown.length) }, (_, i) => <Line key={`e${i}`} text="" width={inner} />)}
         <Line text="" width={inner} />
-        <Line text=" ↑↓ PgUp PgDn scroll · type to search help · Esc or F1 closes" width={inner} fg={t.dim} />
+        <Line text={` ${this.pointer}`} width={inner} fg={t.acc2} />
+        <Line text=" ↑↓ PgUp PgDn scroll · Esc, F1 or ? closes" width={inner} fg={t.dim} />
       </Frame>
     )
   }

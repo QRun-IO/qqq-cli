@@ -12,10 +12,11 @@
 import { runCli } from '@qrun-io/qqq-cli/program'
 import { THEMES } from './theme'
 import { metaHelp, processHelp, tableHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeConfig, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
-import type { AppTreeNode } from './client'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
-import { CommandLineOverlay, HelpOverlay, LockOverlay, MenuOverlay, PaletteOverlay, type PaletteItem } from './overlays/center'
+import { CommandLineOverlay, HelpOverlay, LockOverlay, MenuOverlay, PaletteOverlay } from './overlays/center'
+import { helpKeyGroups, type KeyRow } from './help-keys'
+import { recordItem, type PaletteItem, type SearchHit } from './palette'
 import { chooseFolder } from './overlays/files-helpers'
 import { OutputScreen } from './screens/output'
 import { openReport } from './screens/report'
@@ -41,15 +42,6 @@ const NOUNS: Record<string, string[]> = {
 
 const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
 
-/** Global keys for the help overlay. */
-export const GLOBAL_KEYS: Array<[string, string]> = [
-  ['F1  ?', 'help (this)'], ['F2  /  .', 'go to anything'], ['F3  Enter', 'view / open'], ['F4  e', 'edit'], ['F5  r', 'refresh'],
-  ['F6  f', 'filter: field, operator, value rows; F2 grammar; Ctrl+Y copies its qqq command'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['Esc 1..0, Ctrl+1..0', 'F1..F10 when the terminal takes F-keys'], ['F10', 'quit, reset or cancel'],
-  ['Esc', 'back, cancel'], ['Tab', 'Apps tree / content'], ['↑↓ PgUp PgDn', 'move, page'], ['Ctrl+F Ctrl+B', 'page (always works)'], ['Space S+Space', 'page lists'], ['Home End', 'first, last'], ['← →', 'columns, tree'],
-  ['a', 'actions here'], ['A  D', 'audits, developer'], ['s', 'sort by column'], ['Space (grid)', 'select row'], ['b', 'run a process on selection'], ['x', 'export'], ['g', 'go to by key'], ['v', 'view settings'],
-  [']  [', 'next / previous record'], ['Ctrl+S', 'save a form'], [':', 'command line'], ['Ctrl+K', 'palette'], ['y (CLI equivalent)', 'copy the qqq command to the clipboard'], ['Ctrl+C', 'quit now'],
-]
-
 export class Commands implements CommandsLike {
   constructor(private store: AppStore) {}
 
@@ -60,17 +52,9 @@ export class Commands implements CommandsLike {
     const screen = s.screen
     const topic = screen?.helpTopic?.()
     const topicHelp: string[] = []
-    const actions = screen?.menu?.() ?? []
-    const keys = [...(screen?.helpKeys?.() ?? []), ...GLOBAL_KEYS].filter(([k]) => s.singleKeys || !/^[a-z?/.\]]/.test(k.split(/\s+/).pop() ?? ''))
-    const overlay = new HelpOverlay(s, keys, actions, topicHelp, async (q) => {
-      const data = await s.client!.data<{ results?: Array<{ kind: string; label?: string; name: string; table?: string; key?: string }> }>('searchHelp', { query: { q, limit: '30' } })
-      return (data.results ?? []).map((r) => ({
-        label: r.label ?? r.name,
-        detail: `${r.kind}${r.table ? ` · ${r.table}` : ''}`,
-        run: r.kind === 'table' ? () => openTable(s, r.name) : r.table ? () => openTable(s, r.table!) : undefined,
-      }))
-    })
-    s.open(overlay)
+    // keys only: the screen's own key rows and shortcuts from its actions (label and key), never the actions themselves
+    const screenKeys: KeyRow[] = [...(screen?.helpKeys?.() ?? []), ...(screen?.menu?.() ?? []).filter((e) => e.key && !e.disabled).map((e): KeyRow => [e.key!, e.label.replace(/…$/, '').replace(/\s*\([^)]*\d[^)]*\)$/, '')])]
+    s.open(new HelpOverlay(s, helpKeyGroups(screen?.kind, s.singleKeys, screenKeys), topicHelp))
     // help for this screen: the kernel's help entries for the screen's roles; in help-authoring mode
     // (:helpkeys) every slot shows its key, with or without content, so authors see where help goes
     const authoring = s.helpKeys
@@ -146,39 +130,48 @@ export class Commands implements CommandsLike {
     else if (kind === 'widget') void this.run(`widget get ${name}`)
   }
 
-  palette(): void {
+  /** The search (`/`): apps, tables, processes, widgets, reports, records (quick search), commands and help, grouped. */
+  palette(initial?: string): void {
     const s = this.store
     const meta = s.meta
-    const idle: PaletteItem[] = []
+    const recents: PaletteItem[] = []
     try {
       for (const r of s.client ? readRecents(s.client.server).slice(0, 15) : []) {
-        if (r.kind === 'record' && r.table) idle.push({ label: r.label, kind: 'recent', context: meta?.tables?.[r.table]?.label ?? r.table, run: () => openRecord(s, r.table!, r.key) })
-        else if (r.kind === 'table' && r.table) idle.push({ label: r.label, kind: 'recent', context: 'table', run: () => openTable(s, r.table!) })
-        else if (r.kind === 'process' && r.name) idle.push({ label: r.label, kind: 'recent', context: 'process', run: () => openProcess(s, r.name!) })
+        if (r.kind === 'record' && r.table) recents.push({ label: r.label, kind: 'recent', context: meta?.tables?.[r.table]?.label ?? r.table, run: () => openRecord(s, r.table!, r.key) })
+        else if (r.kind === 'table' && r.table) recents.push({ label: r.label, kind: 'recent', context: 'table', run: () => openTable(s, r.table!) })
+        else if (r.kind === 'process' && r.name) recents.push({ label: r.label, kind: 'recent', context: 'process', run: () => openProcess(s, r.name!) })
       }
     } catch {
       // no recents
     }
-    for (const e of this.entries('')) if (e.run && !e.disabled && e.section !== 'Context' && e.section !== 'Go to') idle.push({ label: e.label, kind: 'command', context: e.command ? `:${e.command}` : e.section, run: e.run })
-    // palette search ignores case; text starting with = matches exact case
+    const commands: PaletteItem[] = []
+    for (const e of this.entries('')) if (e.run && !e.disabled && e.section !== 'Context' && e.section !== 'Go to') commands.push({ label: e.label, kind: 'command', context: e.command ? `:${e.command}` : e.section, run: e.run })
+    // search ignores case; text starting with = matches exact case
     const searchIndex = (text: string, limit: number) => {
       const exact = text.startsWith('=')
       const term = exact ? text.slice(1) : text
-      const r = s.index?.search(term, { limit: exact ? limit * 5 : limit, kinds: ['app', 'table', 'process', 'report'] }) ?? { entries: [], total: 0 }
+      const r = s.index?.search(term, { limit: exact ? limit * 5 : limit, kinds: ['app', 'table', 'process', 'widget', 'report'] }) ?? { entries: [], total: 0 }
       const entries = exact ? r.entries.filter((e) => term.trim().split(/\s+/).every((w) => e.label.includes(w) || e.name.includes(w))).slice(0, limit) : r.entries
       return { total: exact ? entries.length : r.total, items: entries.map((e) => ({ label: e.label, kind: e.kind, context: e.path.join(' › ') || e.name, run: () => this.openEntry(e.kind, e.name) })) }
     }
     const features = s.version?.features ?? []
-    const quick = s.extensions.has('quick-search') || s.extensions.has('qbit-quick-search')
-    const search = quick || features.includes('recordSearch') ? async (text: string): Promise<PaletteItem[]> => {
-      const data = await s.client!.data<{ results?: Array<{ tableName?: string; table?: string; primaryKey?: unknown; recordLabel?: string; label?: string }>; provider?: { status?: string } }>('searchRecords', { json: { query: text.replace(/^=/, ''), searchTerm: text.replace(/^=/, ''), limit: 20, ...(text.startsWith('=') ? { caseSensitive: true } : {}) } })
-      if (data.provider?.status === 'NONE') return [{ label: 'No record search on this server (search provider: none)', kind: 'note', context: 'navigation only', run: () => undefined }]
-      return (data.results ?? []).map((r) => {
-        const table = r.tableName ?? r.table ?? ''
-        return { label: r.recordLabel ?? r.label ?? String(r.primaryKey), kind: 'record', context: meta?.tables?.[table]?.label ?? table, run: () => openRecord(s, table, String(r.primaryKey ?? '')) }
-      })
+    const quick = s.extensions.has('quick-search')
+    const searchRecords = quick || features.includes('recordSearch') ? async (text: string) => {
+      const term = text.replace(/^=/, '')
+      const data = await s.client!.data<{ results?: SearchHit[]; provider?: { status?: string } }>('searchRecords', { json: { searchTerm: term, limitPerTable: 10, ...(text.startsWith('=') ? { caseSensitive: true } : {}) } })
+      if (data.provider?.status === 'NONE') return { items: [], none: true }
+      return { items: (data.results ?? []).map((hit) => recordItem(hit, (t) => meta?.tables?.[t]?.label, (t, k) => openRecord(s, t, k))) }
     } : undefined
-    s.open(new PaletteOverlay(s, idle, searchIndex, search, s.index?.describe() ?? ''))
+    const searchHelp = features.includes('help') ? async (q: string): Promise<PaletteItem[]> => {
+      const data = await s.client!.data<{ results?: Array<{ kind: string; label?: string; name: string; table?: string }> }>('searchHelp', { query: { q, limit: '10' } })
+      return (data.results ?? []).map((r) => ({
+        label: r.label ?? r.name,
+        kind: 'help',
+        context: `help · ${r.kind}${r.table ? ` · ${r.table}` : ''}`,
+        run: r.kind === 'table' ? () => openTable(s, r.name) : r.table ? () => openTable(s, r.table!) : () => this.help(),
+      }))
+    } : undefined
+    s.open(new PaletteOverlay(s, { recents, commands, searchIndex, searchRecords, searchHelp, quick, summary: s.index?.describe() ?? '', initial }))
   }
 
   menu(): void {
@@ -248,7 +241,11 @@ export class Commands implements CommandsLike {
         case 'back': return s.back()
         case 'help': return this.help()
         case 'menu': return this.menu()
-        case 'goto': case 'palette': return this.palette()
+        case 'goto': case 'palette': return this.palette(rest.join(' ') || undefined)
+        // :search <text> is the command-line form of the search (records through quick search, and everything else)
+        case 'search': case 'find':
+          if (rest.length && !rest.some((a) => a.startsWith('-'))) return this.palette(rest.join(' '))
+          break
         case 'view': return this.viewSettings()
         case 'lock': return this.lock()
         case 'refresh': return s.screen?.refresh?.()
@@ -599,20 +596,8 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Context', label: 'Back', key: 'Esc', command: 'back', run: () => s.back() })
     // Go to
     out.push({ section: 'Go to', label: 'Reset: go to the home screen', key: 'F10', command: 'reset', detail: 'refreshes metadata, keeps the session', run: () => s.reset() })
-    out.push({ section: 'Go to', label: 'Go to anything…', key: 'F2 / .', command: 'goto', run: () => this.palette() })
-    // search-first: top-level apps and recents, plus index matches for the typed text (never every table)
-    for (const n of ((meta?.appTree ?? []) as AppTreeNode[]).filter((x) => x.type === 'APP').slice(0, 30)) out.push({ section: 'Go to', label: `App: ${n.label}`, command: `app ${n.name}`, run: () => openApp(s, n.name) })
-    try {
-      for (const r of s.client ? readRecents(s.client.server).slice(0, 10) : []) if (r.kind === 'record' && r.table) out.push({ section: 'Go to', label: `Recent: ${meta?.tables?.[r.table]?.label ?? r.table} › ${r.label}`, run: () => openRecord(s, r.table!, r.key) })
-    } catch {
-      // none
-    }
-    if (filterText.trim() && s.index) {
-      const kindLabel: Record<string, string> = { app: 'App', table: 'Table', process: 'Process', report: 'Report', widget: 'Widget' }
-      for (const e of s.index.search(filterText, { limit: 30 }).entries) {
-        out.push({ id: `index:${e.kind}:${e.name}`, section: 'Go to', label: `${kindLabel[e.kind]}: ${e.label}`, detail: e.path.join(' › '), command: e.kind === 'table' ? `table query ${e.name}` : e.kind === 'process' ? `process run ${e.name}` : undefined, run: () => this.openEntry(e.kind, e.name) })
-      }
-    }
+    // places, records and commands are found with / (one home); the menu keeps the way there
+    out.push({ section: 'Go to', label: 'Search apps, tables, processes, records, commands…', key: '/ F2', command: 'search <text>', run: () => this.palette() })
     out.push({ section: 'Go to', label: 'Favorites', disabled: s.extensions.has('collaboration') ? undefined : 'needs the collaboration extension' })
     // Work
     out.push({ section: 'Work', label: 'Jobs', detail: `active ${s.status.jobs}`, command: 'jobs', disabled: (s.version?.features ?? []).includes('durableJobs') ? undefined : 'n/a: the server lists no jobs', run: () => this.jobs() })
@@ -647,8 +632,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Settings', label: `Upload folder: ${fp.uploadDir ?? '(last used, else the current folder)'}`, run: () => chooseFolder(s, 'Default upload folder', startDirForUpload(fp), (dir) => { writeFilePreferences({ uploadDir: dir }); s.flash(`uploads start in ${dir}`) }) })
     out.push({ section: 'Settings', label: 'Server preferences…', disabled: (s.version?.features ?? []).includes('preferences') ? undefined : 'the server has no preferences', run: () => this.prefs() })
     // Help
-    out.push({ section: 'Help', label: 'Keyboard reference and help', key: 'F1 ?', command: 'help', run: () => this.help() })
-    out.push({ section: 'Help', label: 'Search help…', run: () => this.help() })
+    out.push({ section: 'Help', label: 'Keyboard reference', key: 'F1 ?', command: 'help', run: () => this.help() })
     out.push({ section: 'Help', label: 'Check my terminal', command: 'doctor', run: () => this.doctor() })
     out.push({ section: 'Help', label: `Help-authoring mode (show help slot keys)`, detail: this.store.helpKeys ? 'on' : 'off', command: 'helpkeys', run: () => { this.store.helpKeys = !this.store.helpKeys; this.store.flash(`help-authoring mode ${this.store.helpKeys ? 'on' : 'off'}`) } })
     out.push({ section: 'Help', label: 'About', run: () => s.message(`qqq ui ${s.status.build}\nOpenTUI 0.8.1 (React) on Bun ${typeof Bun !== 'undefined' ? Bun.version : '?'}\nUI API ${s.status.apiVersion} at ${s.status.server}`, 'info', 'About') })

@@ -356,7 +356,7 @@ export class AppStore {
   }
 
   private backslash = false
-  /** `/` and `.` open the palette; a backslash followed by `?` is an alias of `?` (help). */
+  /** `/` and `.` open the search; a backslash followed by `?` is an alias of `?` (the keyboard reference). */
   private pendingBackslash(ch: string): void {
     if (ch === '\\') {
       this.backslash = true
@@ -579,7 +579,7 @@ export interface SidebarLike {
 /** What the store needs from the command layer (commands.ts). */
 export interface CommandsLike {
   help(): void
-  palette(): void
+  palette(initial?: string): void
   menu(): void
   commandLine(initial?: string): void
   viewSettings(): void
