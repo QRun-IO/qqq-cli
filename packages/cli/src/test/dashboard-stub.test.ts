@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-/** Dashboards against a stub: a heavy 24-widget app loads each widget once within budget; a process widget runs its process. */
+/** Dashboards against a stub: a heavy 24-widget app loads each widget once, concurrently; a process widget runs its process. */
 
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
@@ -19,6 +19,31 @@ const payload = (i: number): J => {
   return { type, chartData: { labels: ['a', 'b', 'c'], datasets: [{ label: 'n', data: [1, 2, 3] }] } }
 }
 
+/**
+ * Widget payloads answer after a hold: as soon as every widget request is in flight, or 300 ms after a
+ * request arrived, whichever is first. A concurrent loader therefore never waits on the clock, and the
+ * peak number of requests in flight measures concurrency without depending on machine speed.
+ */
+let inFlight = 0
+let peakInFlight = 0
+const held: Array<() => void> = []
+function holdWidget(r: { path: string }): Promise<J> {
+  inFlight++
+  peakInFlight = Math.max(peakInFlight, inFlight)
+  return new Promise((resolve) => {
+    let done = false
+    const release = () => {
+      if (done) return
+      done = true
+      inFlight--
+      resolve(payload(Number(/w(\d+)/.exec(r.path)![1])))
+    }
+    held.push(release)
+    if (inFlight >= names.length) held.splice(0).forEach((f) => f())
+    else setTimeout(release, 300)
+  })
+}
+
 describe('dashboards against a stub', () => {
   let stub: Stub
   let box: ReturnType<typeof sandbox>
@@ -31,7 +56,7 @@ describe('dashboards against a stub', () => {
     stub = await startStub([...BASE_ROUTES,
       [/^GET \/metaData$/, () => ({ tables: {}, processes: { hello: { name: 'hello', label: 'Hello' } }, widgets, apps: { heavy: { name: 'heavy', label: 'Heavy Dashboard', widgets: names, children: [] } }, appTree: [] })],
       [/^POST \/widget\/runIt$/, () => ({ type: 'process', processMetaData: { name: 'hello', label: 'Hello' }, defaultValues: { greeting: 'hi' } })],
-      [/^POST \/widget\/w(\d+)$/, (r) => new Promise((resolve) => setTimeout(() => resolve(payload(Number(/w(\d+)/.exec(r.path)![1]))), 150))],
+      [/^POST \/widget\/w(\d+)$/, (r) => holdWidget(r)],
       [/^GET \/metaData\/process\/hello$/, () => ({ name: 'hello', label: 'Hello', frontendSteps: [{ name: 'done', label: 'Done', components: [{ type: 'VIEW_FORM' }], viewFields: [{ name: 'reply', label: 'Reply', type: 'STRING' }] }] })],
       [/^GET \/metaData\/process\/setup$/, () => ({ name: 'setup', label: 'Setup', frontendSteps: [{ name: 'pick', label: 'Pick', components: [{ type: 'EDIT_FORM' }], formFields: [{ name: 'queryFilterJson', label: 'Filter', type: 'TEXT', adornments: [{ type: 'WIDGET', values: { widgetName: 'filterSetup' } }] }] }, { name: 'done', label: 'Done', components: [{ type: 'VIEW_FORM' }], viewFields: [] }] })],
       [/^POST \/processes\/setup\/init$/, () => ({ type: 'COMPLETE', processUUID: 's', nextStep: 'pick', values: {} })],
@@ -56,8 +81,15 @@ describe('dashboards against a stub', () => {
     assert.deepEqual(order, names.map((_, i) => i))
     assert.match(r.stdout, /== Widget 0 \(12\/12\) ==\n1,000 records/)
     assert.match(r.stdout, /row 100/)
-    // 24 widgets at 150 ms each: well under the 24 x 150 ms a serial load would take, plus CLI start-up
-    assert.ok(elapsed < 3000, `took ${elapsed} ms`)
+    // The CLI's loader has no concurrency cap (loadDashboard starts every widget at once), so the widget
+    // requests must overlap; a serial loader would peak at 1.
+    assert.ok(peakInFlight > 1, `widget requests in flight at once: ${peakInFlight}`)
+    if (!process.env.CI) {
+      // Local runs only: with no cap all 24 are in flight together, and the load is far from the
+      // 24 x 300 ms a serial loader would need (the bound is generous, CLI start-up included).
+      assert.equal(peakInFlight, names.length)
+      assert.ok(elapsed < 6000, `took ${elapsed} ms`)
+    }
     assert.match(r.stderr, /24 widgets loaded once each/)
   })
 
