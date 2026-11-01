@@ -34,6 +34,9 @@ export interface ResultCursorOptions {
   total?: number
   /** Extra query parameters (tableVariant). */
   query?: Record<string, string | undefined>
+  /** Joins (QueryJoin) sent with query and count; with a many-side join the count includes the distinct count. */
+  joins?: unknown[]
+  includeDistinct?: boolean
 }
 
 export class ResultCursor {
@@ -46,6 +49,10 @@ export class ResultCursor {
   private readonly baseUrl: string
   private readonly fetchImpl: typeof fetch
   private readonly query?: Record<string, string | undefined>
+  private readonly joins?: unknown[]
+  private readonly includeDistinct: boolean
+  /** The distinct count of the base records (with a many-side join), when the server sent it. */
+  distinct?: number
   private pages = new Map<number, QueryRecord[]>()
 
   constructor(options: ResultCursorOptions) {
@@ -58,6 +65,8 @@ export class ResultCursor {
     this.index = options.index ?? 0
     this.total = options.total
     this.query = options.query
+    this.joins = options.joins?.length ? options.joins : undefined
+    this.includeDistinct = Boolean(options.includeDistinct)
   }
 
   /** The page number holding an index. */
@@ -71,8 +80,11 @@ export class ResultCursor {
 
   /** Counts the matching records (also done by the first page load when unknown). */
   async count(): Promise<number> {
-    const result = await callOperation(this.baseUrl, 'countTable', { path: { tableName: this.table }, query: this.query, json: { filter: this.wireFilter() } }, this.fetchImpl)
-    this.total = Number((result.data as { count?: number }).count ?? 0)
+    const query = this.includeDistinct ? { ...(this.query ?? {}), includeDistinct: 'true' } : this.query
+    const result = await callOperation(this.baseUrl, 'countTable', { path: { tableName: this.table }, query, json: { filter: this.wireFilter(), ...(this.joins ? { joins: this.joins } : {}) } }, this.fetchImpl)
+    const data = result.data as { count?: number; distinctCount?: number }
+    this.total = Number(data.count ?? 0)
+    this.distinct = data.distinctCount !== undefined && data.distinctCount !== null ? Number(data.distinctCount) : undefined
     return this.total
   }
 
@@ -81,7 +93,7 @@ export class ResultCursor {
     if (!options.refresh && this.pages.has(page)) return this.pages.get(page)!
     const filter = { ...this.wireFilter(), skip: page * this.pageSize, limit: this.pageSize }
     const [result] = await Promise.all([
-      callOperation(this.baseUrl, 'queryTable', { path: { tableName: this.table }, query: this.query, json: { filter } }, this.fetchImpl),
+      callOperation(this.baseUrl, 'queryTable', { path: { tableName: this.table }, query: this.query, json: { filter, ...(this.joins ? { joins: this.joins } : {}) } }, this.fetchImpl),
       this.total === undefined || options.refresh ? this.count() : Promise.resolve(this.total),
     ])
     const records = ((result.data as { records?: QueryRecord[] }).records ?? [])

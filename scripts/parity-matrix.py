@@ -13,6 +13,7 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else 'docs/parity/feature-matrix.md'
 
 # id -> (cli, note) ; family default is todo
 P, T, N, X = 'pass', 'todo', 'partial', 'n/a'  # T is the default and the common case
+B = 'blocked'  # waits on a server finding or issue, named in the note
 STATUS = {
  # NAV: the CLI has no shell; the TUI covers these in M3
  **{f'NAV-{i:03d}': (X, 'browser shell') for i in (1,2,3,4,5,12,13,14,15,16,18,19,20,21,22,26,29,32,33,34,35,36,37,38,55,56)},
@@ -34,22 +35,22 @@ STATUS = {
  'PRC-006': (P, 'checked before init (filters counted); the sample declares no limits, verified by tests'), 'PRC-007': (P, 'every component in order as text (kernel screen model); bulk load forms belong to qqq bulk'),
  'PRC-008': (P, 'text with line breaks; previewText printed above it'), 'PRC-009': (P, 'includeFieldNames and values kept across steps'), 'PRC-010': (P, 'required checked locally and by the server'),
  'PRC-011': (P, 'labels or ids, prompts list choices'), 'PRC-012': (P, 'label: value on every step'), 'PRC-013': (P, '{step}.html as text (tags stripped)'), 'PRC-014': (P, 'GET /download/{file} saved to --out-dir, else the download directory; no sample process offers one, verified by tests'),
- 'PRC-015': (P, 'step helpContents shown on the screen, process help at start and in describe; none in the sample'), 'PRC-016': (N, 'b at the prompt when the step reports backStep (isStepBack=true); no sample process declares one, verified by tests'), 'PRC-017': (P, 'updatedFrontendStepList followed'), 'PRC-018': (P, 'updatedFields applied'),
+ 'PRC-015': (P, 'step helpContents shown on the screen, process help at start and in describe; none in the sample'), 'PRC-016': (P, 'b at a prompt when the step reports backStep (isStepBack=true); verified live: bulk insert -i back from the mapping to the upload and from the review to the mapping'), 'PRC-017': (P, 'updatedFrontendStepList followed'), 'PRC-018': (P, 'updatedFields applied'),
  'PRC-019': (P, 'message, N/M, elapsed on stderr'), 'PRC-020': (P, 'Ctrl-C during a job or a prompt calls POST …/cancel, exit 130'), 'PRC-021': (P, 'userFacingError shown'), 'PRC-022': (X, 'retry is re-running the command'),
  'PRC-023': (X, 'screen labels'), 'PRC-024': (X, 'stepper; step names printed'), 'PRC-025': (P, 'GET …/records paged into a table, --record-limit'), 'PRC-026': (P, 'count and preview; asks validate or skip on a terminal, --validate / --skip-validation; Submit? after validation'),
- 'PRC-027': (P, 'status, count, message lines'), 'PRC-028': (P, ''), 'PRC-029': (T, 'bulk edit'), 'PRC-030': (T, 'bulk delete'), 'PRC-031': (T, 'bulk insert'), 'PRC-032': (T, ''),
- 'PRC-033': (T, ''), 'PRC-034': (T, ''), 'PRC-035': (P, 'named widget with the process UUID and values, kernel render model; none in the sample, verified by tests'), 'PRC-036': (P, 'seeded from the process value of the widget name'), 'PRC-037': (N, 'ad hoc blocks rendered with interpolation; buttons and inputs not offered'), 'PRC-038': (X, 'Google Drive is web-only'), 'PRC-039': (X, 'Google Drive is web-only'),
+ 'PRC-027': (P, 'status, count, message lines'), 'PRC-028': (P, ''), 'PRC-029': (P, 'qqq table bulk-edit <t> -r ids|-w ... --set f=v --clear f (-i chooses fields): only the switched-on fields are sent (bulkEditEnabledFields), review, result; verified live on person'), 'PRC-030': (P, 'qqq table bulk-delete <t> -r ids|-w ...: review with count and preview, validation, result; asks unless --yes (exit 2 without a terminal); verified live'), 'PRC-031': (P, 'qqq table bulk-insert <t> --file x.csv: upload, column mapping (server suggestion cleaned per finding 11, --mapping document, --column/--default, -i), value mapping, review preview and validation, result; FLAT and TALL verified live'), 'PRC-032': (P, 'mapping checked before submit (unmapped field, unknown column, layout, WIDE repetition, key fields, repeated header); Back from mapping to upload and from review to mapping verified live with -i'),
+ 'PRC-033': (P, 'qqq table bulk-edit <t> --file x.csv --key id [--mapping]: rows matched by the key, value mapping; verified live on person'), 'PRC-034': (P, 'upload instructions printed as text; --template [flat|tall|wide] [--out] saves the data: templates; verified live'), 'PRC-035': (P, 'named widget with the process UUID and values, kernel render model; none in the sample, verified by tests'), 'PRC-036': (P, 'seeded from the process value of the widget name'), 'PRC-037': (N, 'ad hoc blocks rendered with interpolation; buttons and inputs not offered'), 'PRC-038': (X, 'Google Drive is web-only'), 'PRC-039': (X, 'Google Drive is web-only'),
  'PRC-040': (X, 'no reload'), 'PRC-041': (P, 'UNAUTHENTICATED exits 3 with the sign-in hint'), 'PRC-042': (P, 'server-enforced'), 'PRC-043': (P, '-v values seed every step'),
- 'PRC-044': (X, 'scanner screens are interactive'), 'PRC-045': (P, 'the runner follows nextStep whatever the flow'), 'PRC-046': (T, 'saved bulk load profiles'), 'PRC-047': (P, 'completes on init'),
+ 'PRC-044': (X, 'scanner screens are interactive'), 'PRC-045': (P, 'the runner follows nextStep whatever the flow'), 'PRC-046': (P, 'qqq bulk-profile list|show|save|rename|delete <t> [--edit], bulk-insert --saved <name> and --save-profile; unit-tested and stub-server CLI tests: the sample has no saved-profile processes'), 'PRC-047': (P, 'completes on init'),
  'PRC-048': (P, 'searchProcessPossibleValues'), 'PRC-049': (P, 'v1 routes only'), 'PRC-050': (X, 'Material-specific'), 'PRC-051': (P, 'dependent choices narrow after each answer'),
- 'PRC-058': (T, ''), 'PRC-059': (T, ''), 'PRC-060': (T, ''), 'PRC-061': (T, ''), 'PRC-062': (X, 'composite editors'), 'PRC-063': (X, ''), 'PRC-064': (P, 'process values typed local, sent UTC; screens show the local zone'), 'PRC-065': (X, 'Google Drive'), 'PRC-066': (P, 'field behaviors applied before submit'),
+ 'PRC-058': (P, 'bulk-profile save --replace prints the changes and asks (--yes), rename, delete; stub-server CLI tests (the sample has no saved-profile processes)'), 'PRC-059': (P, 'profiles listed as yours, then shared by their owner; save over, rename and delete refused for a profile you do not own; stub-server CLI tests'), 'PRC-060': (P, "-i lists columns with preview values and the step's field help, asks for the header row (--no-header), warns on repeated headers (only the first is read); header toggle and previews verified live, help and repeated headers unit-tested"), 'PRC-061': (P, 'defaults typed per field (--default f=label resolves possible values; yes/no booleans), value mapping by label or id with choices listed, -i add-fields list grouped by table; verified live (Dog/Cat to species ids, yes/no to booleans)'), 'PRC-062': (X, 'composite editors'), 'PRC-063': (X, ''), 'PRC-064': (P, 'process values typed local, sent UTC; screens show the local zone'), 'PRC-065': (X, 'Google Drive'), 'PRC-066': (P, 'field behaviors applied before submit'),
  # QRY
  'QRY-001': (P, 'default order by primary key'), 'QRY-002': (P, '--limit, --skip, --all'), 'QRY-003': (P, '--order, -field for descending'), 'QRY-004': (T, '--fields per call; no persistence'),
  'QRY-005': (X, 'grid presentation'), 'QRY-006': (X, ''), 'QRY-007': (P, 'error with code, status and trace id'), 'QRY-010': (P, 'all operators and shorthand'), 'QRY-011': (P, 'BETWEEN, IN lists'),
  'QRY-012': (P, 'now(), now(-7d), thisPeriod(), startOf()'), 'QRY-013': (P, '--where/--group DATE_TIME values local to UTC (a date is local midnight); expressions as before'), 'QRY-014': (P, 'IS_BLANK, TRUE, FALSE'), 'QRY-015': (T, 'filters take ids; labels in filters todo'),
  'QRY-016': (P, '--group with parentheses'), 'QRY-017': (P, '--print-filter gives the JSON the web links accept'), 'QRY-018': (P, 'any operator in --where'), 'QRY-019': (P, '--search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter'),
- 'QRY-020': (N, '--join and table.field in --fields/--where/--order, labelled "Join: Field"; the sample exposes no joins, verified through an association join (person to pet)'), 'QRY-021': (P, 'a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct)'), 'QRY-022': (N, 'qqq table stats <t> <field> [-w …] through the columnStats process; the sample has neither QUERY_STATS nor the process, so --local (same figures from the matching rows) is what was verified'), 'QRY-023': (P, 'without QUERY_STATS (or the process) table stats exits 2 with the reason; --local is an explicit opt-in'), 'QRY-030': (P, '-r ids, --filter-json, --limit'), 'QRY-031': (T, 'bulk edit'), 'QRY-032': (T, 'bulk delete'),
- 'QRY-033': (P, 'process run --filter-json with limit'), 'QRY-034': (T, 'process list --table'), 'QRY-035': (P, 'server refuses; exit 3'), 'QRY-040': (P, 'table export: filtered (--where, --group, --search), sorted (--order), --fields in column order, --limit, --out -'), 'QRY-041': (P, 'csv, xlsx, json, tsv; format from --out extension; --no-header; bad format or field exit 2 before the request'),
+ 'QRY-020': (N, '--join and table.field in --fields/--where/--order, labelled "Join: Field"; the sample exposes no joins, verified through an association join (person to pet)'), 'QRY-021': (P, 'a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct)'), 'QRY-022': (N, 'qqq table stats <t> <field> [-w …] through the columnStats process; the sample has neither QUERY_STATS nor the process, so --local (same figures from the matching rows) is what was verified'), 'QRY-023': (P, 'without QUERY_STATS (or the process) table stats exits 2 with the reason; --local is an explicit opt-in'), 'QRY-030': (P, '-r ids, --filter-json, --limit'), 'QRY-031': (P, 'table bulk-edit -r ids; verified live'), 'QRY-032': (P, 'table bulk-delete -w ... (or --filter-json, --all-records) sends the whole filter; verified live'),
+ 'QRY-033': (P, 'process run --filter-json with limit'), 'QRY-034': (P, 'qqq table actions <t>: bulk load, bulk edit/delete and the table processes with the command for each; verified live'), 'QRY-035': (P, 'server refuses; exit 3'), 'QRY-040': (P, 'table export: filtered (--where, --group, --search), sorted (--order), --fields in column order, --limit, --out -'), 'QRY-041': (P, 'csv, xlsx, json, tsv; format from --out extension; --no-header; bad format or field exit 2 before the request'),
  'QRY-042': (X, 'nothing to disable'), 'QRY-043': (P, 'server refuses'), 'QRY-050': (N, 'qqq saved-view list <t>, open <t> <view>, table query --view; the sample has no saved views; verified with node tests and a local stub server'), 'QRY-051': (N, 'saved-view save --name: filter, sort, columns and page size as the Material RecordQueryView'), 'QRY-052': (N, 'saved-view save --replace, rename, delete (asks; --yes)'), 'QRY-053': (N, 'a name in use is refused before any change; an unknown view exits 2 with the list'), 'QRY-054': (N, 'views shared with you are listed as shared by their owner; changes to them are the server\'s to refuse, its message shown'),
  'QRY-060': (N, 'table variants; --variant on query, count, get, copy, export, writes and process run; a terminal asks; not remembered between commands; no variant table in the sample'), 'QRY-061': (N, 'no --variant and no terminal (or no answer): exit 2, nothing queried; no variant table in the sample'), 'QRY-062': (P, 'describe shows capabilities; server refuses'), 'QRY-063': (P, 'server refuses writes'), 'QRY-064': (P, ''), 'QRY-065': (P, 'POST /table/{t}/export'),
  'QRY-066': (N, 'GET /table/{t}/variants (called live; the sample lists none)'), 'QRY-067': (P, 'table get --key; the primary key and Material gotoFieldNames are the declared keys, other fields looked up with a note'), 'QRY-068': (P, 'default columns follow sections by tier'), 'QRY-069': (X, 'locale formatting'), 'QRY-070': (X, 'shortcuts'), 'QRY-071': (N, 'process run --variant: tableVariant on init, every step and status; sent live, no variant table to observe'),
@@ -184,6 +185,69 @@ TUI.update({
  'REC-063': (T, 'record view and forms with the grid variant'), 'REC-064': (T, 'exposed-join fields in sections'), 'REC-065': (P, 'DATE_TIME edited in local zone, unchanged instants kept'),
 })
 
+# Batch: the 13 priority todos.
+TUI.update({
+ 'PRC-044': (P, 'scanner-format steps: no heading or step list, Enter in the input submits (unit-tested only; no sample scanner process)'),
+ 'QRY-094': (P, 'doCount views show their record counts in F9 Saved views (unit-tested only; no sample saved views)'),
+ 'QRY-020': (P, 'joined columns and filters, labelled "Join: Field", joins planned by the kernel (unit-tested only; the sample exposes no joins)'),
+ 'QRY-021': (P, 'many-side join: rows repeat and the status shows the distinct count (unit-tested only)'),
+ 'REC-064': (P, 'section fields of readable exposed joins read through a joined query (unit-tested only)'),
+ 'QRY-033': (P, 'run a table process on the first N records of the result (filter with a limit; unit-tested only)'),
+ 'QRY-080': (P, 'the filter dialog starts with the quick filter fields (defaultQuickFilterFieldNames, else T1); live on person'),
+ 'QRY-081': (P, 'add a quick filter field; kept per table in the local view settings'),
+ 'QRY-085': (B, 'weekday(field) IN days sent as the WeekdayOf fieldFunction; the sample H2 backend fails it (server finding 24, qqq#1355)'),
+ 'QRY-088': (P, 'paste values split on commas, tabs, semicolons, new lines; the instance bulkAddFilterValues help shown (unit-tested only; the sample has no such help)'),
+ 'REC-063': (P, 'records and forms opened from a variant grid read with tableVariant (unit-tested only; writes ignore it, finding 19)'),
+})
+
+# Batch: the partials.
+TUI.update({
+ 'NAV-005': (X, 'icon glyphs are a browser icon font; the TUI marks processes and reports and shows the icon name on app cards'),
+ 'NAV-012': (X, 'logo, favicon and accent images are browser-only; the app name is in the title bar and on Home'),
+ 'NAV-025': (P, 'the palette (F2, /, ., Ctrl+K) jumps to navigation targets and recently viewed records; live'),
+ 'NAV-027': (P, 'F9 › Connection: UI API version, features, extensions, metadata generation and age, client build; live'),
+ 'NAV-030': (B, 'the palette calls POST /search; the sample lists recordSearch with no provider (server finding 21)'),
+ 'PRC-014': (P, 'w saves the DOWNLOAD_FORM file through the save dialog (unit-tested only)'),
+ 'PRC-016': (P, 'F4 goes back to the backend back step with the entered values (isStepBack; unit-tested only)'),
+ 'PRC-020': (B, 'Esc asks, then POST cancel; the sample accepts the cancel and keeps the run (server finding 13)'),
+ 'PRC-025': (P, 'RECORD_LIST pages with n / p through getProcessRecords (unit-tested only)'),
+ 'PRC-035': (P, 'named WIDGET fetched with the process UUID and values, drawn from the kernel screen (unit-tested only)'),
+ 'PRC-036': (P, 'composite widget blocks seeded from process values drawn as text (kernel screen; unit-tested only)'),
+ 'QRY-013': (P, 'DATE_TIME criteria typed in the local zone go out as UTC instants; expressions pass through (unit-tested)'),
+ 'QRY-017': (X, 'URL state is browser-only; the TUI shows the grammar and the CLI command, and qqq ui accepts the command as a route'),
+ 'QRY-022': (P, 'S: kernel column statistics of the column under the cursor with the filter (unit-tested only; no sample QUERY_STATS table)'),
+ 'QRY-030': (P, 'Ctrl+A: this page, the full result, the first N, clear (unit-tested)'),
+ 'QRY-032': (P, 'with the full result selected, bulk delete gets the whole filter (unit-tested)'),
+ 'QRY-050': (P, 'F9 › Saved views lists and opens views (kernel; unit-tested only)'),
+ 'QRY-051': (P, 'save the current filter, sort, columns and page size as a view (unit-tested only)'),
+ 'QRY-052': (P, 'rename, update with the current query, delete (unit-tested only)'),
+ 'QRY-071': (P, 'processes from a variant grid carry tableVariant through the runner (unit-tested only)'),
+ 'QRY-090': (P, 's sorts, v hides, orders, sizes and pins columns, F6 filters; live on person'),
+ 'QRY-092': (P, 'v: / searches, columns grouped by table and join with shown counts, * marks changes; live'),
+ 'QRY-096': (P, 'opening a view drops removed fields and flashes the kernel warnings (unit-tested only)'),
+ 'REL-001': (P, 'labels with ↗ links in the record view; l opens a grid cell\'s linked record; live'),
+ 'REL-004': (P, 'child lists three levels deep (a pet\'s notes under the pet); live on person 1'),
+ 'REL-008': (P, 'a new child through a composite association gets every join value (unit-tested only)'),
+ 'REC-014': (P, 'single-line text inline; multi-line through $EDITOR (Ctrl+E) round-trips'),
+ 'REC-019': (P, 'DATE_TIME through the kernel displayDateTime: server-zoned display values as sent, else the viewer\'s zone; live on Field Lab'),
+ 'REC-020': (X, 'the rich-text editor is a browser component; HTML is edited as source in $EDITOR and shown as text'),
+ 'REC-029': (P, 'CHIP values bracketed and colored by the adornment color (unit-tested only)'),
+ 'REC-031': (X, 'the code editor is a browser component; code is shown as text and edited in $EDITOR'),
+ 'REC-032': (P, 'RENDER_HTML shown as text with the markup stripped (kernel htmlToText)'),
+ 'REC-037': (P, 'a WIDGET-adorned field\'s value drawn as its widget (unit-tested only)'),
+ 'REC-039': (P, 'field help by screen role in F1 and in the form\'s field hint (unit-tested only)'),
+ 'REC-040': (P, 'section help under the section heading and in F1 (unit-tested only)'),
+ 'REC-042': (P, 'A: audits newest first, who, when, what, changes (unit-tested only; the sample has no audit source)'),
+ 'REC-043': (P, 'without the audit process the kernel reads the audit table (kernel-tested; the TUI uses it)'),
+ 'REC-053': (P, 'D on a grid: the table\'s APIs and their OpenAPI documents, view or save (unit-tested only)'),
+ 'REC-054': (P, 'D on a record: panels (live), scripts, revisions, code, logs, store a new version (unit-tested)'),
+ 'REC-060': (P, 'form adjusters run on change through FormSession (unit-tested only; the sample has none)'),
+ 'INT-013': (P, 'no records explains it and offers F7 when the user may create; live'),
+ 'WID-040': (P, 'widgets in declared order, laid out side by side by gridColumns on wide terminals, v reorders; live'),
+ 'WID-060': (P, 'record section widgets get the record id and table (unit-tested)'),
+ 'HLP-002': (P, 'table, field and section help by screen role in F1 (unit-tested only; the sample has none)'),
+})
+
 rows = []
 for line in open(SRC, encoding='utf-8', errors='replace'):
     m = re.match(r'^\|\s*([A-Z]{3}-\d{3})\s*\|\s*(.*?)\s*\|', line)
@@ -195,7 +259,7 @@ tui_counts = collections.defaultdict(collections.Counter)
 out = ['# Terminal clients parity matrix', '',
        'Generated by `scripts/parity-matrix.py` from the Next UI acceptance matrix (`qqq-frontend-next/docs/acceptance/feature-matrix.md`,',
        f'{len(rows)} rows). Same ids; two columns added. **pass** = verified against the local sample server in this repo\'s',
-       'development; **partial** = works with the noted gap; **todo** = planned; **n/a** = browser-only, with the reason.',
+       'development; **partial** = works with the noted gap; **todo** = planned; **n/a** = browser-only, with the reason; **blocked** = needs a server change (the note cites the finding in docs/server-findings.md). "unit-tested" in a note: the sample has no fixture, so node tests (and stub-server CLI tests) verify it.',
        'The TUI column is `qqq ui` (M3); its notes start with "TUI:".', '']
 lines = []
 for rid, feature in rows:
@@ -211,19 +275,19 @@ for rid, feature in rows:
     both = note if not tnote else (f'{note}; TUI: {tnote}' if note else f'TUI: {tnote}')
     lines.append(f'| {rid} | {feature[:110].replace("|", "/")} | {cli} | {tui} | {both.replace("|", "/")} |')
 out.append('## Summary (CLI column)'); out.append('')
-out.append('| Family | rows | pass | todo | partial | n/a |'); out.append('|---|---|---|---|---|---|')
+out.append('| Family | rows | pass | todo | partial | blocked | n/a |'); out.append('|---|---|---|---|---|---|---|')
 total = collections.Counter()
 for fam in sorted(fam_counts):
     c = fam_counts[fam]; total.update(c)
-    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[X]} |')
-out.append(f'| **all** | {sum(total.values())} | {total[P]} | {total[T]} | {total[N]} | {total[X]} |'); out.append('')
+    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[B]} | {c[X]} |')
+out.append(f'| **all** | {sum(total.values())} | {total[P]} | {total[T]} | {total[N]} | {total[B]} | {total[X]} |'); out.append('')
 out.append('## Summary (TUI column)'); out.append('')
-out.append('| Family | rows | pass | todo | partial | n/a |'); out.append('|---|---|---|---|---|---|')
+out.append('| Family | rows | pass | todo | partial | blocked | n/a |'); out.append('|---|---|---|---|---|---|---|')
 ttotal = collections.Counter()
 for fam in sorted(tui_counts):
     c = tui_counts[fam]; ttotal.update(c)
-    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[X]} |')
-out.append(f'| **all** | {sum(ttotal.values())} | {ttotal[P]} | {ttotal[T]} | {ttotal[N]} | {ttotal[X]} |'); out.append('')
+    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[B]} | {c[X]} |')
+out.append(f'| **all** | {sum(ttotal.values())} | {ttotal[P]} | {ttotal[T]} | {ttotal[N]} | {ttotal[B]} | {ttotal[X]} |'); out.append('')
 out.append('## Rows'); out.append(''); out.append('| ID | Feature | CLI | TUI | Note |'); out.append('|---|---|---|---|---|')
 out.extend(lines); out.append('')
 open(OUT, 'w', encoding='utf-8').write('\n'.join(out))

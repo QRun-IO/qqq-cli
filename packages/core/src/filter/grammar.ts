@@ -57,6 +57,41 @@ export interface Criterion {
   fieldName: string
   operator: Operator
   values: FilterValue[]
+  /** A backend function applied to the field before comparing (`weekday(birthDate) IN 1,7`). */
+  fieldFunction?: FieldFunction
+}
+
+/** A backend field function (FieldFunction): `functionTypeIdentifierName` applied to `fieldName`. */
+export interface FieldFunction {
+  fieldName: string
+  functionTypeIdentifierName: string
+  arguments?: Record<string, unknown>
+}
+
+export const WEEKDAY_OF_DATE = 'WeekdayOfDate'
+export const WEEKDAY_OF_DATE_TIME = 'WeekdayOfDateTime'
+const DAY_NUMBER: Record<string, string> = { mon: '1', tue: '2', wed: '3', thu: '4', fri: '5', sat: '6', sun: '7' }
+
+/** ISO weekday numbers from typed values: 1-7 or day names (monday, mon, …). */
+export function weekdayValues(values: FilterValue[]): string[] {
+  return values.map((v) => {
+    const text = String(v).trim().toLowerCase()
+    if (/^[1-7]$/.test(text)) return text
+    const n = DAY_NUMBER[text.slice(0, 3)]
+    if (!n) throw new FilterSyntaxError(`Not a weekday: ${String(v)} (use 1-7, Monday 1, or day names)`)
+    return n
+  })
+}
+
+/** Uses WeekdayOfDateTime for weekday criteria on DATE_TIME fields (the grammar cannot know the type). */
+export function applyFieldTypes<F extends { criteria: Criterion[]; subFilters?: F[] }>(filter: F, fieldType: (name: string) => string | undefined, dateTimeArguments?: Record<string, unknown>): F {
+  for (const c of filter.criteria) {
+    if (c.fieldFunction && /^WeekdayOf/.test(c.fieldFunction.functionTypeIdentifierName) && fieldType(c.fieldName) === 'DATE_TIME') {
+      c.fieldFunction = { ...c.fieldFunction, functionTypeIdentifierName: WEEKDAY_OF_DATE_TIME, ...(dateTimeArguments ? { arguments: dateTimeArguments } : {}) }
+    }
+  }
+  for (const sub of filter.subFilters ?? []) applyFieldTypes(sub, fieldType, dateTimeArguments)
+  return filter
 }
 
 export interface OrderBy {
@@ -146,9 +181,11 @@ function splitValues(text: string): string[] {
  * @param knownFields - When given, the field must be one of them.
  */
 export function parseCriterion(text: string, knownFields?: Iterable<string>): Criterion {
-  const match = /^\s*([A-Za-z0-9_.]+)\s+(\S+)\s*(.*)$/s.exec(text)
+  const match = /^\s*((?:weekday\()?[A-Za-z0-9_.]+\)?)\s+(\S+)\s*(.*)$/s.exec(text)
   if (!match) throw new FilterSyntaxError(`A criterion is "field OPERATOR value": ${text.trim()}`)
-  const [, fieldName, rawOperator, rest] = match as unknown as [string, string, string, string]
+  const [, rawField, rawOperator, rest] = match as unknown as [string, string, string, string]
+  const weekday = /^weekday\(([A-Za-z0-9_.]+)\)$/.exec(rawField)
+  const fieldName = weekday ? weekday[1]! : rawField
   const operator = SHORTHAND[rawOperator] ?? rawOperator.toUpperCase() as Operator
   if (!OPERATORS.includes(operator)) throw new FilterSyntaxError(`Unknown operator "${rawOperator}"; use one of ${OPERATORS.join(', ')} or = != < <= > >= ~`)
   if (knownFields) {
@@ -161,14 +198,19 @@ export function parseCriterion(text: string, knownFields?: Iterable<string>): Cr
     return { fieldName, operator, values: [] }
   }
   if (trimmed === '') throw new FilterSyntaxError(`${operator} needs a value: ${text.trim()}`)
-  const values = (LIST_OPERATORS.has(operator) ? splitValues(trimmed) : [trimmed]).map(parseValue)
+  let values = (LIST_OPERATORS.has(operator) ? splitValues(trimmed) : [trimmed]).map(parseValue)
+  if (weekday) {
+    values = weekdayValues(values)
+    return { fieldName, operator, values, fieldFunction: { fieldName, functionTypeIdentifierName: WEEKDAY_OF_DATE } }
+  }
   if ((operator === 'BETWEEN' || operator === 'NOT_BETWEEN') && values.length !== 2) throw new FilterSyntaxError(`${operator} needs two values: ${text.trim()}`)
   return { fieldName, operator, values }
 }
 
 /** Prints one criterion. */
 export function printCriterion(c: Criterion): string {
-  return c.values.length ? `${c.fieldName} ${c.operator} ${c.values.map(printValue).join(',')}` : `${c.fieldName} ${c.operator}`
+  const field = c.fieldFunction && /^WeekdayOf/.test(c.fieldFunction.functionTypeIdentifierName) ? `weekday(${c.fieldName})` : c.fieldName
+  return c.values.length ? `${field} ${c.operator} ${c.values.map(printValue).join(',')}` : `${field} ${c.operator}`
 }
 
 type Token = { kind: '(' | ')' | 'AND' | 'OR' } | { kind: 'criterion'; text: string }

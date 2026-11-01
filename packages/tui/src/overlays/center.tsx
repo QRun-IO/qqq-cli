@@ -348,6 +348,10 @@ export class CommandLineOverlay implements Overlay {
     this.editor = new LineEditor(initial)
   }
 
+  paste(text: string): void {
+    this.editor.insert(text)
+  }
+
   onKey(key: Key): void {
     if (this.search) {
       if (key.name === 'escape') {

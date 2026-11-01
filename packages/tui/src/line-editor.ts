@@ -16,10 +16,14 @@ export class LineEditor {
   cursor: number
   masked: boolean
 
-  constructor(value = '', options: { masked?: boolean } = {}) {
+  /** What a pasted line break becomes (a space in text fields; ', ' where values are lists). */
+  newline: string
+
+  constructor(value = '', options: { masked?: boolean; newline?: string } = {}) {
     this.value = value
     this.cursor = value.length
     this.masked = Boolean(options.masked)
+    this.newline = options.newline ?? ' '
   }
 
   set(value: string): void {
@@ -28,7 +32,7 @@ export class LineEditor {
   }
 
   insert(text: string): void {
-    const clean = text.replace(/[\r\n]+/g, ' ')
+    const clean = text.replace(/\r\n|\r|\n/g, this.newline).replace(/\t/g, this.newline === ' ' ? ' ' : this.newline)
     this.value = this.value.slice(0, this.cursor) + clean + this.value.slice(this.cursor)
     this.cursor += clean.length
   }

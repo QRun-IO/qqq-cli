@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { ResultCursor, associationGroups, childFilter, childListFields, formatSize, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { ResultCursor, associationGroups, childFilter, childListFields, exposedJoins, formatSize, helpEntryText, selectHelpContent, planJoins, readViewSettings, withJoinFields, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
@@ -53,6 +53,18 @@ export function saveBlob(store: AppStore, record: QueryRecord, table: string, pk
   })
 }
 
+/** A CHIP value's color: the adornment's color for the value mapped onto the theme (success, warning, error, info), else the accent. */
+export function chipColor(f: FieldMetaData, rec: QueryRecord): string {
+  const t = theme()
+  const values = (f.adornments?.find((a) => a.type === 'CHIP')?.values ?? {}) as Record<string, unknown>
+  const raw = String(rec.values?.[f.name] ?? '')
+  const color = String(values[`color.${raw}`] ?? values.color ?? '').toLowerCase()
+  if (/success|green/.test(color)) return t.ok
+  if (/warn|yellow|orange/.test(color)) return t.warn
+  if (/error|red|danger/.test(color)) return t.err
+  return t.acc2
+}
+
 /** Sections in tier order (T1, then T2, then T3, then the rest), hidden ones left out. */
 export function orderedSections(meta: TableMetaData) {
   const rank = (tier?: string) => (tier === 'T1' ? 0 : tier === 'T2' ? 1 : tier === 'T3' ? 2 : 3)
@@ -76,7 +88,7 @@ export class RecordScreen implements Screen {
   width = 100
   private generation = 0
 
-  constructor(private store: AppStore, readonly tableName: string, public primaryKey: string | undefined, readonly cursor?: ResultCursor, private label?: string) {
+  constructor(private store: AppStore, readonly tableName: string, public primaryKey: string | undefined, readonly cursor?: ResultCursor, private label?: string, readonly tableVariant?: string) {
     this.id = `record:${tableName}:${Date.now()}`
     this.load()
   }
@@ -104,8 +116,20 @@ export class RecordScreen implements Screen {
       this.meta ??= await client.tableMeta(this.tableName)
       if (this.cursor && this.primaryKey === undefined) this.primaryKey = String(this.cursor.keyOf(await this.cursor.current()) ?? '')
       if (this.primaryKey === undefined || this.primaryKey === '') throw new Error('no record')
-      const record = await client.record(this.tableName, this.primaryKey, Boolean(this.meta.associations?.length))
-      for (const a of this.meta.associations ?? []) if (!this.childMeta.has(a.associatedTableName)) this.childMeta.set(a.associatedTableName, await client.tableMeta(a.associatedTableName))
+      const record = await client.record(this.tableName, this.primaryKey, Boolean(this.meta.associations?.length), this.tableVariant)
+      await this.loadJoinedFields(record)
+      // child tables three levels down (pets, then each pet's notes), for nested child lists
+      let level: TableMetaData[] = [this.meta]
+      for (let depth = 0; depth < 3 && level.length; depth++) {
+        const next: TableMetaData[] = []
+        for (const m of level) for (const a of m.associations ?? []) {
+          if (this.childMeta.has(a.associatedTableName)) continue
+          const cm = await client.tableMeta(a.associatedTableName)
+          this.childMeta.set(a.associatedTableName, cm)
+          next.push(cm)
+        }
+        level = next
+      }
       return record
     }
     work().then((record) => {
@@ -124,6 +148,30 @@ export class RecordScreen implements Screen {
       this.build()
       this.store.bump()
     })
+  }
+
+  /** Metadata with exposed-join fields under qualified names (sections may list `joinTable.field`). */
+  fullMeta?: TableMetaData
+
+  /** Section fields from readable exposed joins: read through a query with those joins for this record. */
+  async loadJoinedFields(record: QueryRecord): Promise<void> {
+    const meta = this.meta!
+    const qualified = [...new Set((meta.sections ?? []).flatMap((x) => x.fieldNames ?? []).filter((n) => n.includes('.') && !meta.fields[n]))]
+    const joins = exposedJoins(meta as never, this.store.meta?.tables as never)
+    const full = withJoinFields(meta as never, joins) as unknown as TableMetaData
+    for (const j of joins) for (const [n, f] of Object.entries(j.tableMeta.fields as Record<string, FieldMetaData>)) if (full.fields[`${j.table}.${n}`]) full.fields[`${j.table}.${n}`]!.label = `${j.label}: ${f.label}`
+    this.fullMeta = full
+    const wanted = qualified.filter((n) => full.fields[n])
+    if (!wanted.length) return
+    const plan = planJoins(joins, { columns: wanted })
+    const filter = { criteria: [{ fieldName: meta.primaryKeyField, operator: 'EQUALS', values: [String(this.primaryKey)] }], booleanOperator: 'AND', limit: 1 }
+    const rows = ((await this.store.client!.data<{ records?: QueryRecord[] }>('queryTable', { path: { tableName: this.tableName }, query: this.tableVariant ? { tableVariant: this.tableVariant } : undefined, json: { filter, joins: plan.joins } })).records ?? [])
+    const row = rows[0]
+    if (!row) return
+    for (const n of wanted) {
+      record.values[n] = row.values?.[n]
+      if (row.displayValues?.[n] !== undefined) (record.displayValues ??= {})[n] = row.displayValues[n]!
+    }
   }
 
   loadWidgets(): void {
@@ -181,7 +229,7 @@ export class RecordScreen implements Screen {
     }
     const inner = this.width - 2
     const view = this.view()
-    const labelWidth = view.labelWidth ?? Math.min(28, Math.max(8, ...Object.values(meta.fields).map((f) => f.label.length + 1)))
+    const labelWidth = view.labelWidth ?? Math.min(28, Math.max(8, ...Object.values({ ...meta.fields, ...Object.fromEntries((meta.sections ?? []).flatMap((x) => x.fieldNames ?? []).filter((n) => this.fullMeta?.fields[n]).map((n) => [n, this.fullMeta!.fields[n]!])) }).map((f) => f.label.length + 1)))
     rows.push({ text: `${rec.recordLabel ?? this.primaryKey}${this.cursor ? `   (${this.cursor.describe()})` : ''}`, fg: t.fg, bold: true })
     if (this.tags) rows.push({ text: `Tags: ${this.tags.length ? this.tags.map((x) => x.label ?? x.name).join(' · ') : '(none)'}   t edits`, fg: t.acc2, key: 'tags', action: () => this.openTags() })
     for (const s of orderedSections(meta)) {
@@ -194,15 +242,20 @@ export class RecordScreen implements Screen {
         else rows.push(...blockLines(w.filter((b) => b.kind !== 'heading'), inner - 2).map((l) => ({ ...l, text: '  ' + l.text })))
         continue
       }
-      const fields = (s.fieldNames ?? []).map((n) => meta.fields[n]).filter((f): f is FieldMetaData => Boolean(f) && !f!.isHidden)
+      const fields = (s.fieldNames ?? []).map((n) => meta.fields[n] ?? this.fullMeta?.fields[n]).filter((f): f is FieldMetaData => Boolean(f) && !f!.isHidden)
       if (!fields.length) continue
       rows.push({ text: '' })
       rows.push({ text: `${s.label}${s.tier ? ` (${s.tier})` : ''} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 8)))}`, fg: t.acc, bold: true })
+      // section help for the view screen (helpContents by role)
+      const sectionHelp = helpEntryText(selectHelpContent((s as { helpContents?: unknown }).helpContents))
+      if (sectionHelp) rows.push({ text: `  ${trunc(sectionHelp, inner - 4)}`, fg: t.dim })
       const tableNames = Object.keys(this.store.meta?.tables ?? {})
       const valueOf = (f: FieldMetaData) => f.type === 'BLOB' && !f.adornments?.some((a) => a.type === 'FILE_DOWNLOAD') ? blobText(rec, f.name) : valueText(f as FieldMeta, rec as never, { reveal: this.revealed.has(f.name), tableNames, tableName: this.tableName, primaryKey: this.primaryKey, widgets: this.store.meta?.widgets as never }).text
       // the value column is sized once per section (first record shown) and kept while stepping records
       const frozenKey = `${s.name}|${inner}`
-      if (!this.sectionWidths.has(frozenKey)) this.sectionWidths.set(frozenKey, Math.max(...fields.map((f) => valueOf(f).length + (linkTarget(this.store, f) ? 2 : 0)), 12))
+      // from the field set (type widths), and the first record's values; kept while stepping
+      const typeWidth = (f: FieldMetaData) => (f.type === 'DATE_TIME' ? 30 : f.type === 'DATE' ? 10 : f.type === 'TIME' ? 8 : f.type === 'BOOLEAN' ? 5 : ['INTEGER', 'LONG', 'DECIMAL'].includes(f.type) && !f.possibleValueSourceName ? 14 : Math.min(40, Number((f as { maxLength?: number }).maxLength ?? 24)))
+      if (!this.sectionWidths.has(frozenKey)) this.sectionWidths.set(frozenKey, Math.max(...fields.map((f) => Math.max(typeWidth(f), valueOf(f).length) + (linkTarget(this.store, f) ? 2 : 0)), 12))
       const longest = this.sectionWidths.get(frozenKey)!
       const colWidth = Math.min(60, labelWidth + 2 + longest)
       const two = (view.recordColumns ?? (inner >= 2 * colWidth + 6 ? 2 : 1)) === 2 && inner >= 2 * Math.min(colWidth, 30) + 6
@@ -211,15 +264,23 @@ export class RecordScreen implements Screen {
         const link = v.link ? ` ${g.link}` : v.file || isBlob(rec, f) ? ' [file: Enter saves]' : v.masked ? ' [Enter reveals]' : ''
         return `${pad(f.label, labelWidth)}  ${trunc(valueOf(f) + link, (two ? colWidth : Math.min(inner - 4, 100)) - labelWidth - 2)}`
       }
-      for (let i = 0; i < fields.length; i += two ? 2 : 1) {
-        const pair = two ? fields.slice(i, i + 2) : [fields[i]!]
+      // WIDGET-adorned fields: the value is a widget payload, drawn as blocks under its label
+      const widgetFields = fields.filter((f) => f.adornments?.some((a) => a.type === 'WIDGET') && rec.values?.[f.name] && typeof rec.values[f.name] === 'object')
+      for (const f of widgetFields) {
+        rows.push({ text: `  ${f.label}`, fg: t.fg, bold: true })
+        rows.push(...blockLines(widgetToBlocks(rec.values![f.name]), inner - 6).map((l) => ({ ...l, text: `    ${l.text}` })))
+      }
+      const plainFields = fields.filter((f) => !widgetFields.includes(f))
+      for (let i = 0; i < plainFields.length; i += two ? 2 : 1) {
+        const pair = two ? plainFields.slice(i, i + 2) : [plainFields[i]!]
         const links = pair.filter((f) => { const v = valueText(f as FieldMeta, rec as never, { tableNames }); return Boolean(v.link || v.file || v.masked || isBlob(rec, f)) })
         const text = '  ' + (two ? pad(fieldText(pair[0]!), colWidth) + '    ' + (pair[1] ? fieldText(pair[1]) : '') : fieldText(pair[0]!))
-        rows.push({ text, key: `f:${pair[0]!.name}`, action: () => this.follow(links) })
+        const chip = pair.some((f) => valueText(f as FieldMeta, rec as never, {}).adornment === 'CHIP' && cell(rec, f.name))
+        rows.push({ text, key: `f:${pair[0]!.name}`, action: () => this.follow(links), ...(chip ? { fg: chipColor(pair.find((f) => valueText(f as FieldMeta, rec as never, {}).adornment === 'CHIP')!, rec) } : {}) })
       }
     }
     const tables: Record<string, TableMetaLike | undefined> = Object.fromEntries([...this.childMeta].map(([k, v]) => [k, v as unknown as TableMetaLike]))
-    this.groups = associationGroups(rec as never, meta as unknown as TableMetaLike, tables, { widgets: this.store.meta?.widgets as never, maxDepth: 1 })
+    this.groups = associationGroups(rec as never, meta as unknown as TableMetaLike, tables, { widgets: this.store.meta?.widgets as never, maxDepth: 3 })
     this.groups.forEach((group, gi) => this.childRows(group, gi, rows, inner))
     this.list.setRows(rows)
     // back from a child record: land on the child that was viewed last (it may have stepped)
@@ -245,7 +306,10 @@ export class RecordScreen implements Screen {
     const child = this.childMeta.get(group.table)
     const records = group.records as QueryRecord[]
     rows.push({ text: '' })
-    rows.push({ text: `${group.label} (${records.length}) ${g.rule.repeat(Math.max(0, Math.min(60, inner - group.label.length - 8)))}`, fg: t.acc, bold: true, key: `c:${gi}`, action: () => this.newChild(group) })
+    const indent = '  '.repeat(Math.max(0, group.depth - 1))
+    const heading = group.depth > 1 ? group.title : group.label
+    if (group.depth > 1 && !records.length) return // empty grandchild lists stay out of the way
+    rows.push({ text: `${indent}${heading} (${records.length}) ${g.rule.repeat(Math.max(0, Math.min(60, inner - heading.length - 8 - indent.length)))}`, fg: t.acc, bold: true, key: `c:${gi}`, action: () => this.newChild(group) })
     if (group.unavailable || !child) {
       rows.push({ text: `  ${group.unavailable ?? 'no metadata'}`, fg: t.dim })
       return
@@ -257,9 +321,9 @@ export class RecordScreen implements Screen {
       this.childWidths.set(wkey, names.map((n) => Math.min(30, Math.max(child.fields[n]!.label.length, ...records.map((r) => fieldCell(r, child.fields[n]!).length)))))
     }
     const widths = this.childWidths.get(wkey)!
-    rows.push({ text: '  ' + names.map((n, i) => pad(child.fields[n]!.label, widths[i]!)).join('  '), fg: t.dim })
+    rows.push({ text: `${indent}  ` + names.map((n, i) => pad(child.fields[n]!.label, widths[i]!)).join('  '), fg: t.dim })
     records.forEach((r, idx) => {
-      rows.push({ text: '  ' + names.map((n, i) => pad(fieldCell(r, child.fields[n]!), widths[i]!)).join('  '), key: `c:${gi}:${idx}`, action: () => this.openChild(group, idx) })
+      rows.push({ text: `${indent}  ` + names.map((n, i) => pad(fieldCell(r, child.fields[n]!), widths[i]!)).join('  '), key: `c:${gi}:${idx}`, action: () => this.openChild(group, idx) })
     })
     if (!records.length) rows.push({ text: '  (none) · Enter on the heading or F7 adds one', fg: t.dim })
   }
@@ -267,7 +331,8 @@ export class RecordScreen implements Screen {
   /** The filter selecting this record's children of a group (kernel childFilter). */
   childFilterOf(group: AssociationGroup) {
     const child = this.childMeta.get(group.table)!
-    const f = childFilter(group.association, this.meta as unknown as TableMetaLike, this.record as never, child as unknown as TableMetaLike)
+    const parentMeta = group.parentTable === this.tableName ? this.meta : this.childMeta.get(group.parentTable)
+    const f = childFilter(group.association, parentMeta as unknown as TableMetaLike, group.parent as never, child as unknown as TableMetaLike)
     return { criteria: f.criteria, booleanOperator: f.booleanOperator, ...(f.subFilters ? { subFilters: f.subFilters } : {}) }
   }
 
@@ -283,7 +348,7 @@ export class RecordScreen implements Screen {
   }
 
   newChild(group: AssociationGroup): void {
-    const values = Object.fromEntries((group.association.join?.joinOns ?? []).map((j) => [j.rightField, this.record?.values?.[j.leftField]]))
+    const values = Object.fromEntries((group.association.join?.joinOns ?? []).map((j) => [j.rightField, (group.parent as QueryRecord).values?.[j.leftField]]))
     openForm(this.store, group.table, { mode: 'create', initial: values })
   }
 
@@ -387,7 +452,7 @@ export class RecordScreen implements Screen {
       return true
     }
     switch (key.name) {
-      case 'f4': if (this.primaryKey !== undefined) openForm(this.store, this.tableName, { mode: 'edit', primaryKey: this.primaryKey }); return true
+      case 'f4': if (this.primaryKey !== undefined) openForm(this.store, this.tableName, { mode: 'edit', primaryKey: this.primaryKey, tableVariant: this.tableVariant }); return true
       case 'f7': {
         const a = this.currentAssociation()
         if (a) this.newChild(a)
@@ -401,7 +466,7 @@ export class RecordScreen implements Screen {
     if (!this.store.singleKeys) return false
     switch (ch) {
       case 'e': return this.onKey({ name: 'f4', sequence: '' })
-      case 'c': if (this.primaryKey !== undefined) openForm(this.store, this.tableName, { mode: 'copy', primaryKey: this.primaryKey }); return true
+      case 'c': if (this.primaryKey !== undefined) openForm(this.store, this.tableName, { mode: 'copy', primaryKey: this.primaryKey, tableVariant: this.tableVariant }); return true
       case 'd': this.deleteRecord(); return true
       case 'n': openForm(this.store, this.tableName, { mode: 'create' }); return true
       case 'r': this.refresh(); return true

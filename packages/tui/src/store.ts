@@ -264,6 +264,19 @@ export class AppStore {
     this.bump()
   }
 
+  /** Bracketed paste: to the top dialog, else the screen, when it takes text. */
+  handlePaste(text: string): void {
+    this.lastInput = Date.now()
+    const top = (this.lock ?? this.overlays[this.overlays.length - 1]) as { paste?: (t: string) => void } | undefined
+    const target = top ?? (this.screen as { paste?: (t: string) => void } | undefined)
+    try {
+      target?.paste?.(text)
+    } catch (e) {
+      this.error(e)
+    }
+    this.bump()
+  }
+
   private dispatch(key: Key): void {
     if (this.lock) {
       this.lock.onKey(key)

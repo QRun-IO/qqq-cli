@@ -282,8 +282,11 @@ function isUnset(value: unknown): boolean {
   return value === undefined || value === null || value === ''
 }
 
-/** Components that take input: their step's form fields are asked for. */
-export const INPUT_COMPONENTS = ['EDIT_FORM', 'BULK_EDIT_FORM', 'VALIDATION_REVIEW_SCREEN', 'GOOGLE_DRIVE_SELECT_FOLDER', 'BULK_LOAD_FILE_MAPPING_FORM', 'BULK_LOAD_VALUE_MAPPING_FORM', 'BULK_LOAD_PROFILE_FORM']
+/**
+ * Components that take input: their step's form fields are asked for. BULK_LOAD_PROFILE_FORM is not
+ * one: it only offers saving the mapping as a profile (the mapping steps send `savedBulkLoadProfileId`).
+ */
+export const INPUT_COMPONENTS = ['EDIT_FORM', 'BULK_EDIT_FORM', 'VALIDATION_REVIEW_SCREEN', 'GOOGLE_DRIVE_SELECT_FOLDER', 'BULK_LOAD_FILE_MAPPING_FORM', 'BULK_LOAD_VALUE_MAPPING_FORM']
 
 /**
  * Whether a step asks for anything (an edit form, a validation review, a file upload, a picker).

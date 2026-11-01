@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { BACK, FormSession, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, FormSession, fetchProcessRecords, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
 import { blockLines, tableLines } from '../widgets'
 import type { Key } from '../keys'
@@ -23,6 +23,8 @@ class Cancelled extends Error {
 }
 
 export interface ProcessOptions {
+  /** Reports: save the DOWNLOAD_FORM file as soon as the run finishes. */
+  autoDownload?: boolean
   /** The table variant the records come from (sent on init, every step and status). */
   tableVariant?: string
   recordIds?: string[]
@@ -58,6 +60,8 @@ export class ProcessScreen implements Screen {
   /** The current step's screen (help, HTML, view values, records, widgets, downloads) as text lines, from the kernel. */
   screenLines: string[] = []
   backStep?: string
+  /** A scanner-format step: no heading or action bar; Enter in an input submits. */
+  scanner = false
   downloads: Array<{ fileName: string; query: Record<string, string> }> = []
   /** Files chosen in a step's form, handed to the kernel runner (sent with that step). */
   private stepFiles: Record<string, { name: string; bytes: Uint8Array }> = {}
@@ -165,6 +169,7 @@ export class ProcessScreen implements Screen {
       this.phase = 'done'
       this.finished = Date.now()
       this.note('complete')
+      if (this.options.autoDownload && this.downloads.length) this.saveDownloadFile()
       this.store.bump()
     }).catch((e) => {
       if (e instanceof Cancelled || this.cancelled) {
@@ -180,6 +185,35 @@ export class ProcessScreen implements Screen {
 
   /** Turns the kernel's screen blocks into lines (tables aligned, widgets drawn) and notes downloads. */
   showScreen(blocks: ScreenBlock[]): void {
+    this.blocks = blocks
+    this.recordsSkip = 0
+    this.recordsPage = 0
+    this.renderScreen()
+  }
+
+  /** The current step's blocks, and the RECORD_LIST page shown (n / p page through the run's records). */
+  blocks: ScreenBlock[] = []
+  recordsSkip = 0
+  recordsPage = 0
+
+  pageRecords(direction: 1 | -1): void {
+    const block = this.blocks.find((b): b is Extract<ScreenBlock, { kind: 'records' }> => b.kind === 'records')
+    if (!block || !this.processUUID) return this.store.flash('this step has no record list')
+    const size = Math.max(1, this.recordsPage || block.rows.length || 50)
+    this.recordsPage = size
+    const skip = Math.max(0, this.recordsSkip + direction * size)
+    if (skip >= block.total) return this.store.flash('last page of records')
+    const c = this.store.client!
+    this.store.run(fetchProcessRecords(c.server, c.fetch, this.processName, this.processUUID, skip, size, this.options.tableVariant), (page) => {
+      this.recordsSkip = skip
+      block.rows = page.records.map((r) => Object.fromEntries(block.columns.map((col) => [col, cell(r as never, col)])))
+      block.total = page.totalRecords
+      this.renderScreen()
+    })
+  }
+
+  renderScreen(): void {
+    const blocks = this.blocks
     const width = 100
     this.downloads = blocks.filter((b): b is Extract<ScreenBlock, { kind: 'download' }> => b.kind === 'download').map((b) => ({ fileName: b.fileName, query: b.query }))
     const visible = blocks.filter((b) => b.kind !== 'form' && b.kind !== 'review' && b.kind !== 'summary')
@@ -188,6 +222,8 @@ export class ProcessScreen implements Screen {
       widget: (w) => blockLines(w, width).map((l) => l.text).join('\n'),
     })
     this.screenLines = text ? text.split('\n') : []
+    const rec = blocks.find((b) => b.kind === 'records') as Extract<ScreenBlock, { kind: 'records' }> | undefined
+    if (rec && rec.total > rec.rows.length) this.screenLines.unshift(`records ${this.recordsSkip + 1}-${this.recordsSkip + rec.rows.length} of ${rec.total} · n next page · p previous page`)
     this.store.bump()
   }
 
@@ -217,7 +253,8 @@ export class ProcessScreen implements Screen {
       const local = { ...values }
       for (const f of fields) if (f.type === 'DATE_TIME' && isInstant(local[f.name])) local[f.name] = utcToLocalInput(String(local[f.name]), defaultTimeZone())
       const session = new FormSession({ baseUrl: client.server, fetch: this.fetchFor(), scope: { process: this.processName }, fields, initialValues: local })
-      this.editor = new FormEditor(this.store, session, session.promptOrder(fields.map((f) => f.name)), { bulkEdit: types.includes('BULK_EDIT_FORM') })
+      this.scanner = String(step.format ?? '').toLowerCase() === 'scanner'
+      this.editor = new FormEditor(this.store, session, session.promptOrder(fields.map((f) => f.name)), { bulkEdit: types.includes('BULK_EDIT_FORM'), ...(this.scanner ? { submitOnEnter: () => this.submit() } : {}) })
       this.phase = 'form'
     } else {
       // nothing to ask (a view step that is not the last): continue
@@ -291,6 +328,10 @@ export class ProcessScreen implements Screen {
       this.pending = undefined
       this.phase = 'running'
       pending.resolve(BACK as unknown as FieldValues)
+      return true
+    }
+    if ((charOf(key) === 'n' || charOf(key) === 'p') && this.phase !== 'form' && this.blocks.some((b) => b.kind === 'records')) {
+      this.pageRecords(charOf(key) === 'n' ? 1 : -1)
       return true
     }
     if (charOf(key) === 'w' && this.downloads.length && this.phase !== 'form') {
@@ -405,8 +446,11 @@ export class ProcessScreen implements Screen {
       lines.push({ text: 'Cancelled', fg: t.warn, bold: true })
       lines.push({ text: 'Esc closes · F5 or r runs it again', fg: t.dim })
     }
-    body.push(<text flexShrink={0} wrapMode="none" key="stepper" fg={t.dim}>{pad(` ${trunc(stepper, inner - 1)}`, inner)}</text>)
-    body.push(<text flexShrink={0} wrapMode="none" key="sp">{pad('', inner)}</text>)
+    const scannerForm = this.scanner && this.phase === 'form'
+    if (!scannerForm) {
+      body.push(<text flexShrink={0} wrapMode="none" key="stepper" fg={t.dim}>{pad(` ${trunc(stepper, inner - 1)}`, inner)}</text>)
+      body.push(<text flexShrink={0} wrapMode="none" key="sp">{pad('', inner)}</text>)
+    }
     // the step's screen from the kernel (help, HTML, view values, records, widgets, downloads), else the step's help text
     const screen = this.screenLines.length ? this.screenLines : help.flatMap((h) => wrap(h, inner - 2))
     const maxScreen = this.phase === 'form' ? Math.max(0, Math.min(screen.length, Math.floor(height / 3))) : Math.max(0, Math.min(screen.length, height - 12))
@@ -414,7 +458,10 @@ export class ProcessScreen implements Screen {
     if (screen.length > maxScreen) body.push(<text flexShrink={0} wrapMode="none" key="hmore" fg={t.dim}>{pad(` … ${screen.length - maxScreen} more lines`, inner)}</text>)
     if (this.downloads.length && this.phase !== 'form') body.push(<text flexShrink={0} wrapMode="none" key="dl" fg={t.acc2}>{pad(` w saves ${this.downloads[0]!.fileName}`, inner)}</text>)
     let used = body.length
-    if (this.phase === 'form' && this.editor) {
+    if (scannerForm && this.editor) {
+      const formHeight = Math.max(3, height - 2 - used)
+      body.push(<box key="form" flexDirection="column" height={formHeight}>{this.editor.render(inner, formHeight, focused)}</box>)
+    } else if (this.phase === 'form' && this.editor) {
       body.push(<text flexShrink={0} wrapMode="none" key="title" fg={t.acc}><strong>{pad(` ${this.step?.label ?? this.step?.name ?? ''}${this.editor.options.bulkEdit ? '  (Ctrl+T marks a field to apply)' : ''}`, inner)}</strong></text>)
       used++
       const formHeight = Math.max(3, height - 2 - used - 1)

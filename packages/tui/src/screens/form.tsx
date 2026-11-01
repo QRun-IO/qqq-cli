@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { FormInputError, FormSession, ResultCursor, copyRecordValues, dateTimesToUtc, formatSize, defaultTimeZone, isInstant, isMissingValue, utcToLocalInput, validateValue, type FieldMeta, type FieldValues } from '@qrun-io/qqq-core'
+import { FormInputError, FormSession, ResultCursor, copyRecordValues, dateTimesToUtc, formatSize, helpEntryText, selectHelpContent, defaultTimeZone, isInstant, isMissingValue, utcToLocalInput, validateValue, type FieldMeta, type FieldValues } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
@@ -76,7 +76,7 @@ export class FormEditor {
   /** Files chosen for BLOB and FILE_UPLOAD fields (sent as multipart parts). */
   files = new Map<string, { name: string; bytes: Uint8Array; path: string }>()
 
-  constructor(private store: AppStore, readonly session: FormSession, readonly order: string[], readonly options: { bulkEdit?: boolean; readOnly?: string[] } = {}) {
+  constructor(private store: AppStore, readonly session: FormSession, readonly order: string[], readonly options: { bulkEdit?: boolean; readOnly?: string[]; submitOnEnter?: () => void } = {}) {
     this.initial = { ...session.values }
     for (const name of order) {
       const f = session.fields[name]
@@ -182,6 +182,13 @@ export class FormEditor {
     }, initial))
   }
 
+  /** Pasted text goes into the text field that has focus. */
+  paste(text: string): void {
+    const name = this.current
+    const ed = name ? this.editors.get(name) : undefined
+    if (ed) ed.insert(text)
+  }
+
   /** Handles a key; returns true when the form used it. Ctrl+S and Esc are left to the owner. */
   onKey(key: Key): boolean {
     const name = this.current
@@ -249,6 +256,11 @@ export class FormEditor {
       return true
     }
     if (key.name === 'return') {
+      // scanner screens: Enter in an input submits the step (hand-held stations)
+      if (this.options.submitOnEnter) {
+        void this.commit(name).then(() => this.options.submitOnEnter!())
+        return true
+      }
       this.move(1)
       return true
     }
@@ -290,7 +302,8 @@ export class FormEditor {
         const pickGlyph = (this.session.hasChoices(name) || isFileField(f)) && !disabled ? ' ▾' : ''
         editor = <text flexShrink={0} wrapMode="none" fg={disabled ? t.dim : sel ? t.selFg : t.inputFg} bg={disabled ? undefined : sel ? t.selBg : t.inputBg}>{pad(trunc(shown, editorWidth - pickGlyph.length) + pickGlyph, editorWidth)}</text>
       }
-      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : idx === this.index ? (isFileField(f) ? 'Enter chooses a file · Backspace clears' : this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : hintFor(f)) : ''
+      const fieldHelp = idx === this.index ? helpEntryText(selectHelpContent(f.helpContents, ['INSERT_SCREEN', 'EDIT_SCREEN', 'WRITE_SCREENS', 'ALL_SCREENS'])) : ''
+      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : fieldHelp ? fieldHelp : idx === this.index ? (isFileField(f) ? 'Enter chooses a file · Backspace clears' : this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : hintFor(f)) : ''
       return (
         <box key={name} flexDirection="row" height={1}>
           <text flexShrink={0} wrapMode="none" fg={sel ? t.acc2 : disabled ? t.dim : t.fg}>{`${sel ? g.pointer : ' '}${bulk}${pad(f.label, labelWidth - 1)}${required} `}</text>
@@ -315,6 +328,8 @@ export interface FormOptions {
   initial?: FieldValues
   /** The result the record came from (edit from a grid): saving returns there. */
   cursor?: ResultCursor
+  /** The grid's table variant: the record is read with it (v1 writes ignore it, server finding #19). */
+  tableVariant?: string
 }
 
 /** Create, edit or copy a table record. Ctrl+S saves; Esc cancels and asks when there are unsaved changes. */
@@ -339,7 +354,7 @@ export class FormScreen implements Screen {
       let initial: FieldValues = { ...(this.options.initial ?? {}) }
       const display: Record<string, string> = {}
       if (this.options.mode !== 'create' && this.options.primaryKey !== undefined) {
-        const rec = await client.record(this.tableName, this.options.primaryKey)
+        const rec = await client.record(this.tableName, this.options.primaryKey, false, this.options.tableVariant)
         initial = this.options.mode === 'copy' ? copyRecordValues(meta, rec) as FieldValues : { ...rec.values }
         Object.assign(display, rec.displayValues ?? {})
       }
@@ -375,12 +390,20 @@ export class FormScreen implements Screen {
     return `${verb} ${this.meta?.label ?? this.tableName}${this.options.mode === 'edit' ? ` ${this.options.primaryKey}` : ''}`
   }
 
+  helpTopic() {
+    return { kind: 'table' as const, name: this.tableName }
+  }
+
   presenceScope(): string | undefined {
     return this.options.mode === 'edit' ? `record:${this.tableName}:${this.options.primaryKey}` : undefined
   }
 
   capturesText(): boolean {
     return true
+  }
+
+  paste(text: string): void {
+    this.editor?.paste(text)
   }
 
   dirty(): boolean {

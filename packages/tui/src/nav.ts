@@ -26,9 +26,9 @@ export function openTable(store: AppStore, table: string, filter?: QueryFilter):
   store.push(new TableScreen(store, table, filter))
 }
 
-export function openRecord(store: AppStore, table: string, primaryKey: string | undefined, options: { cursor?: ResultCursor; label?: string } = {}): void {
+export function openRecord(store: AppStore, table: string, primaryKey: string | undefined, options: { cursor?: ResultCursor; label?: string; tableVariant?: string } = {}): void {
   if (!known(store, 'tables', table)) return
-  store.push(new RecordScreen(store, table, primaryKey, options.cursor, options.label))
+  store.push(new RecordScreen(store, table, primaryKey, options.cursor, options.label, options.tableVariant))
 }
 
 /** After a create: the new record replaces the form. */
@@ -58,6 +58,6 @@ export function openNode(store: AppStore, node: AppTreeNode): void {
   if (node.type === 'TABLE') openTable(store, node.name)
   else if (node.type === 'PROCESS') openProcess(store, node.name)
   else if (node.type === 'APP') openApp(store, node.name)
-  else if (node.type === 'REPORT') store.commands().commandLine(`report run ${node.name} --format csv`)
+  else if (node.type === 'REPORT') void import('./screens/report').then((r) => r.openReport(store, node.name))
   else store.flash(`${node.type} ${node.label} has no terminal screen yet`)
 }

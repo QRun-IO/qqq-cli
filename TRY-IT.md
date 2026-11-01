@@ -290,9 +290,45 @@ qqq process run fieldLab.bulkEdit -r 4 -v bulkEditEnabledFields=dateTimeValue -v
 Filter values can be expressions: `now()`, `now(-7d)`, `thisPeriod(month)`, `lastPeriod(week)`,
 `startOf(quarter,-1)`, `me()`, `${variable.x}`; quote values with commas: `city IN "St. Louis, MO",Chicago`.
 
+Bulk load and bulk changes run the table's bulk processes with every screen the web shows: upload, column
+mapping, value mapping, the review (record count, preview, full validation) and the result. Loading or changing asks
+first unless `--yes`; without a terminal and without `--yes` the run is cancelled and the command exits 2. The
+mapping comes from the server's suggestion, a mapping document (`--mapping m.yaml`), `--column field=column` and
+`--default field=value`, or `-i` (questions for the header row, layout, each field's column, fields to add, values to
+map; `b` goes back). Use your own file, or save a template first.
+
+```sh
+qqq table actions person                                       # what you can do: bulk load, bulk edit/delete, processes
+qqq table bulk-insert person --template flat                   # saves "Person - Flat.csv" (the upload instructions' template)
+printf 'First Name,Last Name,Email,Employed\nTry,Bulk,try@example.com,yes\n' > try.csv
+qqq table bulk-insert person --file try.csv --column isEmployed=Employed --dry-run   # validates, shows, changes nothing
+qqq table bulk-insert person --file try.csv --column isEmployed=Employed --save-mapping try.yaml --yes
+qqq table bulk-insert person --file try.csv -i                 # edit the mapping on the terminal; asks before loading
+qqq table bulk-edit person -w "lastName = Bulk" --set daysWorked=5 --clear birthDate --yes   # only these fields change
+printf 'Id,Last Name\n<id from the insert>,Bulk2\n' > edit.csv
+qqq table bulk-edit person --file edit.csv --key id --yes      # rows find their records by the key field
+qqq table bulk-delete person -w "lastName STARTS_WITH Bulk"    # review and validation, then "Delete the records? [y/N]"
+qqq bulk-profile list person ; qqq table bulk-insert person --file try.csv --saved <name>   # saved profiles (none in the sample)
+qqq bulk-profile save person -n Mine --mapping try.yaml --file try.csv ; qqq bulk-profile rename person Mine Mine2 ; qqq bulk-profile delete person Mine2 --yes
+```
+
+A mapping document names fields (name, `child.field`, or the label) and where their values come from:
+
+```yaml
+layout: TALL                  # FLAT (default), TALL or WIDE; tables with child tables only
+hasHeaderRow: true
+fields:
+  firstName: First Name       # a column by header name (or a letter: B)
+  lastName: { column: B }
+  isEmployed: { column: Employed, values: { Y: yes, N: no } }   # value mapping
+  pets.name: Pet Name
+  pets.speciesId: { column: Species, values: { Dog: Dog, Cat: Cat } }   # labels resolve to ids
+  annualSalary: { default: 50000 }
+keyFields: id                 # bulk edit with a file
+```
+
 Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
-the CLI: bulk load (the sample server cannot accept uploads, see `docs/server-findings.md` #10), jobs on a
-durable-jobs server, TABLE_BASED sign-in. Built but not verifiable against this sample, which has none of them:
+the CLI: jobs on a durable-jobs server, TABLE_BASED sign-in. Built but not verifiable against this sample, which has none of them:
 saved views, server-side column statistics (columnStats), audits, a variant-backed table, exposed joins (joins were
 checked through an association join instead); node tests and a local stub server cover those.
 

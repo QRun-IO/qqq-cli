@@ -11,7 +11,9 @@ import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { Overlay } from '../types'
 import { pad } from '../util/text'
-import { ChoiceOverlay, PromptOverlay, overlayId } from './basic'
+import { ChoiceOverlay, EditorLine, PromptOverlay, overlayId } from './basic'
+import { LineEditor } from '../line-editor'
+import { defaultColumns } from '../screens/table'
 import { Frame, Line } from './frame'
 
 /**
@@ -24,8 +26,13 @@ export class GridViewSettingsOverlay implements Overlay {
   order: string[]
   visible: Set<string>
   row = 0
+  /** `/` searches the column list (Esc ends the search). */
+  readonly search = new LineEditor('')
+  searching = false
+  readonly defaults: string[]
 
   constructor(private store: AppStore, readonly meta: TableMetaData, readonly key: string, current: string[], private onDone: () => void) {
+    this.defaults = defaultColumns(meta)
     this.view = readViewSettings(key)
     const all = Object.values(meta.fields).filter((f) => !f.isHidden).map((f) => f.name)
     this.order = [...current, ...all.filter((n) => !current.includes(n))]
@@ -37,6 +44,7 @@ export class GridViewSettingsOverlay implements Overlay {
     const sort = this.view.sort as { field: string; asc: boolean } | undefined
     return [
       { label: 'Sort', value: sort ? `${this.meta.fields[sort.field]?.label ?? sort.field} ${sort.asc ? 'ascending' : 'descending'}` : 'default order', toggle: () => this.chooseSort() },
+      { label: 'Pinned columns', value: `${Number(this.view.pinned ?? 0)} (stay left while scrolling; +/- on this line)`, toggle: () => { this.view.pinned = (Number(this.view.pinned ?? 0) + 1) % 4 } },
       { label: 'Width use', value: this.view.fit === 'fill' ? 'fill the terminal width' : 'fit to content', toggle: () => { this.view.fit = this.view.fit === 'fill' ? 'content' : 'fill' } },
       { label: 'Zebra stripes', value: (this.view.zebra ?? t.zebraByDefault) ? 'on' : 'off', toggle: () => { this.view.zebra = !(this.view.zebra ?? t.zebraByDefault) } },
       { label: 'Header rule', value: (this.view.headerRule ?? true) ? 'on' : 'off', toggle: () => { this.view.headerRule = !(this.view.headerRule ?? true) } },
@@ -62,7 +70,30 @@ export class GridViewSettingsOverlay implements Overlay {
     this.onDone()
   }
 
+  /** Column indexes shown for the search text (all when empty). */
+  matching(): number[] {
+    const needle = this.search.value.toLowerCase()
+    return this.order.map((n, i) => ({ n, i })).filter(({ n }) => !needle || n.toLowerCase().includes(needle) || (this.meta.fields[n]?.label ?? '').toLowerCase().includes(needle)).map(({ i }) => i)
+  }
+
   onKey(key: Key): void {
+    if (this.searching) {
+      if (key.name === 'escape' || key.name === 'return') {
+        this.searching = false
+        const first = this.matching()[0]
+        if (first !== undefined) this.row = first
+        return
+      }
+      if (this.search.handle(key)) {
+        const first = this.matching()[0]
+        if (first !== undefined) this.row = first
+      }
+      return
+    }
+    if (charOf(key) === '/') {
+      this.searching = true
+      return
+    }
     const opts = this.options()
     const total = this.order.length + opts.length
     const ch = charOf(key)
@@ -122,21 +153,37 @@ export class GridViewSettingsOverlay implements Overlay {
     const width = Math.min(sw - 4, 80)
     const inner = width - 2
     const opts = this.options()
-    const items = [
-      ...this.order.map((n, i) => ({ text: `${this.visible.has(n) ? g.check : g.uncheck} ${pad(this.meta.fields[n]!.label, 28)} ${this.view.widths?.[n] ? `width ${this.view.widths[n]}` : 'auto width'}`, idx: i })),
+    const match = new Set(this.matching())
+    const changed = (n: string, i: number) => this.visible.has(n) !== this.defaults.includes(n) || (this.visible.has(n) && this.defaults.indexOf(n) !== this.order.filter((x) => this.visible.has(x)).indexOf(n)) || Boolean(this.view.widths?.[n])
+    const groupOf = (n: string) => (n.includes('.') ? (this.meta.fields[n]?.label.split(':')[0] ?? n.split('.')[0]!) : 'Fields')
+    const items: Array<{ text: string; idx: number; heading?: boolean }> = []
+    let lastGroup = ''
+    this.order.forEach((n, i) => {
+      if (!match.has(i)) return
+      const group = groupOf(n)
+      if (group !== lastGroup) {
+        items.push({ text: `${group} (${this.order.filter((x) => groupOf(x) === group && this.visible.has(x)).length} of ${this.order.filter((x) => groupOf(x) === group).length} shown)`, idx: -1 - items.length, heading: true })
+        lastGroup = group
+      }
+      items.push({ text: `${changed(n, i) ? '*' : ' '}${this.visible.has(n) ? g.check : g.uncheck} ${pad(this.meta.fields[n]!.label, 30)} ${this.view.widths?.[n] ? `width ${this.view.widths[n]}` : 'auto width'}`, idx: i })
+    })
+    items.push(
       ...opts.map((o, i) => ({ text: `    ${pad(o.label, 28)} ${o.value}`, idx: this.order.length + i })),
-    ]
-    const rows = Math.max(5, Math.min(items.length, sh - 10))
-    const top = Math.max(0, Math.min(this.row - Math.floor(rows / 2), items.length - rows))
+    )
+    const rows = Math.max(5, Math.min(items.length, sh - 11))
+    const selAt = Math.max(0, items.findIndex((it) => it.idx === this.row))
+    const top = Math.max(0, Math.min(selAt - Math.floor(rows / 2), items.length - rows))
     return (
-      <Frame title={`View settings · ${this.meta.label}`} width={width} height={rows + 5} screenWidth={sw} screenHeight={sh}>
+      <Frame title={`View settings · ${this.meta.label} · ${this.visible.size} of ${this.order.length} columns shown`} width={width} height={rows + 5} screenWidth={sw} screenHeight={sh}>
+        {this.searching || this.search.value ? <box paddingLeft={1}><EditorLine editor={this.search} width={inner - 2} focused={this.searching} placeholder="search columns" /></box> : null}
         {items.slice(top, top + rows).map((it) => {
           const sel = it.idx === this.row
+          if (it.heading) return <text flexShrink={0} wrapMode="none" key={it.idx} fg={t.acc}>{pad(` ${it.text}`, inner)}</text>
           const isOpt = it.idx >= this.order.length
           return <text flexShrink={0} wrapMode="none" key={it.idx} fg={sel ? t.selFg : isOpt ? t.acc : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${it.text}`, inner)}</text>
         })}
         <Line text="" width={inner} />
-        <Line text=" Space on/off (on Sort: choose) · Shift+↑↓ or +/- move · ←→ width · w width · a auto" width={inner} fg={t.dim} />
+        <Line text=" Space on/off · / search · Shift+↑↓ or +/- move · ←→ width · w width · a auto · * changed from the default" width={inner} fg={t.dim} />
         <Line text=" r reset to defaults · Enter saves (kept for this table) · Esc cancels" width={inner} fg={t.dim} />
       </Frame>
     )

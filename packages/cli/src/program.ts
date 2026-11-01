@@ -18,6 +18,7 @@ export { buildDescription } from './version.js'
 import { registerApi } from './commands/api.js'
 import { registerAudit } from './commands/audit.js'
 import { registerAuth } from './commands/auth.js'
+import { registerBulk } from './commands/bulk.js'
 import { registerCompletion } from './commands/completion.js'
 import { registerConfig } from './commands/config.js'
 import { registerDeveloper } from './commands/developer.js'
@@ -61,6 +62,7 @@ export function createProgram(): Command {
   registerDeveloper(program, ctx)
   registerAudit(program, ctx)
   registerRelated(program, ctx)
+  registerBulk(program, ctx)
   registerProcess(program, ctx)
   registerSavedView(program, ctx)
   registerJob(program, ctx)
