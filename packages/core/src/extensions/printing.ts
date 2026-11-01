@@ -23,6 +23,8 @@
 
 import type { CallInput, CallResult } from '../api/call.js'
 import { readConfig, writeConfig } from '../session/profiles.js'
+import { downloadReference } from '../process/screen.js'
+import { exportFileName } from '../render/files.js'
 import type { ExtensionRegistry } from './registry.js'
 
 export const PRINTING = 'printing'
@@ -33,6 +35,8 @@ export const COPIES_FIELD = 'printingCopies'
 export const JOB_IDS_VALUE = 'printingJobIds'
 export const TABLE_LIST_PROCESS = 'printingPrintTableList'
 export const TEXT_PROCESS = 'printingPrintText'
+/** Renders a record sheet, table list or text page to a PDF download (Save as PDF). */
+export const RENDER_PROCESS = 'printingRenderToPdf'
 /** The most rows the server prints in one table list. */
 export const MAX_LIST_ROWS = 10_000
 /** "All rows" is the default list choice up to this many rows (or whenever the grid is filtered). */
@@ -95,6 +99,8 @@ export interface PrintingTransport {
   call(id: string, input: CallInput): Promise<CallResult>
   /** Runs a process to its end with these values and selected record ids; returns its final values. */
   runProcess(processName: string, options: { values: Record<string, unknown>; recordIds: string[] }): Promise<Record<string, unknown>>
+  /** Fetches a process download (GET /download/{file}); needed for Save as PDF. */
+  download?(reference: { fileName: string; query: Record<string, string> }): Promise<{ bytes: Uint8Array; contentType: string }>
 }
 
 interface QueryRecord {
@@ -203,6 +209,75 @@ export function canPrintLists(meta: { processes?: Record<string, unknown> } | un
   return Boolean(meta?.processes?.[TABLE_LIST_PROCESS]) && Boolean(meta?.processes?.[TEXT_PROCESS])
 }
 
+/**
+ * The header and footer every printed page carries (printing 0.4.1+ renderers): the app or
+ * instance name, the screen title or breadcrumb, the server, the user and the printed-at time in
+ * the user's date format on top; the client's footer (`qqq ui 1.0.1 · server`), a grid's filter and
+ * sort, and the page number at the bottom.
+ */
+export interface PrintChrome {
+  app?: string
+  title?: string
+  server?: string
+  user?: string
+  printedAt?: string
+  footerLeft?: string
+  footerNote?: string
+}
+
+/** The process values of a chrome (blank fields left out: the server's defaults apply). */
+export function chromeValues(chrome: PrintChrome | undefined): Record<string, string> {
+  if (!chrome) return {}
+  const out: Record<string, string> = {}
+  const put = (key: string, value: string | undefined) => {
+    if (value !== undefined && value.trim()) out[key] = value.trim()
+  }
+  put('headerApp', chrome.app)
+  put('headerTitle', chrome.title)
+  put('headerServer', chrome.server)
+  put('headerUser', chrome.user)
+  put('headerPrintedAt', chrome.printedAt)
+  put('footerLeft', chrome.footerLeft)
+  put('footerNote', chrome.footerNote)
+  return out
+}
+
+/** One section of a screen's content: a panel's title (blank for none) and its lines. */
+export interface ContentSection {
+  title: string
+  lines: string[]
+}
+
+/** Whether the server can render documents to a PDF download ("Save as PDF"). */
+export function canSaveAsPdf(meta: { processes?: Record<string, unknown> } | undefined): boolean {
+  return Boolean(meta?.processes?.[RENDER_PROCESS])
+}
+
+/** What Save as PDF renders: a record sheet, a table list, or a text page. */
+export type RenderRequest =
+  | { kind: 'record'; table: string; id: string }
+  | { kind: 'list'; list: Omit<TableListRequest, 'printer' | 'copies'> }
+  | { kind: 'text'; title: string; subtitle?: string; text: string; sections?: ContentSection[]; orientation?: 'PORTRAIT' | 'LANDSCAPE' }
+
+/** A PDF rendered for the client: the default file name (stamped), the server's name, the bytes, and a note. */
+export interface RenderedPdf {
+  fileName: string
+  serverName: string
+  bytes: Uint8Array
+  message?: string
+}
+
+/** The process values of a render request. */
+export function renderValues(request: RenderRequest, chrome?: PrintChrome): Record<string, unknown> {
+  const header = chromeValues(chrome)
+  if (request.kind === 'record') return { kind: 'RECORD', tableName: request.table, recordId: request.id, ...header }
+  if (request.kind === 'text') return { kind: 'TEXT', title: request.title, ...(request.subtitle ? { subtitle: request.subtitle } : {}), text: request.text, ...(request.sections?.length ? { sections: JSON.stringify(request.sections) } : {}), orientation: request.orientation ?? 'PORTRAIT', pageSize: 'LETTER', ...header }
+  const values = tableListValues({ ...request.list, printer: '' })
+  delete values[PRINTER_FIELD]
+  delete values[COPIES_FIELD]
+  return { kind: 'LIST', ...values, ...header }
+}
+
 /** What a grid print covers. */
 export type ListScope = { kind: 'all' } | { kind: 'page'; skip: number; limit: number } | { kind: 'selected'; ids: string[] } | { kind: 'sheets'; ids: string[] }
 
@@ -308,6 +383,7 @@ export interface PrintRequest {
   /** Printer row id. */
   printer: string
   copies?: number
+  chrome?: PrintChrome
 }
 
 export interface TableListRequest {
@@ -329,12 +405,16 @@ export interface TableListRequest {
   pageSize?: 'LETTER' | 'A4'
   /** The primary key field, for a selection. */
   primaryKeyField?: string
+  chrome?: PrintChrome
 }
 
 export interface TextRequest {
   title: string
   subtitle?: string
   text: string
+  /** A screen's content as sections (printed instead of the raw text when given). */
+  sections?: ContentSection[]
+  chrome?: PrintChrome
   printer: string
   copies?: number
   orientation?: 'PORTRAIT' | 'LANDSCAPE'
@@ -376,6 +456,7 @@ export function tableListValues(request: TableListRequest): Record<string, unkno
     pageSize: request.pageSize ?? 'LETTER',
     [PRINTER_FIELD]: request.printer,
     [COPIES_FIELD]: request.copies ?? 1,
+    ...chromeValues(request.chrome),
   }
 }
 
@@ -438,7 +519,7 @@ export class Printing {
     if (!request.ids.length) throw new Error('nothing to print: no record ids')
     const copies = request.copies ?? 1
     if (!Number.isInteger(copies) || copies < 1 || copies > 100) throw new Error('copies must be 1 to 100')
-    const values = await this.transport.runProcess(printProcessName(request.table), { values: { [PRINTER_FIELD]: request.printer, [COPIES_FIELD]: copies }, recordIds: request.ids })
+    const values = await this.transport.runProcess(printProcessName(request.table), { values: { [PRINTER_FIELD]: request.printer, [COPIES_FIELD]: copies, ...chromeValues(request.chrome) }, recordIds: request.ids })
     return jobIdsOf(values)
   }
 
@@ -453,8 +534,24 @@ export class Printing {
   async printText(request: TextRequest): Promise<PrintOutcome> {
     this.require()
     if (!request.text.trim()) throw new Error('nothing to print: the text is empty')
-    const values = await this.transport.runProcess(TEXT_PROCESS, { values: { title: request.title, ...(request.subtitle ? { subtitle: request.subtitle } : {}), text: request.text, orientation: request.orientation ?? 'PORTRAIT', pageSize: 'LETTER', [PRINTER_FIELD]: request.printer, [COPIES_FIELD]: request.copies ?? 1 }, recordIds: [] })
+    const values = await this.transport.runProcess(TEXT_PROCESS, { values: { ...chromeValues(request.chrome), title: request.title, ...(request.subtitle ? { subtitle: request.subtitle } : {}), text: request.text, ...(request.sections?.length ? { sections: JSON.stringify(request.sections) } : {}), orientation: request.orientation ?? 'PORTRAIT', pageSize: 'LETTER', [PRINTER_FIELD]: request.printer, [COPIES_FIELD]: request.copies ?? 1 }, recordIds: [] })
     return { jobIds: jobIdsOf(values) }
+  }
+
+  /**
+   * Renders a record sheet, table list or text page to a PDF on the server (no printer, no job)
+   * and downloads it; the default name is the server's (the document title) with the date and
+   * time stamp downloads and exports use: `Customer-Ada-Lovelace_2026-11-01_120301.pdf`.
+   */
+  async renderToPdf(request: RenderRequest, now: Date = new Date(), chrome?: PrintChrome): Promise<RenderedPdf> {
+    this.require()
+    if (!this.transport.download) throw new Error('this client cannot download process files')
+    if (request.kind === 'text' && !request.text.trim()) throw new Error('nothing to save: the text is empty')
+    const values = await this.transport.runProcess(RENDER_PROCESS, { values: renderValues(request, chrome), recordIds: [] })
+    const reference = downloadReference(values)
+    if (!reference) throw new Error('the server rendered no PDF (no download in its answer)')
+    const { bytes } = await this.transport.download(reference)
+    return { fileName: exportFileName(reference.fileName, 'pdf', now), serverName: reference.fileName, bytes, message: values.printingMessage === undefined ? undefined : String(values.printingMessage) }
   }
 
   /** Cancels jobs still queued in QQQ (jobs a device has taken must be handled at the device). */

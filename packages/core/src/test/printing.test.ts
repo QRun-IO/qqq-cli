@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import type { CallInput, CallResult } from '../api/call.js'
 import { ExtensionNotInstalledError, ExtensionRegistry, knownExtension } from '../extensions/registry.js'
-import { MAX_LIST_ROWS, Printing, canPrintLists, canPrintTo, listScopeChoices, tableListValues, isFinalJobState, jobIdsOf, jobOf, jobStateSummary, printProcessName, printerOf, readRememberedPrinter, resolvePrinter, tableHasPrint, whyNotPrintable, writeRememberedPrinter, type PrintingTransport } from '../extensions/printing.js'
+import { MAX_LIST_ROWS, Printing, canSaveAsPdf, chromeValues, renderValues, canPrintLists, canPrintTo, listScopeChoices, tableListValues, isFinalJobState, jobIdsOf, jobOf, jobStateSummary, printProcessName, printerOf, readRememberedPrinter, resolvePrinter, tableHasPrint, whyNotPrintable, writeRememberedPrinter, type PrintingTransport } from '../extensions/printing.js'
 import { readConfig, upsertProfile } from '../session/profiles.js'
 
 const withPrinting = ExtensionRegistry.fromVersion({ extensions: [{ name: 'printing', version: '2.0.0' }] })
@@ -200,4 +200,59 @@ test('grid print choices: all rows first when filtered or small, this page first
   assert.equal(listScopeChoices({ ...grid, total: 150, filtered: false, selected: ['1'], recordSheets: false }).length, 3)
   assert.equal(canPrintLists({ processes: { printingPrintTableList: {}, printingPrintText: {} } }), true)
   assert.equal(canPrintLists({ processes: { printingPrintTableList: {} } }), false)
+})
+
+test('save as PDF: render values for a record, a list (no printer) and a text page', () => {
+  assert.deepEqual(renderValues({ kind: 'record', table: 'customer', id: '1' }), { kind: 'RECORD', tableName: 'customer', recordId: '1' })
+  const list = renderValues({ kind: 'list', list: { table: 'person', columns: ['id'], filter: { criteria: [], orderBys: [{ fieldName: 'id', isAscending: true }] }, scope: { kind: 'all' }, title: 'Person' } })
+  assert.equal(list.kind, 'LIST')
+  assert.equal(list.scope, 'ALL')
+  assert.equal(list.printingPrinterId, undefined)
+  assert.equal(list.printingCopies, undefined)
+  assert.deepEqual(renderValues({ kind: 'text', title: 'Home', text: 'x' }), { kind: 'TEXT', title: 'Home', text: 'x', orientation: 'PORTRAIT', pageSize: 'LETTER' })
+  assert.equal(canSaveAsPdf({ processes: { printingRenderToPdf: {} } }), true)
+  assert.equal(canSaveAsPdf({ processes: {} }), false)
+})
+
+test('save as PDF: renders on the server, downloads the file and names it with the download stamp', async () => {
+  const downloads: unknown[] = []
+  const { runs, transport } = fake(() => ({}), async () => ({ downloadFileName: 'Customer-Ada-Lovelace.pdf', serverFilePath: '/tmp/qqq-print-1.pdf', printingMessage: 'Saved the first 10000 of 12000 rows' }))
+  transport.download = async (reference) => {
+    downloads.push(reference)
+    return { bytes: new TextEncoder().encode('%PDF-1.7'), contentType: 'application/pdf' }
+  }
+  const printing = new Printing(withPrinting, transport)
+  const pdf = await printing.renderToPdf({ kind: 'record', table: 'customer', id: '1' }, new Date(2026, 10, 1, 12, 3, 1))
+  assert.equal(pdf.fileName, 'Customer-Ada-Lovelace_2026-11-01_120301.pdf')
+  assert.equal(pdf.serverName, 'Customer-Ada-Lovelace.pdf')
+  assert.equal(new TextDecoder().decode(pdf.bytes), '%PDF-1.7')
+  assert.equal(pdf.message, 'Saved the first 10000 of 12000 rows')
+  assert.deepEqual(runs[0], { name: 'printingRenderToPdf', values: { kind: 'RECORD', tableName: 'customer', recordId: '1' }, recordIds: [] })
+  assert.deepEqual(downloads, [{ fileName: 'Customer-Ada-Lovelace.pdf', query: { filePath: '/tmp/qqq-print-1.pdf' } }])
+  await assert.rejects(printing.renderToPdf({ kind: 'text', title: 't', text: ' ' }), /empty/)
+  delete transport.download
+  await assert.rejects(printing.renderToPdf({ kind: 'record', table: 'customer', id: '1' }), /cannot download/)
+  await assert.rejects(new Printing(without, transport).renderToPdf({ kind: 'record', table: 'customer', id: '1' }), ExtensionNotInstalledError)
+  const { transport: none } = fake(() => ({}), async () => ({}))
+  none.download = async () => ({ bytes: new Uint8Array(), contentType: '' })
+  await assert.rejects(new Printing(withPrinting, none).renderToPdf({ kind: 'record', table: 'customer', id: '1' }), /no PDF/)
+})
+
+test('the app header and footer travel with every request; blank fields are left to the server', async () => {
+  const chrome = { app: 'QQQ All', title: 'Sales › Customer › Ada Lovelace', server: 'local (localhost:8078)', user: 'Admin', printedAt: '2026-11-01 12:03', footerLeft: 'qqq ui 1.0.1 · local', footerNote: ' ' }
+  assert.deepEqual(chromeValues(chrome), { headerApp: 'QQQ All', headerTitle: 'Sales › Customer › Ada Lovelace', headerServer: 'local (localhost:8078)', headerUser: 'Admin', headerPrintedAt: '2026-11-01 12:03', footerLeft: 'qqq ui 1.0.1 · local' })
+  assert.deepEqual(chromeValues(undefined), {})
+  const sections = [{ title: 'Recently viewed', lines: ['Ada Lovelace'] }]
+  const text = renderValues({ kind: 'text', title: 'Home', text: 'raw', sections }, chrome)
+  assert.equal(text.sections, JSON.stringify(sections))
+  assert.equal(text.headerApp, 'QQQ All')
+  assert.equal(renderValues({ kind: 'record', table: 'customer', id: '1' }, chrome).headerTitle, 'Sales › Customer › Ada Lovelace')
+  const { runs, transport } = fake(() => ({}), async () => ({ printingJobIds: 'j1' }))
+  const printing = new Printing(withPrinting, transport)
+  await printing.print({ table: 'customer', ids: ['1'], printer: 'p1', chrome })
+  await printing.printText({ title: 'Home', text: 'raw', sections, printer: 'p1', chrome })
+  await printing.printTableList({ table: 'person', columns: ['id'], filter: {}, scope: { kind: 'all' }, printer: 'p1', chrome: { ...chrome, footerNote: 'Filter: x' } })
+  assert.equal(runs[0]!.values.headerUser, 'Admin')
+  assert.equal(runs[1]!.values.sections, JSON.stringify(sections))
+  assert.equal(runs[2]!.values.footerNote, 'Filter: x')
 })
