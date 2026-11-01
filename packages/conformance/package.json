@@ -2,7 +2,25 @@
   "name": "@qrun-io/qqq-ui-api-conformance",
   "version": "1.6.0",
   "description": "Black-box conformance suite for QQQ UI API (/qqq/v1) servers, plus qqq-dev-idp, a local OIDC provider for testing native clients.",
+  "keywords": [
+    "qqq",
+    "qrun",
+    "ui-api",
+    "conformance",
+    "openapi",
+    "testing",
+    "oidc"
+  ],
   "license": "Apache-2.0",
+  "homepage": "https://github.com/QRun-IO/qqq-cli/tree/main/packages/conformance#readme",
+  "bugs": {
+    "url": "https://github.com/QRun-IO/qqq-cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QRun-IO/qqq-cli.git",
+    "directory": "packages/conformance"
+  },
   "type": "module",
   "main": "dist/conformance.js",
   "types": "dist/conformance.d.ts",
@@ -19,11 +37,6 @@
   ],
   "engines": {
     "node": ">=20"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/QRun-IO/qqq-cli.git",
-    "directory": "packages/conformance"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

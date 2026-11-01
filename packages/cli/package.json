@@ -6,7 +6,9 @@
     "qqq",
     "qrun",
     "ui-api",
-    "cli"
+    "cli",
+    "command-line",
+    "low-code"
   ],
   "license": "Apache-2.0",
   "homepage": "https://github.com/QRun-IO/qqq-cli/tree/main/packages/cli#readme",

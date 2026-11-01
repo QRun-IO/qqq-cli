@@ -5,7 +5,10 @@
   "keywords": [
     "qqq",
     "qrun",
-    "ui-api"
+    "ui-api",
+    "client",
+    "typescript",
+    "low-code"
   ],
   "license": "Apache-2.0",
   "homepage": "https://github.com/QRun-IO/qqq-cli/tree/main/packages/core#readme",
