@@ -7,7 +7,7 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
 
 ### Changed
 
-- TypeScript 5.8.3 to 7.0.2 (the Go-based compiler) and `@types/node` 22.15.3 to 26.6.6 across the workspace, `packages/tui` and `packages/tui-spike`. TypeScript 7 no longer loads every `@types/*` package implicitly, so `tsconfig.base.json` now lists `"types": ["node"]`; `@types/node` 26 no longer accepts an `undefined` assertion message, so one conformance test passes a real fallback message. No behaviour change.
+- TypeScript 5.8.3 to 6.0.3 and `@types/node` 22.15.3 to 26.6.6 across the workspace, `packages/tui` and `packages/tui-spike`. TypeScript 6 no longer loads every `@types/*` package implicitly, so `tsconfig.base.json` now lists `"types": ["node"]`; `@types/node` 26 no longer accepts an `undefined` assertion message, so one conformance test passes a real fallback message. TypeScript 7 is not adopted yet: `openapi-typescript` 7.13.0 (the client generator, peer `typescript ^5.x`) calls the TypeScript JS API (`ts.factory`), which the native 7 compiler does not provide. No behaviour change.
 
 ### Fixed
 
