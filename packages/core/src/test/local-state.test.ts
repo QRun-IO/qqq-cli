@@ -19,9 +19,16 @@ test('the PIN is stored as a salted hash and verified', () => {
     assert.equal(verifyPin('anything', env), true, 'no PIN: nothing to check')
     assert.throws(() => setPin('12', env), /at least 4/)
     setPin('2468', env)
+    // the PIN itself is never written: the lock holds only a hex salt and a hex scrypt hash (random hex may
+    // contain the PIN's digits, so the check is on the stored values, not on the file's text)
     const text = readFileSync(join(dir, 'config.json'), 'utf8')
-    assert.ok(!text.includes('2468'), 'the PIN itself is never written')
+    assert.ok(!text.includes('"2468"'), 'no value is the PIN')
     const lock = (readConfig(env).ui as { lock: { pinSalt: string; pinHash: string } }).lock
+    assert.deepEqual(Object.keys(lock).sort(), ['pinHash', 'pinSalt'])
+    assert.match(lock.pinSalt, /^[0-9a-f]{32}$/)
+    assert.match(lock.pinHash, /^[0-9a-f]{64}$/)
+    assert.notEqual(lock.pinHash, '2468')
+    assert.notEqual(lock.pinSalt, '2468')
     assert.equal(lock.pinHash, hashPin('2468', lock.pinSalt))
     assert.equal(verifyPin('2468', env), true)
     assert.equal(verifyPin('1357', env), false)
