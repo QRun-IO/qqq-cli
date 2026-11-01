@@ -17,6 +17,7 @@ import type { Row } from '../render/output.js'
 import type { FieldMeta, FieldValues } from '../forms/fields.js'
 import { htmlToText, widgetToBlocks, type RenderBlock } from '../widgets/render-model.js'
 import { helpContentText } from '../help/help-content.js'
+import { replaceReferences } from '../render/text.js'
 
 /** One line of PROCESS_SUMMARY_RESULTS or of a validation summary. */
 export interface SummaryLine {
@@ -306,7 +307,7 @@ function shownBlocks(blocks: unknown[], values: FieldValues): unknown[] {
 /** Replaces `${name}` in the text values of ad hoc widget blocks with process values. */
 function interpolate(blocks: unknown[], values: FieldValues): unknown[] {
   const visit = (node: unknown): unknown => {
-    if (typeof node === 'string') return node.replace(/\$\{([^}]+)\}/g, (p, n: string) => (values[n] !== undefined && values[n] !== null ? String(values[n]) : p))
+    if (typeof node === 'string') return replaceReferences(node, '', (n, p) => (values[n] !== undefined && values[n] !== null ? String(values[n]) : p))
     if (Array.isArray(node)) return node.map(visit)
     if (node && typeof node === 'object') {
       const out: Record<string, unknown> = {}

@@ -10,6 +10,7 @@
 
 import { formatTable, type Row } from '../render/output.js'
 import { displayDateTime } from '../forms/datetime.js'
+import { decodeEntities, stripTags } from '../render/text.js'
 
 export type RenderBlock =
   | { kind: 'heading'; text: string; sub?: string }
@@ -27,11 +28,15 @@ export type RenderBlock =
 
 type J = Record<string, unknown>
 
+/** The text a tag leaves in {@link htmlToText}: a line break for `<br>` and closing blocks, a bullet for `<li>`. */
+function tagText(inner: string): string {
+  if (/^br\s*\/?$/i.test(inner) || /^\/(p|div|li|tr|h\d)$/i.test(inner)) return '\n'
+  return /^li(\s|$)/i.test(inner) ? '• ' : ''
+}
+
 /** Strips tags and collapses whitespace; keeps link text. */
 export function htmlToText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|tr|h\d)>/gi, '\n').replace(/<li[^>]*>/gi, '• ')
-    .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+  return decodeEntities(stripTags(html, tagText))
     .split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter((l, i, all) => l || (i > 0 && all[i - 1])).join('\n').trim()
 }
 

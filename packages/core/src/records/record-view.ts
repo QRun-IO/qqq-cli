@@ -15,6 +15,7 @@ import { blocksToText, htmlToText, widgetToBlocks } from '../widgets/render-mode
 import { displayDateTime, type DisplayOptions } from '../forms/datetime.js'
 import { helpContentText } from '../help/help-content.js'
 import type { RecordLike, SectionMeta, TableMetaLike } from './associations.js'
+import { trimEndChar } from '../render/text.js'
 
 export interface HelpContent {
   summary?: string
@@ -278,7 +279,7 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
   if (field.type === 'HTML' && typeof raw === 'string') return { text: htmlToText(raw) }
 
   if (field.type === 'BLOB' && typeof raw === 'string') {
-    const bytes = Math.floor(raw.replace(/=+$/, '').length * 3 / 4)
+    const bytes = Math.floor(trimEndChar(raw, '=').length * 3 / 4)
     const hint = options.tableName && !options.cell ? ` (qqq table download ${options.tableName} ${options.primaryKey ?? ''} ${field.name})`.replace('  ', ' ') : ''
     return { text: `<file, ${bytes} bytes>${hint}`, ...(findAdornment(field, 'FILE_UPLOAD') ? { adornment: 'FILE_UPLOAD' } : {}) }
   }

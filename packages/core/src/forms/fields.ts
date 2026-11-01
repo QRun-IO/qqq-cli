@@ -3,6 +3,8 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
+import { findReferences } from '../render/text.js'
+
 /** Field metadata as both heads consume it (a structural subset of FieldMetaData). */
 export interface FieldMeta {
   name: string
@@ -59,7 +61,7 @@ export function getDependencies(field: FieldMeta): string[] {
   const names = new Set<string>()
   const scanValue = (value: unknown): void => {
     if (typeof value === 'string') {
-      for (const match of value.matchAll(/\$\{input\.([^}]+)\}/g)) names.add(match[1]!)
+      for (const name of findReferences(value, 'input.')) names.add(name)
     } else if (Array.isArray(value)) value.forEach(scanValue)
     else if (value && typeof value === 'object') Object.values(value).forEach(scanValue)
   }

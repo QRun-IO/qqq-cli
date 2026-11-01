@@ -10,7 +10,7 @@
  * person types; the CLI's shell completion can use it for --where and --group values.
  */
 
-import { FilterSyntaxError, LIST_OPERATORS, OPERATORS, UNARY_OPERATORS, type Operator, type QueryFilter } from './grammar.js'
+import { FilterSyntaxError, LIST_OPERATORS, isEscapedAt, quoteValue, OPERATORS, UNARY_OPERATORS, type Operator, type QueryFilter } from './grammar.js'
 
 /** The field metadata completion needs (a structural subset of FieldMetaData). */
 export interface CompletionField {
@@ -105,7 +105,7 @@ function words(text: string): Word[] {
     let depth = 0
     while (i < text.length) {
       const c = text[i]!
-      if (c === '"' && text[i - 1] !== '\\') quoted = !quoted
+      if (c === '"' && !isEscapedAt(text, i)) quoted = !quoted
       else if (!quoted && c === '(') {
         if (/[A-Za-z0-9_}]/.test(text[i - 1] ?? ' ')) depth++
         else break
@@ -210,7 +210,7 @@ export function completeFilter(text: string, cursor: number, fields: CompletionF
 /** Applies a completion: the new text and the cursor after it (a space follows fields, operators and keywords). */
 export function applyCompletion(text: string, result: Pick<CompletionResult, 'from' | 'to'>, completion: Completion): { text: string; cursor: number } {
   const tail = text.slice(result.to)
-  const value = /[\s,]/.test(completion.value) && completion.kind === 'value' && !completion.value.startsWith('"') ? `"${completion.value.replace(/"/g, '\\"')}"` : completion.value
+  const value = /[\s,]/.test(completion.value) && completion.kind === 'value' && !completion.value.startsWith('"') ? quoteValue(completion.value) : completion.value
   const space = completion.value === '(' ? '' : tail.startsWith(' ') ? '' : ' '
   const insert = value + space
   return { text: text.slice(0, result.from) + insert + tail, cursor: result.from + insert.length }
@@ -225,7 +225,8 @@ export function locateFilterError(text: string, error: unknown): number | undefi
     if (at >= 0) return at
   }
   if (/Missing "\)"/.test(error.message)) return text.length
-  const tail = /: (.+)$/.exec(error.message)?.[1]
+  const colon = error.message.indexOf(': ')
+  const tail = colon >= 0 ? error.message.slice(colon + 2) : ''
   if (tail) {
     const at = text.indexOf(tail)
     if (at >= 0) return at

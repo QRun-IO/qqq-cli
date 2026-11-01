@@ -157,13 +157,25 @@ export function parseValue(raw: string): FilterValue {
   }
   if (/^me\(\s*\)$/i.test(text) || text === '${me}') return { type: 'CurrentUser' }
   if ((m = /^\$\{variable\.([A-Za-z0-9_.-]+)\}$/.exec(text))) return { type: 'FilterVariableExpression', variableName: m[1]! }
-  if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) return text.slice(1, -1).replace(/\\"/g, '"')
+  if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) return text.slice(1, -1).replace(/\\(["\\])/g, '$1')
   return text
+}
+
+/** A text value in double quotes, with its backslashes and double quotes escaped (`a"b\\c` -> `"a\\"b\\\\c"`). */
+export function quoteValue(value: string): string {
+  return `"${value.replace(/["\\]/g, '\\$&')}"`
+}
+
+/** Whether the character at `i` is escaped: an odd number of backslashes right before it. */
+export function isEscapedAt(text: string, i: number): boolean {
+  let backslashes = 0
+  while (i - backslashes - 1 >= 0 && text[i - backslashes - 1] === '\\') backslashes++
+  return backslashes % 2 === 1
 }
 
 /** Prints a value back in the grammar. */
 export function printValue(value: FilterValue): string {
-  if (typeof value === 'string') return /[,"()\s]/.test(value) || value === '' ? `"${value.replace(/"/g, '\\"')}"` : value
+  if (typeof value === 'string') return /[,"()\s]/.test(value) || value === '' ? quoteValue(value) : value
   switch (value.type) {
     case 'Now': return 'now()'
     case 'NowWithOffset': return `now(${value.operator === 'MINUS' ? '-' : '+'}${value.amount}${SUFFIX_OF[value.timeUnit]})`
@@ -181,7 +193,7 @@ function splitValues(text: string): string[] {
   let quoted = false
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]!
-    if (ch === '"' && text[i - 1] !== '\\') quoted = !quoted
+    if (ch === '"' && !isEscapedAt(text, i)) quoted = !quoted
     if (ch === ',' && !quoted) {
       out.push(current)
       current = ''
@@ -252,7 +264,7 @@ function tokenize(source: string): Token[] {
   let callDepth = 0
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]!
-    if (ch === '"' && text[i - 1] !== '\\') quoted = !quoted
+    if (ch === '"' && !isEscapedAt(text, i)) quoted = !quoted
     // a "(" right after a name is a function call such as now(-7d), not a group
     if (!quoted && ch === '(' && /[A-Za-z0-9_}]/.test(text[i - 1] ?? ' ')) {
       callDepth++

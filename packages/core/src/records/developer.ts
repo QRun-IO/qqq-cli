@@ -13,6 +13,7 @@
 
 import { callOperation } from '../api/call.js'
 import type { RenderBlock } from '../widgets/render-model.js'
+import { trimChar, trimEndChar, trimStartChar } from '../render/text.js'
 
 type J = Record<string, unknown>
 
@@ -235,8 +236,8 @@ export interface TableApiResponse { status: number; contentType: string; data: u
  * with the client's session, the method, query and JSON body given. A non-2xx answer is returned, not thrown.
  */
 export async function callTableApi(baseUrl: string, fetchImpl: typeof fetch, api: Pick<TableApi, 'path'>, version: string, method: string, subpath: string, options: { query?: Record<string, string>; body?: unknown } = {}): Promise<TableApiResponse> {
-  const base = `${baseUrl.replace(/\/+$/, '')}/${api.path.replace(/^\/+|\/+$/g, '')}`.replace(/\/+$/, '')
-  const url = new URL(`${base}/${encodeURIComponent(version)}/${subpath.replace(/^\/+/, '')}`)
+  const base = trimEndChar(`${trimEndChar(baseUrl, '/')}/${trimChar(api.path, '/')}`, '/')
+  const url = new URL(`${base}/${encodeURIComponent(version)}/${trimStartChar(subpath, '/')}`)
   for (const [k, v] of Object.entries(options.query ?? {})) url.searchParams.set(k, v)
   const init: RequestInit = { method: method.toUpperCase(), headers: { accept: 'application/json' } }
   if (options.body !== undefined) {

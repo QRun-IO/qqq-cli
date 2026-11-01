@@ -16,6 +16,7 @@
  */
 
 import type { FieldMeta } from '../forms/fields.js'
+import { decodeEntities } from '../render/text.js'
 
 /** A table (and its child tables) a bulk load can fill: the `tableStructure` process value. */
 export interface BulkLoadTableStructure {
@@ -516,10 +517,6 @@ export function uploadTemplates(html: unknown): Array<{ name: string; bytes: Uin
     out.push({ name: decodeEntities(name ?? 'template'), bytes, contentType: contentType || 'application/octet-stream' })
   }
   return out
-}
-
-function decodeEntities(text: string): string {
-  return text.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
 }
 
 /** Drops undefined members (so mappings compare and serialize cleanly). */

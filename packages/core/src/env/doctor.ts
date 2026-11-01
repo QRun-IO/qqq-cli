@@ -62,8 +62,10 @@ export interface Binding {
 export function parseRootBindings(output: string): Binding[] {
   const out: Binding[] = []
   for (const line of output.split('\n')) {
-    const m = /^bind-key\s+(?:-r\s+)?-T\s+root\s+(\S+)\s+(.*)$/.exec(line.trim())
-    if (m) out.push({ key: m[1]!.replace(/^\\/, ''), command: m[2]!.trim() })
+    const trimmed = line.trim()
+    // match the prefix only and take the rest as the command: `\s+(.*)$` backtracks quadratically
+    const m = /^bind-key\s+(?:-r\s+)?-T\s+root\s+(\S+)\s+/.exec(trimmed)
+    if (m) out.push({ key: m[1]!.replace(/^\\/, ''), command: trimmed.slice(m[0].length).trim() })
   }
   return out
 }
