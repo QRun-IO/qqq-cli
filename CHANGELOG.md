@@ -100,13 +100,13 @@ in parentheses mark the changes made after the candidate.
 - Uploading an attachment to a server without the Object Storage QBit says "This server cannot store
   attachments: the Object Storage QBit is not installed."; any server failure naming a missing QBit gets one
   such line (437ed3c).
-
 - **Assistant** (assistant extension, qbit-assistant): `qqq assistant ask "<question>"` streams the
   answer as the model writes it, then prints its numbers (counts, metrics) and the records and tables it
   refers to as a table with the command that opens each; `--table <t> [--record <id>]` sends that page as
   context the way the Next UI's panel does, `-c <id>` continues a conversation, `--json` prints the whole
   answer. `qqq assistant config` shows whether it answers and with which model, or the reason
-  (`NOT_CONFIGURED`: no model provider, with what to configure). The generated operation subcommands stay.
+  (`NOT_CONFIGURED`: no model provider, with what to configure). The generated operation subcommands stay
+  (a5e0cf4).
 
 #### Terminal UI (`qqq ui`)
 
@@ -267,7 +267,6 @@ in parentheses mark the changes made after the candidate.
   random keys.
 - `packages/tui/scripts/smoke.sh --server URL [--profile NAME]` runs the tmux smoke test against any
   server in an isolated config (6950e9d, f149a47).
-
 - **Assistant panel** (assistant extension): `Ctrl+G`, `:ask [question]` or F9 › Work › Assistant opens a
   chat pane on the right (the whole body below 110 columns): the question line at the bottom, the
   conversation above with each answer's numbers and links; Tab moves over the links and Enter opens the
@@ -275,7 +274,7 @@ in parentheses mark the changes made after the candidate.
   record or grid (with its filter) under the panel as context, as the Next UI sends it (Ctrl+D drops it);
   ↑↓ recall this profile's questions; Ctrl+L starts a new conversation, Ctrl+X stops an answer, Esc closes
   (the conversation is kept). Without the extension the entry is disabled and Ctrl+G says what is missing;
-  when the assistant is off the panel shows the server's reason and what to configure.
+  when the assistant is off the panel shows the server's reason and what to configure (2c70c3c).
 
 #### Kernel, client and conformance
 
@@ -292,12 +291,11 @@ in parentheses mark the changes made after the candidate.
 - **Conformance**: the suite checks `GET /qbit/printing/session` and the printing tables when a server
   lists printing (05f467c); `qqq-dev-idp` gains the authorization code with PKCE (Approve/Deny page),
   revocation and end-session.
-
 - **Assistant** (`extensions/assistant.ts`): `Assistant.config()` (the feature probe, `installed: false`
   without the extension) and `Assistant.ask(question, { context, conversationId, onEvent, signal })`,
   which creates a conversation with the page context, reads the turn's server-sent events as they arrive
   (`SseParser`) and folds them into an answer (text, numbers, links, tools, usage); `parseAppHref` and
-  `assistantContextFor` map app paths and pages both ways.
+  `assistantContextFor` map app paths and pages both ways (a5e0cf4, e5327b2).
 
 #### Packaging, CI and development
 
@@ -312,7 +310,10 @@ in parentheses mark the changes made after the candidate.
 - **Enterprise test server**: `scripts/enterprise-server.sh` starts a local enterprise QQQ server with a
   MinIO container for object storage (6018cdf), and `scripts/enterprise-smoke.sh` sweeps the CLI over its
   qbits (cf0e610); `scripts/print-agent.sh` runs qqq-print-agent's virtual file printer against a local
-  server (fc47cb8).
+  server (fc47cb8). The enterprise profile gives the assistant a model provider: Claude when `ANTHROPIC_API_KEY` is
+  set in the private env file `~/.local/state/qqq-enterprise/assistant.env` (yours, not a symlink, mode 0600; read
+  by name, never sourced or printed, exported only into the server's environment), else a local Ollama; `--status`
+  and `--assistant-status` show which model answers or why none does (29f3559).
 - **Documentation**: npm READMEs for every package, a rewritten repository README, `docs/README.md`,
   CONTRIBUTING, SECURITY and CODE_OF_CONDUCT, issue and pull request templates, CODEOWNERS and Dependabot
   (e46bc6b, 1b0d547, ac86860, 7fed559); TRY-IT as the 1.0.0 walkthrough (cddbea7).
@@ -350,6 +351,9 @@ in parentheses mark the changes made after the candidate.
 
 ### Fixed
 
+- Links with a base64 `filter` parameter (the form the web UI and the assistant write) opened the whole table:
+  the UI's link reader and the kernel's `parseAppHref` now decode it, JSON still works, and a filter without
+  criteria counts as an empty one (e5327b2).
 - Output piped into a reader that exits early (`qqq table query person | head -1`, exports, process logs,
   `assistant ask`) ends quietly with status 0 instead of an unhandled `write EPIPE` stack trace (7c66b16).
 - `qqq login --server URL` with `QQQ_PROFILE` (or `--profile`) naming an existing profile of another

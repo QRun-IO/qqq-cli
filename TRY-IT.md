@@ -73,7 +73,7 @@ Keys (the function-key bar is the truth; F1 or `?` lists the keys of the screen;
 | F7 `n` | new (a child on a child list) | `x` `g` `v` | export, go to by key, view settings |
 | F8 `d` | delete, asks | Ctrl+S | save a form or continue a process step |
 | F9 | menu: areas, then each area's entries; places and records are found with `/` | `:` | command line, history and completion |
-| Ctrl+O | servers: switch profile, add, edit | | |
+| Ctrl+O | servers: switch profile, add, edit | Ctrl+G `:ask` | Assistant panel: ask about the record or grid on screen (Ctrl+D drops the context; assistant extension with a model provider) |
 | F10 | Quit, Reset to home, or Cancel (`:reset`) | Ctrl+C | quit now |
 | `a` | actions: bulk insert/edit/delete, processes, saved views | `A` `D` `t` `Z` | audits, developer, tags, share (record) |
 | `C` `P` `K` `T` `W` | comments, attachments, tasks, timeline, follow (record, collaboration extension) | `J` | raw JSON of an extension operation's output |
@@ -391,7 +391,8 @@ some of them and lists them in `GET /version`. Each has a noun:
 |---|---|---|---|
 | `qqq esb` | esb (qqq) | `overview`, `table <t>`, `process <p>`, `dead-letters <trigger>`, `messages <destination> [--trigger t]` | `get-overview`, `get-table`, ... |
 | `qqq collab` | collaboration | `presence <table> [pk] [--watch\|--observe]`, `comments list\|add`, `favorites list\|add\|remove`, `recents`, `follow [--status]`, `unfollow`, `my-work`, `people [q]` | `get-records-timeline <table> <pk>`, `get-records-tags`, `put-records-assignment`, ... (45) |
-| `qqq health`, `alerts`, `assistant`, `data-analysis`, `db-performance`, `edi`, `qa-capture`, `quick-search`, `release-notes`, `secured-data`, `sql-workbench` | the qbit of that name | none yet | every operation, e.g. `qqq sql-workbench get-capabilities` |
+| `qqq assistant` | assistant (qbit-assistant) | `ask "<question>" [--table t [--record id]] [-c id] [--json]`, `config` | `get-config`, `get-conversations`, ... |
+| `qqq health`, `alerts`, `data-analysis`, `db-performance`, `edi`, `qa-capture`, `quick-search`, `release-notes`, `secured-data`, `sql-workbench` | the qbit of that name | none yet | every operation, e.g. `qqq sql-workbench get-capabilities` |
 
 Generated verbs are the method plus the literal path segments after the extension's prefix. They take
 path parameters as arguments or `--path name=value`, plus `--param`, `--body-json`, `--form` and `--out`.

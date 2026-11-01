@@ -216,6 +216,8 @@ qqq ui --theme light                                      # high-contrast (defau
 - **F2** is Search: records across tables (quick search), the main way into the data. **`/`** (or `.`, Ctrl+K)
   is the find-anything palette: any app, table, process, widget, report, record or command, searched as you
   type, fast on instances with thousands of tables. **Ctrl+O** switches servers, **Ctrl+P** prints what you see.
+- **Ctrl+G** (or `:ask`) opens the Assistant panel: ask the server's assistant about the record or grid on screen
+  (the assistant extension with a model provider; Ctrl+D drops the context). `qqq assistant ask "<question>"` is the same from the CLI.
 - **F9 is the command center**: every action of the current screen and of the application, searchable.
 - **`:`** opens a command line that speaks the CLI grammar (`:table query person -w "id <= 3"`,
   `:theme classic`, `:quit`), with history (Up, Down, Ctrl+R) and Tab completion. Commands that are not
