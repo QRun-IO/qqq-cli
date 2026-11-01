@@ -215,7 +215,8 @@ a default name never replaces a file (`name-1.ext`). The settings live in the `u
 qqq config set download-dir ~/Downloads/qqq     # created when missing; an empty value removes it
 qqq config get ; qqq config get download-dir    # also upload-dir, download-mode (ask|silent, the TUI) and theme
 qqq config set theme classic ; qqq -p sample config set theme light   # globally, or for one profile
-qqq table export person                         # wrote ~/Downloads/qqq/person.csv
+qqq table export person                         # wrote ~/Downloads/qqq/person_2026-11-01_102316.csv (local date and time)
+qqq history --limit 5 ; qqq history --since 2h --grep person   # what you did in the CLI and the TUI (qqq ui: :history, Ctrl+R on the : line)
 ```
 
 Is everything in order? `qqq doctor` checks the profile, the server (reachable, UI API version within 1.6.0 to

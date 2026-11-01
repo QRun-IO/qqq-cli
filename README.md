@@ -159,6 +159,7 @@ eval "$(qqq completion zsh)"                                      # also bash, f
 | `home`, `find`, `apps`, `search`, `tail`, `whoami` | the landing page, the command palette, app homes (`--widgets`), global search, the live event stream, who you are |
 | `report`, `saved-report`, `saved-view`, `share`, `bulk-profile`, `audit`, `widget`, `script`, `job`, `prefs`, `help-search` | reports and saved reports (pivots, schedules), saved views, sharing, saved bulk-load mappings, audit history, dashboard widgets as text, associated scripts, jobs, preferences, help |
 | `api <operationId>` | any UI API operation by id: the escape hatch |
+| `history` | everything you did in the CLI and the TUI on this profile, like a shell history (`history rerun <n>`, `history clear`, `--since`, `--grep`) |
 | `print`, `printer` | print records (`print person 1 2`), table lists (`print list person -w ...`), text (`print text`), follow and cancel print jobs (`print job list\|status\|cancel`), printers and print agents (`printer list\|use\|show\|forget\|devices`); needs the printing extension |
 | `extensions`, and one noun per extension | `esb`, `collab`, `health`, `alerts`, `assistant`, `sql-workbench`, ..., offered when the server has the extension installed |
 | `login`, `logout`, `config`, `cache`, `completion`, `doctor`, `ui` | sign-in, profiles and settings, the metadata cache, shell completion, the environment check, the terminal UI |

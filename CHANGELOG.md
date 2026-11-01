@@ -31,8 +31,9 @@ in parentheses mark the changes made after the candidate.
   `--check` (refuse unless the server answers), `edit` takes `--server` and `--rename`, an empty value
   removes a field, `list --probe` adds each server's status (d9317f5).
 - **Tables**: `list`, `describe`, `query` (filters, sort, paging, `--search`, `--join` and `table.field`
-  columns, `--count`, `--print-filter`, saved views with `--view`), `count`, `stats` (server columnStats or
-  `--local`), `get` (sections, adornments, `--associations`, `--links`, `--follow`, `--key`, `--copy`),
+  columns, `--count`, `--print-filter`, saved views with `--view`), `count`, `stats` (server columnStats, else
+  computed from the matching records with a note on stderr; `--local` forces it, `--no-local` restores the
+  error, `--max-records` caps the read at 10,000 by default; 7c66b16), `get` (sections, adornments, `--associations`, `--links`, `--follow`, `--key`, `--copy`),
   `create`, `copy`, `update` (`-e` edits HTML and code fields in `$EDITOR`), `delete`, `children`,
   `export` (csv, tsv, xlsx, json), `download` and `--upload` for file fields, `variants` and `--variant`
   everywhere (the chosen variant is remembered per server), `columns`, `actions` (what you can do to a
@@ -89,17 +90,16 @@ in parentheses mark the changes made after the candidate.
   range), build lines in `qqq doctor` and `qqq ui --check`, consistent exit codes (2 usage, 3 auth, 4
   unreachable or 502/503/504, 5 not found, 6 validation, 70 server error), downloads that never overwrite a
   file or leave `--out-dir`.
-- Uploading an attachment to a server without the Object Storage QBit says "This server cannot store
-  attachments: the Object Storage QBit is not installed."; any server failure naming a missing QBit gets one
-  such line (437ed3c).
-
 - **History**: `qqq history` lists everything you did with the CLI and the TUI on the profile in use,
   like a shell history (number, relative or `--absolute` time, client, kind, summary; `--limit`, `--since
   2h|2026-11-01`, `--grep`, `--kind`, `--all-profiles`, `--commands`, `--format`); `qqq history rerun <n>`
   runs a line again (asking first for commands that change data), `qqq history clear` empties it. The
   activity log is one JSONL file per profile in `~/.local/state/qqq/activity/`, rotated once at 5 MB;
   secrets (token, password and PIN flags, secret pairs and filter values, Authorization headers) are
-  written as `***`; `QQQ_HISTORY=off` turns it off.
+  written as `***`; `QQQ_HISTORY=off` turns it off (0bcc735).
+- Uploading an attachment to a server without the Object Storage QBit says "This server cannot store
+  attachments: the Object Storage QBit is not installed."; any server failure naming a missing QBit gets one
+  such line (437ed3c).
 
 #### Terminal UI (`qqq ui`)
 
@@ -119,7 +119,10 @@ in parentheses mark the changes made after the candidate.
   the hits, Space marks hits for `a` (grid, export, print, bulk, processes), `f` narrows to one table, `h`
   recent searches (per profile), `?` the quick search syntax. The status line shows matches, tables, time,
   index size and the last reindex. Without quick search F2 searches names and the records of the current
-  table. `:search <text>` opens it (ef2b554, d76fb03).
+  table. `:search <text>` opens it. When nothing matches it explains the coverage ("Quick search indexes 17 of 189
+  tables (Customer, Order, … and 12 more) · 57 records · last reindex 10:38. Tables not indexed cannot be
+  found here; add them in Quick Search Admin › Quick Search Index, or press `o` to search Person by name"),
+  and the status line names the indexed tables (ef2b554, d76fb03, 81a044f).
 - **`/` finds anything**, one search over apps, tables, processes, widgets, reports, records (quick
   search, debounced as you type), commands and help, grouped under headers with the best match first
   (`.`, Ctrl+K and `:find <text>` too). **F1 and `?`** are only the keyboard reference of the screen: keys
@@ -150,11 +153,16 @@ in parentheses mark the changes made after the candidate.
   from, create, edit and copy forms with an editor per field type, contingent pickers that narrow, local and
   server validation by field, file uploads and BLOB downloads through a file navigator, audits (`A`) and
   tags (`t`).
-- **Record collaboration** (collaboration extension): a line with the record's comments, attachments and
-  open tasks and whether you follow it, the people viewing it now, and in `a`/F9 (keys `C` `P` `K` `T` `W`)
-  comments (list, add, reply), follow and stop following, attachments (list, download through the file
-  navigator, upload, delete), the timeline, tasks (list, add, done) and the share preview (who could read
-  the record, then send). Without the extension F9 says "needs the collaboration extension" (b782812).
+- **Record collaboration** (collaboration extension), at the bottom of the record view so the record starts
+  right under its title with the cursor on its first field: a dim strip above the key line with the tags,
+  comments, attachments, open tasks, whether you follow it and who is viewing now with their keys (`Tags: none
+  (t) · 0 comments (C) · … · viewing: Admin (you)`; others viewing or editing replace "(you)" with an accent;
+  segments drop whole when the width is short), and from 140 columns a right-hand Collaboration panel (view
+  setting `collaboration panel: auto/on/off`) with the latest comments, the next due task, the followers and
+  each viewer's state. In `a`/F9 (keys `C` `P` `K` `T` `W`): comments (list, add, reply), follow and stop
+  following, attachments (list, download through the file navigator, upload, delete), the timeline, tasks
+  (list, add, done) and the share preview (who could read the record, then send). Strip segments and panel
+  rows are click zones. Without the extension F9 says "needs the collaboration extension" (b782812, 3e80043).
 - **Developer view** (`D` on a record or a grid) in sections (Security, Events, Scripts, JSON, Metadata,
   Audits, APIs, then any further developer panel; ←→ or 1-9) over a scrollable pane: tables in the grid's
   column layout, JSON pretty-printed and tinted (`v` opens the value viewer, `y` copies), web links turned
@@ -179,7 +187,12 @@ in parentheses mark the changes made after the candidate.
   percentage bars, tables, steppers); the ESB overview as `:esb overview` shows it (destinations,
   publishers, triggers, counters; Enter on a destination offers its table's ESB, messages and dead
   letters); disabled tables, processes and apps explain the denial, and capabilities gate new, edit,
-  delete and copy (19cc3ec).
+  delete and copy (19cc3ec). Text and HTML widgets (Quick Search Admin's Search Diagnostics, the SQL Workbench
+  summary, the alerts cards) are drawn as a document with the web's hierarchy: headings in the accent colour,
+  leading status words (OK, WARN, FAIL, DEGRADED, DOWN, ...) as fixed-width coloured badges, `Label: value`
+  items as an aligned two-column list, ISO timestamps in the profile's date format, paragraphs wrapped at
+  about 100 cells, enumerations as bullets, button rows of links as items that Enter follows (ASCII badges
+  and bullets under the ASCII setting) (d7c6e65).
 - **Extension operations on the `:` line** (`:alerts get-inbox`, `:api <operationId>`); widget payloads
   without a terminal block show their JSON as key/value rows and sub-tables, and `J` shows the raw JSON.
 - **Dates: type them or pick them**: one date control for DATE and DATE_TIME fields in create and edit
@@ -206,7 +219,8 @@ in parentheses mark the changes made after the candidate.
   or copy it, `y` `Y` Ctrl+Y copy the cell, row or result; errors inline with their SQL position; EXPLAIN as
   a plan tree (F6); a schema browser (F3); notebooks with SQL and markdown cells (F2, F4); quick text bar
   charts; the audited run history with re-run (F7). Read-only runs; hidden, and `:sql` explains why, when
-  the server lacks the extension (cc78396, efc202a).
+  the server lacks the extension (cc78396, efc202a). The completion popups of the SQL Runner and the `:` line take the width they need, in two
+  columns, with wrapped descriptions (70b6fa1).
 - **The mouse, everywhere** (on by default; F9 › Settings › Mouse, `:mouse on|off`, saved in `ui.mouse`;
   `--no-mouse` / `--mouse` for one run): a click selects or focuses, a double-click activates, a right
   click opens the actions at that row, the wheel scrolls the pane under the pointer, a drag on a grid
@@ -217,10 +231,24 @@ in parentheses mark the changes made after the candidate.
   for people online, jobs, health, database sessions, ESB depth and dead letters, unread alerts, realtime
   events per minute, ping and favorite table counts, each hidden when its extension is absent and dimmed
   when stale; four styles (Bounce, Starfield, Flip clock, Big numbers, or auto) starring Query, the qrun.io
-  mascot; at most 4 frames a second; with a PIN set the prompt opens over the saver (c22ae75).
+  mascot, whose block-letter logo says the connected profile's name (short name up to 6 characters) with
+  the server host beneath; at most 4 frames a second; with a PIN set the prompt opens over the saver
+  (c22ae75, 899326a). Each style is one compact group at most about 90 columns wide that moves as a unit
+  (Big numbers: number, Query, caption and tiles as one centred stack; Flip clock: tiles and Query with the
+  clock; Bounce: tiles beside the logo, stacked under it on a narrow terminal), with the clock line and the
+  lock line just above and below it (aff2b00, 98d2076). Against burn-in every element moves (the header and
+  lock line change place every 30 s, the flip clock drifts, Big numbers changes corners) and the screen dims
+  after 10 minutes (`:saver burnin on|off`, `:saver dim <minutes|off>`) (899326a).
 - **Clipboard copy of CLI equivalents**: the "CLI equivalent" dialog copies its command with `y`, `c` or
   Enter, the filter dialog has Ctrl+Y, and F9 › Settings › "Copy CLI commands to the clipboard
   automatically" (`ui.copyCliCommands`, default off) copies as soon as the dialog opens (e8f075a).
+- **History screen** (`:history`, F9 › Work › History): the activity log of the profile, newest at the
+  bottom; typing filters, Enter does an entry again (runs the `:` command, opens the record, the table with
+  its filter, the process), `y` copies the CLI equivalent, `c` or F8 clears. The TUI records its `:`
+  commands, opened apps, tables and records, queries with filters, record creates, edits and deletes (no
+  values), process runs and outcomes, exports, prints, server switches, sign-in and sign-out. Ctrl+R on the
+  `:` line is a bash-style reverse search over these commands (Ctrl+R again for older matches, Enter runs,
+  Esc edits) (0bcc735).
 - **Column statistics fallback**: `S` on a table without the server capability (or when the server
   answers 403 or 404) computes count, nulls, distinct, min, max, sum, mean, median, text lengths and top
   values from the rows the grid has loaded; the dialog says so and `a` loads up to 10,000 rows (e5d6c92).
@@ -232,14 +260,6 @@ in parentheses mark the changes made after the candidate.
   random keys.
 - `packages/tui/scripts/smoke.sh --server URL [--profile NAME]` runs the tmux smoke test against any
   server in an isolated config (6950e9d, f149a47).
-
-- **History screen** (`:history`, F9 › Work › History): the activity log of the profile, newest at the
-  bottom; typing filters, Enter does an entry again (runs the `:` command, opens the record, the table with
-  its filter, the process), `y` copies the CLI equivalent, `c` or F8 clears. The TUI records its `:`
-  commands, opened apps, tables and records, queries with filters, record creates, edits and deletes (no
-  values), process runs and outcomes, exports, prints, server switches, sign-in and sign-out. Ctrl+R on the
-  `:` line is a bash-style reverse search over these commands (Ctrl+R again for older matches, Enter runs,
-  Esc edits).
 
 #### Kernel, client and conformance
 
@@ -281,16 +301,7 @@ in parentheses mark the changes made after the candidate.
   for `table export`, `widget --csv`, report downloads, field saves from a record, and every TUI export, save
   dialog and screen-text capture (`<name>_<YYYY-MM-DD>_<HHmmss>.<ext>`, 24-hour, no colons). A name you give
   (`-o`, a name typed in the file dialog) is used exactly as given, and a name the server chooses is kept
-  unless it is taken, when the stamp goes before the extension.
-- **`qqq ui`: collaboration lives at the bottom of the record view.** The tags, comments, attachments,
-  tasks, follow and "Viewing now" rows no longer sit above the record's sections (the cursor started on the
-  tags row); the record starts right under its title with the cursor on its first field. A dim strip above
-  the key line carries the same items with their keys (`Tags: none (t) · 0 comments (C) · … · viewing:
-  Admin (you)`), others viewing or editing replace "(you)" with an accent, and segments drop whole when the
-  width is short (viewers and tags last). From 140 columns a right-hand Collaboration panel (view setting
-  `collaboration panel: auto/on/off`) adds the latest comments, the next due task, the followers and each
-  viewer's state, and the strip shortens to the keys. The keys are unchanged; strip segments and panel rows
-  are click zones.
+  unless it is taken, when the stamp goes before the extension (c201f92).
 - **One meaning for `-o` across the CLI: `-o`/`--out` is always the output file; the sort is `--order`**
   (no short form). `table export -o people.csv` used to sort by a field named `people.csv` (the server
   answered 403); it now writes the file. Migration: write `--order` wherever `-o` meant the sort. On the
@@ -317,25 +328,8 @@ in parentheses mark the changes made after the candidate.
 
 ### Fixed
 
-- `qqq table stats <table> <field>` on a table without QUERY_STATS (or when the server answers 403 or 404) computes the statistics from the matching records instead of failing: count, nulls, distinct, min, max, sum, mean and median for numbers, shortest and longest for text, earliest and latest for dates, and the distribution; it says `from N matching records (the server offers no column statistics for X)` on stderr and exits 0. `--local` forces it, `--no-local` restores the error, `--max-records` (now 10,000 by default) caps the read.
-- Output piped into a reader that exits early (`qqq table query person | head -1`, exports, process logs, `assistant ask`) ends quietly with status 0 instead of an unhandled `write EPIPE` stack trace.
-- The UI's Search (F2) said only "no records match" when quick search found nothing. It now explains
-  the coverage: "No records match "Gondor". Quick search indexes 17 of 189 tables (Customer, Order, …
-  and 12 more) · 57 records · last reindex 10:38. Tables not indexed cannot be found here; add them in
-  Quick Search Admin › Quick Search Index, or press `o` to search Person by name." (`o` then opens the
-  table Search came from, its text fields searched for the text). The status line names the indexed
-  tables too: "index 57 records in 17 tables".
-- The screen saver's Big numbers lays the number, Query, caption and tiles out as one centred stack that moves as a unit (before, the number and Query sat squashed in a corner and the tiles floated alone at the far left on a tall narrow terminal); Flip clock keeps its tiles and Query with the clock; Bounce stacks the tile panel under Query when the terminal is too narrow for them side by side; the drifting header keeps a one-cell left margin.
-- The screen saver keeps all its information together and compact: Big numbers and Flip clock are one group at most about 90 columns wide (tiles in one or two adjacent columns, never split across a wide screen), moving as a unit, and the clock line and the lock line sit just above and below that group instead of at the opposite screen edges.
-- The screen saver moves every element so an OLED or CRT does not burn in: Bounce's tile panel rides beside the logo (the clock, server and lock lines used to sit still), the header and the lock line change place every 30 s, the flip clock drifts, Big numbers changes corners, and it dims after 10 minutes (`:saver burnin on|off`, `:saver dim <minutes|off>`); the block-letter logo now says the connected profile's name (short name up to 6 characters) with the server host beneath, instead of `qqq`.
-- The UI's text and HTML widgets (Quick Search Admin's Search Diagnostics, the SQL Workbench summary, the
-  alerts cards) were one undifferentiated block. They are drawn as a document with the web's hierarchy:
-  headings in the accent colour with a blank line before and their block indented under them, leading
-  status words (OK, WARN, FAIL, DEGRADED, DOWN, …) as fixed-width coloured badges, `Label: value` items as
-  an aligned two-column list (none/0 under a failure label in green), ISO timestamps in the profile's date
-  format, body text wrapped at ~100 cells with blank lines between paragraphs, enumerations ("Add Search
-  Index, Apply Search Index Changes, …") as bullets, stat cards kept together and button rows of links as
-  items that Enter follows; ASCII badges and bullets under the ASCII setting.
+- Output piped into a reader that exits early (`qqq table query person | head -1`, exports, process logs,
+  `assistant ask`) ends quietly with status 0 instead of an unhandled `write EPIPE` stack trace (7c66b16).
 - `qqq login --server URL` with `QQQ_PROFILE` (or `--profile`) naming an existing profile of another
   server silently pointed that profile at the new server. It now warns and needs `--yes` (or a yes at the
   question on a terminal); `--profile <new-name>` adds a profile instead. A token refresh under a one-off
@@ -376,7 +370,7 @@ in parentheses mark the changes made after the candidate.
 - The developer view drew the ESB sample event as broken fragments (minified JSON went through the prose
   word-wrap); code blocks are pretty-printed and drawn one source line per screen line.
 - `npm test` runs on Node 20; a question closed with Ctrl-D no longer hangs on Node 22.12; presence tests
-  wait on state and have deadlines (16be5c2); the metadata index test guards by scaling and the dashboard
+  wait on state and have deadlines (16be5c2); the PIN storage test no longer flakes (7d754bf); the metadata index test guards by scaling and the dashboard
   widget test asserts concurrency, not wall-clock bounds (e3822d2, 508ddc0).
 - The UI's grid draws adorned cells like the record view (REVEAL values stay masked, HTML as text, chips in
   brackets); the create form asks for a text primary key and leaves out generated numeric keys.
