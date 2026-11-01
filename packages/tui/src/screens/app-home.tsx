@@ -3,7 +3,8 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { readViewSettings, widgetToBlocks, writeViewSettings, type RenderBlock } from '@qrun-io/qqq-core'
+import { readViewSettings, writeViewSettings, type RenderBlock } from '@qrun-io/qqq-core'
+import { WidgetView } from '../widget-view'
 import type { AppTreeNode } from '../client'
 import type { Key } from '../keys'
 import { openApp, openProcess, openTable } from '../nav'
@@ -30,6 +31,7 @@ export class AppHomeScreen implements Screen {
   readonly id: string
   readonly list = new ListModel()
   widgets = new Map<string, RenderBlock[] | { error: string }>()
+  views = new Map<string, WidgetView>()
   counts = new Map<string, number | string>()
   width = 100
   /** Lazy loading: what each widget or count row needs, by the row it is drawn on; at most 4 requests at once. */
@@ -96,8 +98,9 @@ export class AppHomeScreen implements Screen {
 
   private widgetTask(w: string, row: number): void {
     if (this.started.has(`w:${w}`)) return
-    const client = this.store.client!.withSignal(this.abort.signal)
-    this.tasks.set(`w:${w}`, { row, run: () => client.widget(w).then((data) => { this.widgets.set(w, widgetToBlocks(data)) }).catch((e) => { if (!this.abort.signal.aborted) this.widgets.set(w, { error: errorText(e) }) }) })
+    const view = this.views.get(w) ?? new WidgetView(this.store, w, { signal: this.abort.signal, onChange: () => { if (!this.abort.signal.aborted && this.widgets.has(w)) { this.widgets.set(w, view.error ? { error: view.error } : view.blocks ?? []); this.build(); this.store.bump() } } })
+    this.views.set(w, view)
+    this.tasks.set(`w:${w}`, { row, run: () => view.load().then(() => { if (!this.abort.signal.aborted) this.widgets.set(w, view.error ? { error: view.error } : view.blocks ?? []) }).catch((e) => { if (!this.abort.signal.aborted) this.widgets.set(w, { error: errorText(e) }) }) })
   }
 
   private countTask(t: string, row: number): void {
@@ -125,8 +128,16 @@ export class AppHomeScreen implements Screen {
     const widgetRows = (w: string, colWidth: number): Row[] => {
       const data = this.widgets.get(w)
       const label = (meta?.widgets as Record<string, { label?: string }> | undefined)?.[w]?.label ?? w
-      // widget headings are selectable (Enter reloads it), so the cursor starts at the top and only visible widgets load
-      const reload = () => { this.widgets.delete(w); this.started.delete(`w:${w}`); this.build(); this.store.bump() }
+      // widget headings are selectable (Enter opens the widget's actions: reload, dropdowns, export, run…), so the cursor starts at the top and only visible widgets load
+      const reload = () => {
+        const view = this.views.get(w)
+        if (!view || !this.widgets.get(w)) { this.widgets.delete(w); this.started.delete(`w:${w}`); this.build(); this.store.bump(); return }
+        const menu = view.actions()
+        const first = menu[0]!
+        first.run = () => { this.widgets.delete(w); this.started.delete(`w:${w}`); this.build(); this.store.bump() }
+        // a dropdown or tab change reloads the view itself; redraw once it has
+        this.store.open(new ChoiceOverlay(this.store, view.label, menu.map((a) => ({ label: a.label, detail: a.detail, disabled: a.disabled, value: a.run })), (run) => run()))
+      }
       const out: Row[] = []
       if (!data) {
         out.push({ text: label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
@@ -134,6 +145,8 @@ export class AppHomeScreen implements Screen {
       } else if ('error' in data) {
         out.push({ text: label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
         out.push({ text: `  ${data.error}`, fg: t.err })
+      } else if (!data.length) {
+        return out
       } else {
         const heading = data[0]?.kind === 'heading' ? data[0] : undefined
         out.push({ text: heading ? heading.text : label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })

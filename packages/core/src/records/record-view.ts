@@ -220,6 +220,9 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
   const value = display ?? raw
   const empty = options.empty ?? ''
 
+  // a PASSWORD field is never shown (the server should not return it; when it does, it stays masked)
+  if (field.type === 'PASSWORD') return { text: raw === null || raw === undefined || raw === '' ? empty : '••••••' }
+
   const widget = findAdornment(field, 'WIDGET')
   if (widget) {
     const widgetName = typeof widget.values?.widgetName === 'string' ? widget.values.widgetName : ''

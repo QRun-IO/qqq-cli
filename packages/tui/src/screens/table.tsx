@@ -8,7 +8,7 @@ import { ResultCursor, bulkProcesses, uploadTemplates, safeFileName, saveDownloa
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
-import { openForm, openProcess, openRecord } from '../nav'
+import { openForm, openProcess, openRecord, permits } from '../nav'
 import { ChoiceOverlay, PromptOverlay } from '../overlays/basic'
 import { FilterOverlay } from '../overlays/filter'
 import { saveFile } from '../overlays/files-helpers'
@@ -339,7 +339,7 @@ export class TableScreen implements Screen {
   fields(): FieldMetaData[] {
     const meta = this.fullMeta ?? this.meta
     if (!meta || !this.meta) return []
-    const names = (this.view.columns?.length ? this.view.columns : defaultColumns(this.meta)).filter((n) => meta.fields[n])
+    const names = (this.view.columns?.length ? this.view.columns : defaultColumns(this.meta)).filter((n) => meta.fields[n] && !meta.fields[n]!.isHidden)
     return names.map((n) => meta.fields[n]!)
   }
 
@@ -383,7 +383,7 @@ export class TableScreen implements Screen {
     const rec = this.currentRecord
     const key = this.keyOf(rec)
     if (key === undefined) return this.store.flash('no record under the cursor')
-    if (this.meta?.deletePermission === false) return this.store.flash('you may not delete records of this table', 'error')
+    if (!permits(this.meta as never, 'delete')) return this.store.flash('you may not delete records of this table', 'error')
     this.store.confirm(`Delete ${this.title()} ${key}${rec?.recordLabel ? ` "${rec.recordLabel}"` : ''}?`, () => {
       this.store.run(this.store.client!.remove(this.tableName, key), () => {
         this.cursor?.removed(this.cursor.index)
@@ -580,7 +580,7 @@ export class TableScreen implements Screen {
 
   fkeys(): FKeyLabels {
     const m = this.meta
-    return { 3: 'View', 4: m?.editPermission === false ? null : 'Edit', 6: 'Filter', 7: m?.insertPermission === false ? null : 'New', 8: m?.deletePermission === false ? null : 'Delete' }
+    return { 3: 'View', 4: !permits(m as never, 'edit') ? null : 'Edit', 6: 'Filter', 7: !permits(m as never, 'insert') ? null : 'New', 8: !permits(m as never, 'delete') ? null : 'Delete' }
   }
 
   onKey(key: Key): boolean {

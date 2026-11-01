@@ -3,8 +3,9 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { BACK, FormSession, fetchProcessRecords, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, adHocControls, FormSession, fetchProcessRecords, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
+import { ChoiceOverlay } from '../overlays/basic'
 import { blockLines, tableLines } from '../widgets'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
@@ -248,13 +249,31 @@ export class ProcessScreen implements Screen {
     if (types.includes('VALIDATION_REVIEW_SCREEN') && !fields.length) {
       this.phase = 'review'
       this.reviewChoice = this.stepValues.validationSummary ? 1 : 0
+    } else if (!fields.length && adHocControls(step, this.stepValues).buttons.some((b) => b.actionCode)) {
+      // an ad hoc widget with buttons only: the chosen button's actionCode is the step's answer
+      this.buttons = adHocControls(step, this.stepValues).buttons.filter((b) => b.actionCode)
+      this.phase = 'form'
+      this.editor = undefined
+      this.store.bump()
+      return new Promise<FieldValues>((resolve, reject) => {
+        this.pending = { resolve, reject }
+        this.chooseButton((code) => {
+          this.pending = undefined
+          this.phase = 'running'
+          this.stepStarted = Date.now()
+          resolve({ actionCode: code })
+        })
+      })
     } else if (fields.length) {
       const client = this.store.client!
       const local = { ...values }
       for (const f of fields) if (f.type === 'DATE_TIME' && isInstant(local[f.name])) local[f.name] = utcToLocalInput(String(local[f.name]), defaultTimeZone())
       const session = new FormSession({ baseUrl: client.server, fetch: this.fetchFor(), scope: { process: this.processName }, fields, initialValues: local })
       this.scanner = String(step.format ?? '').toLowerCase() === 'scanner'
-      this.editor = new FormEditor(this.store, session, session.promptOrder(fields.map((f) => f.name)), { bulkEdit: types.includes('BULK_EDIT_FORM'), ...(this.scanner ? { submitOnEnter: () => this.submit() } : {}) })
+      const controls = adHocControls(step, this.stepValues)
+      this.buttons = controls.buttons.filter((b) => b.actionCode)
+      const enterSubmits = this.scanner || controls.inputs.some((i) => i.submitOnEnter)
+      this.editor = new FormEditor(this.store, session, session.promptOrder(fields.map((f) => f.name)), { bulkEdit: types.includes('BULK_EDIT_FORM'), ...(enterSubmits ? { submitOnEnter: () => this.submit() } : {}) })
       this.phase = 'form'
     } else {
       // nothing to ask (a view step that is not the last): continue
@@ -266,9 +285,23 @@ export class ProcessScreen implements Screen {
     })
   }
 
+  /** Ad hoc widget buttons of the current step (an actionCode submits the step with it). */
+  buttons: Array<{ label: string; actionCode?: string }> = []
+
+  chooseButton(then: (code: string) => void): void {
+    if (this.buttons.length === 1) return then(this.buttons[0]!.actionCode!)
+    this.store.open(new ChoiceOverlay(this.store, `${this.step?.label ?? this.processName}: choose`, this.buttons.map((b) => ({ label: b.label, value: b.actionCode!, detail: b.actionCode })), then))
+  }
+
   submit(): void {
     const pending = this.pending
     if (!pending) return
+    if (!this.editor && this.buttons.length) return this.chooseButton((code) => {
+      this.pending = undefined
+      this.phase = 'running'
+      this.stepStarted = Date.now()
+      pending.resolve({ actionCode: code })
+    })
     if (this.phase === 'review') {
       this.pending = undefined
       this.phase = 'running'
@@ -295,10 +328,16 @@ export class ProcessScreen implements Screen {
       }
       // DATE_TIME inputs are typed in the local zone and sent as UTC instants
       out = dateTimesToUtc(Object.values(editor.session.fields), out)
-      this.pending = undefined
-      this.phase = 'running'
-      this.stepStarted = Date.now()
-      pending.resolve(out)
+      const go = (code?: string) => {
+        if (code) out.actionCode = code
+        this.pending = undefined
+        this.phase = 'running'
+        this.stepStarted = Date.now()
+        pending.resolve(out)
+        this.store.bump()
+      }
+      if (this.buttons.length) this.chooseButton(go)
+      else go()
     }).finally(() => this.store.bump())
   }
 

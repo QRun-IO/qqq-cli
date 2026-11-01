@@ -5,7 +5,7 @@
 
 import { afterEach, beforeAll, expect, test } from 'bun:test'
 import { KeyCodes } from '@opentui/core/testing'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeFilePreferences } from '@qrun-io/qqq-core'
@@ -194,4 +194,62 @@ test('reports: a streaming report asks the format and saves; a process report ch
   } finally {
     writeFilePreferences({})
   }
+})
+
+
+
+test('ad hoc composite widget: interpolated text, conditional block hidden, input with Enter submits, buttons send their actionCode', async () => {
+  h = await startTui(120, 36)
+  await command(h, 'process run adhoc')
+  let f = await waitFor(h, (x) => x.includes('Order SO-9') && x.includes('Barcode'))
+  expect(f).not.toContain('Hint: scan the label')
+  expect(f).toContain('[ Skip ]')
+  await type('X-42')
+  await enter()
+  await waitFor(h, (x) => x.includes('Scan: choose') && x.includes('Finish'))
+  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  await enter()
+  f = await waitFor(h, (x) => x.includes('finish X-42'))
+  const step = h.log.requests.find((r) => r.path === '/processes/adhoc/ah/step/scan')!
+  expect(String((step.body as Record<string, string>).values)).toContain('"actionCode":"finish"')
+})
+
+
+
+test('composite INPUT_FIELD editors: required checks as on any process form, a BLOB input goes as a multipart file', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-adhoc-'))
+  const file = join(dir, 'p.png')
+  writeFileSync(file, 'PNGDATA')
+  h = await startTui(120, 36)
+  await command(h, 'process run adhocfile')
+  await waitFor(h, (x) => x.includes('Photo') && x.includes('Quantity'))
+  await key('s', { ctrl: true })
+  await waitFor(h, (x) => x.includes('need attention'))
+  expect(h.log.requests.some((r) => r.path === '/processes/adhocfile/af/step/up')).toBe(false)
+  await enter()
+  await waitFor(h, (x) => x.includes('Photo') && (x.includes('Find') || x.includes('type to filter this folder')))
+  await press(h, () => h!.setup.mockInput.pressTab())
+  await key('u', { ctrl: true })
+  await type(file)
+  await enter()
+  await waitFor(h, (x) => x.includes('p.png'))
+  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  await type('3')
+  await key('s', { ctrl: true })
+  await waitFor(h, (x) => x.includes('got p.png 7 bytes qty 3'))
+})
+
+
+
+test('a WIDGET-adorned process field with a filter setup: Enter opens the filter dialog for the form table; the field gets the filter JSON', async () => {
+  h = await startTui(120, 40)
+  await command(h, 'process run setupProc')
+  await waitFor(h, (x) => x.includes('Filter') && x.includes('Table'))
+  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  await enter()
+  await waitFor(h, (x) => x.includes('First Name') || x.includes('guided') || x.includes('Filter and sort'))
+  await key('s', { ctrl: true })
+  await waitFor(h, (x) => x.includes('"orderBys":[]}') && !(h!.store.overlays.length))
+  await key('s', { ctrl: true })
+  await waitFor(h, (x) => x.includes('filter {') && x.includes('booleanOperator'))
 })

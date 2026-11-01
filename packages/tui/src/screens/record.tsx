@@ -3,8 +3,10 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { ResultCursor, associationGroups, childFilter, childListFields, exposedJoins, formatSize, helpEntryText, selectHelpContent, planJoins, readViewSettings, withJoinFields, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { FormSession, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, type DynamicFormPayload, ResultCursor, associationGroups, childFilter, childListFields, exposedJoins, formatSize, helpEntryText, selectHelpContent, planJoins, readViewSettings, withJoinFields, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
 import { openShareDialog, shareState } from '../overlays/share'
+import { FieldsFormScreen } from './fields-form'
+import { WidgetView } from '../widget-view'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
@@ -13,7 +15,7 @@ import { DeveloperScreen } from './developer'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
-import { openForm, openProcess, openRecord } from '../nav'
+import { openForm, openProcess, openRecord, permits } from '../nav'
 import { ChoiceOverlay } from '../overlays/basic'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
@@ -69,7 +71,10 @@ export function chipColor(f: FieldMetaData, rec: QueryRecord): string {
 /** Sections in tier order (T1, then T2, then T3, then the rest), hidden ones left out. */
 export function orderedSections(meta: TableMetaData) {
   const rank = (tier?: string) => (tier === 'T1' ? 0 : tier === 'T2' ? 1 : tier === 'T3' ? 2 : 3)
-  return [...(meta.sections ?? [])].filter((s) => !s.hidden).sort((a, b) => rank(a.tier) - rank(b.tier))
+  const sections = [...(meta.sections ?? [])].filter((s) => !s.hidden).sort((a, b) => rank(a.tier) - rank(b.tier))
+  // a table without sections shows all its (visible) fields in one
+  if (!(meta.sections ?? []).length) return [{ name: '_all', label: meta.label, tier: 'T1', fieldNames: Object.keys(meta.fields).filter((n) => !meta.fields[n]!.isHidden) }] as typeof sections
+  return sections
 }
 
 /**
@@ -175,11 +180,46 @@ export class RecordScreen implements Screen {
     }
   }
 
+  /** Section widgets' raw payloads (a dynamicForm is edited from its payload). */
+  widgetPayloads = new Map<string, unknown>()
+
+  /** Edits a dynamicForm widget's fields: required checked, saved in the record field it names (JSON) or as record fields. */
+  editDynamicForm(widgetName: string): void {
+    const payload = this.widgetPayloads.get(widgetName) as DynamicFormPayload | undefined
+    if (!payload) return
+    const fields = dynamicFormFields(payload)
+    if (!fields.length) return this.store.flash(payload.noFieldsMessage ?? 'this form has no fields', 'error')
+    const c = this.store.client!
+    const session = new FormSession({ baseUrl: c.server, fetch: c.fetch, scope: { table: this.tableName }, fields, initialValues: dynamicFormValues(payload, (this.record?.values ?? {}) as Record<string, unknown>) })
+    const label = (this.meta?.sections ?? []).find((x) => x.widgetName === widgetName)?.label ?? widgetName
+    this.store.push(new FieldsFormScreen(this.store, `${label}: ${this.title()}`, session, async (values) => {
+      const body = dynamicFormSubmission(payload, values)
+      await c.update(this.tableName, this.primaryKey!, body)
+      this.refresh()
+      return `saved ${label} in ${Object.keys(body).join(', ')}`
+    }, (values) => dynamicFormMissing(payload, values)))
+  }
+
+  /** Section widgets with their controls (dropdowns, export, setup editors), by widget name. */
+  widgetViews = new Map<string, WidgetView>()
+
   loadWidgets(): void {
     for (const s of this.meta?.sections ?? []) {
       if (!s.widgetName) continue
       const name = s.widgetName
-      this.store.client!.widget(name, { id: this.primaryKey }).then((d) => this.widgets.set(name, widgetToBlocks(d))).catch((e) => this.widgets.set(name, { error: errorText(e) })).finally(() => { this.build(); this.store.bump() })
+      const rec = this.record
+      const view = new WidgetView(this.store, name, {
+        params: { id: String(this.primaryKey ?? '') },
+        record: { tableName: this.tableName, primaryKey: String(this.primaryKey ?? ''), values: rec?.values as Record<string, unknown> | undefined, displayValues: rec?.displayValues as Record<string, unknown> | undefined, fields: Object.fromEntries(Object.entries(this.meta?.fields ?? {}).map(([k, f]) => [k, { label: f.label }])), editable: (this.meta as { editPermission?: boolean } | undefined)?.editPermission !== false, refresh: () => this.refresh() },
+        onChange: () => {
+          if (view.data) this.widgetPayloads.set(name, view.data)
+          this.widgets.set(name, view.error ? { error: view.error } : view.blocks ?? [])
+          this.build()
+          this.store.bump()
+        },
+      })
+      this.widgetViews.set(name, view)
+      void view.load()
     }
   }
 
@@ -236,11 +276,17 @@ export class RecordScreen implements Screen {
     for (const s of orderedSections(meta)) {
       if (s.widgetName) {
         rows.push({ text: '' })
-        rows.push({ text: `${s.label} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 2)))}`, fg: t.acc, bold: true })
+        const wname = s.widgetName
+        rows.push({ text: `${s.label} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 2)))}`, fg: t.acc, bold: true, key: `w:${wname}`, action: () => this.widgetViews.get(wname)?.actionsMenu() })
         const w = this.widgets.get(s.widgetName)
         if (!w) rows.push({ text: '  loading…', fg: t.dim })
         else if ('error' in w) rows.push({ text: `  ${w.error}`, fg: t.err })
         else rows.push(...blockLines(w.filter((b) => b.kind !== 'heading'), inner - 2).map((l) => ({ ...l, text: '  ' + l.text })))
+        const payload = this.widgetPayloads.get(s.widgetName) as { type?: string } | undefined
+        if (payload && (payload.type ?? (this.store.meta?.widgets as Record<string, { type?: string }> | undefined)?.[s.widgetName]?.type) === 'dynamicForm' && (meta as { editPermission?: boolean }).editPermission !== false) {
+          const name = s.widgetName
+          rows.push({ text: `  ${g.pointer} Edit these fields`, fg: t.acc, key: `dyn:${name}`, action: () => this.editDynamicForm(name) })
+        }
         continue
       }
       const fields = (s.fieldNames ?? []).map((n) => meta.fields[n] ?? this.fullMeta?.fields[n]).filter((f): f is FieldMetaData => Boolean(f) && !f!.isHidden)
@@ -393,7 +439,7 @@ export class RecordScreen implements Screen {
   }
 
   deleteRecord(): void {
-    if (this.meta?.deletePermission === false) return this.store.flash('you may not delete records of this table', 'error')
+    if (!permits(this.meta as never, 'delete')) return this.store.flash('you may not delete records of this table', 'error')
     this.store.confirm(`Delete ${this.meta?.label ?? this.tableName} ${this.primaryKey}${this.record?.recordLabel ? ` "${this.record.recordLabel}"` : ''}?`, () => {
       this.store.run(this.store.client!.remove(this.tableName, this.primaryKey), () => {
         this.store.flash(`deleted ${this.meta?.label ?? this.tableName} ${this.primaryKey}`)
@@ -437,7 +483,7 @@ export class RecordScreen implements Screen {
   }
 
   fkeys(): FKeyLabels {
-    return { 3: null, 4: this.meta?.editPermission === false ? null : 'Edit', 6: null, 7: this.currentAssociation() ? 'NewChild' : this.meta?.insertPermission === false ? null : 'New', 8: this.meta?.deletePermission === false ? null : 'Delete' }
+    return { 3: null, 4: !permits(this.meta as never, 'edit') ? null : 'Edit', 6: null, 7: this.currentAssociation() ? 'NewChild' : !permits(this.meta as never, 'insert') ? null : 'New', 8: !permits(this.meta as never, 'delete') ? null : 'Delete' }
   }
 
   onKey(key: Key): boolean {
@@ -496,9 +542,9 @@ export class RecordScreen implements Screen {
 
   menu(): MenuEntry[] {
     const out: MenuEntry[] = [
-      { section: 'Context', label: 'Edit this record', key: 'F4 e', run: () => this.onKey({ name: 'f4', sequence: '' }) },
-      { section: 'Context', label: 'Copy into a new record', key: 'c', run: () => openForm(this.store, this.tableName, { mode: 'copy', primaryKey: this.primaryKey }) },
-      { section: 'Context', label: 'Delete this record', key: 'F8 d', run: () => this.deleteRecord() },
+      { section: 'Context', label: 'Edit this record', key: 'F4 e', disabled: permits(this.meta as never, 'edit') ? undefined : 'you may not edit records of this table', run: () => this.onKey({ name: 'f4', sequence: '' }) },
+      { section: 'Context', label: 'Copy into a new record', key: 'c', disabled: permits(this.meta as never, 'insert') ? undefined : 'copying needs permission to create records', run: () => openForm(this.store, this.tableName, { mode: 'copy', primaryKey: this.primaryKey }) },
+      { section: 'Context', label: 'Delete this record', key: 'F8 d', disabled: permits(this.meta as never, 'delete') ? undefined : 'you may not delete records of this table', run: () => this.deleteRecord() },
       { section: 'Context', label: `New ${this.meta?.label ?? this.tableName}`, key: 'F7 n', run: () => openForm(this.store, this.tableName, { mode: 'create' }) },
       { section: 'Context', label: 'Next record', key: 'PgDn ] Ctrl+N', disabled: this.cursor ? undefined : 'not opened from a list', run: () => this.step(1) },
       { section: 'Context', label: 'Previous record', key: 'PgUp [ Ctrl+P', disabled: this.cursor ? undefined : 'not opened from a list', run: () => this.step(-1) },
