@@ -69,6 +69,7 @@ the options.
 | `report`, `saved-report`, `saved-view`, `share`, `bulk-profile`, `audit`, `widget`, `script`, `job`, `prefs`, `help-search` | reports, saved reports, saved views, sharing, bulk-load mappings, audits, widgets as text, scripts, jobs, preferences, help |
 | `api <operationId>` | any UI API operation by id |
 | `extensions`, `esb`, `collab`, `health`, `alerts`, ... | one noun per extension, run when the server has it installed |
+| `assistant ask`, `assistant config` | ask the in-app assistant (qbit-assistant) a question about your data: the answer streams, then its numbers and the records and tables it refers to (`--table`/`--record` send the page as context, `-c` continues a conversation, `--json` the whole answer); `config` says whether it answers and with which model, or why not |
 | `print`, `printer` | print records, table lists and text through the printing extension, follow print jobs; printers and print agents |
 | `history` | everything you did with the CLI and the TUI, like a shell history (see below) |
 | `login`, `logout`, `profile`, `config`, `cache`, `completion`, `doctor` | sign-in, saved server profiles (`profile list|add|edit|use|remove`), settings, the metadata cache, shell completion (bash, zsh, fish, PowerShell), checks |

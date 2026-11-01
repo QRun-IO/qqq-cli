@@ -67,6 +67,30 @@ Other calls (all throw `ExtensionNotInstalledError` before any request when it i
 `myWork()`, `people(q, limit)`, `presenceSnapshot(scope)` (empty when absent). Everything else the
 qbit offers is reachable by operation id through `callOperation`.
 
+## Assistant (`assistant.ts`)
+
+```ts
+const assistant = new Assistant(registry, { call: (id, input) => callOperation(server, id, input, f), fetch: f, baseUrl: server })
+const view = await assistant.config()     // { installed, enabled, reason?, message?, model?, starterPrompts, ... }
+describeAssistantConfig(view)             // 'enabled, model claude-sonnet-5-5' | 'off (NOT_CONFIGURED): No model provider ...'
+const answer = await assistant.ask('how many customers are there', {
+  context: assistantContextFor({ tableName: 'customer', recordId: 5 }),   // { route: '/app/customer/5', tableName, recordId }
+  conversationId,                         // continue one; omitted: a new conversation (with the context)
+  onEvent: (event, answer) => draw(answer),   // text.delta, tool.start, tool.result, presentation, message.end, error
+  signal,
+})
+answer.text; answer.numbers; answer.links     // links: { label, href, kind: record|table|page, tableName?, recordId? }
+parseAppHref('/app/customer?filter=...')       // { tableName, recordId?, filter? }
+```
+
+- The question goes as the Next UI's panel sends it: `POST /conversations` with the page context, then
+  `POST /conversations/{id}/turns` with `{ text, pageContext, concurrency: 'supersede' }`; the event
+  stream is read as it arrives (`SseParser`) and folded by `applyAssistantEvent`.
+- Without the extension `config()` answers `installed: false` with no request and `ask` throws
+  ExtensionNotInstalledError. When it is off for the user, `ask` throws `AssistantUnavailableError` (a
+  UiApiError with the reason as its code: 503, or 403 for NO_PERMISSION) carrying the server's message
+  (assistant 1.7.0+) or the client's wording for the reason.
+
 ## Printing (`printing.ts`)
 
 The printing extension's own operations are the print agent's (enrollment, claims, events, the device

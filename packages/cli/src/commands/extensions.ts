@@ -21,6 +21,7 @@ import { runOperation, type OperationOptions } from './api.js'
 import { countFooter, instantText, plural, type Json } from './shared.js'
 import type { DisplayOptions } from '@qrun-io/qqq-core'
 import { registerCollab } from './collab.js'
+import { registerAssistant } from './assistant.js'
 
 /** The noun of each extension; the extension's own name unless it is long. */
 export const NOUNS: Record<string, string> = { collaboration: 'collab' }
@@ -205,6 +206,7 @@ export function registerExtensions(program: Command, ctx: () => Context): void {
     if (name !== e.name) noun.alias(e.name)
     if (e.name === 'esb') registerEsb(noun, ctx)
     if (e.name === 'collaboration') registerCollab(noun, ctx)
+    if (e.name === 'assistant') registerAssistant(noun, ctx)
     addOperationCommands(noun, e.name, e.pathPrefix, ctx)
     noun.addHelpText('after', `\nEvery ${e.name} operation is a subcommand; path parameters go as arguments or --path name=value.\nNot installed on the server: exit 5 with the installed list (see \`qqq extensions\`).`)
   }

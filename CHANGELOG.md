@@ -101,6 +101,13 @@ in parentheses mark the changes made after the candidate.
   attachments: the Object Storage QBit is not installed."; any server failure naming a missing QBit gets one
   such line (437ed3c).
 
+- **Assistant** (assistant extension, qbit-assistant): `qqq assistant ask "<question>"` streams the
+  answer as the model writes it, then prints its numbers (counts, metrics) and the records and tables it
+  refers to as a table with the command that opens each; `--table <t> [--record <id>]` sends that page as
+  context the way the Next UI's panel does, `-c <id>` continues a conversation, `--json` prints the whole
+  answer. `qqq assistant config` shows whether it answers and with which model, or the reason
+  (`NOT_CONFIGURED`: no model provider, with what to configure). The generated operation subcommands stay.
+
 #### Terminal UI (`qqq ui`)
 
 - **A classic full-screen UI** in the same binary and on the same profiles and sign-ins as the CLI:
@@ -261,6 +268,15 @@ in parentheses mark the changes made after the candidate.
 - `packages/tui/scripts/smoke.sh --server URL [--profile NAME]` runs the tmux smoke test against any
   server in an isolated config (6950e9d, f149a47).
 
+- **Assistant panel** (assistant extension): `Ctrl+G`, `:ask [question]` or F9 › Work › Assistant opens a
+  chat pane on the right (the whole body below 110 columns): the question line at the bottom, the
+  conversation above with each answer's numbers and links; Tab moves over the links and Enter opens the
+  record or grid (beside the panel; a full-width panel closes so the screen shows). Questions carry the
+  record or grid (with its filter) under the panel as context, as the Next UI sends it (Ctrl+D drops it);
+  ↑↓ recall this profile's questions; Ctrl+L starts a new conversation, Ctrl+X stops an answer, Esc closes
+  (the conversation is kept). Without the extension the entry is disabled and Ctrl+G says what is missing;
+  when the assistant is off the panel shows the server's reason and what to configure.
+
 #### Kernel, client and conformance
 
 - **`@qrun-io/qqq-core`** (new): everything that is not a terminal, shared by the CLI and the UI: output
@@ -276,6 +292,12 @@ in parentheses mark the changes made after the candidate.
 - **Conformance**: the suite checks `GET /qbit/printing/session` and the printing tables when a server
   lists printing (05f467c); `qqq-dev-idp` gains the authorization code with PKCE (Approve/Deny page),
   revocation and end-session.
+
+- **Assistant** (`extensions/assistant.ts`): `Assistant.config()` (the feature probe, `installed: false`
+  without the extension) and `Assistant.ask(question, { context, conversationId, onEvent, signal })`,
+  which creates a conversation with the page context, reads the turn's server-sent events as they arrive
+  (`SseParser`) and folds them into an answer (text, numbers, links, tools, usage); `parseAppHref` and
+  `assistantContextFor` map app paths and pages both ways.
 
 #### Packaging, CI and development
 

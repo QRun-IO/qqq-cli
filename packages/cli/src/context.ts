@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { Collaboration, Printing, missingQBitMessage, runProcess, type ProcessMeta, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { Assistant, Collaboration, Printing, missingQBitMessage, runProcess, type ProcessMeta, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieHeaderFor, target, type Target } from './session.js'
 
@@ -148,6 +148,12 @@ export class Context {
         })
       })(),
     })
+  }
+
+  /** The assistant module for this server: the feature probe and streamed questions. */
+  async assistant(): Promise<Assistant> {
+    const t = this.target
+    return new Assistant(await this.extensions(), { call: (id, input) => this.call(id, input), fetch: authenticatedFetch(t), baseUrl: t.server })
   }
 
   /** The printing module for this server: printers, jobs and Print through the qbit's tables and processes. */
