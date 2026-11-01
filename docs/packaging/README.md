@@ -1,50 +1,56 @@
-# Packaging the qqq CLI
+# Packaging qqq
 
-Every install path ships the same single-file binaries that `npm run binaries`
-(`scripts/build-binaries.mjs`) writes to `dist/`, uploaded to a GitHub release tagged `cli-v<version>`
-together with `SHA256SUMS`. The npm packages (`@qrun-io/qqq-cli` on GitHub Packages) are the other
-route, for machines that already have Node 20+.
+The release artifact is **one `qqq` binary per platform with the terminal UI bundled** (`qqq ui`),
+built by `npm run binaries` (`scripts/build-binaries.mjs`; `--cli-only` leaves the UI out) into
+`dist/qqq-<os>-<arch>[.exe]` and uploaded to a GitHub release tagged `cli-v<version>` with
+`SHA256SUMS`. `qqq --version` says `binary with ui`. Every install path below ships those files; there
+is no separate `qqq-ui` binary. The npm package `@qrun-io/qqq-cli` (GitHub Packages, Node 20+) is the
+CLI only and tells you where to get the UI. The full release sequence is in
+[`docs/release-runbook.md`](../release-runbook.md).
 
 | File | What | Where it goes |
 |---|---|---|
-| `scripts/install.sh` | curl installer: picks `qqq-<os>-<arch>[-musl]`, checks it against `SHA256SUMS`, installs to `~/.local/bin` (`--dir`, `--version`) | served from `main`: `curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh \| sh` |
-| `qqq.rb` | Homebrew formula draft (macOS arm64 and x64, Linux arm64 and x64), same shape as `qctl.rb`, with bash, zsh and fish completions | `Formula/qqq.rb` in a QRun-IO tap |
-| `qqq.json` | Scoop manifest draft (Windows x64), same shape as qctl's, with `checkver` and `autoupdate` reading `SHA256SUMS` | `bucket/qqq.json` in a QRun-IO Scoop bucket |
+| `scripts/install.sh` | curl installer: picks `qqq-<os>-<arch>[-musl]`, checks it against `SHA256SUMS`, installs `qqq` to `~/.local/bin` (`--dir`, `--version`) | served from `main`: `curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh \| sh` |
+| `homebrew-tap/` | the whole `QRun-IO/homebrew-tap` repository, ready to copy: `Formula/qqq.rb` (macOS arm64 and x64, Linux arm64 and x64; installs only `bin/qqq` plus bash, zsh and fish completions; its test insists on `binary with ui`), README, LICENSE, and the qqq-orb `homebrew-tap` CI profile | a new repository `QRun-IO/homebrew-tap` (`brew install qrun-io/tap/qqq`) |
+| `qqq.json` | Scoop manifest for the with-UI Windows x64 binary, same shape as qctl's, `checkver` and `autoupdate` reading `SHA256SUMS` | `bucket/qqq.json` in a QRun-IO Scoop bucket |
+| `scripts/update-packaging.mjs` | fills version and sha256 in `homebrew-tap/Formula/qqq.rb` and `qqq.json` from a release's `SHA256SUMS` | run after each release |
+| `scripts/verify-binary.sh`, `scripts/verify-binary.ps1` | smoke of an installed or downloaded binary: version (with ui), whoami, query, process run, `ui --check` | CI lanes and after-publish checks |
+
+The formula was installed and tested with the linux-x64 with-UI binary in the `homebrew/brew` container
+(install, `brew test`, the three completion files); it has not been installed on macOS (that would
+change this machine's Homebrew).
 
 ## Release steps
 
-1. `node scripts/release.mjs` on a clean tree; it prints the tag and publish commands.
-2. Tag `cli-v<version>` and create the GitHub release with `dist/qqq-*` and `dist/SHA256SUMS`
-   (`gh release create`, printed by step 1).
-3. Download that release's `SHA256SUMS` and run `node scripts/update-packaging.mjs <path>`; it writes
-   the version and the checksums into `qqq.rb` and `qqq.json`. Use the uploaded sums, not a local
-   rebuild: each build stamps its commit into the binary, so checksums differ between builds.
-4. Copy `qqq.rb` to the tap and `qqq.json` to the bucket and open a pull request on each.
+See [`docs/release-runbook.md`](../release-runbook.md). In short: `node scripts/release.mjs`, tag, GitHub
+release with `dist/qqq-*` and `dist/SHA256SUMS`, `node scripts/update-packaging.mjs <that SHA256SUMS>`,
+copy `homebrew-tap/Formula/qqq.rb` to the tap and `qqq.json` to the bucket. Use the uploaded sums, not a
+local rebuild: each build stamps its commit, so checksums differ between builds.
 
 ## Where the formula and manifest live
 
-QRun-IO has one tap today, [`QRun-IO/homebrew-qctl`](https://github.com/QRun-IO/homebrew-qctl)
-(`brew tap QRun-IO/qctl`), and qctl's Scoop manifest lives in `qctl/packaging/scoop`. Two options:
-
-- **Add `qqq` to the existing tap**: `brew install qrun-io/qctl/qqq`. No new repository; the tap name
-  reads oddly.
-- **A general tap and bucket** (`QRun-IO/homebrew-tap`, `QRun-IO/scoop-bucket`) holding both qctl and
-  qqq: `brew install qrun-io/tap/qqq`, `scoop bucket add qrun https://github.com/QRun-IO/scoop-bucket`.
-  The qqq-orb already has a `homebrew-tap` profile for such a repository. Recommended before 1.0 final.
+The tap is new: `QRun-IO/homebrew-tap`, laid out under `homebrew-tap/` here (James creates the repository
+by copying that directory). qctl stays in `QRun-IO/homebrew-qctl` until it moves over. The Scoop
+manifest goes into a bucket repository (`QRun-IO/scoop-bucket`, to create the same way) or next to qctl's.
 
 ## Platform notes
 
-- **macOS**: Bun signs the binaries ad hoc, which is enough for Homebrew and curl installs (neither sets
-  the quarantine flag). A binary downloaded with a browser is quarantined; `xattr -d com.apple.quarantine qqq`
-  clears it. Developer ID signing and notarization are not done yet.
+- **macOS**: Bun signs the binaries ad hoc; there is no Developer ID signature or notarization yet (it needs
+  James's Apple Developer account, see the runbook). Homebrew and the curl installer do not set the
+  quarantine flag, so they just work. A binary downloaded with a browser is quarantined, and Gatekeeper
+  refuses it ("qqq cannot be opened because Apple cannot check it for malicious software" or "... is
+  damaged"). Clear the flag once: `xattr -d com.apple.quarantine ./qqq-darwin-arm64` (or right-click,
+  Open, in Finder; or System Settings, Privacy and Security, Open Anyway).
 - **Linux musl** (Alpine): `qqq-linux-<arch>-musl` needs `apk add libstdc++ libgcc`. The installer picks
   the musl build on Alpine and other musl hosts.
 - **x64**: built on Bun's baseline runtime, so the binaries run on CPUs without AVX2 and under Rosetta 2
   or QEMU.
-- **Windows**: `qqq-windows-x64.exe` is cross-compiled and not signed (Authenticode, per the KofTwentyTwo
-  release standard, is a follow-up). Sign-ins use DPAPI through PowerShell. No Windows CI lane runs it
-  yet; see `docs/ci-lanes.md`.
-- Binaries are 85 to 111 MB (the Bun runtime is embedded); about 37 to 53 MB gzipped.
+- **Windows**: `qqq-windows-x64.exe` is cross-compiled and not Authenticode-signed (James's certificate,
+  see the runbook), so SmartScreen warns on first run ("More info", "Run anyway"); Scoop installs are not
+  affected. Sign-ins use DPAPI through PowerShell. **Unverified**: it has never run; the Windows CI lane
+  (`docs/ci-lanes.md`, `scripts/verify-binary.ps1`) is the first place it will.
+- **macOS x64**: cross-compiled and **unverified** (no Intel Mac or Rosetta here) until the CI lanes run.
+- Binaries with the UI are 100.6 MB (darwin-arm64) to 129.2 MB (windows-x64); the Bun runtime is embedded.
 
 ## The terminal UI (`qqq ui`)
 
@@ -61,14 +67,16 @@ the React renderer sits on top. Three ways to ship it were tried on 2026-10-31 (
 Sizes, CLI only → with the UI: darwin-arm64 84.8 → 100.8 MB, darwin-x64 95.1 → 111.8 MB, linux-x64
 105.5 → 123.3 MB, linux-arm64 105.6 → 122.3 MB, windows-x64 111.4 → 129.5 MB, linux musl about 98 →
 122 to 125 MB. The UI adds 16 to 18 MB (the native library is 6.6 MB on darwin-arm64; the rest is React,
-OpenTUI and a second copy of the CLI program that the TUI imports from `@qrun-io/qqq-cli/program`).
+OpenTUI and its React renderer).
 
 Not verified: the Windows and macOS x64 builds with the UI (cross-compiled, never run; Windows Terminal
-was never checked even for the spike), and Linux glibc arm64 with the UI.
+was never checked even for the spike). Linux glibc arm64 with the UI passed the Docker tmux check before
+the 98e426b merge, linux-x64 and linux-arm64-musl after it.
 
-**Recommendation:** ship one `qqq` binary per platform with the UI bundled (`--with-tui`) as the 1.0
-artifact, from the same release, Homebrew formula, Scoop manifest and installer: one download, `qqq ui`
-just works, 16 to 18 MB more. The npm package stays CLI only for Node users and says how to get the UI.
-Before that: a Windows x64 lane that runs `qqq ui --check` and a scripted session, and point the TUI's
-`@qrun-io/qqq-cli/program` import at the source so the program is bundled once. `release.mjs --with-tui`
-builds that way today; the default stays CLI only until the decision is made.
+**Decision (James, 2026-10-31):** one `qqq` binary per platform with the UI is the release artifact,
+from the same release, Homebrew formula, Scoop manifest and installer. `npm run binaries` and
+`release.mjs` bundle the UI by default (`--cli-only` is the escape hatch). Both binary entries start the
+built CLI (`packages/cli/dist`), the module the TUI imports as `@qrun-io/qqq-cli/program`, so the CLI
+program is bundled once; that saved only 0.3 MB (darwin-arm64 100.8 → 100.5 MB), because the program
+is small next to React, OpenTUI and its native library. After the TUI batch merge (98e426b) the with-UI
+darwin-arm64 binary is 100.6 MB and passes `smoke.sh` and `smoke-widths.sh`.

@@ -69,6 +69,15 @@ need an orb release (0.8.x patch) before this repository picks them up.
 > diff `packages/core/src/api/operations.ts` next to `schema.ts`. Workaround until then: publish core
 > by hand right after the orb job (`scripts/release.mjs` prints the command).
 >
+> **1b. Final versions as `latest` (needed for 1.0.0).** `cli_publish.sh` always publishes with
+> `--tag rc`, so 1.0.0 would land under `rc` and `npm install @qrun-io/qqq-cli` would not pick it.
+> Use `--tag rc` only when the version has a prerelease part:
+>
+> ```bash
+> tag=rc; [[ "$(node -p "require('./packages/cli/package.json').version")" == *-* ]] || tag=latest
+> npm publish -w @qrun-io/qqq-ui-api-client --registry https://npm.pkg.github.com --tag "$tag"   # same for the others
+> ```
+>
 > **2. Opt-in platform lanes (not blocking 1.0.0-rc.1, wanted before 1.0).** The CLI ships binaries for
 > macOS, Linux and Windows and has three keyring backends, but CI runs only Linux. Proposal: a new orb
 > job `cli_platform` (the YAML below) and a manifest key `platforms: [macos-arm64, windows-x64]` that
@@ -168,12 +177,13 @@ jobs:
           name: Binary for this platform
           command: node scripts/build-binaries.mjs --no-build --host
       - run:
-          name: Binary smoke
+          name: Binary smoke (scripts/verify-binary.sh / .ps1)
           command: |
-            ./dist/<< parameters.binary >> --version
-            ./dist/<< parameters.binary >> __complete -- ta | grep -q table
-            ./dist/<< parameters.binary >> completion pwsh > /dev/null
-            QQQ_CONFIG_DIR="$PWD/.smoke" ./dist/<< parameters.binary >> config profile list
+            if [[ "$OSTYPE" == darwin* ]]; then
+              scripts/verify-binary.sh ./dist/<< parameters.binary >>
+            else
+              powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-binary.ps1 -Binary dist/<< parameters.binary >>
+            fi
       - store_artifacts:
           path: dist
 
@@ -189,6 +199,15 @@ workflows:
           platform: windows-x64
           binary: qqq-windows-x64.exe
 ```
+
+The smoke is `scripts/verify-binary.sh` (macOS, Linux) or `scripts/verify-binary.ps1` (Windows):
+version with `binary with ui`, completion, `qqq ui --check` naming the build, and with `--server` /
+`-Server` also login, doctor, whoami, a query and a process run. Without a QQQ server in CI the lanes
+run the offline half; a lane with the sample server (Java 21) or a Prism mock can add `--server`. Both
+scripts were run here: the `.sh` on darwin-arm64 (file keyring and the macOS Keychain) and in Debian
+amd64, the `.ps1` with PowerShell 7 in `mcr.microsoft.com/powershell` on the linux-x64 binary, all
+against the sample server. Neither has run on Windows: **Windows x64 and macOS x64 are unverified
+until these lanes run.**
 
 Notes on the YAML: Windows runs steps in Git Bash (`shell: bash.exe`), so the same commands work on
 both lanes; `nvm` comes with the Windows image; `QQQ_CONFIG_DIR` keeps the smoke away from the agent's

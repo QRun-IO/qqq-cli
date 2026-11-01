@@ -13,6 +13,8 @@
 import { Command, CommanderError } from 'commander'
 import { Context, EXIT, describeError, io } from './context.js'
 import { versionText } from './version.js'
+
+export { buildDescription } from './version.js'
 import { registerApi } from './commands/api.js'
 import { registerAudit } from './commands/audit.js'
 import { registerAuth } from './commands/auth.js'

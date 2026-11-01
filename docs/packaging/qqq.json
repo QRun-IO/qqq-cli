@@ -1,15 +1,24 @@
 {
     "version": "1.0.0-rc.1",
-    "description": "Command-line client for QQQ applications, built on the QQQ UI API",
+    "description": "Command-line client and terminal UI (qqq ui) for QQQ applications, in one binary",
     "homepage": "https://github.com/QRun-IO/qqq-cli",
     "license": "Apache-2.0",
+    "notes": [
+        "qqq ui (the terminal UI) needs Windows Terminal or another ConPTY terminal; the legacy console is not supported.",
+        "Sign in with: qqq login --server https://your-qqq-server"
+    ],
     "architecture": {
         "64bit": {
             "url": "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v1.0.0-rc.1/qqq-windows-x64.exe",
             "hash": "0000000000000000000000000000000000000000000000000000000000000000"
         }
     },
-    "bin": [["qqq-windows-x64.exe", "qqq"]],
+    "bin": [
+        [
+            "qqq-windows-x64.exe",
+            "qqq"
+        ]
+    ],
     "checkver": {
         "github": "https://github.com/QRun-IO/qqq-cli",
         "regex": "cli-v([\\d.]+(?:-rc\\.\\d+)?)"

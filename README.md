@@ -16,22 +16,29 @@ The repository also holds the libraries the CLI is built on, for anyone writing 
 | [`@qrun-io/qqq-core`](packages/core) | 1.0.0-rc.1 | the client kernel: sessions and keyring, metadata cache, filter grammar, forms, processes, records, render model, output formats. No terminal code |
 | [`@qrun-io/qqq-ui-api-client`](packages/ui-api-client) | 1.8.0-rc.2 | a typed TypeScript client generated from the merged UI API document (core plus 13 extensions), with OAuth2 device-flow and PKCE sign-in, token refresh and the realtime (SSE) stream |
 | [`@qrun-io/qqq-ui-api-conformance`](packages/conformance) | 1.6.0-rc.2 | a read-only conformance suite for any UI API server, and `qqq-dev-idp`, a local OIDC provider for testing native clients |
-| [`packages/tui`](packages/tui) | not released | `qqq ui`, the full-screen terminal UI (OpenTUI on Bun), in development |
+| [`packages/tui`](packages/tui) | in the binaries | `qqq ui`, the full-screen terminal UI (OpenTUI on Bun), bundled into every `qqq` binary; not an npm package |
 
 ## Install
 
-A single-file binary (no Node needed) for macOS (arm64, x64), Linux (x64, arm64; glibc, and musl for
-Alpine) or Windows (x64), from the [releases](https://github.com/QRun-IO/qqq-cli/releases):
+A single-file binary with the CLI and the terminal UI (`qqq ui`), no Node or Bun needed, for macOS
+(arm64, x64), Linux (x64, arm64; glibc, and musl for Alpine) or Windows (x64), from the
+[releases](https://github.com/QRun-IO/qqq-cli/releases):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh   # to ~/.local/bin
 ```
 
 The installer picks the right build and checks it against the release's `SHA256SUMS`
-(`--version 1.0.0-rc.1`, `--dir /usr/local/bin`). Homebrew and Scoop packages are drafted in
-[`docs/packaging`](docs/packaging/README.md) and land with the release.
+(`--version 1.0.0-rc.1`, `--dir /usr/local/bin`). Homebrew (`brew install qrun-io/tap/qqq`) and Scoop
+packages are prepared in [`docs/packaging`](docs/packaging/README.md) and land with the release.
 
-Or from npm (GitHub Packages), with Node.js 20 or later:
+**macOS, downloaded with a browser:** until the binaries are notarized, Gatekeeper stops a binary that a
+browser downloaded ("cannot be opened because Apple cannot check it for malicious software"). Clear the
+download flag once with `xattr -d com.apple.quarantine ./qqq-darwin-arm64` (or right-click, Open, in
+Finder). Homebrew and the installer above are not affected. On Windows, SmartScreen may warn about the
+unsigned `.exe` on first run (More info, Run anyway).
+
+Or the CLI alone from npm (GitHub Packages), with Node.js 20 or later (no `qqq ui`; it says where to get it):
 
 ```sh
 echo "@qrun-io:registry=https://npm.pkg.github.com" >> ~/.npmrc
@@ -60,7 +67,9 @@ $ qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5
   list|use|remove`. The first sign-in becomes the default.
 - **Sign-ins** live in the OS keyring: macOS Keychain, Secret Service on Linux, DPAPI on Windows, or a
   0600 file with `QQQ_KEYRING=file` (headless hosts). `QQQ_TOKEN` overrides everything with a bearer token.
-- `qqq doctor` checks the connection, the sign-in and the terminal.
+- `qqq doctor` checks the connection, the sign-in and the terminal, and its first line names the build
+  (version, binary with or without the UI, runtime, platform) for support.
+- `qqq ui` opens the full-screen terminal UI on the same profile (`qqq ui table query person`, `qqq ui --check`).
 
 ## The grammar
 
@@ -100,7 +109,7 @@ filter, 3 auth, 4 server unreachable or rate limited, 5 not found, 6 validation,
 - [`docs/extensions.md`](docs/extensions.md): the extension documents merged into the client
 - [`docs/server-findings.md`](docs/server-findings.md): UI API issues found while building the clients
 - [`docs/review-2026-10-31.md`](docs/review-2026-10-31.md): the hardening review of the CLI and kernel
-- [`docs/packaging`](docs/packaging/README.md) and [`docs/ci-lanes.md`](docs/ci-lanes.md): install paths, release and CI
+- [`docs/release-runbook.md`](docs/release-runbook.md), [`docs/packaging`](docs/packaging/README.md) and [`docs/ci-lanes.md`](docs/ci-lanes.md): releasing, install paths and CI
 - [`packages/core/README.md`](packages/core/README.md): the kernel's modules
 - QQQ's [`UI-API-CLIENTS.md`](https://github.com/QRun-IO/qqq/blob/develop/docs/UI-API-CLIENTS.md) and
   [`UI-API-CHANGELOG.md`](https://github.com/QRun-IO/qqq/blob/develop/docs/UI-API-CHANGELOG.md): the API itself
@@ -144,8 +153,9 @@ npm run build && npm test && npm run lint
 npm run test:tui                     # the TUI's tests (Bun 1.4+)
 npm run generate                     # regenerate the client and the operations index from the document
 npm run spec:merge-extensions        # remerge the extension documents (sample server running)
-npm run binaries                     # dist/qqq-<os>-<arch>[.exe] and SHA256SUMS (Bun 1.4+); --host, --musl
+npm run binaries                     # dist/qqq-<os>-<arch>[.exe] with the UI, and SHA256SUMS (Bun 1.4+); --host, --musl, --cli-only
 npm run release                      # every release check, then the tag and publish commands (prints only)
+scripts/verify-binary.sh dist/qqq-darwin-arm64 --server http://localhost:8077   # smoke a binary
 ```
 
 The CLI runs on Node 20 and later and uses no Bun-only API; Bun is needed only to build the binaries
