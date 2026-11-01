@@ -228,6 +228,8 @@ function valueTextWithoutTooltip(field: FieldMeta, record: RecordLike, options: 
     const widgetName = typeof widget.values?.widgetName === 'string' ? widget.values.widgetName : ''
     if (options.widgets && !options.widgets[widgetName]) return { text: `Error: Could not load widget [${widgetName}]`, adornment: 'WIDGET', error: true }
     if (raw === null || raw === undefined) return { text: empty, adornment: 'WIDGET' }
+    // a plain value (not a widget payload) is shown as it is
+    if (typeof raw !== 'object') return { text: str(display ?? raw), adornment: 'WIDGET' }
     const text = blocksToText(widgetToBlocks(raw), { width: 80 })
     return { text: text || str(raw), adornment: 'WIDGET' }
   }
