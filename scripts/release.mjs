@@ -121,7 +121,7 @@ ${PUBLISHED.map((dir) => `  npm publish -w ${versions[dir].name} --registry ${re
 
   # 3. the binaries with their checksums (${prerelease ? "a prerelease" : "the latest release"})
   gh release create ${cliTag} --repo QRun-IO/qqq-cli ${releaseKind} --title "qqq ${cli.version}" \\
-    --notes-file <(sed -n '/^## \\[${cli.version.replace(/\./g, '\\.')}\\]/,/^## \\[/p' CHANGELOG.md | sed '$d') \\
+    --notes-file ${existsSync(join(root, `docs/release-notes/${cli.version}.md`)) ? `docs/release-notes/${cli.version}.md` : `<(sed -n '/^## \\[${cli.version.replace(/\./g, '\\.')}\\]/,/^## \\[/p' CHANGELOG.md | sed '$d')`} \\
     dist/qqq-* dist/SHA256SUMS
 
   # 4. node scripts/update-packaging.mjs <SHA256SUMS of the GitHub release>, then copy
