@@ -24,20 +24,20 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 
 ## Summary (TUI column)
 
-| Family | rows | pass | todo | partial | n/a |
-|---|---|---|---|---|---|
-| HLP | 6 | 1 | 4 | 1 | 0 |
-| INT | 14 | 9 | 0 | 1 | 4 |
-| NAV | 40 | 17 | 0 | 6 | 17 |
-| PRC | 60 | 38 | 2 | 7 | 13 |
-| PRF | 5 | 4 | 0 | 1 | 0 |
-| QRY | 70 | 41 | 8 | 13 | 8 |
-| REC | 65 | 44 | 3 | 14 | 4 |
-| REL | 9 | 6 | 0 | 3 | 0 |
-| RPT | 20 | 0 | 20 | 0 | 0 |
-| SEC | 43 | 7 | 23 | 1 | 12 |
-| WID | 69 | 13 | 43 | 2 | 11 |
-| **all** | 401 | 180 | 103 | 49 | 69 |
+| Family | rows | pass | todo | partial | blocked | n/a |
+|---|---|---|---|---|---|---|
+| HLP | 6 | 1 | 4 | 1 | 0 | 0 |
+| INT | 14 | 9 | 0 | 1 | 0 | 4 |
+| NAV | 40 | 17 | 0 | 6 | 0 | 17 |
+| PRC | 60 | 39 | 1 | 7 | 0 | 13 |
+| PRF | 5 | 4 | 0 | 1 | 0 | 0 |
+| QRY | 70 | 48 | 0 | 13 | 1 | 8 |
+| REC | 65 | 46 | 1 | 14 | 0 | 4 |
+| REL | 9 | 6 | 0 | 3 | 0 | 0 |
+| RPT | 20 | 0 | 20 | 0 | 0 | 0 |
+| SEC | 43 | 7 | 23 | 1 | 0 | 12 |
+| WID | 69 | 13 | 43 | 2 | 0 | 11 |
+| **all** | 401 | 190 | 92 | 49 | 1 | 69 |
 
 ## Rows
 
@@ -131,7 +131,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | PRC-041 | Expired session mid-process returns to sign-in | pass | pass | UNAUTHENTICATED exits 3 with the sign-in hint; TUI: a 401 shows the error; :signout and F9 sign in again |
 | PRC-042 | Process permission enforcement | pass | pass | server-enforced; TUI: hidden processes are not offered; the server refuses the rest |
 | PRC-043 | Default process values from the link (defaultProcessValues) | pass | pass | -v values seed every step; TUI: :process run P -v name=value seeds the values |
-| PRC-044 | Scanner-format screens: no heading or action bar, input blocks submit | n/a | todo | scanner screens are interactive; TUI: scanner-format screens |
+| PRC-044 | Scanner-format screens: no heading or action bar, input blocks submit | n/a | pass | scanner screens are interactive; TUI: scanner-format steps: no heading or step list, Enter in the input submits (unit-tested only; no sample scanner process) |
 | PRC-045 | State-machine step flow: repeated screens, no linear stepper | pass | pass | the runner follows nextStep whatever the flow; TUI: the runner follows nextStep whatever the flow |
 | PRC-046 | Saved bulk load profiles: save, choose for a later load, delete | todo | n/a | saved bulk load profiles; TUI: bulk load parked for the TUI |
 | PRC-047 | A run with no frontend screens completes with a completion screen | pass | pass | completes on init |
@@ -152,7 +152,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | QRY-091 | Column menu copies page or full query values in backend sort order | n/a | n/a | saved views and column UI; TUI: clipboard copy of column values |
 | QRY-092 | Column chooser searches, groups, counts and marks changed layouts | n/a | partial | saved views and column UI; TUI: v lists every column with on/off; no grouping or counts |
 | QRY-093 | Last saved view and unsaved edits survive reopening and reload | n/a | pass | no screen state to keep: views are opened by name; TUI: view settings (columns, widths, sort) persist per table |
-| QRY-094 | Counted quick views render and open their saved-view route | partial | todo | saved-view list counts quick views with doCount (--counts counts all); TUI: counted quick views |
+| QRY-094 | Counted quick views render and open their saved-view route | partial | pass | saved-view list counts quick views with doCount (--counts counts all); TUI: doCount views show their record counts in F9 Saved views (unit-tested only; no sample saved views) |
 | QRY-095 | A new query defaults to fifty rows per page | n/a | n/a | saved views and column UI; TUI: page size follows the terminal height |
 | QRY-096 | A saved view reconciles removed fields and warns the user | partial | partial | opening a view drops removed fields with Material's warnings on stderr; TUI: viewToQuery warnings flashed |
 | QRY-001 | Record list renders metadata labels and all records in the default primary-key-descending order | pass | pass | default order by primary key |
@@ -172,14 +172,14 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | QRY-017 | Filters live in the URL: reload, back/forward and Material-style JSON links | pass | partial | --print-filter gives the JSON the web links accept; TUI: the grammar and the CLI command are shown and copied; no URL |
 | QRY-018 | Backend-only operators from links render and filter correctly | pass | pass | any operator in --where; TUI: More operators… offers every operator |
 | QRY-019 | Quick search combines with the advanced filter | pass | pass | --search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter; TUI: q quick search ANDed onto the filter (kernel) |
-| QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | partial | todo | --join and table.field in --fields/--where/--order, labelled "Join: Field"; the sample exposes no joins, verified through an association join (person to pet); TUI: exposed joins in the grid |
-| QRY-021 | Many-side exposed join repeats rows and reports the distinct count | pass | todo | a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct); TUI: exposed joins in the grid |
+| QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | partial | pass | --join and table.field in --fields/--where/--order, labelled "Join: Field"; the sample exposes no joins, verified through an association join (person to pet); TUI: joined columns and filters, labelled "Join: Field", joins planned by the kernel (unit-tested only; the sample exposes no joins) |
+| QRY-021 | Many-side exposed join repeats rows and reports the distinct count | pass | pass | a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct); TUI: many-side join: rows repeat and the status shows the distinct count (unit-tested only) |
 | QRY-022 | Column statistics aggregate the filtered rows | partial | partial | qqq table stats <t> <field> [-w …] through the columnStats process; the sample has neither QUERY_STATS nor the process, so --local (same figures from the matching rows) is what was verified; TUI: S runs kernel column statistics; the sample has no QUERY_STATS table |
 | QRY-023 | Tables without QUERY_STATS offer no column statistics | pass | pass | without QUERY_STATS (or the process) table stats exits 2 with the reason; --local is an explicit opt-in; TUI: the refusal says why |
 | QRY-030 | Selection menu: this page, full query result, first N, clear | pass | partial | -r ids, --filter-json, --limit; TUI: Space, Ctrl+A for the page; no full-result or first-N selection |
 | QRY-031 | Bulk Edit launches with the checked record ids | todo | pass | bulk edit |
 | QRY-032 | Bulk Delete of the full query result sends the whole filter | todo | partial | bulk delete; TUI: bulk delete on the selection; without a selection the process gets the filter |
-| QRY-033 | First-N selection under a filter launches with that limit | pass | todo | process run --filter-json with limit; TUI: first-N selection |
+| QRY-033 | First-N selection under a filter launches with that limit | pass | pass | process run --filter-json with limit; TUI: run a table process on the first N records of the result (filter with a limit; unit-tested only) |
 | QRY-034 | Actions menu offers bulk load, bulk processes and table processes | todo | partial | process list --table; TUI: F9 and b list table processes; bulk load parked |
 | QRY-035 | Viewers get no create, bulk or process actions and the backend refuses them | pass | pass | server refuses; exit 3; TUI: F-keys and entries hidden without permission; the server refuses |
 | QRY-040 | CSV export has visible columns in order and exactly the filtered, sorted rows | pass | pass | table export: filtered (--where, --group, --search), sorted (--order), --fields in column order, --limit, --out -; TUI: x: visible columns, filter and sort, file dialog |
@@ -203,15 +203,15 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | QRY-069 | Pagination numbers are locale formatted in the shown range and the total | n/a | pass | locale formatting; TUI: counts with en-US separators |
 | QRY-070 | Query screen keyboard shortcuts n (new record), r (refresh the query), f (open the filter builder) | n/a | pass | shortcuts; TUI: n r f s and the F-keys; off with keyboard.singleKeyShortcuts |
 | QRY-071 | Processes launched from a variant table run with the chosen variant (tableVariant on init and every step) and  | partial | partial | process run --variant: tableVariant on init, every step and status; sent live, no variant table to observe; TUI: processes from a variant grid get tableVariant through the runner; no sample variant table |
-| QRY-080 | Basic mode displays default quick filters from table metadata and applies their criteria | n/a | todo | quick filters UI; TUI: basic-mode quick filters |
-| QRY-081 | Add quick filter accepts metadata fields and remembers a chosen field | n/a | todo | TUI: quick filter fields |
+| QRY-080 | Basic mode displays default quick filters from table metadata and applies their criteria | n/a | pass | quick filters UI; TUI: the filter dialog starts with the quick filter fields (defaultQuickFilterFieldNames, else T1); live on person |
+| QRY-081 | Add quick filter accepts metadata fields and remembers a chosen field | n/a | pass | TUI: add a quick filter field; kept per table in the local view settings |
 | QRY-082 | Basic mode cannot simplify repeated or nested advanced conditions and explains why | n/a | n/a | TUI: the guided builder shows every condition; no basic mode |
 | QRY-083 | Advanced query shows and removes individual conditions (Next inline editor) | n/a | pass | TUI: guided builder edits and removes conditions |
 | QRY-084 | Sort picker changes field and direction; clearing filters requires confirmation and keeps the sort | n/a | pass | TUI: sort in the builder; c clears |
-| QRY-085 | Weekday criteria use the metadata-enabled date function and ISO weekday values | todo | todo | weekday criteria; TUI: weekday criteria |
+| QRY-085 | Weekday criteria use the metadata-enabled date function and ISO weekday values | todo | blocked | weekday criteria; TUI: weekday(field) IN days sent as the WeekdayOf fieldFunction; the sample H2 backend fails it (server finding 23) |
 | QRY-086 | Relative date presets expose their evaluated date and filter records | pass | pass | expressions |
 | QRY-087 | Bulk pasted values become a multi-value filter | pass | pass | IN lists; quoted values; TUI: IN takes a pasted comma list |
-| QRY-088 | Instance query help accompanies the bulk paste dialog | n/a | todo | TUI: bulk paste help |
+| QRY-088 | Instance query help accompanies the bulk paste dialog | n/a | pass | TUI: paste values split on commas, tabs, semicolons, new lines; the instance bulkAddFilterValues help shown (unit-tested only; the sample has no such help) |
 | QRY-089 | String filter input honors field case behavior from v1 metadata | pass | pass | behaviors; TUI: behaviors applied to typed values |
 | QRY-008 | Phone card list: readable records, touch-sized selection, query selections and paging | n/a | n/a | phone layout |
 | QRY-009 | Phone filter sheet fits the viewport, scrolls inside and manages focus | n/a | n/a | phone layout |
@@ -289,8 +289,8 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REC-061 | An editable dynamicForm widget on a record form validates its fields and persists them in the declared JSON re | todo | todo | TUI: dynamicForm widget editing |
 | REC-062 | Inline enum possible values filter by label prefix without a lookup request; CHIP adornments style options and | pass | pass | inline enums; TUI: inline enums filter locally |
 | REC-060 | Material table and field form adjusters and field rules operate against the real QQQ sample server | todo | partial | adjusters wired, no sample to test; TUI: adjusters wired through FormSession; no sample adjuster |
-| REC-064 | Record sections render qualified fields from readable exposed joins | partial | todo | table get --join adds joined fields (queryJoins); verified with an association join; TUI: exposed-join fields in sections |
-| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | todo | get, copy and update -i read with --variant; v1 writes ignore it (server finding #19); TUI: record view and forms with the grid variant |
+| REC-064 | Record sections render qualified fields from readable exposed joins | partial | pass | table get --join adds joined fields (queryJoins); verified with an association join; TUI: section fields of readable exposed joins read through a joined query (unit-tested only) |
+| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | pass | get, copy and update -i read with --variant; v1 writes ignore it (server finding #19); TUI: records and forms opened from a variant grid read with tableVariant (unit-tested only; writes ignore it, finding 19) |
 | REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | pass | pass | an unchanged wall-clock time keeps the original instant and its precision; TUI: DATE_TIME edited in local zone, unchanged instants kept |
 | SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | todo |  |
 | SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | todo | disabled tables listed with a reason |

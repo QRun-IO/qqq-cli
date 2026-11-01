@@ -13,6 +13,7 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else 'docs/parity/feature-matrix.md'
 
 # id -> (cli, note) ; family default is todo
 P, T, N, X = 'pass', 'todo', 'partial', 'n/a'  # T is the default and the common case
+B = 'blocked'  # waits on a server finding or issue, named in the note
 STATUS = {
  # NAV: the CLI has no shell; the TUI covers these in M3
  **{f'NAV-{i:03d}': (X, 'browser shell') for i in (1,2,3,4,5,12,13,14,15,16,18,19,20,21,22,26,29,32,33,34,35,36,37,38,55,56)},
@@ -184,6 +185,21 @@ TUI.update({
  'REC-063': (T, 'record view and forms with the grid variant'), 'REC-064': (T, 'exposed-join fields in sections'), 'REC-065': (P, 'DATE_TIME edited in local zone, unchanged instants kept'),
 })
 
+# Batch: the 13 priority todos.
+TUI.update({
+ 'PRC-044': (P, 'scanner-format steps: no heading or step list, Enter in the input submits (unit-tested only; no sample scanner process)'),
+ 'QRY-094': (P, 'doCount views show their record counts in F9 Saved views (unit-tested only; no sample saved views)'),
+ 'QRY-020': (P, 'joined columns and filters, labelled "Join: Field", joins planned by the kernel (unit-tested only; the sample exposes no joins)'),
+ 'QRY-021': (P, 'many-side join: rows repeat and the status shows the distinct count (unit-tested only)'),
+ 'REC-064': (P, 'section fields of readable exposed joins read through a joined query (unit-tested only)'),
+ 'QRY-033': (P, 'run a table process on the first N records of the result (filter with a limit; unit-tested only)'),
+ 'QRY-080': (P, 'the filter dialog starts with the quick filter fields (defaultQuickFilterFieldNames, else T1); live on person'),
+ 'QRY-081': (P, 'add a quick filter field; kept per table in the local view settings'),
+ 'QRY-085': (B, 'weekday(field) IN days sent as the WeekdayOf fieldFunction; the sample H2 backend fails it (server finding 23)'),
+ 'QRY-088': (P, 'paste values split on commas, tabs, semicolons, new lines; the instance bulkAddFilterValues help shown (unit-tested only; the sample has no such help)'),
+ 'REC-063': (P, 'records and forms opened from a variant grid read with tableVariant (unit-tested only; writes ignore it, finding 19)'),
+})
+
 rows = []
 for line in open(SRC, encoding='utf-8', errors='replace'):
     m = re.match(r'^\|\s*([A-Z]{3}-\d{3})\s*\|\s*(.*?)\s*\|', line)
@@ -218,12 +234,12 @@ for fam in sorted(fam_counts):
     out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[X]} |')
 out.append(f'| **all** | {sum(total.values())} | {total[P]} | {total[T]} | {total[N]} | {total[X]} |'); out.append('')
 out.append('## Summary (TUI column)'); out.append('')
-out.append('| Family | rows | pass | todo | partial | n/a |'); out.append('|---|---|---|---|---|---|')
+out.append('| Family | rows | pass | todo | partial | blocked | n/a |'); out.append('|---|---|---|---|---|---|---|')
 ttotal = collections.Counter()
 for fam in sorted(tui_counts):
     c = tui_counts[fam]; ttotal.update(c)
-    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[X]} |')
-out.append(f'| **all** | {sum(ttotal.values())} | {ttotal[P]} | {ttotal[T]} | {ttotal[N]} | {ttotal[X]} |'); out.append('')
+    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[B]} | {c[X]} |')
+out.append(f'| **all** | {sum(ttotal.values())} | {ttotal[P]} | {ttotal[T]} | {ttotal[N]} | {ttotal[B]} | {ttotal[X]} |'); out.append('')
 out.append('## Rows'); out.append(''); out.append('| ID | Feature | CLI | TUI | Note |'); out.append('|---|---|---|---|---|')
 out.extend(lines); out.append('')
 open(OUT, 'w', encoding='utf-8').write('\n'.join(out))
