@@ -5,6 +5,10 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
 
 ## [Unreleased]
 
+### Changed
+
+- TypeScript 5.8.3 to 7.0.2 (the Go-based compiler) and `@types/node` 22.15.3 to 26.6.6 across the workspace, `packages/tui` and `packages/tui-spike`. TypeScript 7 no longer loads every `@types/*` package implicitly, so `tsconfig.base.json` now lists `"types": ["node"]`; `@types/node` 26 no longer accepts an `undefined` assertion message, so one conformance test passes a real fallback message. No behaviour change.
+
 ### Fixed
 
 - The screen saver's Online tile said "nobody around" with two terminals signed in. It now counts signed-in sessions first (the session store's table: sessions active in the last 10 minutes and their users, your own included, "2 sessions · 1 user (you ×2)"), else you plus the people in collaboration presence; it never says nobody is around while you are signed in. The saver also keeps its presence lease on the screen under it (the extension has no idle state), so other clients see you still viewing it instead of gone. A server that stores no sessions and merges presence per user (mock auth) shows both terminals as "1 online · you".
