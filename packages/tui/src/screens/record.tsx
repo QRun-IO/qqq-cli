@@ -253,7 +253,9 @@ export class RecordScreen implements Screen {
       const valueOf = (f: FieldMetaData) => f.type === 'BLOB' && !f.adornments?.some((a) => a.type === 'FILE_DOWNLOAD') ? blobText(rec, f.name) : valueText(f as FieldMeta, rec as never, { reveal: this.revealed.has(f.name), tableNames, tableName: this.tableName, primaryKey: this.primaryKey, widgets: this.store.meta?.widgets as never }).text
       // the value column is sized once per section (first record shown) and kept while stepping records
       const frozenKey = `${s.name}|${inner}`
-      if (!this.sectionWidths.has(frozenKey)) this.sectionWidths.set(frozenKey, Math.max(...fields.map((f) => valueOf(f).length + (linkTarget(this.store, f) ? 2 : 0)), 12))
+      // from the field set (type widths), and the first record's values; kept while stepping
+      const typeWidth = (f: FieldMetaData) => (f.type === 'DATE_TIME' ? 30 : f.type === 'DATE' ? 10 : f.type === 'TIME' ? 8 : f.type === 'BOOLEAN' ? 5 : ['INTEGER', 'LONG', 'DECIMAL'].includes(f.type) && !f.possibleValueSourceName ? 14 : Math.min(40, Number((f as { maxLength?: number }).maxLength ?? 24)))
+      if (!this.sectionWidths.has(frozenKey)) this.sectionWidths.set(frozenKey, Math.max(...fields.map((f) => Math.max(typeWidth(f), valueOf(f).length) + (linkTarget(this.store, f) ? 2 : 0)), 12))
       const longest = this.sectionWidths.get(frozenKey)!
       const colWidth = Math.min(60, labelWidth + 2 + longest)
       const two = (view.recordColumns ?? (inner >= 2 * colWidth + 6 ? 2 : 1)) === 2 && inner >= 2 * Math.min(colWidth, 30) + 6
