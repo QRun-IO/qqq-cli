@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 # qqq: the QQQ command-line client and terminal UI (qqq ui) in one binary.
 # Kept in qqq-cli at docs/packaging/homebrew-tap/Formula/qqq.rb; scripts/update-packaging.mjs fills
 # version and sha256 from the SHA256SUMS of a GitHub release, then the file is copied to the tap.
 class Qqq < Formula
   desc "Command-line client and terminal UI for QQQ applications"
   homepage "https://github.com/QRun-IO/qqq-cli"
-  version "1.0.0-rc.1"
+  version "1.0.0"
   license "Apache-2.0"
 
   on_macos do

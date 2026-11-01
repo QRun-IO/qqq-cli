@@ -11,4 +11,4 @@ workflows:
           branches:
             ignore: automation/qbit-rc-pending
           tags:
-            only: /.*/
+            ignore: /.*/

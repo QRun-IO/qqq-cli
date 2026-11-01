@@ -1,5 +1,5 @@
 {
-    "version": "1.0.0-rc.1",
+    "version": "1.0.0",
     "description": "Command-line client and terminal UI (qqq ui) for QQQ applications, in one binary",
     "homepage": "https://github.com/QRun-IO/qqq-cli",
     "license": "Apache-2.0",
@@ -9,7 +9,7 @@
     ],
     "architecture": {
         "64bit": {
-            "url": "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v1.0.0-rc.1/qqq-windows-x64.exe",
+            "url": "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v1.0.0/qqq-windows-x64.exe",
             "hash": "0000000000000000000000000000000000000000000000000000000000000000"
         }
     },

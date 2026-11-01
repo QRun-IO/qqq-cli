@@ -10,9 +10,9 @@ CLI only and tells you where to get the UI. The full release sequence is in
 
 | File | What | Where it goes |
 |---|---|---|
-| `scripts/install.sh` | curl installer: picks `qqq-<os>-<arch>[-musl]`, checks it against `SHA256SUMS`, installs `qqq` to `~/.local/bin` (`--dir`, `--version`) | served from `main`: `curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh \| sh` |
+| `scripts/install.sh` | curl installer: picks `qqq-<os>-<arch>[-musl]` of the newest stable `cli-v*` release (`--pre` for prereleases, `--version` to pin), checks it against `SHA256SUMS`, installs `qqq` to `~/.local/bin` (`--dir`; `--dry-run` prints the URL; `--help`) | served from `main`: `curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh \| sh` |
 | `homebrew-tap/` | the whole `QRun-IO/homebrew-tap` repository, ready to copy: `Formula/qqq.rb` (macOS arm64 and x64, Linux arm64 and x64; installs only `bin/qqq` plus bash, zsh and fish completions; its test insists on `binary with ui`), README, LICENSE, and the qqq-orb `homebrew-tap` CI profile | a new repository `QRun-IO/homebrew-tap` (`brew install qrun-io/tap/qqq`) |
-| `qqq.json` | Scoop manifest for the with-UI Windows x64 binary, same shape as qctl's, `checkver` and `autoupdate` reading `SHA256SUMS` | `bucket/qqq.json` in a QRun-IO Scoop bucket |
+| `qqq.json` | Scoop manifest for the with-UI Windows x64 binary, same shape as qctl's, `checkver` and `autoupdate` reading `SHA256SUMS` | `bucket/qqq.json` in `QRun-IO/scoop-bucket` (`scoop bucket add qrun https://github.com/QRun-IO/scoop-bucket; scoop install qqq`) |
 | `scripts/update-packaging.mjs` | fills version and sha256 in `homebrew-tap/Formula/qqq.rb` and `qqq.json` from a release's `SHA256SUMS` | run after each release |
 | `scripts/verify-binary.sh`, `scripts/verify-binary.ps1` | smoke of an installed or downloaded binary: version (with ui), whoami, query, process run, `ui --check` | CI lanes and after-publish checks |
 
@@ -24,14 +24,23 @@ change this machine's Homebrew).
 
 See [`docs/release-runbook.md`](../release-runbook.md). In short: `node scripts/release.mjs`, tag, GitHub
 release with `dist/qqq-*` and `dist/SHA256SUMS`, `node scripts/update-packaging.mjs <that SHA256SUMS>`,
-copy `homebrew-tap/Formula/qqq.rb` to the tap and `qqq.json` to the bucket. Use the uploaded sums, not a
+copy `homebrew-tap/Formula/qqq.rb` to the tap and `qqq.json` to the bucket (the bucket's Excavator
+also picks up new releases by itself). Use the uploaded sums, not a
 local rebuild: each build stamps its commit, so checksums differ between builds.
 
 ## Where the formula and manifest live
 
-The tap is new: `QRun-IO/homebrew-tap`, laid out under `homebrew-tap/` here (James creates the repository
-by copying that directory). qctl stays in `QRun-IO/homebrew-qctl` until it moves over. The Scoop
-manifest goes into a bucket repository (`QRun-IO/scoop-bucket`, to create the same way) or next to qctl's.
+- **`QRun-IO/homebrew-tap`** is laid out under `homebrew-tap/` here (the repository is created by copying
+  that directory). Its CI is the qqq-orb `homebrew-tap` profile (`.qqq-ci.yml`, with the same setup
+  `.circleci/config.yml` as `QRun-IO/homebrew-qctl`). That CI fetches and checksums every platform's
+  download, but it installs the formula and runs `brew test` with the **Linux x64 binary only**; the
+  macOS (and Linux arm64) binaries are not executed there. qctl stays in `QRun-IO/homebrew-qctl` until it
+  moves over.
+- **`QRun-IO/scoop-bucket`** is created from
+  [ScoopInstaller/BucketTemplate](https://github.com/ScoopInstaller/BucketTemplate), with `qqq.json` as
+  `bucket/qqq.json`. Its CI is the template's GitHub Actions (manifest tests), and the template's
+  Excavator workflow runs `checkver`/`autoupdate` on a schedule, so a new `cli-v*` release updates the
+  manifest (version and hash from `SHA256SUMS`) without a manual pull request.
 
 ## Platform notes
 
