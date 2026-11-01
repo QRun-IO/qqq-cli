@@ -9,10 +9,17 @@ What ships:
 | Artifact | Version for 1.0 | Where | Made by |
 |---|---|---|---|
 | `qqq` binaries with the terminal UI, 7 targets, plus `SHA256SUMS` | 1.0.0 | GitHub release `cli-v1.0.0` | `scripts/build-binaries.mjs` (via `release.mjs`) |
-| `@qrun-io/qqq-cli` (CLI only, Node 20+) | 1.0.0 | GitHub Packages | the orb, on tag `v<client version>` |
-| `@qrun-io/qqq-core` | 1.0.0 | GitHub Packages | the orb once it publishes core, else by hand |
+| `@qrun-io/qqq-cli` (CLI only, Node 20+) | 1.0.0 | GitHub Packages | the orb, on tag `v1.8.0` |
+| `@qrun-io/qqq-core` | 1.0.0 | GitHub Packages | the orb (with PR #165), else by hand |
 | `@qrun-io/qqq-ui-api-client` | 1.8.0 | GitHub Packages | the orb |
 | `@qrun-io/qqq-ui-api-conformance` | 1.6.0 | GitHub Packages | the orb |
+
+**All four npm packages go final together.** The orb (PR #165) derives the dist-tag from all four
+versions: if any of client, core, conformance or CLI has a prerelease part, all four are published as
+`rc`; only when all four are final do they go out as `latest`. So 1.0.0 ships client 1.8.0 and
+conformance 1.6.0 as finals beside CLI and core 1.0.0, under the tags `v1.8.0` (orb publish) and
+`cli-v1.0.0` (GitHub release). `release.mjs` refuses a final CLI version while any of the four is still a
+prerelease (the readiness gate's "package versions" line).
 | Homebrew formula `qqq` | 1.0.0 | `QRun-IO/homebrew-tap` | `scripts/update-packaging.mjs`, then a PR |
 | Scoop manifest `qqq` | 1.0.0 | a QRun-IO Scoop bucket | `scripts/update-packaging.mjs`, then a PR |
 
@@ -22,8 +29,8 @@ Nobody else can do these; each says what happens without it.
 
 - [ ] **Orb changes merged and released** (0.8.x patch of `kingsrook/qqq-orb`, proposal in
       `docs/ci-lanes.md`): publish `@qrun-io/qqq-core`, run lint, the macOS arm64 and Windows x64 lanes,
-      and publish a final version with the `latest` dist-tag (today the orb always uses `rc`).
-      Without it: publish core by hand (step 5) and move `latest` by hand (step 5).
+      and the dist-tag rule above (PR #165, head 4119818). Without the released orb: publish core by
+      hand and move `latest` by hand (step 5).
 - [ ] **CircleCI plan** includes the `m4pro.medium` (macOS) and `windows.medium` resource classes, for
       the lanes. Without it: Windows x64 and macOS x64 ship unverified (see "Not verified" below).
 - [ ] **Apple Developer ID and notarization**: a "Developer ID Application" certificate and a notary
@@ -75,16 +82,20 @@ On a branch `release/1.0.0` from `main`:
 | `CHANGELOG.md` | a `## [1.0.0] - <date>` entry above the rc entries |
 | `README.md`, `packages/cli/README.md` | the version and `@rc` in the npm command (`@latest`, or no tag) |
 
-Then `npm install` (refreshes `package-lock.json`) and `npm run lint`, which fails if any version
-disagrees. Commit (`git commit -S -m "release: 1.0.0"`), merge to `main` through a pull request.
+All four packages move to finals in the same commit; none may stay `-rc` (the orb would then publish all
+four as `rc`, and `release.mjs` refuses). Then `npm install` (refreshes `package-lock.json`),
+`npm run lint`, which fails if any version disagrees, and `npm run release -- --check`, which must say
+READY (parity 100% in both columns, every finding filed, the CHANGELOG entry, documented commands,
+package versions). Commit (`git commit -S -m "release: 1.0.0"`), merge to `main` through a pull request.
 
 ## 3. Release check and binaries
 
 On `main` at the release commit, clean tree:
 
 ```sh
-node scripts/release.mjs        # npm ci, generate drift, build, test, lint, TUI tests and type check,
-                                # pack dry runs, the 7 binaries with the UI and dist/SHA256SUMS
+node scripts/release.mjs        # the readiness gate (final versions), npm ci, generate drift, build, test,
+                                # lint, TUI tests and type check, pack dry runs, the 7 binaries with the UI
+                                # and dist/SHA256SUMS
 scripts/verify-binary.sh dist/qqq-darwin-arm64 --server http://localhost:8077   # sample server running
 ```
 
@@ -92,37 +103,25 @@ scripts/verify-binary.sh dist/qqq-darwin-arm64 --server http://localhost:8077   
 
 ## 4. Sign (James's credentials)
 
-Signing changes the files, so it comes before the checksums are final.
+Signing changes the files, so it comes before the checksums are final. Each script reads its
+credentials from the environment, does nothing (and says what is missing) without them, has
+`--dry-run`, and recomputes `dist/SHA256SUMS`.
 
 ```sh
-# macOS, both binaries. Bun's JIT needs these entitlements; OpenTUI loads its native library at run time.
-cat > /tmp/qqq.entitlements <<'XML'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>com.apple.security.cs.allow-jit</key><true/>
-  <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
-  <key>com.apple.security.cs.disable-library-validation</key><true/>
-</dict></plist>
-XML
-for f in dist/qqq-darwin-arm64 dist/qqq-darwin-x64; do
-  codesign --force --timestamp --options runtime --entitlements /tmp/qqq.entitlements \
-    --sign "Developer ID Application: <team>" "$f"
-  ditto -c -k "$f" "$f.zip" && xcrun notarytool submit "$f.zip" --keychain-profile qqq-notary --wait && rm "$f.zip"
-done
-# a bare executable cannot be stapled: Gatekeeper looks the ticket up online on first run
-
-# Windows (signtool on Windows, or osslsigncode elsewhere)
-osslsigncode sign -pkcs12 <cert.p12> -pass "$PASS" -h sha256 -t http://timestamp.digicert.com \
-  -in dist/qqq-windows-x64.exe -out dist/qqq-windows-x64.signed.exe && mv dist/qqq-windows-x64.signed.exe dist/qqq-windows-x64.exe
-
-(cd dist && shasum -a 256 qqq-* > SHA256SUMS)          # recompute after signing
-scripts/verify-binary.sh dist/qqq-darwin-arm64         # still runs after signing
-spctl --assess --type execute -vv dist/qqq-darwin-arm64  # "accepted, source=Notarized Developer ID"
+QQQ_MACOS_SIGN_IDENTITY="Developer ID Application: <name> (<team>)" QQQ_NOTARY_PROFILE=qqq-notary \
+  scripts/sign-macos.sh            # codesign, hardened runtime + scripts/macos-entitlements.plist, notarytool --wait
+QQQ_WINDOWS_PFX=<cert.pfx> QQQ_WINDOWS_PFX_PASSWORD_FILE=<file> \
+  scripts/sign-windows.sh          # osslsigncode with an RFC 3161 timestamp
+scripts/verify-binary.sh dist/qqq-darwin-arm64 --server http://localhost:8077   # still runs after signing
+spctl --assess --type execute -vv dist/qqq-darwin-arm64   # "accepted, source=Notarized Developer ID"
 ```
 
-The entitlements are the ones Bun documents for signed executables plus library validation for the
-embedded native library; check them on the first signed build (`qqq ui` must start).
+A bare executable cannot be stapled: Gatekeeper fetches the notarization ticket online the first time a
+quarantined (browser-downloaded) copy runs, and refuses offline until it can. Homebrew and the curl
+installer do not quarantine, so they work signed or not. Tried here without real credentials: an ad-hoc
+hardened-runtime signature with the entitlements (the CLI and the `qqq ui` smoke still pass), and an
+osslsigncode signature with a throwaway certificate that verifies. A real Developer ID, notarization
+and an Authenticode certificate are untried until James's credentials are used.
 
 ## 5. Tags and packages
 
@@ -132,9 +131,9 @@ git tag -s cli-v1.0.0 -m "qqq 1.0.0"                      # the GitHub release w
 git push origin v1.8.0 cli-v1.0.0
 ```
 
-The tag `v1.8.0` makes the orb's `cli` profile verify the commit again and publish the client,
-conformance and CLI (and core, once the orb change is released) to GitHub Packages. Watch the
-`publish_release` workflow. Until the orb publishes core and final dist-tags, finish by hand:
+The tag `v1.8.0` makes the orb's `cli` profile verify the commit again and publish client, core,
+conformance and CLI to GitHub Packages, all as `latest` because all four are final. Watch the
+`publish_release` workflow. Only if the orb release with PR #165 is not out yet, finish by hand:
 
 ```sh
 npm publish -w @qrun-io/qqq-core --registry https://npm.pkg.github.com --tag latest

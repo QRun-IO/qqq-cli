@@ -19,6 +19,26 @@ changes) and the status line shows the same build id. I keep this checkout on th
 and say when a new build is ready. After a reboot, `qqq-sample-server start` again; after pulling qqq
 `develop`, `qqq-sample-server build` then `restart`.
 
+## Try the release binary (`qqq-bin`)
+
+`qqq-bin` on this machine (`~/.local/bin/qqq-bin`) is the darwin-arm64 release-candidate binary: the CLI
+and the terminal UI in one file, no Node or Bun. It is the same build a user downloads; `qqq` stays the
+from-source launcher. Both use the same profiles and keychain items.
+
+```sh
+qqq-bin --version                 # qqq 1.0.0-rc.1 (darwin-arm64 binary with ui, <commit>, bun 1.4.4)
+qqq-bin doctor                    # first line: the build, runtime and platform; then server, sign-in, terminal
+qqq-bin --profile sample ui       # the terminal UI from the binary
+qqq-bin ui --check                # the terminal check, with the build line support asks for
+qqq-bin --profile sample table query person -l 3
+scripts/verify-binary.sh ~/.local/bin/qqq-bin --server http://localhost:8077   # the whole smoke
+```
+
+A binary you download with a browser (from a GitHub release) is quarantined, and until the binaries are
+notarized macOS refuses to open it ("Apple cannot check it for malicious software"). Clear the flag once:
+`xattr -d com.apple.quarantine ./qqq-darwin-arm64`. `qqq-bin` was copied, not downloaded, so it has no flag;
+Homebrew and `scripts/install.sh` do not set it either.
+
 ## Sample server (UI API 1.8.0, mock auth, in-memory data)
 
 ```sh
