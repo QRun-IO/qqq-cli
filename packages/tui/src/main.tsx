@@ -17,6 +17,7 @@ import { createRoot } from '@opentui/react'
 import { App } from './app'
 import { boot, parseArgs } from './boot'
 import { runDoctor } from './doctor'
+import { isShutdownNoise, quietShutdownNoise } from './exit'
 
 const args = parseArgs(process.argv.slice(2))
 if (args.check === 'full') {
@@ -32,6 +33,9 @@ if (args.check === 'startup') {
   // no UTF-8 locale: plain glyphs rather than boxes of question marks
   if (report.findings.some((f) => f.id === 'unicode') && !args.ascii) args.ascii = true
 }
+
+// a terminal that is already gone makes the renderer's restore fail loudly; that noise is dropped
+quietShutdownNoise()
 
 const renderer = await createCliRenderer({
   exitOnCtrlC: true,
@@ -54,6 +58,7 @@ function restore(): void {
 
 process.on('uncaughtException', (error) => {
   restore()
+  if (isShutdownNoise([error])) process.exit(0)
   process.stderr.write(`qqq ui crashed: ${error instanceof Error ? error.stack ?? error.message : String(error)}\n`)
   process.exit(1)
 })
@@ -64,7 +69,10 @@ renderer.on('destroy', () => {
 
 // QQQ_UI_NO_QUIT=1 (the soak test): quitting from a menu is ignored, so only a crash ends the program
 const store = boot({ args, quit: process.env.QQQ_UI_NO_QUIT === '1' ? () => store.flash('quit is off (QQQ_UI_NO_QUIT)') : restore, build: process.env.QQQ_UI_BUILD ?? 'dev', timers: true })
-process.on('unhandledRejection', (reason) => store.error(reason))
+process.on('unhandledRejection', (reason) => {
+  if (destroyed && isShutdownNoise([reason])) return
+  store.error(reason)
+})
 
 store.editExternal = async (text: string) => {
   const dir = mkdtempSync(join(tmpdir(), 'qqq-edit-'))
