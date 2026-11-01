@@ -38,7 +38,8 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 | Key | Does | Key | Does |
 |---|---|---|---|
 | F1, `?` | keyboard reference for this screen: keys grouped by what they do, the screen's help text, and a pointer to `/`, F9 and `:` (no commands or places) | Esc | back (the screen below keeps its cursor and filter) |
-| F2, `/`, `.`, Ctrl+K | search everything: apps, tables, processes, widgets, reports, records (quick search, as you type), commands and help, grouped under headers, best match first; Enter opens or runs; `:search <text>` opens it with text | Tab | Apps pane / content |
+| F2 | **Search**: records across tables (quick search), the main way into the data; `:search <text>`; typing on Home starts it (see below) | Tab | Apps pane / content |
+| `/`, `.`, Ctrl+K | find anything: apps, tables, processes, widgets, reports, records, commands and help, grouped, best match first; `:find <text>` | | |
 | F3, Enter | view, open | ↑ ↓ PgUp PgDn Home End | move and page |
 | F4, `e` | edit | Ctrl+F, Ctrl+B | page forward and back (always works) |
 | F5, `r` | refresh | Space, Shift+Space | page lists (on a grid Space selects) |
@@ -240,6 +241,18 @@ Widgets (home, app homes, record sections) have their actions on Enter: reload, 
 versions, script revisions, and on a saved report the filter/columns and pivot setup editors (API-versioned
 setups go through the application API). Denied widgets are not requested; a parent widget loads its
 children in a grid or one tab at a time. A dynamicForm section has "Edit these fields".
+
+**Search** (F2, everywhere; on Home the search line is first and typing starts it): a search line with
+results as you type, grouped by table with the table's label and count; each hit shows the record label,
+its key and the highlighted snippet with the matched field. ↑↓ move, ←→ or Tab go to the next or previous
+table, Enter opens the record (Esc comes back to the same hit), `o` opens the table's grid filtered to the
+hits, Space marks hits and `a` offers the grid (export, print, bulk there) and the table's processes for
+them, `f` searches one table, `h` the recent searches of the profile, `?` the quick search syntax. The status
+line reads "N matches in M tables · 42 ms · index 1,234 records · last reindex 10:12" (from the quick search
+status). Quick search matches every word (AND) from the start of words, case-insensitively; it has no
+phrases, `field:value`, wildcards or OR (`status:new` searches `new`, with a note). Without the quick search
+extension F2 still opens Search, finding tables, apps and processes by name and the records of the table
+it was opened from ("quick search not installed: searching names only").
 
 **Collaboration** (collaboration extension): under a record's tags a line shows its comments,
 attachments and open tasks with their keys, whether you follow it, and below it who is viewing the record

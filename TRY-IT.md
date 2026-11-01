@@ -64,7 +64,8 @@ Keys (the function-key bar is the truth; F1 or `?` lists the keys of the screen;
 | Key | Does | Key | Does |
 |---|---|---|---|
 | F1 `?` | keyboard reference for the screen (keys only) | Esc | back; the grid keeps its row, filter and page |
-| F2 `/` `.` Ctrl+K | search: apps, tables, processes, widgets, records (quick search), commands, help; `:search ada` | Tab | Apps pane / content |
+| F2 | Search records (quick search): type, ↑↓, Enter opens, `o` grid, `f` one table, `h` recent, `?` syntax; `:search ada`; or just type on Home | Tab | Apps pane / content |
+| `/` `.` Ctrl+K | find anything: apps, tables, processes, widgets, records, commands, help; `:find ada` | | |
 | F3 Enter | view / open | PgUp PgDn, Ctrl+F Ctrl+B | page (Ctrl+F/B work even when tmux takes PgUp) |
 | F4 `e` | edit | `]` `[` (PgDn PgUp in a record) | next / previous record of the list |
 | F5 `r` | refresh | `s` | sort by the column under the cursor |

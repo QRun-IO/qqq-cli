@@ -13,6 +13,23 @@ candidate's, plus the changes since it listed first.
 
 ### Added since 1.0.0-rc.1
 
+- **Search (F2)** in the UI, the main way into the data: a full screen with a search line, quick search
+  results as you type grouped by table (label and count), each hit's label, key and highlighted snippet
+  with the matched field; ←→/Tab cycle the tables, Enter opens the record (Esc returns to the hit), `o`
+  opens the table's grid filtered to the hits, Space marks hits for `a` (grid, export, print, bulk,
+  processes), `f` narrows to one table, `h` recent searches (per profile), `?` the quick search syntax
+  (only what qbit-quick-search supports: AND of words matched from their start; `field:value` searches the
+  value, with a note). The status line shows matches, tables, time, index size and the last reindex. Home
+  starts with the search line (typing starts a search). Without quick search F2 searches names and the
+  records of the current table. F2 was "Go to"; `/` (and `:find`) stays the find-anything palette and
+  `:search <text>` opens Search.
+- `qqq search`: the table output has the matched field and snippet (`match`), `--table` repeats or takes a
+  comma list, `--limit` is per table, the footer names the tables and the total, `field:value` searches the
+  value with a note, and `--help` lists the quick search syntax; `--json` prints the response.
+- Uploading an attachment to a server without the Object Storage QBit says "This server cannot store
+  attachments: the Object Storage QBit is not installed." (UI and CLI; any server failure naming a missing
+  QBit gets one such line), and the UI then shows the upload row dimmed with that reason.
+
 - Printing (the printing extension, qbit-printing 2.x). The CLI: `qqq print <table> <id...>` renders each
   record as a record sheet through the table's Print process, queues one job per record and follows them
   until they have printed (`--printer`, `--copies`, `--no-wait`, `--timeout`; exit 1 when a job failed, 4
