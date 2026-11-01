@@ -26,7 +26,7 @@ const ANYWHERE: KeyRow[] = [
   ['F9', 'menu: areas, then their actions'],
   ['Ctrl+P  PrtSc', 'print what you see: a record sheet, a table list (all rows or this page), or the screen; Ctrl+P always works, Print Screen only where the terminal passes it on'],
   ['Ctrl+O', 'servers: switch, add, edit'],
-  ['Ctrl+G', 'Assistant panel: ask about your data (this screen is the context); :ask <question>'],
+  ['F12  Ctrl+G', 'F12 assistant: show or hide the Assistant panel (this screen is the context); :ask <question>'],
   [':', 'command line; Tab completes, ↑↓ history, Ctrl+R searches it; :history lists all you did'],
   ['F10', 'quit, reset or cancel'],
   ['Ctrl+C', 'quit now'],
