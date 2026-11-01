@@ -70,13 +70,10 @@ need an orb release (0.8.x patch) before this repository picks them up.
 > by hand right after the orb job (`scripts/release.mjs` prints the command).
 >
 > **1b. Final versions as `latest` (needed for 1.0.0).** `cli_publish.sh` always publishes with
-> `--tag rc`, so 1.0.0 would land under `rc` and `npm install @qrun-io/qqq-cli` would not pick it.
-> Use `--tag rc` only when the version has a prerelease part:
->
-> ```bash
-> tag=rc; [[ "$(node -p "require('./packages/cli/package.json').version")" == *-* ]] || tag=latest
-> npm publish -w @qrun-io/qqq-ui-api-client --registry https://npm.pkg.github.com --tag "$tag"   # same for the others
-> ```
+> `--tag rc`, so 1.0.0 would land under `rc`. Taken up in qqq-orb PR #165 (head 4119818) with the rule
+> James accepted: if any of the four versions (client, core, conformance, CLI) has a prerelease part,
+> all four publish as `rc`; only when all four are final, as `latest`. qqq-cli's `release.mjs` gate
+> refuses a final CLI version while any of the four is a prerelease.
 >
 > **2. Opt-in platform lanes (not blocking 1.0.0-rc.1, wanted before 1.0).** The CLI ships binaries for
 > macOS, Linux and Windows and has three keyring backends, but CI runs only Linux. Proposal: a new orb
