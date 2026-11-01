@@ -219,3 +219,30 @@ test('a file field: chosen in the file dialog, sent as a multipart part; a store
     writeFilePreferences({ downloadDir: undefined, downloadMode: undefined })
   }
 })
+
+test('quick search is ANDed onto the filter as CONTAINS over the visible text columns; Esc clears it', async () => {
+  h = await startTui(120, 30)
+  await command(h, 'table query person -w "lastName = Odd"')
+  await waitFor(h, (x) => x.includes('15 records'))
+  await press(h, () => h!.setup.mockInput.pressKey('q'))
+  await press(h, () => h!.setup.mockInput.typeText('First1'))
+  await press(h, () => h!.setup.mockInput.pressEnter())
+  await waitFor(h, (x) => x.includes('quick "First1"'))
+  const q = h.log.requests.filter((r) => r.path === '/table/person/query').at(-1)!.body as { filter: { criteria: unknown[]; subFilters?: Array<{ booleanOperator: string; criteria: Array<{ fieldName: string; operator: string }> }> } }
+  const quick = JSON.stringify(q.filter)
+  expect(quick).toContain('"lastName"')
+  expect(quick).toContain('"CONTAINS"')
+  expect(quick).toContain('"firstName"')
+  await press(h, () => h!.setup.mockInput.pressEscape())
+  await waitFor(h, (x) => !x.includes('quick "First1"'))
+})
+
+test('a table with variants asks for one first and queries with tableVariant', async () => {
+  h = await startTui(120, 30)
+  await command(h, 'table query vt')
+  await waitFor(h, (x) => x.includes('Client for Variant Table') && x.includes('Globex'))
+  expect(h.log.requests.some((r) => r.path === '/table/vt/query')).toBe(false)
+  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  await press(h, () => h!.setup.mockInput.pressEnter())
+  await waitFor(h, (x) => x.includes('3 records') && x.includes('Client Globex'))
+})

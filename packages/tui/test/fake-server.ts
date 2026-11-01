@@ -79,7 +79,7 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): t
       return json({
         apps: { people: { name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] } },
         appTree: [{ type: 'APP', name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] }],
-        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, doc: { name: 'doc', label: 'Doc', insertPermission: true } },
+        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true } },
         processes: { sleeper: { name: 'sleeper', label: 'Sleeper' } },
         widgets: {}, branding: { appName: 'Fake' },
       })
@@ -87,6 +87,10 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): t
     if (path === '/metaData/table/person') return json(personMeta)
     if (path === '/metaData/table/wide') return json(wideMeta)
     if (path === '/metaData/table/doc') return json(docMeta)
+    if (path === '/metaData/table/vt') return json({ ...wideMeta, name: 'vt', label: 'Variant Table', usesVariants: true, variantTableLabel: 'Client' })
+    if (path === '/table/vt/variants') return json({ variants: [{ id: '1', type: 'client', name: 'Acme' }, { id: '2', type: 'client', name: 'Globex' }] })
+    if (path === '/table/vt/count') return json({ count: url.searchParams.get('tableVariant') ? 3 : 0 })
+    if (path === '/table/vt/query') return json({ records: url.searchParams.get('tableVariant') ? WIDE.slice(0, 3).map((w) => ({ values: w, recordLabel: w.name })) : [] })
     if (path === '/table/doc' && request.method === 'POST') {
       const b = body as Record<string, unknown>
       const file = b.content as File | undefined
