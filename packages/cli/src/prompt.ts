@@ -135,3 +135,38 @@ async function promptField(rl: Interface, out: NodeJS.WritableStream, session: F
     }
   }
 }
+
+/** Asks for a secret on the terminal without echoing it (a password). */
+export async function askHidden(text: string, options: { out?: NodeJS.WritableStream; input?: NodeJS.ReadableStream } = {}): Promise<string> {
+  const input = (options.input ?? process.stdin) as NodeJS.ReadStream
+  const out = options.out ?? process.stderr
+  if (!input.isTTY) throw new UsageError('This question needs a terminal.')
+  out.write(text)
+  return await new Promise<string>((resolve, reject) => {
+    let value = ''
+    const wasRaw = input.isRaw
+    input.setRawMode?.(true)
+    input.resume()
+    const done = (error?: Error) => {
+      input.setRawMode?.(wasRaw)
+      input.pause()
+      input.off('data', onData)
+      out.write('\n')
+      if (error) reject(error)
+      else resolve(value)
+    }
+    const onData = (chunk: Buffer) => {
+      for (const ch of chunk.toString('utf8')) {
+        if (ch === '\r' || ch === '\n') return done()
+        if (ch === '\u0003') {
+          done()
+          process.exit(130)
+        }
+        if (ch === '\u0004') return done(new UsageError('No answer (end of input).'))
+        if (ch === '\u007f' || ch === '\b') value = value.slice(0, -1)
+        else value += ch
+      }
+    }
+    input.on('data', onData)
+  })
+}

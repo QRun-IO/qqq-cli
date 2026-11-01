@@ -96,3 +96,24 @@ export function listReports(metaData: J): ReportListing[] {
   return reports.map((r) => ({ name: String(r.name), label: String(r.label ?? r.name), table: String(r.tableName ?? ''), app: appOf.get(String(r.name)) ?? '' }))
     .sort((a, b) => a.label.localeCompare(b.label))
 }
+
+/** What a person can try on a table. */
+export type TableAction = 'read' | 'insert' | 'edit' | 'delete'
+
+const PERMISSION_FIELD: Record<TableAction, string> = { read: 'readPermission', insert: 'insertPermission', edit: 'editPermission', delete: 'deletePermission' }
+const ACTION_TEXT: Record<TableAction, string> = { read: 'view', insert: 'create records in', edit: 'edit records in', delete: 'delete records from' }
+
+/**
+ * Why a table refuses an action, from its metadata (a table the user may not use but whose deny
+ * behavior is DISABLED is listed with its permissions false), or undefined when it is allowed.
+ * Copying a record needs insert permission.
+ */
+export function deniedTableReason(table: J, action: TableAction): string | undefined {
+  if (table[PERMISSION_FIELD[action]] !== false) return undefined
+  return `You do not have permission to ${ACTION_TEXT[action]} ${String(table.label ?? table.name)}.`
+}
+
+/** Why a process refuses to run (DISABLED: listed with hasPermission false), or undefined. */
+export function deniedProcessReason(process: J): string | undefined {
+  return process.hasPermission === false ? `You do not have permission to run ${String(process.label ?? process.name)}.` : undefined
+}

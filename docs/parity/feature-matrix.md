@@ -18,9 +18,9 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REC | 65 | 53 | 0 | 0 | 1 | 11 |
 | REL | 9 | 9 | 0 | 0 | 0 | 0 |
 | RPT | 20 | 1 | 19 | 0 | 0 | 0 |
-| SEC | 43 | 21 | 10 | 0 | 0 | 12 |
+| SEC | 43 | 29 | 0 | 0 | 2 | 12 |
 | WID | 69 | 29 | 27 | 0 | 0 | 13 |
-| **all** | 401 | 232 | 60 | 1 | 2 | 106 |
+| **all** | 401 | 240 | 50 | 1 | 4 | 106 |
 
 ## Summary (TUI column)
 
@@ -162,7 +162,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | QRY-005 | Column widths, density and card view | n/a | pass | grid presentation; TUI: v: widths, fit or fill, zebra, density |
 | QRY-006 | Opening a record and returning keeps the query; refresh shows backend changes | n/a | pass | TUI: Esc lands on the row last viewed, filter and page kept |
 | QRY-007 | A failed query reports the backend error with a retry | pass | pass | error with code, status and trace id; TUI: error shown in the grid; F5 retries |
-| QRY-010 | Text operators match Material labels and backend semantics | pass | pass | all operators and shorthand; text matches (~, CONTAINS, STARTS_WITH, …) carry CASE_INSENSITIVE by default, ~= / OPERATOR:CS / --case-sensitive match case (finding 11 is by design; the v1 route drops the option until finding 27); TUI: operators by field type in the filter dialog |
+| QRY-010 | Text operators match Material labels and backend semantics | pass | pass | all operators and shorthand; text matches (~, CONTAINS, STARTS_WITH, …) carry CASE_INSENSITIVE by default, ~= / OPERATOR:CS / --case-sensitive match case (finding 11 is by design; the v1 route drops the option until finding 27, qqq#1358); TUI: operators by field type in the filter dialog |
 | QRY-011 | Number operators including ranges and lists | pass | pass | BETWEEN, IN lists |
 | QRY-012 | Date operators and relative date expressions | pass | pass | now(), now(-7d), thisPeriod(), startOf(); TUI: date presets: now(-7d), thisPeriod(month) … |
 | QRY-013 | Date-time operators convert local input to UTC and support relative values | pass | pass | --where/--group DATE_TIME values local to UTC (a date is local midnight); expressions as before; TUI: DATE_TIME criteria typed in the local zone go out as UTC instants; expressions pass through (unit-tested) |
@@ -171,7 +171,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | QRY-016 | AND/OR and nested groups combine as declared | pass | pass | --group with parentheses; TUI: AND/OR and groups, guided and advanced |
 | QRY-017 | Filters live in the URL: reload, back/forward and Material-style JSON links | pass | n/a | --print-filter gives the JSON the web links accept; TUI: URL state is browser-only; the TUI shows the grammar and the CLI command, and qqq ui accepts the command as a route |
 | QRY-018 | Backend-only operators from links render and filter correctly | pass | pass | any operator in --where; TUI: More operators… offers every operator |
-| QRY-019 | Quick search combines with the advanced filter | pass | pass | --search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter; sent with CASE_INSENSITIVE (--case-sensitive to match case; the v1 route drops the option until finding 27); TUI: q quick search ANDed onto the filter (kernel) |
+| QRY-019 | Quick search combines with the advanced filter | pass | pass | --search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter; sent with CASE_INSENSITIVE (--case-sensitive to match case; the v1 route drops the option until finding 27, qqq#1358); TUI: q quick search ANDed onto the filter (kernel) |
 | QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | pass | pass | --join and table.field in --fields/--where/--order, labelled "Join: Field"; verified live through an association join (person to pet); exposed joins unit-tested (the sample exposes none); TUI: joined columns and filters, labelled "Join: Field", joins planned by the kernel (unit-tested only; the sample exposes no joins) |
 | QRY-021 | Many-side exposed join repeats rows and reports the distinct count | pass | pass | a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct); TUI: many-side join: rows repeat and the status shows the distinct count (unit-tested only) |
 | QRY-022 | Column statistics aggregate the filtered rows | pass | pass | qqq table stats <t> <field> [-w …] through the columnStats process when offered (unit-tested; the sample has neither QUERY_STATS nor the process); --local computes the same figures and was verified live; TUI: S: kernel column statistics of the column under the cursor with the filter (unit-tested only; no sample QUERY_STATS table) |
@@ -293,16 +293,16 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REC-063 | Record view, edit and copy load from the table variant selected on the query screen | blocked | pass | get, copy and update -i read with --variant; the v1 insert, update and delete routes ignore it (server finding 19, qqq#1351); TUI: records and forms opened from a variant grid read with tableVariant (unit-tested only; writes ignore it, finding 19) |
 | REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | pass | pass | an unchanged wall-clock time keeps the original instant and its precision; TUI: DATE_TIME edited in local zone, unchanged instants kept |
 | SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | todo |  |
-| SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | todo | disabled tables listed with a reason |
+| SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | pass | todo | a DISABLED table (permissions false in the metadata) is listed by table list with the reason; query, get, create, edit, delete, export and bulk commands refuse with it (exit 3) before any request; stub-server tested (the sample has no DISABLED table) |
 | SEC-003 | Insert permission denied: create not offered, create link refused, backend writes nothing | pass | pass | TUI: F7 hidden without insert permission |
 | SEC-004 | Edit permission denied: edit not offered, edit link refused, backend changes nothing | pass | pass |  |
 | SEC-005 | Delete permission denied: delete not offered on record or bulk bar, bulk delete refused, backend deletes nothi | pass | pass |  |
-| SEC-006 | Copy requires insert permission: copy not offered and copy link refused | todo | todo | copy |
+| SEC-006 | Copy requires insert permission: copy not offered and copy link refused | pass | todo | table copy needs insert permission: refused with the reason (exit 3) before reading the record; stub-server tested |
 | SEC-007 | Process permission denied (hidden): processes not offered in navigation or launcher, links do not start them,  | pass | todo |  |
-| SEC-008 | Process disabled for a user (DenyBehavior.DISABLED): shown disabled, link explains the denial, backend refuses | todo | todo |  |
+| SEC-008 | Process disabled for a user (DenyBehavior.DISABLED): shown disabled, link explains the denial, backend refuses | pass | todo | a DISABLED process (hasPermission false) is listed by process list and table actions with the reason; process run refuses (exit 3) before init; stub-server tested |
 | SEC-009 | Widget restrictions: hidden widgets absent, disabled widgets show a permission state without loading data, bac | pass | todo | widget get shows the refusal |
 | SEC-010 | App restrictions: hidden apps absent from navigation and unknown by link; disabled apps keep their children ga | pass | todo |  |
-| SEC-011 | Record-level security (sharing demo): users see only their own or shared saved views/reports; direct links and | todo | todo | saved views and reports |
+| SEC-011 | Record-level security (sharing demo): users see only their own or shared saved views/reports; direct links and | pass | todo | server-enforced: saved views (and bulk load profiles) are listed as the server returns them, yours first, others as shared by their owner; changing someone else's is refused locally or by the server; stub-server tested |
 | SEC-012 | Record security lock on a data table: list filtered to the key, other users' records unreachable, forged owner | pass | todo | server |
 | SEC-013 | Field protection: hidden fields never shown or returned, password fields masked and never overwritten by the m | pass | todo | server |
 | SEC-014 | Capability restrictions: tables without insert/update/delete capabilities offer none of them and refuse direct | pass | todo |  |
@@ -316,15 +316,15 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | SEC-026 | OAUTH2 sign-in failures: provider denial, tampered state and failed code exchange are reported and create no s | pass | todo | denial, forged state and a refused code exchange exit 3 and save nothing; the token is checked against the server first |
 | SEC-027 | OAUTH2 logout: backend session deleted, provider end-session called, next visit requires provider sign-in | pass | todo | logout --provider-logout: refresh token revoked (RFC 7009), end-session URL opened; bearer sign-ins have no server session |
 | SEC-028 | OAUTH2 session revoked server-side mid-use: 401 sends the user through the provider and back to the page | pass | todo | a refresh the provider refuses exits 3 with sign in again; refresh before expiry verified |
-| SEC-029 | AUTH_0 authorization code + PKCE with an owned Auth0-compatible provider (browser token exchange, backend JWT  | todo | todo |  |
-| SEC-030 | AUTH_0 against a real Auth0 tenant | todo | todo |  |
+| SEC-029 | AUTH_0 authorization code + PKCE with an owned Auth0-compatible provider (browser token exchange, backend JWT  | blocked | todo | qqq login on an AUTH_0 server: tenant from values.baseUrl, values.nativeClientId (else clientId), the audience sent so the token is a JWT; device flow and --browser (PKCE) unit-tested; no AUTH_0 server to run against: the sample configures only OAUTH2 (server finding 28) |
+| SEC-030 | AUTH_0 against a real Auth0 tenant | blocked | todo | same sign-in as SEC-029; a real Auth0 tenant needs tenant credentials from James (server finding 28) |
 | SEC-031 | FULLY_ANONYMOUS authentication: session without an identity provider, anonymous identity, logout and sign-in a | pass | pass |  |
 | SEC-032 | Unsupported authentication type (a type this UI does not know, as a newer backend could declare) is reported,  | pass | pass | unknown type refused; TUI: unknown type refused with a message |
 | SEC-033 | Server-side logout invalidation: v1 logout expires every session cookie it issued and an ended Auth0 session c | n/a | n/a |  |
-| SEC-034 | TABLE_BASED sign-in: a deep link asks for username and password under the app branding, POST /qqq/v1/manageSes | todo | todo | TABLE_BASED sign-in (no API recipe yet) |
-| SEC-035 | TABLE_BASED sign-in failure: a wrong password or unknown user is refused with one message, stores no session,  | todo | todo |  |
-| SEC-036 | TABLE_BASED session expiry: a session idle past the inactivity timeout gets a 401, the user signs in again and | todo | todo |  |
-| SEC-037 | TABLE_BASED logout: POST /qqq/v1/logout deletes the stored session and clears both cookies, protected pages st | todo | todo |  |
+| SEC-034 | TABLE_BASED sign-in: a deep link asks for username and password under the app branding, POST /qqq/v1/manageSes | pass | todo | qqq login --username (password asked, or QQQ_PASSWORD): HTTP Basic once, the server's sessionId cookie kept, never the password; stub-server tested (the sample uses MOCK, so it cannot exercise TABLE_BASED; finding 8 is the missing manageSession recipe) |
+| SEC-035 | TABLE_BASED sign-in failure: a wrong password or unknown user is refused with one message, stores no session,  | pass | todo | a wrong password or unknown user: one message (the server's), exit 3, nothing stored; stub-server tested |
+| SEC-036 | TABLE_BASED session expiry: a session idle past the inactivity timeout gets a 401, the user signs in again and | pass | todo | an expired or idle session answers 401: exit 3 with 'Sign in again with qqq login'; stub-server tested |
+| SEC-037 | TABLE_BASED logout: POST /qqq/v1/logout deletes the stored session and clears both cookies, protected pages st | pass | todo | qqq logout calls POST /qqq/v1/logout with the sessionId cookie and forgets the sign-in; later commands are unauthenticated; stub-server tested |
 | SEC-038 | Dashboard documents carry a strict Content-Security-Policy (script-src self plus the hash of each inline scrip | n/a | n/a | browser security |
 | SEC-039 | The policy allows the configured identity provider origin (OAUTH2 discovery, AUTH_0 browser token exchange) an | n/a | n/a | browser security |
 | SEC-040 | Application override hook and metadata-derived origins: the application adds its own origins (QApplicationJava | n/a | n/a | browser security |

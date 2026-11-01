@@ -5,12 +5,12 @@
 
 import { basename } from 'node:path'
 import type { Command } from 'commander'
-import { dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, readViewSettings, writeViewSettings, type DynamicFormPayload, withJoinFields, AssociationError, FilterLabelError, resolveFilterLabels, associationJoin, buildFilter, columnStatsAvailability, combineWithQuickSearch, computeColumnStats, copyRecordValues, defaultJoinColumns, exposedJoins, fieldLabel, filterDateTimesToUtc, findRecordByKey, findSavedView, FormInputError, FormSession, gotoKeys, isGotoKey, JoinError, joinFieldNames, listSavedViews, listTableVariants, parentLinkValues, planJoins, printFilter, quickSearchFields, quickSearchFilter, relatedRecordTarget, resolveField, runColumnStats, safeFileName, saveDownload, SavedViewError, savedViewProcesses, variantBody, variantParam, viewToQuery, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin, type RecordLike, type TableMetaLike } from '@qrun-io/qqq-core'
+import { deniedTableReason, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, readViewSettings, writeViewSettings, type DynamicFormPayload, withJoinFields, AssociationError, FilterLabelError, resolveFilterLabels, associationJoin, buildFilter, columnStatsAvailability, combineWithQuickSearch, computeColumnStats, copyRecordValues, defaultJoinColumns, exposedJoins, fieldLabel, filterDateTimesToUtc, findRecordByKey, findSavedView, FormInputError, FormSession, gotoKeys, isGotoKey, JoinError, joinFieldNames, listSavedViews, listTableVariants, parentLinkValues, planJoins, printFilter, quickSearchFields, quickSearchFilter, relatedRecordTarget, resolveField, runColumnStats, safeFileName, saveDownload, SavedViewError, savedViewProcesses, variantBody, variantParam, viewToQuery, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin, type RecordLike, type TableMetaLike } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
 import { UsageError, type Context } from '../context.js'
-import { copyToClipboard, countFooter, defaultFields, editText, useColor, intOption, parsePairs, positiveInt, readFileArg, readJson, valueText, writeDownload, type Json } from './shared.js'
+import { copyToClipboard, countFooter, defaultFields, editText, useColor, intOption, parsePairs, positiveInt, readFileArg, readJson, valueText, writeDownload, requireTable, type Json } from './shared.js'
 import { getRecord, showRecord } from './related.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
@@ -138,7 +138,8 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (options: { app?: string }) => {
       const c = ctx()
       const metaData = await c.metaData() as unknown as Json
-      let tables = Object.values((metaData.tables ?? {}) as Record<string, Json>).filter((t) => !t.isHidden && t.readPermission !== false)
+      // a DISABLED table (deny behavior) is listed with its permissions false: shown with the reason
+      let tables = Object.values((metaData.tables ?? {}) as Record<string, Json>).filter((t) => !t.isHidden)
       if (options.app) {
         const app = (metaData.apps as Record<string, Json> | undefined)?.[options.app]
         if (!app) throw new UsageError(`No app named ${options.app} (see \`qqq apps\`)`)
@@ -152,9 +153,10 @@ export function registerTable(program: Command, ctx: () => Context): void {
         visit(app, new Set([options.app]))
         tables = tables.filter((t) => names.has(t.name))
       }
-      const rows = tables.map((t) => ({ name: t.name, label: t.label, insert: t.insertPermission ? 'yes' : '', edit: t.editPermission ? 'yes' : '', delete: t.deletePermission ? 'yes' : '' }))
+      const rows = tables.map((t) => ({ name: t.name, label: t.label, insert: t.insertPermission ? 'yes' : '', edit: t.editPermission ? 'yes' : '', delete: t.deletePermission ? 'yes' : '', note: deniedTableReason(t, 'read') ?? '' }))
         .sort((a, b) => String(a.label).localeCompare(String(b.label)))
-      c.print({ data: rows, columns: ['name', 'label', 'insert', 'edit', 'delete'] })
+      const disabled = rows.some((r) => r.note)
+      c.print({ data: rows, columns: ['name', 'label', 'insert', 'edit', 'delete', ...(disabled ? ['note'] : [])] })
     })
 
   table.command('describe <table>')
@@ -203,6 +205,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, options: QueryOptions) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'read')
       const limitOption = intOption(options.limit, '--limit', 1)
       const pageSize = positiveInt(options.pageSize, '--page-size')
       const saved = options.view !== undefined ? await openSavedView(c, meta, options.view) : undefined
@@ -255,6 +258,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, primaryKey: string, widgetName: string, options: { set?: string[]; interactive?: boolean }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'edit')
       const widgetMeta = (((await c.metaData()) as unknown as Json).widgets as Record<string, Json> | undefined)?.[widgetName]
       if (!widgetMeta) throw new UsageError(`No widget "${widgetName}"`)
       const onTable = ((meta.sections ?? []) as Json[]).some((section) => section.widgetName === widgetName)
@@ -330,6 +334,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, field: string, options: QueryOptions & { sort: string; local?: boolean; maxRecords: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'read')
       const available = await availableJoins(c, meta, { ...options, join: [...(options.join ?? []), ...(field.includes('.') ? [field.slice(0, field.indexOf('.'))] : [])] }, [field])
       const resolved = resolveField(meta, available, field)
       if (!resolved) throw new UsageError(`No field "${field}" in ${name}`)
@@ -382,6 +387,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, options: QueryOptions) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'read')
       const available = await availableJoins(c, meta, options)
       const filter = await resolvedFilterFrom(c, options, meta, undefined, available)
       const { joins, includeDistinct } = joinsFrom(options, available, undefined, filter)
@@ -404,6 +410,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, primaryKeyArg: string | undefined, options: { associations?: boolean; key?: string[]; follow?: string; links?: boolean; reveal?: boolean; helpContent?: boolean; join?: string[]; copy?: string; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'read')
       const variant = await chooseVariant(c, meta, options.variant)
       const plan = joinsFrom({ join: options.join, select: true } as QueryOptions, await availableJoins(c, meta, { join: options.join }), undefined, { criteria: [], booleanOperator: 'AND' })
       let primaryKey = primaryKeyArg
@@ -499,6 +506,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; generateInputSkeleton?: boolean; parent?: string; association?: string; upload?: string[]; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'insert')
       const fields = (meta.fields ?? {}) as Record<string, Json>
       if (options.generateInputSkeleton) {
         const editable = Object.values(fields).filter((f) => f.isEditable !== false && !f.isHidden && f.name !== meta.primaryKeyField)
@@ -551,6 +559,8 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, primaryKey: string, options: { set?: string[]; interactive?: boolean; dryRun?: boolean; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'read')
+      requireTable(meta as unknown as Json, 'insert')
       const variant = await chooseVariant(c, meta, options.variant, { write: !options.dryRun })
       if (meta.insertPermission === false) throw new UiApiError(403, { code: 'PERMISSION_DENIED', message: `You may not create ${meta.label} records` })
       const source = await c.unwrap(c.client.GET('/qqq/v1/table/{tableName}/{primaryKey}', { params: { path: { tableName: name, primaryKey }, query: { tableVariant: variantParam(variant) } as never } })) as Json
@@ -585,6 +595,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, primaryKey: string, options: { set?: string[]; inputJson?: string; interactive?: boolean; expectedVersion?: string; upload?: string[]; editor?: string[]; variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'edit')
       const variant = await chooseVariant(c, meta, options.variant, { write: true })
       const given = { ...(options.inputJson ? readJson(options.inputJson, '--input-json') as Json : {}), ...parsePairs(options.set, '--set') }
       const uploads = readUploads(meta, options.upload)
@@ -628,6 +639,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, primaryKey: string, options: { variant?: string }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'delete')
       const variant = await chooseVariant(c, meta, options.variant, { write: true })
       if (!await c.confirm(`Delete ${meta.label} ${primaryKey}?`)) {
         c.note('Not deleted.')
@@ -655,6 +667,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .action(async (name: string, options: QueryOptions & { format?: string; out?: string; header: boolean }) => {
       const c = ctx()
       const meta = await tableMeta(c, name)
+      requireTable(meta as unknown as Json, 'read')
       const fromOut = options.out && options.out !== '-' && /\.([a-z]+)$/i.exec(options.out)?.[1]?.toLowerCase()
       const format = (options.format ?? (fromOut && EXPORT_FORMATS.includes(fromOut) ? fromOut : 'csv')).toLowerCase()
       if (!EXPORT_FORMATS.includes(format)) throw new UsageError(`--format must be one of ${EXPORT_FORMATS.join(', ')}`)

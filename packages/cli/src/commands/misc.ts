@@ -7,7 +7,7 @@ import type { Command } from 'commander'
 import { openRealtimeStream, unwrap } from '@qrun-io/qqq-ui-api-client'
 import { appHome, callOperation } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
-import { CLIENT_CHANNEL, authenticatedFetch, currentToken, sessionCookieFor } from '../session.js'
+import { CLIENT_CHANNEL, authenticatedFetch, currentToken, sessionCookieHeaderFor } from '../session.js'
 import { countFooter, positiveInt, type Json } from './shared.js'
 
 export function registerMisc(program: Command, ctx: () => Context): void {
@@ -67,8 +67,8 @@ export function registerMisc(program: Command, ctx: () => Context): void {
       const origin = t.server
       const controller = new AbortController()
       process.on('SIGINT', () => controller.abort())
-      const session = await sessionCookieFor(t)
-      const stream = openRealtimeStream({ baseUrl: origin, token: () => currentToken(t), clientChannel: CLIENT_CHANNEL, signal: controller.signal, ...(session ? { headers: { Cookie: `sessionUUID=${session}` } } : {}) } as never)
+      const session = await sessionCookieHeaderFor(t)
+      const stream = openRealtimeStream({ baseUrl: origin, token: () => currentToken(t), clientChannel: CLIENT_CHANNEL, signal: controller.signal, ...(session ? { headers: { Cookie: session } } : {}) } as never)
       try {
         await follow(stream)
       } catch (error) {
