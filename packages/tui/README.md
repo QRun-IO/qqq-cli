@@ -371,7 +371,7 @@ drives it in tmux at 80x24 and 120x36 against a server with the extension (defau
 
 TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `menu`, `search <text>` (also `find`, `goto`, `palette`), `view`,
 `views`, `share`, `actions`, `audits`, `dev`, `tags`, `report run <name>`, `theme <name>`, `ascii on|off`,
-`linear on|off`, `shortcuts on|off`, `dates [order ymd|mdy|dmy] [clock 24h|12h] [week monday|sunday] [weeknumbers on|off] [enter picker|next]`, `lock`, `saver [style|style <s>|refresh <s>|tables <a,b>]`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
+`linear on|off`, `shortcuts on|off`, `dates [order ymd|mdy|dmy] [clock 24h|12h] [week monday|sunday] [weeknumbers on|off] [enter picker|next]`, `lock`, `saver [style|style <s>|refresh <s>|tables <a,b>|burnin on|off|dim <minutes|off>]`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
 `export <format>`, `jobs`, `profile [name]`, `servers`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
 `app <name>`, `record <table> <key>`, `sql [statement | open <id>]`. Tab on an empty line lists every
 command with a one-line description; after a command it lists its arguments (tables, processes, apps,
@@ -405,12 +405,27 @@ the plain sample server; one that fails shows `…`, then its last value dimmed 
 | *table* | — | record counts of up to three favourite tables: `:saver tables person,order` (per profile) |
 
 Styles (F9 › Settings › Screen saver style, `:saver style <s>`; `auto` cycles every three minutes):
-**Bounce** (Query, the qrun.io mascot, and the `qqq` logo drift DVD-style and change colour at every
-wall, tiles in a corner), **Starfield** (stars fly out of the centre, Query drifts through, the tiles
-float), **Flip clock** (big flip digits, the date and server, tiles beneath, Query peeking from a corner)
-and **Big numbers** (the most interesting metric in block digits beside Query, rotating every 8 s). The
-clock, server and profile stay on the top row. Query blinks, wags and hops every ten seconds and faces the
-way he drifts; the art (braille, with a line-art version for `--ascii`) is in `src/saver/query-art.ts`.
+**Bounce** (Query, the qrun.io mascot, and the name of the profile you are connected to in block letters
+drift DVD-style and change colour at every wall, with the tiles in a panel riding beside them),
+**Starfield** (stars fly out of the centre, Query drifts through, the tiles float), **Flip clock** (big
+flip digits, the date and server, tiles beneath, Query peeking from a corner) and **Big numbers** (the most
+interesting metric in block digits beside Query, rotating every 8 s). The block letters say the profile's
+short name when it has 6 characters or fewer (else the profile name), with the server host in plain text
+beneath; letters, digits, `-`, `_` and `.` are drawn in block letters, anything else falls back to plain
+text. Query blinks, wags and hops every ten seconds and faces the way he drifts; the art (braille, with a
+line-art version for `--ascii`) is in `src/saver/query-art.ts`.
+
+Burn-in guard (F9 › Settings › Screen saver burn-in guard, `:saver burnin on|off`, default on): nothing
+stays put, so an OLED or CRT does not keep a ghost of the saver. The clock · server · profile line and the
+"locked · any key to unlock" line move to a new place every 30 s (a random column, the top and bottom rows
+swapping); Bounce's tile panel follows the logo, on the side with room (if Query and the panel do not fit
+together, the panel shows for 20 s and then Query for 20 s, both drifting); the flip clock's cards and tiles
+drift a cell every few seconds inside a small box; Big numbers moves to another corner at each rotation;
+Starfield's tiles keep floating. The clock stays visible throughout. `off` keeps the fixed layout (clock
+and server on the top row, the hint on the last, tiles in the bottom-right corner).
+
+Dimming (F9 › Settings › Screen saver dim, `:saver dim <minutes|off>`, default 10): once the saver has been
+up that long, every colour fades toward the background. Both settings are saved in the `saver` section.
 Animation runs at 4 frames a second at most and about one when nothing moves; only the saver repaints.
 
 ## Large instances
@@ -439,7 +454,7 @@ Everything below is local to the machine and shared with the CLI; nothing is sen
     `app:<name>` widget order; `widget:<name>` dropdown choices of widgets that ask to keep them.
   - `ui.files`: download and upload folders and whether a download asks or saves silently.
   - `ui.lock`: the screen-lock PIN (a salted hash, never the PIN) and the idle minutes (0 = off).
-  - `saver`: the screen saver style and refresh seconds; `profiles.<name>.saver.tables`: favourite tables.
+  - `saver`: the screen saver style, refresh seconds, `burnin` (default on) and `dimMinutes` (default 10, 0 off); `profiles.<name>.saver.tables`: favourite tables.
   - `ui.doctor`: the answers to the terminal check; `ui.recents`: recently viewed, per server.
 - `~/.local/state/qqq/` (`QQQ_STATE_DIR`): the `:` and filter histories (`history-commands`,
   `history-filters`); lines that look like secrets are not kept.

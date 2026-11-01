@@ -5,11 +5,16 @@
 
 /**
  * Paints one frame of the screen saver into a Canvas. Pure: the same input (time, size, tiles)
- * gives the same frame, so every style is testable at 80×24 and 120×40. Every style keeps the
- * clock, the server's short name and the profile on the top row and the wake hint on the last.
+ * gives the same frame, so every style is testable at 80×24 and 120×40. Every style shows the
+ * clock, the server's short name and the profile in one row and the wake hint in another.
  *
- * Styles: bounce (Query and the qqq logo drift DVD-style and change colour at each wall, tiles in
- * a corner HUD), starfield (stars fly out of the centre, Query drifts through, the tiles float),
+ * Burn-in guard (on by default, `burnin off` restores the fixed layout): nothing stays put. The
+ * header and the lock line change place every 30 s (a new x, the top and bottom rows swapping),
+ * Bounce's tiles ride beside the logo, the flip clock drifts a cell every few seconds, Big numbers
+ * moves to another corner at each rotation, and after the configured minutes everything dims.
+ *
+ * Styles: bounce (Query and the profile's name in block letters drift DVD-style and change colour at each wall, tiles in
+ * a HUD beside them), starfield (stars fly out of the centre, Query drifts through, the tiles float),
  * flip (big flip-clock digits with the date, tiles beneath, Query peeking from a corner), big (the
  * most interesting metric in block digits beside Query, rotating every 8 s).
  */
@@ -46,6 +51,22 @@ export interface SaverInput {
   pin?: { length: number; message: string }
   /** The sparkline ramp of the glyph set. */
   ramp: string
+  /** The profile's short name (the block-letter logo when it has 6 characters or fewer). */
+  shortName?: string
+  /** Burn-in guard: every element drifts. Off: the fixed layout. */
+  burnin: boolean
+  /** Draw everything dimmed (the saver has been up for the configured minutes). */
+  dim: boolean
+}
+
+/** How often the header and the lock line change place. */
+export const SHIFT_MILLIS = 30_000
+/** The dim: how far every colour moves toward the background. */
+export const DIM_AMOUNT = 0.45
+
+/** Whether the saver has been up long enough to dim (`dimMinutes` 0: never). */
+export function isDimmed(shownMillis: number, dimMinutes: number): boolean {
+  return dimMinutes > 0 && shownMillis >= dimMinutes * 60_000
 }
 
 /** How long each style shows in auto mode. */
@@ -125,24 +146,60 @@ function drawHud(c: Canvas, x: number, y: number, w: number, h: number, input: S
   input.tiles.slice(0, inner.h).forEach((tile, i) => tileLine(c, inner.x + 1, inner.y + i, inner.w - 2, tile, input, t.overlayBg))
 }
 
-function header(c: Canvas, input: SaverInput): void {
-  const t = input.theme
-  const d = new Date(input.now)
-  const clock = d.toLocaleTimeString('en-GB')
-  const left = ` ${clock}  ${input.server}  ·  ${input.profile}`
-  const right = `${input.brand} `
-  c.put(0, 0, pad(left, input.width), { fg: t.fg, bold: true })
-  if (left.length + right.length + 2 <= input.width) c.put(input.width - right.length, 0, right, { fg: t.acc })
-  c.put(1, 0, clock, { fg: t.acc2, bold: true })
+/** Where the header and the lock line are drawn: fixed, or (burn-in guard) moved every 30 s. */
+export interface ChromeLayout {
+  headerRow: number
+  headerX: number
+  headerText: string
+  footerRow: number
+  footerX: number
+  footerText: string
 }
 
-function footer(c: Canvas, input: SaverInput): void {
-  const t = input.theme
+function footerText(input: SaverInput): string {
   const hint = input.preview
     ? `preview: ${input.style} · any key returns · :saver bounce | starfield | flip | big`
     : input.locked ? 'locked · any key to unlock' : 'any key returns'
-  const text = trunc(hint, input.width - 2)
-  c.put(Math.max(0, Math.floor((input.width - text.length) / 2)), input.height - 1, text, { fg: t.dim })
+  return trunc(hint, input.width - 2)
+}
+
+export function chromeLayout(input: SaverInput): ChromeLayout {
+  const clock = new Date(input.now).toLocaleTimeString('en-GB')
+  const last = input.height - 1
+  if (!input.burnin) {
+    return { headerRow: 0, headerX: 0, headerText: ` ${clock}  ${input.server}  ·  ${input.profile}`, footerRow: last, footerX: -1, footerText: footerText(input) }
+  }
+  const cycle = Math.floor(input.now / SHIFT_MILLIS)
+  const headerText = trunc(`${clock}  ${input.server}  ·  ${input.profile}  ·  ${input.brand}`, input.width)
+  const text = footerText(input)
+  const even = cycle % 2 === 0
+  return {
+    headerRow: even ? 0 : last,
+    headerX: Math.floor(rand(cycle * 2.7 + 1) * (input.width - headerText.length + 1)),
+    headerText,
+    footerRow: even ? last : 0,
+    footerX: Math.floor(rand(cycle * 3.1 + 2) * (input.width - text.length + 1)),
+    footerText: text,
+  }
+}
+
+function header(c: Canvas, input: SaverInput, at: ChromeLayout): void {
+  const t = input.theme
+  if (input.burnin) {
+    c.put(at.headerX, at.headerRow, at.headerText, { fg: t.fg, bold: true })
+    c.put(at.headerX, at.headerRow, at.headerText.slice(0, 8), { fg: t.acc2, bold: true })
+    return
+  }
+  const clock = new Date(input.now).toLocaleTimeString('en-GB')
+  const right = `${input.brand} `
+  c.put(0, 0, pad(at.headerText, input.width), { fg: t.fg, bold: true })
+  if (at.headerText.length + right.length + 2 <= input.width) c.put(input.width - right.length, 0, right, { fg: t.acc })
+  c.put(1, 0, clock, { fg: t.acc2, bold: true })
+}
+
+function footer(c: Canvas, input: SaverInput, at: ChromeLayout): void {
+  const x = input.burnin ? at.footerX : Math.max(0, Math.floor((input.width - at.footerText.length) / 2))
+  c.put(x, at.footerRow, at.footerText, { fg: input.theme.dim })
 }
 
 function drawPin(c: Canvas, input: SaverInput): void {
@@ -162,15 +219,115 @@ function palette(t: ThemeTokens): string[] {
   return [t.acc, t.acc2, t.ok, t.warn, t.markFg, t.err]
 }
 
-/** Query and, when there is room, the qqq logo: the sprite the Bounce style drifts. */
-function bounceSprite(bodyH: number, width: number): { w: number; h: number; size: 'large' | 'small'; logo: 'block' | 'line' | 'none' } {
+/** The block-letter logo under Query: the profile's name, with the server host beneath. */
+interface NameLogo {
+  rows: string[]
+  /** Drawn in block letters (else plain text). */
+  block: boolean
+  host: string
+  w: number
+}
+
+/** The short name when it has 6 characters or fewer, else the profile name; block letters when the font covers it and it fits. */
+export function logoName(input: SaverInput): string {
+  const short = input.shortName
+  return (short && short.length <= 6 ? short : input.profile) || short || 'qqq'
+}
+
+function nameLogo(input: SaverInput): NameLogo {
+  const name = logoName(input)
+  const block = canDraw(name) && blockWidth(name) <= input.width - 4
+  const rows = block ? blockText(name, input.ascii) : [trunc(name, input.width - 4)]
+  const host = trunc(input.server, input.width - 2)
+  return { rows, block, host, w: Math.max(host.length, ...rows.map((r) => [...r].length)) }
+}
+
+export interface Box {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+interface BounceSprite {
+  w: number
+  h: number
+  size: 'large' | 'small'
+  logo: boolean
+}
+
+/** Query with the name logo under him when there is room (large Query only when it all fits). */
+function bounceSprite(bodyH: number, width: number, logo: NameLogo): BounceSprite {
   const large = querySize('large')
   const small = querySize('small')
-  const logoW = blockWidth('qqq')
-  if (bodyH >= large.height + 1 + FONT_HEIGHT && width >= large.width + 4) return { w: large.width, h: large.height + 1 + FONT_HEIGHT, size: 'large', logo: 'block' }
-  if (bodyH >= large.height + 1 && width >= large.width + 4) return { w: large.width, h: large.height + 1, size: 'large', logo: 'line' }
-  if (bodyH >= FONT_HEIGHT + 1 + small.height) return { w: Math.max(small.width, logoW), h: small.height + 1 + FONT_HEIGHT, size: 'small', logo: 'block' }
-  return { w: small.width, h: small.height, size: 'small', logo: 'none' }
+  const extra = 2 + logo.rows.length
+  if (bodyH >= large.height + extra && width >= Math.max(large.width, logo.w) + 4) return { w: Math.max(large.width, logo.w), h: large.height + extra, size: 'large', logo: true }
+  if (bodyH >= small.height + extra) return { w: Math.min(width, Math.max(small.width, logo.w)), h: small.height + extra, size: 'small', logo: true }
+  return { w: small.width, h: small.height, size: 'small', logo: false }
+}
+
+/** The narrowest tile panel worth drawing beside the logo. */
+const MIN_PANEL = 22
+/** Too small for Query and the panel together: each shows for this long, alternating. */
+export const ALTERNATE_MILLIS = 20_000
+
+/**
+ * The tile panel beside the sprite: full width on the side with room (right first); where neither
+ * side has it, a compact one (a constant width, so its near edge always follows the logo). None when
+ * even that is too narrow.
+ */
+function panelBeside(sprite: Box, hudW: number, hudH: number, width: number, top: number, bodyH: number): Box | undefined {
+  const right = width - (sprite.x + sprite.w) - 1
+  const left = sprite.x - 1
+  const compact = Math.min(hudW, Math.floor((width - sprite.w - 2) / 2))
+  if (compact < Math.min(MIN_PANEL, hudW)) return undefined
+  const w = right >= hudW || left >= hudW ? hudW : compact
+  const useRight = right >= w
+  return { x: useRight ? sprite.x + sprite.w + 1 : sprite.x - 1 - w, y: Math.max(top, Math.min(sprite.y, top + bodyH - hudH)), w, h: hudH }
+}
+
+export interface BounceLayout {
+  sprite: Box
+  /** The sprite is drawn (false in the panel half of the alternation). */
+  showSprite: boolean
+  panel?: Box
+  size: 'large' | 'small'
+  showLogo: boolean
+  dx: 1 | -1
+  dy: 1 | -1
+  walls: number
+}
+
+/** Where Bounce puts everything this frame (exported for the tests). */
+export function bounceLayout(input: SaverInput): BounceLayout {
+  const top = 1
+  const bodyH = input.height - 2
+  const sprite = bounceSprite(bodyH, input.width, nameLogo(input))
+  const hud = hudSize(input, input.width - 2, bodyH)
+  const step = Math.floor(input.now / FRAME_MILLIS)
+  const ystep = Math.floor(step / 2)
+  const maxX = Math.max(0, input.width - sprite.w)
+  const maxY = Math.max(0, bodyH - sprite.h)
+  const box: Box = { x: bounce(step, maxX), y: top + bounce(ystep, maxY), w: sprite.w, h: sprite.h }
+  const base = {
+    size: sprite.size, showLogo: sprite.logo, dx: direction(step, maxX), dy: direction(ystep, maxY),
+    // a new colour at each wall, as the DVD logo did
+    walls: (maxX ? Math.floor(step / maxX) : 0) + (maxY ? Math.floor(ystep / maxY) : 0),
+  }
+  const hasPanel = hud.h >= 3 && hud.w >= 12
+  if (!input.burnin || !hasPanel) {
+    return { ...base, sprite: box, showSprite: true, panel: hasPanel ? { x: input.width - hud.w - 1, y: top + bodyH - hud.h, w: hud.w, h: hud.h } : undefined }
+  }
+  if (Math.floor((input.width - sprite.w - 2) / 2) >= Math.min(MIN_PANEL, hud.w)) {
+    const panel = panelBeside(box, hud.w, hud.h, input.width, top, bodyH)
+    if (panel) return { ...base, sprite: box, showSprite: true, panel }
+  }
+  // too small for both: the panel for 20 s, then Query for 20 s, each drifting
+  if (Math.floor(input.now / ALTERNATE_MILLIS) % 2 === 0) {
+    const panel = { x: bounce(step, Math.max(0, input.width - hud.w)), y: top + bounce(ystep, Math.max(0, bodyH - hud.h)), w: hud.w, h: hud.h }
+    return { ...base, sprite: box, showSprite: false, panel }
+  }
+  return { ...base, sprite: box, showSprite: true }
 }
 
 function drawQuery(c: Canvas, x: number, y: number, size: 'large' | 'small', pose: QueryPose, input: SaverInput, color: string): void {
@@ -180,40 +337,30 @@ function drawQuery(c: Canvas, x: number, y: number, size: 'large' | 'small', pos
 function paintBounce(c: Canvas, input: SaverInput): void {
   const t = input.theme
   const top = 1
-  const bodyH = input.height - 2
-  const sprite = bounceSprite(bodyH, input.width)
-  const maxX = Math.max(0, input.width - sprite.w)
-  const maxY = Math.max(0, bodyH - sprite.h)
-  const step = Math.floor(input.now / FRAME_MILLIS)
-  const ystep = Math.floor(step / 2)
-  const x = bounce(step, maxX)
-  const y = top + bounce(ystep, maxY)
-  const dx = direction(step, maxX)
-  const dy = direction(ystep, maxY)
-  // a new colour at each wall, as the DVD logo did
-  const walls = (maxX ? Math.floor(step / maxX) : 0) + (maxY ? Math.floor(ystep / maxY) : 0)
-  const colors = palette(t)
-  const color = colors[walls % colors.length]!
-  const pose = queryPoseAt(input.now, { dx, dy })
-  const q = querySize(sprite.size)
-  const qx = x + Math.floor((sprite.w - q.width) / 2)
-  const qy = y + (pose.dy < 0 && y > top ? -1 : 0)
-  drawQuery(c, qx, qy, sprite.size, pose, input, color)
-  if (pose.action) {
-    const bubble = 'woof!'
-    const bx = pose.facing === 'right' ? qx + q.width - 2 : qx - bubble.length + 2
-    c.put(Math.min(Math.max(0, bx), input.width - bubble.length), Math.max(top, qy - 1), bubble, { fg: t.acc2, bold: true })
+  const layout = bounceLayout(input)
+  const { sprite: box } = layout
+  if (layout.showSprite) {
+    const colors = palette(t)
+    const color = colors[layout.walls % colors.length]!
+    const pose = queryPoseAt(input.now, { dx: layout.dx, dy: layout.dy })
+    const q = querySize(layout.size)
+    const qx = box.x + Math.floor((box.w - q.width) / 2)
+    const qy = box.y + (pose.dy < 0 && box.y > top ? -1 : 0)
+    drawQuery(c, qx, qy, layout.size, pose, input, color)
+    if (pose.action) {
+      const bubble = 'woof!'
+      const bx = pose.facing === 'right' ? qx + q.width - 2 : qx - bubble.length + 2
+      c.put(Math.min(Math.max(0, bx), input.width - bubble.length), Math.max(top, qy - 1), bubble, { fg: t.acc2, bold: true })
+    }
+    if (layout.showLogo) {
+      const logo = nameLogo(input)
+      const ly = box.y + q.height + 1
+      const rowsW = Math.max(...logo.rows.map((r) => [...r].length))
+      c.block(box.x + Math.floor((box.w - rowsW) / 2), ly, logo.rows, { fg: color, bold: !logo.block })
+      c.put(box.x + Math.floor((box.w - logo.host.length) / 2), ly + logo.rows.length, logo.host, { fg: t.dim })
+    }
   }
-  const logoY = y + q.height + 1
-  if (sprite.logo === 'block') {
-    const logo = blockText('qqq', input.ascii)
-    c.block(x + Math.floor((sprite.w - blockWidth('qqq')) / 2), logoY, logo, { fg: color })
-  } else if (sprite.logo === 'line') {
-    const name = 'q q q'
-    c.put(x + Math.floor((sprite.w - name.length) / 2), y + q.height, name, { fg: color, bold: true })
-  }
-  const hud = hudSize(input, input.width - 2, bodyH)
-  drawHud(c, input.width - hud.w - 1, top + bodyH - hud.h, hud.w, hud.h, input)
+  if (layout.panel) drawHud(c, layout.panel.x, layout.panel.y, layout.panel.w, layout.panel.h, input)
 }
 
 /** A deterministic 0…1 value for a seed (the star field). */
@@ -270,6 +417,11 @@ function hhmm(at: number): string {
   return `${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+/** A slow drift: one cell every `periodMs`, back and forth over −r…r (0 when the guard is off or there is no slack). */
+function drift(input: SaverInput, periodMs: number, r: number): number {
+  return input.burnin && r > 0 ? bounce(Math.floor(input.now / periodMs), 2 * r) - r : 0
+}
+
 function paintFlip(c: Canvas, input: SaverInput): void {
   const t = input.theme
   const bodyH = input.height - 2
@@ -286,8 +438,12 @@ function paintFlip(c: Canvas, input: SaverInput): void {
   const gap = 1
   const colonW = 1 + 2 * scale
   const total = cardW * 4 + gap * 2 + colonW
-  const x0 = Math.max(0, Math.floor((input.width - total) / 2))
-  const y0 = 1 + Math.max(0, Math.floor((bodyH - (cardH + 4 + tileRows)) / 2))
+  const slackY = bodyH - (cardH + 4 + tileRows)
+  const x0 = Math.max(0, Math.floor((input.width - total) / 2) + drift(input, 4000, Math.min(4, Math.floor((input.width - total) / 2))))
+  const y0 = 1 + Math.max(0, Math.floor(slackY / 2) + drift(input, 7000, slackY >= 2 ? 1 : 0))
+  // the tiles and Query shift too, inside the room each keeps clear of the other
+  const tileShift = input.burnin ? bounce(Math.floor(input.now / 5000), 3) : 0
+  const queryShift = input.burnin ? bounce(Math.floor(input.now / 6000), 3) : 0
   const positions = [x0, x0 + cardW + gap, x0 + cardW * 2 + gap + colonW, x0 + cardW * 3 + gap * 2 + colonW]
   const big = (ch: string) => blockText(ch, input.ascii).flatMap((r) => new Array<string>(scale).fill([...r].map((x) => x.repeat(scale)).join('')))
   for (let i = 0; i < 4; i++) {
@@ -318,26 +474,29 @@ function paintFlip(c: Canvas, input: SaverInput): void {
   let y = y0 + cardH + 1
   for (const [text, style] of [[date, { fg: t.acc, bold: true }], [`${input.server} · ${input.profile}`, { fg: t.dim }]] as Array<[string, Style]>) {
     const s = trunc(text, input.width - 2)
-    c.put(Math.floor((input.width - s.length) / 2), y++, s, style)
+    c.put(Math.floor((input.width - s.length) / 2) + (x0 - Math.max(0, Math.floor((input.width - total) / 2))), y++, s, style)
   }
   y++
   // the tiles beneath (two columns when wide); the right edge stays clear for Query
-  const colW = Math.floor((input.width - 4 - querySize('small').width - 2 - (columns - 1) * 3) / columns)
+  const colW = Math.floor((input.width - 4 - querySize('small').width - 2 - (columns - 1) * 3 - (input.burnin ? 3 : 0)) / columns)
   const rows = Math.max(0, input.height - 1 - y)
   input.tiles.slice(0, rows * columns).forEach((tile, i) => {
     const col = columns === 2 ? i % 2 : 0
     const row = columns === 2 ? Math.floor(i / 2) : i
-    tileLine(c, 2 + col * (colW + 3), y + row, colW, tile, input)
+    tileLine(c, 2 + tileShift + col * (colW + 3), y + row, colW, tile, input)
   })
   // Query peeks up from the bottom-right corner: ears and eyes, all of him when he hops
   const q = querySize('small')
   const pose = queryPoseAt(input.now, { dx: -1 })
   const shown = pose.action ? q.height : 3
   const frame = queryFrame('small', pose, input.ascii).slice(0, shown)
-  const qx = input.width - q.width - 1
+  const qx = input.width - q.width - 1 - queryShift
   c.fill(qx, input.height - 1 - shown, q.width, shown, {})
   c.block(qx, input.height - 1 - shown, frame, { fg: t.acc2, bold: true })
 }
+
+/** Where Big numbers puts its group at each rotation (right?, bottom?): the four corners in a zig-zag. */
+const BIG_CORNERS: ReadonlyArray<readonly [boolean, boolean]> = [[false, false], [true, true], [true, false], [false, true]]
 
 function paintBig(c: Canvas, input: SaverInput): void {
   const t = input.theme
@@ -348,25 +507,36 @@ function paintBig(c: Canvas, input: SaverInput): void {
     .sort((a, b) => (b.x.state.value!.interest ?? 0) - (a.x.state.value!.interest ?? 0) || a.i - b.i)
     .map((e) => e.x)
   const q = querySize('small')
-  const y0 = 1 + Math.max(1, Math.floor((bodyH - 14) / 2))
+  const rotation = Math.floor(input.now / 8000)
+  const [atRight, atBottom] = input.burnin ? BIG_CORNERS[rotation % BIG_CORNERS.length]! : [false, false]
+  const columns = input.width >= 100 ? 2 : 1
+  const colW = columns === 2 ? Math.floor((input.width - 7) / 2) : input.width - 4
+  const othersCount = Math.max(0, input.tiles.length - 1)
+  // the group (label, Query and number, detail, dots) and the tiles under it; guarded: in a corner
+  const contentH = 12 + Math.ceil(othersCount / columns)
+  const y0 = input.burnin ? 1 + (atBottom ? Math.max(0, bodyH - contentH) : 0) : 1 + Math.max(1, Math.floor((bodyH - 14) / 2))
+  const centred = (width: number, left: boolean, right: boolean) => (left ? 2 : right ? Math.max(0, input.width - width - 2) : Math.max(0, Math.floor((input.width - width) / 2)))
+  const place = (width: number) => (input.burnin ? centred(width, !atRight, atRight) : centred(width, false, false))
   if (!candidates.length) {
     const pose = queryPoseAt(input.now)
-    drawQuery(c, Math.floor((input.width - q.width) / 2), y0, 'small', pose, input, t.acc2)
     const msg = input.tiles.length ? 'fetching the numbers…' : 'nothing to count on this server'
-    c.put(Math.floor((input.width - msg.length) / 2), y0 + q.height + 1, msg, { fg: t.dim })
+    const gx = place(Math.max(q.width, msg.length))
+    drawQuery(c, gx + Math.floor((Math.max(q.width, msg.length) - q.width) / 2), y0, 'small', pose, input, t.acc2)
+    c.put(gx, y0 + q.height + 1, msg, { fg: t.dim })
     return
   }
-  const index = Math.floor(input.now / 8000) % candidates.length
+  const index = rotation % candidates.length
   const tile = candidates[index]!
   const v = tile.state.value!
   const big = v.big!
   const color = levelColor(t, tile) === t.fg ? t.acc2 : levelColor(t, tile)
   const label = trunc(tile.state.label.toUpperCase(), input.width - 4)
-  c.put(Math.floor((input.width - label.length) / 2), y0, label, { fg: t.acc, bold: true })
   const drawBlock = canDraw(big) && blockWidth(big) + q.width + 3 <= input.width - 4
   const numW = drawBlock ? blockWidth(big) : big.length
   const groupW = q.width + 3 + numW
-  const gx = Math.max(0, Math.floor((input.width - groupW) / 2))
+  const gx = place(groupW)
+  const centreOver = (text: string) => Math.max(0, Math.min(input.width - text.length, gx + Math.floor((groupW - text.length) / 2)))
+  c.put(centreOver(label), y0, label, { fg: t.acc, bold: true })
   const asleep = big === '0'
   const pose: QueryPose = { ...queryPoseAt(input.now, { dx: 1 }), ...(asleep ? { blink: true, wag: false } : {}) }
   drawQuery(c, gx, y0 + 2, 'small', pose, input, t.acc2)
@@ -374,16 +544,15 @@ function paintBig(c: Canvas, input: SaverInput): void {
   if (drawBlock) c.block(gx + q.width + 3, y0 + 2, blockText(big, input.ascii), { fg: color, bold: true })
   else c.put(gx + q.width + 3, y0 + 4, big, { fg: color, bold: true })
   const detail = trunc(`${v.value}${v.detail ? ` · ${v.detail}` : ''}${tile.stale ? ' (stale)' : ''}`, input.width - 4)
-  c.put(Math.floor((input.width - detail.length) / 2), y0 + 2 + q.height + 1, detail, { fg: t.dim })
+  c.put(centreOver(detail), y0 + 2 + q.height + 1, detail, { fg: t.dim })
   const dots = candidates.map((_, i) => (i === index ? (input.ascii ? '*' : '●') : (input.ascii ? '.' : '○'))).join(' ')
-  c.put(Math.floor((input.width - dots.length) / 2), y0 + 2 + q.height + 2, trunc(dots, input.width - 2), { fg: t.dim })
+  c.put(centreOver(dots), y0 + 2 + q.height + 2, trunc(dots, input.width - 2), { fg: t.dim })
   // everything else on the lines beneath
   const y = y0 + 2 + q.height + 4
   const others = input.tiles.filter((x) => x !== tile)
-  const colW = input.width >= 100 ? Math.floor((input.width - 7) / 2) : input.width - 4
-  const columns = input.width >= 100 ? 2 : 1
+  const othersLeft = atRight ? Math.max(2, input.width - (columns * (colW + 3) - 3) - 2) : 2
   others.slice(0, Math.max(0, (input.height - 1 - y) * columns)).forEach((o, i) => {
-    tileLine(c, 2 + (columns === 2 ? (i % 2) * (colW + 3) : 0), y + (columns === 2 ? Math.floor(i / 2) : i), colW, o, input)
+    tileLine(c, othersLeft + (columns === 2 ? (i % 2) * (colW + 3) : 0), y + (columns === 2 ? Math.floor(i / 2) : i), colW, o, input)
   })
 }
 
@@ -399,8 +568,10 @@ export function paintSaver(input: SaverInput): Canvas {
   else if (input.style === 'starfield') paintStarfield(c, input)
   else if (input.style === 'flip') paintFlip(c, input)
   else paintBig(c, input)
-  header(c, input)
-  footer(c, input)
+  const chrome = chromeLayout(input)
+  header(c, input, chrome)
+  footer(c, input, chrome)
   drawPin(c, input)
+  if (input.dim) c.dim(DIM_AMOUNT)
   return c
 }

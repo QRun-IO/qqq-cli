@@ -7,8 +7,8 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { removePin, setPin } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { SaverOverlay } from '../src/overlays/saver'
-import { FONT_HEIGHT, blockText, blockWidth } from '../src/saver/font'
-import { AUTO_STYLE_MILLIS, FRAME_MILLIS, bounce, nextFrameDelay, paintSaver, styleAt, type SaverInput, type SaverTile } from '../src/saver/layout'
+import { FONT_HEIGHT, blockText, blockWidth, canDraw } from '../src/saver/font'
+import { ALTERNATE_MILLIS, AUTO_STYLE_MILLIS, FRAME_MILLIS, SHIFT_MILLIS, bounce, bounceLayout, chromeLayout, isDimmed, logoName, nextFrameDelay, paintSaver, styleAt, type SaverInput, type SaverTile } from '../src/saver/layout'
 import { EventRate, MAX_BACKOFF_MS, TileModel, isAbsent, sparkline, type TileSource, type TileValue } from '../src/saver/model'
 import { decodeBraille, encodeBraille, mirrorAscii, queryFrame, queryPoseAt, querySize } from '../src/saver/query-art'
 import { readSaverSettings, writeSaverSettings, SAVER_STYLES } from '../src/saver/settings'
@@ -212,7 +212,7 @@ const TILES: SaverTile[] = [
 ]
 
 function input(over: Partial<SaverInput>): SaverInput {
-  return { style: 'bounce', now: 1_000_005_000, width: 80, height: 24, tiles: TILES, server: 'localhost:8078', profile: 'enterprise', brand: 'QQQ', ascii: false, theme: THEMES['high-contrast']!, locked: false, preview: false, ramp: '▁▂▃▄▅▆▇█', ...over }
+  return { style: 'bounce', now: 1_000_005_000, width: 80, height: 24, tiles: TILES, server: 'localhost:8078', profile: 'enterprise', brand: 'QQQ', ascii: false, theme: THEMES['high-contrast']!, locked: false, preview: false, ramp: '▁▂▃▄▅▆▇█', shortName: 'ent', burnin: false, dim: false, ...over }
 }
 
 describe('layout', () => {
@@ -240,13 +240,41 @@ describe('layout', () => {
     })
   }
 
-  test('Bounce draws large Query with the qqq logo at 120×40 and large Query at 80×24', () => {
+  test('Bounce draws large Query with the profile\'s short name in block letters and the host beneath at 120×40', () => {
     const big = paintSaver(input({ style: 'bounce', width: 120, height: 40, tiles: [], now: 1_000_001_000 })).text()
     const rows = [...queryFrame('large'), ...queryFrame('large', { facing: 'left' })].map((r) => r.trim().slice(0, 10))
     expect(rows.some((r) => big.includes(r))).toBe(true)
-    expect(big).toContain(blockText('qqq')[1]!)
-    const small = paintSaver(input({ style: 'bounce', width: 80, height: 24, tiles: [], now: 1_000_001_000 })).text()
-    expect(small).toContain('q q q')
+    const lines = big.split('\n')
+    const ent = blockText('ent')
+    const top = lines.findIndex((l) => l.includes(ent[0]!))
+    expect(top).toBeGreaterThan(0)
+    ent.forEach((r, i) => expect(lines[top + i]).toContain(r))
+    // "localhost:8078" under the letters (the top row has it too, in normal text)
+    expect(lines[top + FONT_HEIGHT]).toContain('localhost:8078')
+    expect(big).not.toContain(blockText('qqq')[1]!)
+  })
+
+  test('the logo says the short name when it has 6 characters or fewer, else the profile; unknown characters fall back to plain text', () => {
+    expect(logoName(input({}))).toBe('ent')
+    expect(logoName(input({ shortName: 'enterp7', profile: 'enterprise' }))).toBe('enterprise')
+    expect(logoName(input({ shortName: undefined, profile: '' }))).toBe('qqq')
+    expect(canDraw('Prod-eu_1.a')).toBe(true)
+    expect(canDraw('abcdefghijklmnopqrstuvwxyz0123456789-_.')).toBe(true)
+    expect(canDraw('café')).toBe(false)
+    for (const text of ['ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz0123456789-_.']) {
+      const rows = blockText(text)
+      expect(rows.length).toBe(FONT_HEIGHT)
+      for (const r of rows) expect([...r].length).toBe(blockWidth(text))
+    }
+    // not drawable: plain text, and the host beneath
+    const plain = paintSaver(input({ style: 'bounce', width: 120, height: 40, tiles: [], shortName: undefined, profile: 'café prod', now: 1_000_001_000 })).text()
+    expect(plain).toContain('café prod')
+    expect(plain).not.toContain(blockText('prod')[0]!)
+  })
+
+  test('at 80×24 Query is small so the block-letter name fits', () => {
+    const text = paintSaver(input({ style: 'bounce', width: 80, height: 24, tiles: [], now: 1_000_001_000 })).text()
+    expect(text).toContain(blockText('ent')[2]!)
   })
 
   test('Big numbers shows the most interesting tile in block digits, then rotates', () => {
@@ -286,9 +314,190 @@ describe('settings', () => {
     writeSaverSettings({ style: 'flip', refreshSeconds: 99 })
     writeSaverSettings({ tables: ['person', 'order', 'shipment', 'extra'] }, 'fake')
     const s = readSaverSettings('fake')
-    expect(s).toEqual({ style: 'flip', refreshSeconds: 30, tables: ['person', 'order', 'shipment'] })
+    expect(s).toEqual({ style: 'flip', refreshSeconds: 30, tables: ['person', 'order', 'shipment'], burnin: true, dimMinutes: 10 })
     expect(readSaverSettings('other').tables).toEqual([])
     writeSaverSettings({ style: 'auto', refreshSeconds: 15, tables: [] }, 'fake')
+  })
+
+  test('burn-in guard defaults on and dim to 10 minutes; both are saved, dim 0 is off', () => {
+    expect(readSaverSettings()).toMatchObject({ burnin: true, dimMinutes: 10 })
+    writeSaverSettings({ burnin: false, dimMinutes: 0 })
+    expect(readSaverSettings()).toMatchObject({ burnin: false, dimMinutes: 0 })
+    writeSaverSettings({ burnin: true, dimMinutes: 3.4 })
+    expect(readSaverSettings()).toMatchObject({ burnin: true, dimMinutes: 3 })
+    writeSaverSettings({ dimMinutes: 10 })
+  })
+})
+
+describe('burn-in guard', () => {
+  const SIZES = [[80, 24], [120, 40]] as const
+  const moments = (n: number, from = 1_000_000_000, every = 250) => Array.from({ length: n }, (_, i) => from + i * every)
+
+  for (const [width, height] of SIZES) {
+    test(`Bounce at ${width}×${height}: the tile panel rides beside the logo, swaps sides and never leaves the screen`, () => {
+      const panels = new Set<string>()
+      const sides = new Set<string>()
+      let moved = 0
+      let last = ''
+      for (const now of moments(400, 1_000_000_000, 700)) {
+        const i = input({ style: 'bounce', width, height, now, burnin: true })
+        const l = bounceLayout(i)
+        expect(l.showSprite).toBe(true)
+        const p = l.panel!
+        expect(p).toBeDefined()
+        expect(p.x).toBeGreaterThanOrEqual(0)
+        expect(p.x + p.w).toBeLessThanOrEqual(width)
+        expect(p.y).toBeGreaterThanOrEqual(1)
+        expect(p.y + p.h).toBeLessThanOrEqual(height - 1)
+        // beside the logo (a one-cell gap), on one side or the other, never on top of it
+        const right = p.x === l.sprite.x + l.sprite.w + 1
+        const left = p.x + p.w === l.sprite.x - 1
+        expect(right || left).toBe(true)
+        sides.add(right ? 'right' : 'left')
+        const key = `${p.x},${p.y}`
+        panels.add(key)
+        if (key !== last) moved++
+        last = key
+        // and it is on the canvas where it says
+        const lines = paintSaver(i).text().split('\n')
+        expect(lines[p.y]!.slice(p.x, p.x + p.w)).toContain(' live ')
+      }
+      expect(panels.size).toBeGreaterThan(20)
+      expect(moved).toBeGreaterThan(300)
+      expect(sides.size).toBe(2)
+    })
+
+    test(`Bounce at ${width}×${height}: the panel moves with the logo from one frame to the next`, () => {
+      for (const now of moments(60, 1_000_003_000)) {
+        const a = bounceLayout(input({ style: 'bounce', width, height, now, burnin: true }))
+        const b = bounceLayout(input({ style: 'bounce', width, height, now: now + FRAME_MILLIS, burnin: true }))
+        const spriteMoved = a.sprite.x !== b.sprite.x || a.sprite.y !== b.sprite.y
+        const panelMoved = a.panel!.x !== b.panel!.x || a.panel!.y !== b.panel!.y
+        if (spriteMoved) expect(panelMoved).toBe(true)
+      }
+    })
+
+    test(`Bounce at ${width}×${height} with the guard off keeps the panel in the bottom-right corner`, () => {
+      const seen = new Set<string>()
+      for (const now of moments(100, 1_000_000_000, 900)) {
+        const p = bounceLayout(input({ style: 'bounce', width, height, now, burnin: false })).panel!
+        seen.add(`${p.x},${p.y}`)
+        expect(p.x + p.w).toBe(width - 1)
+        expect(p.y + p.h).toBe(height - 1)
+      }
+      expect(seen.size).toBe(1)
+    })
+
+    test(`header and lock line at ${width}×${height} change place every cycle in every style; the clock stays visible`, () => {
+      for (const style of SAVER_STYLES) {
+        const header = new Set<string>()
+        const lock = new Set<string>()
+        const rows = new Set<number>()
+        for (let cycle = 0; cycle < 12; cycle++) {
+          const now = 1_000_000_000 + cycle * SHIFT_MILLIS + 5_000
+          const i = input({ style, width, height, now, burnin: true, locked: true })
+          const c = chromeLayout(i)
+          header.add(`${c.headerRow},${c.headerX}`)
+          lock.add(`${c.footerRow},${c.footerX}`)
+          rows.add(c.headerRow)
+          expect(c.headerRow).not.toBe(c.footerRow)
+          const lines = paintSaver(i).text().split('\n')
+          expect(lines[c.headerRow]!.slice(c.headerX, c.headerX + c.headerText.length)).toBe(c.headerText)
+          expect(lines[c.footerRow]!.slice(c.footerX, c.footerX + c.footerText.length)).toBe(c.footerText)
+          expect(c.footerText).toBe('locked · any key to unlock')
+          expect(lines.join('\n')).toMatch(/\d\d:\d\d:\d\d/)
+          expect(lines.length).toBe(height)
+          for (const l of lines) expect([...l].length).toBe(width)
+        }
+        expect(header.size).toBeGreaterThanOrEqual(8)
+        expect(lock.size).toBeGreaterThanOrEqual(8)
+        expect([...rows].sort()).toEqual([0, height - 1])
+      }
+    })
+
+    test(`with the guard off the header and lock line stay put at ${width}×${height}`, () => {
+      for (const style of SAVER_STYLES) {
+        const seen = new Set<string>()
+        for (let cycle = 0; cycle < 6; cycle++) {
+          const i = input({ style, width, height, now: 1_000_000_000 + cycle * SHIFT_MILLIS, burnin: false, locked: true })
+          const lines = paintSaver(i).text().split('\n')
+          expect(lines[0]).toContain('localhost:8078')
+          expect(lines[height - 1]).toContain('locked · any key to unlock')
+          seen.add(`${lines[0]!.indexOf('localhost')},${lines[height - 1]!.indexOf('locked')}`)
+        }
+        expect(seen.size).toBe(1)
+      }
+    })
+
+    test(`Flip clock at ${width}×${height} drifts a cell every few seconds inside a bounded box; guard off: fixed`, () => {
+      const cards = (now: number, burnin: boolean) => {
+        const lines = paintSaver(input({ style: 'flip', width, height, now, burnin, tiles: TILES.slice(0, 3) })).text().split('\n')
+        // the hinge of the first card
+        const row = lines.findIndex((l, y) => y > 0 && y < height - 1 && l.includes('▸'))
+        return { row, col: lines[row]!.indexOf('▸') }
+      }
+      const guarded = new Set<string>()
+      const fixed = new Set<string>()
+      for (let i = 0; i < 40; i++) {
+        const now = 1_000_000_000 + i * 4_100 + 1_000
+        const g = cards(now, true)
+        guarded.add(`${g.row},${g.col}`)
+        const f = cards(now, false)
+        fixed.add(`${f.row},${f.col}`)
+      }
+      expect(guarded.size).toBeGreaterThan(2)
+      const cols = [...guarded].map((k) => Number(k.split(',')[1]))
+      const rowsSeen = [...guarded].map((k) => Number(k.split(',')[0]))
+      expect(Math.max(...cols) - Math.min(...cols)).toBeLessThanOrEqual(8)
+      expect(Math.max(...rowsSeen) - Math.min(...rowsSeen)).toBeLessThanOrEqual(2)
+      expect(fixed.size).toBe(1)
+    })
+
+    test(`Big numbers at ${width}×${height} moves to another corner at each rotation; the number stays on screen`, () => {
+      const spots = new Set<string>()
+      for (let r = 0; r < 4; r++) {
+        const i = input({ style: 'big', width, height, now: r * 8000, burnin: true, tiles: TILES.slice(0, 3) })
+        const lines = paintSaver(i).text().split('\n')
+        const label = lines.findIndex((l, y) => y > 0 && y < height - 1 && /HEALTH|ONLINE|JOBS|EVENTS/.test(l))
+        expect(label).toBeGreaterThan(0)
+        spots.add(`${label},${lines[label]!.search(/HEALTH|ONLINE|JOBS|EVENTS/)}`)
+        expect(lines.join('\n')).toMatch(/\d\d:\d\d:\d\d/)
+        for (const l of lines) expect([...l].length).toBe(width)
+      }
+      expect(spots.size).toBe(4)
+    })
+  }
+
+  test('too small for Query and the panel together: the panel for 20 s, then Query for 20 s, both drifting', () => {
+    const w = 40
+    const h = 18
+    const live = (now: number) => paintSaver(input({ style: 'bounce', width: w, height: h, now, burnin: true })).text().includes(' live ')
+    const queryShown = (now: number) => bounceLayout(input({ style: 'bounce', width: w, height: h, now, burnin: true })).showSprite
+    const start = Math.floor(1_000_000_000 / (2 * ALTERNATE_MILLIS)) * 2 * ALTERNATE_MILLIS
+    expect(live(start + 3_000)).toBe(true)
+    expect(queryShown(start + 3_000)).toBe(false)
+    expect(live(start + ALTERNATE_MILLIS + 3_000)).toBe(false)
+    expect(queryShown(start + ALTERNATE_MILLIS + 3_000)).toBe(true)
+    const a = bounceLayout(input({ style: 'bounce', width: w, height: h, now: start + 3_000, burnin: true })).panel!
+    const b = bounceLayout(input({ style: 'bounce', width: w, height: h, now: start + 3_250, burnin: true })).panel!
+    expect(a.x !== b.x || a.y !== b.y).toBe(true)
+    expect(a.x + a.w).toBeLessThanOrEqual(w)
+    expect(b.y + b.h).toBeLessThanOrEqual(h - 1)
+  })
+
+  test('dimming starts at the configured time, 0 never; a dimmed frame has darker colours and the same text', () => {
+    expect(isDimmed(9 * 60_000 + 59_000, 10)).toBe(false)
+    expect(isDimmed(10 * 60_000, 10)).toBe(true)
+    expect(isDimmed(60_000, 1)).toBe(true)
+    expect(isDimmed(24 * 3_600_000, 0)).toBe(false)
+    const plain = paintSaver(input({ style: 'bounce', burnin: true, dim: false }))
+    const dimmed = paintSaver(input({ style: 'bounce', burnin: true, dim: true }))
+    expect(dimmed.text()).toBe(plain.text())
+    const first = (c: ReturnType<typeof paintSaver>) => c.runs(0).filter((r) => r.text.trim()).map((r) => r.fg)
+    expect(first(dimmed)).not.toEqual(first(plain))
+    const lum = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16)
+    const bright = (c: ReturnType<typeof paintSaver>) => Math.max(...c.runs(0).filter((r) => r.text.trim() && r.fg?.startsWith('#')).map((r) => lum(r.fg!)))
+    expect(bright(dimmed)).toBeLessThan(bright(plain))
   })
 })
 
@@ -329,10 +538,28 @@ describe('in the TUI', () => {
     }
   })
 
+  test('the overlay dims once the saver has been up for the configured minutes; burnin and dim are saved by :saver', async () => {
+    await command(h, 'saver dim 5')
+    await command(h, 'saver burnin off')
+    expect(readSaverSettings()).toMatchObject({ burnin: false, dimMinutes: 5 })
+    let s = new SaverOverlay(h.store, 'bounce')
+    expect(s.input(80, 24, s.startedAt + 4 * 60_000 + 59_000).dim).toBe(false)
+    expect(s.input(80, 24, s.startedAt + 5 * 60_000).dim).toBe(true)
+    expect(s.input(80, 24).burnin).toBe(false)
+    await command(h, 'saver dim off')
+    await command(h, 'saver burnin on')
+    s = new SaverOverlay(h.store, 'bounce')
+    expect(s.input(80, 24, s.startedAt + 3_600_000).dim).toBe(false)
+    expect(s.input(80, 24).burnin).toBe(true)
+    await command(h, 'saver dim 10')
+  })
+
   test('F9 → Settings lists the saver style, refresh and preview', () => {
     const labels = (h.store.commands() as unknown as { entries(f: string): Array<{ label: string }> }).entries('').map((e) => e.label)
     expect(labels.some((l) => l.startsWith('Screen saver style:'))).toBe(true)
     expect(labels.some((l) => l.startsWith('Screen saver refresh:'))).toBe(true)
+    expect(labels.some((l) => l.startsWith('Screen saver burn-in guard:'))).toBe(true)
+    expect(labels.some((l) => l.startsWith('Screen saver dim:'))).toBe(true)
     expect(labels).toContain('Preview the screen saver')
   })
 })

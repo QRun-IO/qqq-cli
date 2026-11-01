@@ -5,7 +5,8 @@
 
 /**
  * Screen saver settings in ~/.config/qqq/config.json (a `saver` section; the kernel keeps sections
- * it does not know): the style, the refresh interval, and per profile the favourite tables whose
+ * it does not know): the style, the refresh interval, the burn-in guard (everything drifts) and the
+ * dim-after minutes, and per profile the favourite tables whose
  * record counts get a tile (`profiles.<name>.saver.tables`).
  */
 
@@ -28,16 +29,31 @@ export const DEFAULT_REFRESH_SECONDS = 15
 /** The favourite tables that get a count tile: "a couple". */
 export const MAX_TABLES = 3
 
+/** Minutes of saver before everything dims a little (0: never). */
+export const DEFAULT_DIM_MINUTES = 10
+export const DIM_CHOICES = [0, 5, 10, 20, 30] as const
+
 export interface SaverSettings {
   style: SaverStyleSetting
   refreshSeconds: number
   tables: string[]
+  /** Burn-in guard: every element drifts (default on); off keeps the fixed layout. */
+  burnin: boolean
+  /** Dim the saver after this many minutes (0: never). */
+  dimMinutes: number
 }
 
 interface SaverSection {
   style?: string
   refreshSeconds?: number
   tables?: string[]
+  burnin?: boolean
+  dimMinutes?: number
+}
+
+/** Clamps the dim delay to whole minutes, 1 to 600; 0 (or anything not a number) is off. */
+export function clampDim(minutes: number): number {
+  return Number.isFinite(minutes) && minutes >= 1 ? Math.min(600, Math.round(minutes)) : 0
 }
 
 export function isStyle(value: string | undefined): value is SaverStyleSetting {
@@ -54,7 +70,7 @@ export function readSaverSettings(profile?: string): SaverSettings {
   try {
     config = readConfig()
   } catch {
-    return { style: 'auto', refreshSeconds: DEFAULT_REFRESH_SECONDS, tables: [] }
+    return { style: 'auto', refreshSeconds: DEFAULT_REFRESH_SECONDS, tables: [], burnin: true, dimMinutes: DEFAULT_DIM_MINUTES }
   }
   const global = (config.saver ?? {}) as SaverSection
   const own = (profile ? (config.profiles[profile] as { saver?: SaverSection } | undefined)?.saver : undefined) ?? {}
@@ -63,6 +79,8 @@ export function readSaverSettings(profile?: string): SaverSettings {
     style: isStyle(global.style) ? global.style : 'auto',
     refreshSeconds: clampRefresh(Number(global.refreshSeconds ?? DEFAULT_REFRESH_SECONDS)),
     tables,
+    burnin: global.burnin !== false,
+    dimMinutes: global.dimMinutes === undefined ? DEFAULT_DIM_MINUTES : clampDim(Number(global.dimMinutes)),
   }
 }
 
@@ -72,6 +90,8 @@ export function writeSaverSettings(change: Partial<SaverSettings>, profile?: str
   const global = { ...((config.saver ?? {}) as SaverSection) }
   if (change.style !== undefined) global.style = change.style
   if (change.refreshSeconds !== undefined) global.refreshSeconds = clampRefresh(change.refreshSeconds)
+  if (change.burnin !== undefined) global.burnin = change.burnin
+  if (change.dimMinutes !== undefined) global.dimMinutes = clampDim(change.dimMinutes)
   if (change.tables !== undefined) {
     const tables = change.tables.slice(0, MAX_TABLES)
     if (profile && config.profiles[profile]) {

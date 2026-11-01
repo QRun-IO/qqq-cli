@@ -14,15 +14,15 @@
  */
 
 import { useEffect, useReducer } from 'react'
-import { hasPin, readRecents } from '@qrun-io/qqq-core'
+import { hasPin, readConfig, readRecents, shortNameOf } from '@qrun-io/qqq-core'
 import type { Key } from '../keys'
 import type { AppStore } from '../store'
 import { glyphs, isAscii, theme } from '../theme'
 import type { MenuEntry, Overlay } from '../types'
-import { paintSaver, nextFrameDelay, styleAt, type SaverInput } from '../saver/layout'
+import { paintSaver, nextFrameDelay, isDimmed, styleAt, type SaverInput } from '../saver/layout'
 import { TileModel, realtimeEvents } from '../saver/model'
 import { saverSources, type SaverContext } from '../saver/sources'
-import { REFRESH_CHOICES, SAVER_STYLES, STYLE_LABELS, isStyle, readSaverSettings, writeSaverSettings, type SaverSettings, type SaverStyle, type SaverStyleSetting } from '../saver/settings'
+import { DIM_CHOICES, REFRESH_CHOICES, SAVER_STYLES, STYLE_LABELS, isStyle, readSaverSettings, writeSaverSettings, type SaverSettings, type SaverStyle, type SaverStyleSetting } from '../saver/settings'
 import { ChoiceOverlay, overlayId } from './basic'
 import { LockOverlay } from './center'
 
@@ -34,16 +34,31 @@ export class SaverOverlay implements Overlay {
   readonly settings: SaverSettings
   readonly model: TileModel
   private readonly lock: LockOverlay
+  /** When the saver came up (the dim counts from here). */
+  readonly startedAt = Date.now()
+  private readonly shortName: string | undefined
 
   /** `preview`: shown by `:saver` (a style, or the setting): any key returns, no PIN. */
   constructor(private store: AppStore, readonly preview?: SaverStyleSetting) {
     this.settings = readSaverSettings(this.profile())
     this.lock = new LockOverlay(store)
+    this.shortName = this.profileShortName()
     this.model = new TileModel(store.client ? saverSources(this.context()) : [], { intervalMs: this.settings.refreshSeconds * 1000 })
   }
 
   private profile(): string | undefined {
     return this.store.status.profile || this.store.target?.name || undefined
+  }
+
+  /** The profile's short name (what the block-letter logo says), if there is a profile. */
+  private profileShortName(): string | undefined {
+    const name = this.profile()
+    if (!name) return undefined
+    try {
+      return shortNameOf(name, readConfig().profiles[name])
+    } catch {
+      return undefined
+    }
   }
 
   private context(): SaverContext {
@@ -117,6 +132,7 @@ export class SaverOverlay implements Overlay {
       profile: s.status.profile || s.target?.name || '',
       brand: (s.meta?.branding as { appName?: string } | undefined)?.appName ?? 'QQQ',
       ascii: isAscii(), theme: theme(), ramp: glyphs().spark,
+      shortName: this.shortName, burnin: this.settings.burnin, dim: isDimmed(now - this.startedAt, this.settings.dimMinutes),
       locked: !this.preview && hasPin(), preview: Boolean(this.preview),
       pin: !this.preview && this.lock.asking ? { length: this.lock.pin.value.length, message: this.lock.message } : undefined,
     }
@@ -148,7 +164,7 @@ function SaverView({ saver, width, height }: { saver: SaverOverlay; width: numbe
   )
 }
 
-/** `:saver` arguments: a style to preview, `style <s>`, `refresh <seconds>`, `tables <a,b>`. */
+/** `:saver` arguments: a style to preview, `style <s>`, `refresh <seconds>`, `tables <a,b>`, `burnin on|off`, `dim <minutes|off>`. */
 export function saverCommand(store: AppStore, args: string[], fail: (text: string) => void): void {
   const [first, ...rest] = args
   const profile = store.status.profile || store.target?.name
@@ -174,13 +190,25 @@ export function saverCommand(store: AppStore, args: string[], fail: (text: strin
     writeSaverSettings({ tables }, profile)
     return store.flash(tables.length ? `screen saver counts ${tables.slice(0, 3).join(', ')} for this profile` : 'screen saver table counts off')
   }
-  fail('saver [auto|bounce|starfield|flip|big] previews · saver style <s> · saver refresh <seconds> · saver tables <a,b>')
+  if (first === 'burnin') {
+    if (rest[0] !== 'on' && rest[0] !== 'off') return fail('saver burnin on|off: on moves every element so nothing burns in')
+    writeSaverSettings({ burnin: rest[0] === 'on' })
+    return store.flash(`screen saver burn-in guard ${rest[0]} (saved)`)
+  }
+  if (first === 'dim') {
+    const n = rest[0] === 'off' ? 0 : Number(rest[0])
+    if (rest[0] !== 'off' && (!Number.isFinite(n) || n < 1)) return fail('saver dim <minutes|off>: dim the saver after this many minutes')
+    writeSaverSettings({ dimMinutes: n })
+    const minutes = readSaverSettings(profile).dimMinutes
+    return store.flash(minutes ? `screen saver dims after ${minutes} min (saved)` : 'screen saver dimming off (saved)')
+  }
+  fail('saver [auto|bounce|starfield|flip|big] previews · saver style <s> · saver refresh <seconds> · saver tables <a,b> · saver burnin on|off · saver dim <minutes|off>')
 }
 
 /** Completions for `:saver …`. */
-export const SAVER_WORDS = ['auto', ...SAVER_STYLES, 'style', 'refresh', 'tables']
+export const SAVER_WORDS = ['auto', ...SAVER_STYLES, 'style', 'refresh', 'tables', 'burnin', 'dim']
 
-/** The Settings entries of the F9 menu: style, refresh interval, preview. */
+/** The Settings entries of the F9 menu: style, refresh interval, burn-in guard, dim, preview. */
 export function saverMenuEntries(store: AppStore): MenuEntry[] {
   const profile = store.status.profile || store.target?.name
   const current = readSaverSettings(profile)
@@ -199,6 +227,22 @@ export function saverMenuEntries(store: AppStore): MenuEntry[] {
         writeSaverSettings({ refreshSeconds: n })
         store.flash(`screen saver tiles refresh every ${n} s (saved)`)
       }, 'Enter chooses', Math.max(0, (REFRESH_CHOICES as readonly number[]).indexOf(current.refreshSeconds)))),
+    },
+    {
+      section: 'Settings', label: `Screen saver burn-in guard: ${current.burnin ? 'on' : 'off'}`, command: 'saver burnin on|off',
+      run: () => store.open(new ChoiceOverlay<boolean>(store, 'Move every element of the screen saver so nothing burns in', [
+        { label: 'On: everything drifts', value: true }, { label: 'Off: fixed layout', value: false },
+      ], (v) => {
+        writeSaverSettings({ burnin: v })
+        store.flash(`screen saver burn-in guard ${v ? 'on' : 'off'} (saved)`)
+      }, 'Enter chooses', current.burnin ? 0 : 1)),
+    },
+    {
+      section: 'Settings', label: `Screen saver dim: ${current.dimMinutes ? `after ${current.dimMinutes} min` : 'off'}`, command: 'saver dim <minutes|off>',
+      run: () => store.open(new ChoiceOverlay<number>(store, 'Dim the screen saver after', DIM_CHOICES.map((n) => ({ label: n ? `${n} minutes` : 'never', value: n })), (n) => {
+        writeSaverSettings({ dimMinutes: n })
+        store.flash(n ? `screen saver dims after ${n} min (saved)` : 'screen saver dimming off (saved)')
+      }, 'Enter chooses · :saver dim <minutes|off> for another time', Math.max(0, (DIM_CHOICES as readonly number[]).indexOf(current.dimMinutes)))),
     },
     { section: 'Settings', label: 'Preview the screen saver', command: 'saver', run: () => saverCommand(store, [], (t) => store.flash(t, 'error')) },
   ]

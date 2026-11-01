@@ -71,6 +71,17 @@ export class Canvas {
     return { x: x + 1, y: y + 1, w: Math.max(0, w - 2), h: Math.max(0, h - 2) }
   }
 
+  /** Dims everything: each colour moves `amount` (0…1) of the way to the background (burn-in guard). */
+  dim(amount: number): void {
+    const bg = this.base.bg
+    for (const row of this.cells) {
+      for (const cell of row) {
+        cell.fg = mix(cell.fg ?? this.base.fg, cell.bg ?? bg, amount)
+        cell.bg = mix(cell.bg ?? bg, bg, amount)
+      }
+    }
+  }
+
   /** The grid as text (tests, captures). */
   text(): string {
     return this.cells.map((r) => r.map((c) => c.ch).join('')).join('\n')
@@ -86,4 +97,15 @@ export class Canvas {
     }
     return out
   }
+}
+
+/** `#rrggbb` colours blended; anything else (named colours, undefined) stays as it is. */
+function mix(from: string | undefined, to: string | undefined, amount: number): string | undefined {
+  const a = /^#([0-9a-f]{6})$/i.exec(from ?? '')
+  const b = /^#([0-9a-f]{6})$/i.exec(to ?? '')
+  if (!a || !b) return from
+  const channel = (hex: string, i: number) => parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+  let out = '#'
+  for (let i = 0; i < 3; i++) out += Math.round(channel(a[1]!, i) + (channel(b[1]!, i) - channel(a[1]!, i)) * amount).toString(16).padStart(2, '0')
+  return out
 }
