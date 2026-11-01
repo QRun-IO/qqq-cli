@@ -18,6 +18,7 @@ import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
 import { CommandLineOverlay, HelpOverlay, LockOverlay, MenuOverlay, PaletteOverlay, type PaletteItem } from './overlays/center'
 import { chooseFolder } from './overlays/files-helpers'
 import { OutputScreen } from './screens/output'
+import { openReport } from './screens/report'
 import { TableApisScreen } from './screens/developer'
 import { actionsOverlay } from './overlays/actions'
 import { SignInScreen } from './screens/signin'
@@ -107,7 +108,7 @@ export class Commands implements CommandsLike {
     if (kind === 'table') openTable(s, name)
     else if (kind === 'process') openProcess(s, name)
     else if (kind === 'app') openApp(s, name)
-    else if (kind === 'report') this.commandLine(`report run ${name} --format csv`)
+    else if (kind === 'report') openReport(s, name)
     else if (kind === 'widget') void this.run(`widget get ${name}`)
   }
 
@@ -272,6 +273,9 @@ export class Commands implements CommandsLike {
         case 'connection': return this.connection()
         case 'open': return rest[0] ? openTable(s, rest[0]) : fail('open <table>')
         case 'app': return rest[0] ? openApp(s, rest[0]) : fail('app <name>')
+        case 'report':
+          if (rest[0] === 'run' && rest[1] && !rest.includes('--format') && !rest.includes('--out')) return openReport(s, rest[1])
+          break
         case 'record': return rest[0] && rest[1] ? openRecord(s, rest[0], rest[1]) : fail('record <table> <primaryKey>')
         case 'table':
           if (this.tableCommand(rest)) return

@@ -58,6 +58,6 @@ export function openNode(store: AppStore, node: AppTreeNode): void {
   if (node.type === 'TABLE') openTable(store, node.name)
   else if (node.type === 'PROCESS') openProcess(store, node.name)
   else if (node.type === 'APP') openApp(store, node.name)
-  else if (node.type === 'REPORT') store.commands().commandLine(`report run ${node.name} --format csv`)
+  else if (node.type === 'REPORT') void import('./screens/report').then((r) => r.openReport(store, node.name))
   else store.flash(`${node.type} ${node.label} has no terminal screen yet`)
 }

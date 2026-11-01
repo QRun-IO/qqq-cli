@@ -23,6 +23,8 @@ class Cancelled extends Error {
 }
 
 export interface ProcessOptions {
+  /** Reports: save the DOWNLOAD_FORM file as soon as the run finishes. */
+  autoDownload?: boolean
   /** The table variant the records come from (sent on init, every step and status). */
   tableVariant?: string
   recordIds?: string[]
@@ -167,6 +169,7 @@ export class ProcessScreen implements Screen {
       this.phase = 'done'
       this.finished = Date.now()
       this.note('complete')
+      if (this.options.autoDownload && this.downloads.length) this.saveDownloadFile()
       this.store.bump()
     }).catch((e) => {
       if (e instanceof Cancelled || this.cancelled) {

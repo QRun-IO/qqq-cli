@@ -7,6 +7,7 @@ import { readViewSettings, widgetToBlocks, writeViewSettings, type RenderBlock }
 import type { AppTreeNode } from '../client'
 import type { Key } from '../keys'
 import { openApp, openProcess, openTable } from '../nav'
+import { openReport } from './report'
 import { ChoiceOverlay } from '../overlays/basic'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
@@ -175,7 +176,7 @@ export class AppHomeScreen implements Screen {
         rows.push({ text: `    ${pad(label, 34)} ${typeof c === 'number' ? num(c) + ' records' : c ?? '…'}`, key: `t:${name}`, action: () => openTable(this.store, name) })
       }
       for (const name of s.processes ?? []) rows.push({ text: `  ${g.process} ${meta?.processes?.[name]?.label ?? name}`, key: `p:${name}`, action: () => openProcess(this.store, name) })
-      for (const name of s.reports ?? []) rows.push({ text: `  ${g.report} ${(meta?.reports as Record<string, { label?: string }> | undefined)?.[name]?.label ?? name}  (run with :report run ${name})`, key: `r:${name}`, action: () => this.store.commands().commandLine(`report run ${name} --format csv`) })
+      for (const name of s.reports ?? []) rows.push({ text: `  ${g.report} ${(meta?.reports as Record<string, { label?: string }> | undefined)?.[name]?.label ?? name}  `, key: `r:${name}`, action: () => openReport(this.store, name) })
     }
     const listed = new Set(sections.flatMap((s) => [...(s.tables ?? []), ...(s.processes ?? []), ...(s.reports ?? [])]))
     const others = (this.app?.children ?? []).filter((c) => !listed.has(c.name))
