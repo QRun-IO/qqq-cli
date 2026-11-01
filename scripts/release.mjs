@@ -40,6 +40,11 @@ const shell = process.platform === 'win32'
 /** Published packages, in publish order (each depends only on the ones before it). */
 const PUBLISHED = ['packages/ui-api-client', 'packages/core', 'packages/conformance', 'packages/cli']
 
+/** A literal text as a sed basic regular expression (its metacharacters and the `/` delimiter escaped). */
+function sedPattern(text) {
+  return text.replace(/[\\/.*[\]^$]/g, '\\$&')
+}
+
 function fail(message) {
   console.error(`\nrelease: ${message}`)
   process.exit(1)
@@ -121,7 +126,7 @@ ${PUBLISHED.map((dir) => `  npm publish -w ${versions[dir].name} --registry ${re
 
   # 3. the binaries with their checksums (${prerelease ? "a prerelease" : "the latest release"})
   gh release create ${cliTag} --repo QRun-IO/qqq-cli ${releaseKind} --title "qqq ${cli.version}" \\
-    --notes-file ${existsSync(join(root, `docs/release-notes/${cli.version}.md`)) ? `docs/release-notes/${cli.version}.md` : `<(sed -n '/^## \\[${cli.version.replace(/\./g, '\\.')}\\]/,/^## \\[/p' CHANGELOG.md | sed '$d')`} \\
+    --notes-file ${existsSync(join(root, `docs/release-notes/${cli.version}.md`)) ? `docs/release-notes/${cli.version}.md` : `<(sed -n '/^## \\[${sedPattern(cli.version)}\\]/,/^## \\[/p' CHANGELOG.md | sed '$d')`} \\
     dist/qqq-* dist/SHA256SUMS
 
   # 4. node scripts/update-packaging.mjs <SHA256SUMS of the GitHub release>, then copy
