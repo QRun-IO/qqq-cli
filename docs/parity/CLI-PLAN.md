@@ -6,7 +6,8 @@ browser-only reason) or **blocked** (citing a server finding in `docs/server-fin
 `python3 scripts/parity-matrix.py docs/parity/next-feature-matrix.md`.
 
 Start: 173 pass / 42 partial / 80 todo / 106 n/a of 401.
-Checkpoint 1 (bulk load): 188 pass / 41 partial / 66 todo / 106 n/a (branch `feat/m1-cli-parity` from `feat/m1-kernel-cli` 6c56b89).
+Checkpoint 1 (bulk load): 188 pass / 41 partial / 66 todo / 106 n/a.
+Checkpoint 2 (records, queries, processes, help): 232 pass / 1 partial / 60 todo / 106 n/a / 2 blocked (branch `feat/m1-cli-parity` from `feat/m1-kernel-cli` 6c56b89).
 
 "unit-tested" in a row note means the sample at :8077 cannot exercise the row (no fixture); the kernel and the
 command are covered by node tests (and a local stub server where a command is involved). Everything else is
@@ -38,41 +39,41 @@ Status column: **plan** = what the row becomes; **done** once the STATUS source 
 
 | Row | Plan | Status |
 |---|---|---|
-| REC-002 placeholders, hidden | unit-tested (finding 17) → pass | plan |
-| REC-020 HTML field editing | `table update --editor <field>` opens $EDITOR; HTML shown as sanitized text | plan |
-| REC-029 CHIP colors and icons | color (ANSI on a terminal) and icon name shown; unit-tested | plan |
-| REC-031 CODE_EDITOR | code shown verbatim (indent kept); `--editor <field>` edits it; unit-tested | plan |
-| REC-032 RENDER_HTML | HTML to sanitized text; unit-tested | plan |
-| REC-033 REVEAL | masked, `--reveal`, `--copy <field>` copies the value (OSC 52 / pbcopy); unit-tested | plan |
-| REC-034 FILE_DOWNLOAD | name and `table download`; unit-tested (finding 16 for BLOBs without adornments) | plan |
-| REC-035 FILE_UPLOAD formats | accepted formats checked before upload; unit-tested | plan |
-| REC-036..041 tooltip, widget, error, help | unit-tested → pass | plan |
-| REC-042/043 audits | unit-tested with a stub → pass | plan |
-| REC-053 API docs & playground | `table apis`, `api-doc`; playground: `table api-call` against the application API, or n/a | plan |
-| REC-054 scripts | add test runs if the server offers the test process; else note | plan |
-| REC-060 adjusters | unit-tested → pass | plan |
-| REC-061 dynamicForm widget on a record form | edit the JSON field through the widget's fields | plan |
-| REC-063 variant writes | blocked: finding 19 | plan |
-| REC-064 joined sections | verified with an association join → pass | plan |
-| REL-006/007/008 | unit-tested → pass | plan |
+| REC-002 placeholders, hidden | unit-tested (finding 17) → pass | done |
+| REC-020 HTML field editing | `table update --editor <field>` opens $EDITOR; HTML shown as sanitized text | done |
+| REC-029 CHIP colors and icons | color (ANSI on a terminal) and icon name shown; unit-tested | done |
+| REC-031 CODE_EDITOR | code shown verbatim (indent kept); `--editor <field>` edits it; unit-tested | done |
+| REC-032 RENDER_HTML | HTML to sanitized text; unit-tested | done |
+| REC-033 REVEAL | masked, `--reveal`, `--copy <field>` copies the value (OSC 52 / pbcopy); unit-tested | done |
+| REC-034 FILE_DOWNLOAD | name and `table download`; unit-tested (finding 16 for BLOBs without adornments) | done |
+| REC-035 FILE_UPLOAD formats | accepted formats checked before upload; unit-tested | done |
+| REC-036..041 tooltip, widget, error, help | unit-tested → pass | done |
+| REC-042/043 audits | unit-tested with a stub → pass | done |
+| REC-053 API docs & playground | `table apis`, `api-doc`; playground: `table api-call` against the application API, or n/a | done |
+| REC-054 scripts | add test runs if the server offers the test process; else note | done |
+| REC-060 adjusters | unit-tested → pass | done |
+| REC-061 dynamicForm widget on a record form | edit the JSON field through the widget's fields | done |
+| REC-063 variant writes | blocked: finding 19 (qqq#1351) | done (blocked) |
+| REC-064 joined sections | verified with an association join → pass | done |
+| REL-006/007/008 | unit-tested → pass | done |
 
 ## Query, filters, saved views, variants
 
 | Row | Plan | Status |
 |---|---|---|
-| QRY-004 column persistence | `qqq table columns <t> [--set a,b \| --reset]`, kept per table in the config the TUI uses; queries default to it | plan |
-| QRY-015 labels in filters | `-w "homeCityId = 'New York'"` resolved to ids by possible values | plan |
-| QRY-020/022 joins, stats | unit-tested → pass | plan |
-| QRY-050..054, 094, 096 saved views | unit-tested with a stub (sample has no saved views) → pass | plan |
-| QRY-060 variant remembered | last variant per table kept in local state | plan |
-| QRY-061/066/071 variants | unit-tested → pass | plan |
-| QRY-085 weekday criteria | grammar `weekday(f) IN (1,5)` as the Next UI sends it | plan |
+| QRY-004 column persistence | `qqq table columns <t> [--set a,b \| --reset]`, kept per table in the config the TUI uses; queries default to it | done |
+| QRY-015 labels in filters | `-w "homeCityId = 'New York'"` resolved to ids by possible values | done |
+| QRY-020/022 joins, stats | unit-tested → pass | done |
+| QRY-050..054, 094, 096 saved views | unit-tested with a stub (sample has no saved views) → pass | done |
+| QRY-060 variant remembered | last variant per table kept in local state | done |
+| QRY-061/066/071 variants | unit-tested → pass | done |
+| QRY-085 weekday criteria | grammar sends WeekdayOfDate; blocked on finding 24 (qqq#1355) | done (blocked) |
 
 ## Processes
 
 | Row | Plan | Status |
 |---|---|---|
-| PRC-037 ad hoc composite actions and inputs | buttons offered as a choice, inputs prompted, submit-on-enter | plan |
+| PRC-037 ad hoc composite actions and inputs | buttons offered as a choice, inputs prompted, submit-on-enter | done |
 
 ## Navigation, widgets, dashboards
 
@@ -109,4 +110,4 @@ Status column: **plan** = what the row becomes; **done** once the STATUS source 
 
 | Row | Plan | Status |
 |---|---|---|
-| HLP-001..004 | unit-tested (finding 17) → pass | plan |
+| HLP-001..004 | unit-tested (finding 17) → pass | done |
