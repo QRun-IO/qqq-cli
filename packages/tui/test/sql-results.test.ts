@@ -190,7 +190,47 @@ test('completion popup: filters by prefix then substring, moves, inserts, closes
   expect(p.handle({ name: 'x', sequence: 'x' })).toBe(false)
   p.setFilter('zzz')
   expect(p.handle({ name: 'tab', sequence: '' })).toBe('close')
-  const line = CompletionPopup.line({ value: 'A_VERY_LONG_TABLE_NAME_INDEED', detail: 'CHARACTER VARYING' }, 20)
-  expect(line.label.length + line.detail.length).toBeLessThanOrEqual(20)
-  expect(line.label.startsWith(' A_VERY')).toBe(true)
+})
+
+test('popup layout: the width it needs (60 to 120, never past the room), two left-aligned columns, wrapped descriptions', () => {
+  const commands = new CompletionPopup([
+    { value: 'assistant', detail: 'Assistant (assistant extension, qbit-assistant): QQQ Assistant conversations, profiles, skills, budgets and usage' },
+    { value: 'cache', detail: 'The local metadata cache (what completion and listings read)' },
+    { value: 'sql', detail: 'SQL Runner (statement to run, open <notebook id>)' },
+    { value: 'q' },
+  ])
+  // wide room: as wide as the longest name and description need, capped at 120
+  const wide = commands.layout(158)
+  expect(wide.width).toBe(120)
+  expect(wide.nameW).toBe('assistant'.length)
+  const rows = commands.windowLines(20, wide)
+  expect(rows.map((r) => r.lines.length)).toEqual([2, 1, 1, 1])
+  expect(rows[1]!.lines[0]).toBe(` cache      ·  The local metadata cache (what completion and listings read)`.padEnd(wide.inner))
+  expect(rows.every((r) => r.lines.every((l) => l.length === wide.inner))).toBe(true)
+  // the description column starts at the same place on every row (left-aligned, no right-aligned clipping)
+  expect(new Set(rows.filter((r) => r.item.detail).map((r) => r.lines[0]!.indexOf('·'))).size).toBe(1)
+  // 80 columns: at least 60 wide; a description that does not fit wraps to a second line instead of …
+  const narrow = commands.layout(78)
+  expect(narrow.width).toBe(78)
+  const assistant = CompletionPopup.rowLines(commands.items[0]!, narrow)
+  expect(assistant.length).toBe(2)
+  expect(assistant[0]!.trimEnd().endsWith('…')).toBe(false)
+  expect(assistant[1]!.startsWith(' '.repeat(1 + narrow.nameW + 5))).toBe(true)
+  expect(assistant.every((l) => l.length === narrow.inner)).toBe(true)
+  // short lists stay at the 60-column minimum; a tiny room wins over the minimum
+  expect(new CompletionPopup([{ value: 'ID', detail: 'INTEGER' }]).layout(150).width).toBe(60)
+  expect(new CompletionPopup([{ value: 'ID', detail: 'INTEGER' }]).layout(40).width).toBe(40)
+  // short descriptions (SQL tables with their column counts): long names are not cut
+  const tables = new CompletionPopup([{ value: 'ALERTS_ESCALATION_POLICY_HISTORY_ENTRY', detail: '8 cols' }, { value: 'ID', detail: '40 cols' }])
+  const tl = tables.layout(78)
+  expect(tl.nameW).toBe('ALERTS_ESCALATION_POLICY_HISTORY_ENTRY'.length)
+  expect(CompletionPopup.rowLines(tables.items[0]!, tl)[0]).toContain('ALERTS_ESCALATION_POLICY_HISTORY_ENTRY  ·  8 cols')
+  // the window counts lines: two-line rows take two, and the cursor stays visible
+  const many = new CompletionPopup(Array.from({ length: 20 }, (_, i) => ({ value: `t${i}`, detail: 'x '.repeat(60).trim() })))
+  const lay = many.layout(78)
+  expect(many.windowLines(6, lay).length).toBe(3)
+  many.cursor = 10
+  const win = many.windowLines(6, lay)
+  expect(win.some((r) => r.index === 10)).toBe(true)
+  expect(win.reduce((a, r) => a + r.lines.length, 0)).toBeLessThanOrEqual(6)
 })

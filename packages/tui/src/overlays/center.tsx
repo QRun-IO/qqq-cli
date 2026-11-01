@@ -330,11 +330,21 @@ export class CommandLineOverlay implements Overlay {
       : this.popup ? ' ↑↓ choose · Enter or Tab inserts · type to filter · Esc closes the list' : ' ↑↓ history · Ctrl+R search · Tab completes · Enter runs · Esc · e.g. table query person -w "lastName STARTS_WITH S" · theme light · lock · quit'
     const left = Math.max(0, Math.floor((sw - width) / 2))
     const top = Math.max(0, sh - 6)
-    const rows = this.popup ? Math.max(1, Math.min(10, top - 3, this.popup.model.matches().length)) : 0
-    const popupWidth = Math.min(width, 72)
+    // the list sits above the : line and never covers it: at most 14 rows, as many as fit above
+    let popup = null
+    if (this.popup) {
+      const model = this.popup.model
+      const room = Math.max(20, sw - 2)
+      const maxLines = Math.max(1, Math.min(14, top - 3))
+      const layout = model.layout(room)
+      const used = Math.max(1, model.windowLines(maxLines, layout).reduce((a, r) => a + r.lines.length, 0))
+      const popupLeft = Math.max(0, Math.min(sw - layout.width, left))
+      const first = this.editor.value.slice(0, this.popup.from).trim() === ''
+      popup = <PopupBox popup={model} left={popupLeft} top={Math.max(0, top - used - 3)} room={room} maxLines={maxLines} columns={first ? ['command', 'description'] : ['argument', 'description']} insert={() => this.onKey({ name: 'tab', sequence: '' })} />
+    }
     return (
       <>
-      {this.popup && <PopupBox popup={this.popup.model} left={left} top={Math.max(0, top - rows - 2)} width={popupWidth} rows={rows} title={`${this.popup.model.matches().length} matches${this.popup.model.filter ? ` · ${this.popup.model.filter}` : ''}`} insert={() => this.onKey({ name: 'tab', sequence: '' })} />}
+      {popup}
       <box position="absolute" left={left} top={top} width={width} height={4} flexDirection="column" border borderStyle="single" borderColor={t.focusBorder} {...(glyphs().border ? { customBorderChars: glyphs().border } : {})} backgroundColor={t.overlayBg} title=" : command " zIndex={30}>
         <text flexShrink={0} wrapMode="none"><span fg={t.acc2}>{':'}</span></text>
         <box position="absolute" left={2} top={0}><EditorLine editor={this.editor} width={inner - 3} /></box>

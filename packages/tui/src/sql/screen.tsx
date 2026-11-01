@@ -1251,14 +1251,18 @@ export class SqlRunnerScreen implements Screen {
   private popupBox(mainW: number, height: number, strip: boolean): ReactNode {
     const p = this.popup!
     const buf = this.buffer
-    const width = Math.min(60, Math.max(24, mainW - 2))
-    const rows = Math.min(8, Math.max(1, p.model.matches().length))
+    const room = Math.max(20, mainW - 2)
+    const layout = p.model.layout(room)
     const lineTop = (strip ? 1 : 0) + 1 + (buf.row - buf.top)
-    const below = lineTop + 1
-    const top = below + rows + 2 <= height ? below : Math.max(0, lineTop - rows - 2)
+    const roomBelow = height - (lineTop + 1) - 3
+    const roomAbove = lineTop - 3
+    const below = roomBelow >= Math.min(8, p.model.matches().length) || roomBelow >= roomAbove
+    const maxLines = Math.max(1, Math.min(10, below ? roomBelow : roomAbove))
+    const used = Math.max(1, p.model.windowLines(maxLines, layout).reduce((a, r) => a + r.lines.length, 0))
+    const top = below ? lineTop + 1 : Math.max(0, lineTop - used - 3)
     const caret = 1 + 4 + Math.max(0, buf.col - buf.left) - (buf.offset() - p.from)
-    const left = Math.max(0, Math.min(mainW - width, caret - 1))
-    return <PopupBox popup={p.model} left={left} top={top} width={width} rows={rows} insert={() => this.onKey({ name: 'tab', sequence: '' })} />
+    const left = Math.max(0, Math.min(mainW - layout.width, caret - 2))
+    return <PopupBox popup={p.model} left={left} top={top} room={room} maxLines={maxLines} columns={['name', 'type / columns']} insert={() => this.onKey({ name: 'tab', sequence: '' })} />
   }
 
   /**
