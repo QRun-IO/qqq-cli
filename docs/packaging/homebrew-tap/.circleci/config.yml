@@ -1,0 +1,14 @@
+version: 2.1
+setup: true
+orbs:
+  qqq-orb: kingsrook/qqq-orb@0.8
+workflows:
+  setup:
+    jobs:
+    - qqq-orb/generate_pipeline:
+        orb_version: '0.8'
+        filters:
+          branches:
+            ignore: automation/qbit-rc-pending
+          tags:
+            only: /.*/

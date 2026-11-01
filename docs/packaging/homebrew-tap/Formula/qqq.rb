@@ -1,8 +1,8 @@
-# Draft Homebrew formula for the qqq CLI, in the style of QRun-IO/homebrew-qctl's qctl.rb.
-# scripts/update-packaging.mjs fills version and sha256 from dist/SHA256SUMS of a release build;
-# copy the result to Formula/qqq.rb in the tap (see docs/packaging/README.md).
+# qqq: the QQQ command-line client and terminal UI (qqq ui) in one binary.
+# Kept in qqq-cli at docs/packaging/homebrew-tap/Formula/qqq.rb; scripts/update-packaging.mjs fills
+# version and sha256 from the SHA256SUMS of a GitHub release, then the file is copied to the tap.
 class Qqq < Formula
-  desc "Command-line client for QQQ applications, built on the QQQ UI API"
+  desc "Command-line client and terminal UI for QQQ applications"
   homepage "https://github.com/QRun-IO/qqq-cli"
   version "1.0.0-rc.1"
   license "Apache-2.0"
@@ -31,6 +31,7 @@ class Qqq < Formula
 
   def install
     binary = Dir["qqq-*"].first
+    chmod 0755, binary # downloads arrive without the execute bit; completions below run the binary
     bin.install binary => "qqq"
     generate_completions_from_executable(bin/"qqq", "completion", shells: [:bash, :fish])
     # `qqq completion zsh` is an eval script; an fpath file needs the #compdef form
@@ -42,8 +43,16 @@ class Qqq < Formula
     ZSH
   end
 
+  def caveats
+    <<~EOS
+      qqq ui opens the terminal UI (bundled in this binary). Sign in first:
+        qqq login --server https://your-qqq-server
+    EOS
+  end
+
   test do
-    assert_match "qqq #{version}", shell_output("#{bin}/qqq --version")
+    # the release binaries carry the terminal UI; a CLI-only build here would be a packaging mistake
+    assert_match(/qqq #{Regexp.escape(version.to_s)} \(.* binary with ui/, shell_output("#{bin}/qqq --version"))
     assert_match "table", shell_output("#{bin}/qqq __complete -- ta")
   end
 end
