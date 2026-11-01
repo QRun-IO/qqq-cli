@@ -213,6 +213,8 @@ qqq ui --theme light                                      # high-contrast (defau
 - **The function-key bar** at the bottom is always right for the current screen: F1 Help, F2 Search,
   F3 View, F4 Edit, F5 Refresh, F6 Filter, F7 New, F8 Delete, F9 Menu, F10 Quit. When the terminal takes
   the F-keys, Esc then a digit (or Ctrl+digit) stands for F1 to F10.
+  **Shift+F1…F10** are a second bank (Keys, Servers, SQL, Bulk, Metadata, Views, Copy, Export, History,
+  Assistant), shown as a second bar row from 30 lines (`:fkeys one|two|auto`).
 - **F2** is Search: records across tables (quick search), the main way into the data. **`/`** (or `.`, Ctrl+K)
   is the find-anything palette: any app, table, process, widget, report, record or command, searched as you
   type, fast on instances with thousands of tables. **Ctrl+O** switches servers, **Ctrl+P** prints what you see.

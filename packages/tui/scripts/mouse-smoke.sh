@@ -74,9 +74,10 @@ expect 07-record 'record 2 of'
 keys Escape
 expect 08-back 'row 2 '
 right "$((hx + 1))" "$((hy + 4))"
-expect 09-actions 'row 3 ' 'Actions'
+expect 09-actions 'Actions'
 keys Escape
-cap 09b-before-drag
+# the grid's status line can sit under the dialog (the F-key bar takes two rows from 30 lines): checked after it closes
+expect 09b-before-drag 'row 3 '
 read -r x y < <(at 09b-before-drag 'First Name')
 read -r lx _ < <(at 09b-before-drag 'Last Name')
 drag "$((lx - 1))" "$y" "$((lx + 6))"
@@ -89,6 +90,12 @@ expect 11b-footer ' · ping '   # the flash from the resize has faded
 read -r x y < <(at 11b-footer ' · ping ')
 click 2 "$y"
 expect 12-footer-servers 'Servers'
+# the Shift row of the F-key bar (two rows from 30 lines): a click on Shift+F2 opens the same dialog
+keys Escape
+cap 12c-bar
+read -r x y < <(at 12c-bar '2Servers')
+click "$((x + 1))" "$y"
+expect 12d-shift-servers 'Servers  (Ctrl+O)'
 keys Escape F9 T:mouse
 expect 12b-menu 'Mouse: on'
 read -r x y < <(at 12b-menu 'Mouse: on')

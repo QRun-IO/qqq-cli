@@ -20,6 +20,19 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
 - Kernel: `parseMarkdown`, `markdownText`, `answerDocument` and `linkTargetKey` (render/markdown.ts): the
   assistant's markdown as blocks with numbered links, one per target (a filter on the primary key is
   that record; JSON and base64 filters compare by content).
+- **`qqq ui`: the Shift bank.** Shift+F1…F10 are a second row of function keys: Keys (the `?`
+  reference), Servers, SQL (SQL Runner), Bulk, Metadata (refresh), Views (saved views), Copy (into a new
+  record), Export, History and Assistant (the same toggle as F12 and Ctrl+G). Like the primary bar they follow the
+  screen: keys that do not apply are dimmed and say why when pressed. The assignments are one table bound to
+  named actions (`assistant.toggle` and the rest), so other keys can bind the same actions.
+- **The F-key bar in two rows** (primary, then the Shift row marked `⇧`) on terminals of 30 lines or more;
+  `:fkeys one|two|auto` and F9 › Settings › F-key bar choose (saved as `ui.fkeyBar`). In one-row mode the
+  Shift row replaces the primary row for 2 seconds after a Shift+F press. Clicks on the Shift row run its
+  keys; `?` lists the bank.
+- **One decoder for modified function keys** across terminals: xterm modifier forms (tmux, iTerm2, Windows
+  Terminal), the kitty keyboard protocol, the legacy `ESC [25~`…`ESC [34~` numbering (VT220, rxvt and
+  the Linux console, macOS Terminal.app; `QQQ_FKEYS` overrides the detection) and rxvt's `$ ^ @`
+  suffixes. Ctrl+F-keys are decoded too (no bindings yet).
 
 ### Fixed
 
@@ -30,6 +43,9 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
   Links), never their URL-encoded `/app/...?filter=` targets; the tool results' links are listed only
   when the text does not already show the same target, so `db_performance` no longer appears three times.
   Exact duplicate paragraphs are shown once; the timing and token line stays, dimmed.
+- **Shift+F3 and the other modified F3s** (`ESC [1;2R`) no longer vanish: OpenTUI took them for cursor
+  position reports. They are rewritten on the input stream into `ESC [13;2~` outside the startup
+  cursor-query window.
 
 ## [1.0.0] - 2026-11-01
 

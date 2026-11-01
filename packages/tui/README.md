@@ -55,6 +55,47 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 | `t` | tags of a record (collaboration extension) | Esc then 1..0, Ctrl+1..0 | F1..F10 when the terminal takes the F-keys |
 | Ctrl+P, `p`, PrtSc | print what you see: record sheet, table list (all rows or this page), or the screen (printing extension; else save as a file) | | |
 
+### Shift bank (Shift+F1…F10)
+
+A second row of ten function keys, like Norton Commander's Shift bar. Keys that do not apply on the screen
+are dimmed; pressing one says why.
+
+| Key | Label | Does |
+|---|---|---|
+| Shift+F1 | Keys | the keyboard reference (as `?`) |
+| Shift+F2 | Servers | the Servers dialog (as Ctrl+O) |
+| Shift+F3 | SQL | the SQL Runner (sql-workbench extension) |
+| Shift+F4 | Bulk | bulk edit, bulk delete and processes on the grid selection (as `b`) |
+| Shift+F5 | Metadata | refresh the metadata from the server |
+| Shift+F6 | Views | saved views of the grid |
+| Shift+F7 | Copy | copy the record, or the grid row under the cursor, into a new record (as `c`) |
+| Shift+F8 | Export | export the grid to a file (as `x`) |
+| Shift+F9 | History | the History screen (as `:history`) |
+| Shift+F10 | Assistant | show or hide the Assistant panel (the same action as F12 and Ctrl+G; assistant extension) |
+
+The bar shows the Shift row under the primary one (prefixed `⇧`) when the terminal has 30 lines or more.
+`:fkeys one|two|auto` or F9 › Settings › F-key bar chooses: **auto** (two rows from 30 lines), **two** rows
+always, or **one** row, where the Shift row takes the primary row's place for 2 seconds after any Shift+F
+press (a terminal cannot report Shift being pressed and released on its own). A click on the Shift row runs
+that key. The assignments are one table (`src/keys/shift-bank.ts`), each naming an action in
+`src/keys/actions.ts`.
+
+What terminals send for Shift+F1…F12 is decoded in one place (`src/keys/fkeys.ts`):
+
+| Terminal | Shift+F1…F12 | Notes |
+|---|---|---|
+| tmux (any outer terminal) | `ESC [1;2P` … `ESC [1;2S`, `ESC [15;2~` … `ESC [24;2~` | verified live; tmux re-encodes the keys it knows |
+| iTerm2, Windows Terminal, xterm, VTE, Konsole, Alacritty | the same xterm forms | kitty-protocol terminals (kitty, WezTerm, Ghostty, iTerm2 with CSI u) send `ESC [13;2~` for F3 and may send `ESC [57364;2u`…; both read |
+| macOS Terminal.app | Shift+F5…F12 are `ESC [25~` … `ESC [34~` | Shift+F1…F4 have no code of their own by default: add them in Settings › Profiles › Keyboard (`\033[1;2P` …) or use the F9 menu |
+| rxvt, urxvt, Linux console | Shift+F3…F10 are `ESC [25~` … `ESC [34~`, Shift+F11/F12 `ESC [23$` / `ESC [24$` | Shift+F1/F2 send the same as F11/F12 there |
+
+Shift+F3 in the xterm form (`ESC [1;2R`) looks like a cursor position report, which OpenTUI drops; it and
+the legacy forms are rewritten on the input stream into the canonical `ESC [n;2~` (never in the first
+1.5 s after start or a resume, while the terminal answers OpenTUI's cursor queries). The legacy numbering is
+picked from `TERM_PROGRAM` and `TERM`; `QQQ_FKEYS=vt220|rxvt|apple|modern` overrides it (vt220: `ESC [25~`
+is Shift+F1; modern: legacy numbers are ignored, the default in tmux, iTerm2, Windows Terminal and kitty).
+Ctrl+F1…F12 are decoded too but have no bindings yet: Ctrl+F5 acts as F5.
+
 Keys on one screen:
 
 | Screen | Keys |
@@ -583,6 +624,8 @@ before any program sees it. `qqq ui --check` (and the quick check at startup) fi
   (System Settings › Keyboard), or hold fn.
 - Whatever the terminal does, Ctrl+F / Ctrl+B page and the F9 menu and `:` line reach every action; Esc then
   a digit (or Ctrl+digit) stands for F1..F10.
+- **Shift+F-keys** (the Shift bank): see [Shift bank](#shift-bank-shiftf1f10) for what each terminal sends;
+  `QQQ_FKEYS` overrides the legacy numbering.
 
 ## Tests
 

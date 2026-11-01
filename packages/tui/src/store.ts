@@ -14,6 +14,7 @@ import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { History, MetaDataIndex, addRecent, currentCredential, readIdleMinutes, type MetaDataDocument, type RecentItem } from '@qrun-io/qqq-core'
 import { TUI_CHANNEL, TuiClient, type VersionInfo } from './client'
 import { charOf, isPrintable, type Key } from './keys'
+import { bankKey, legacyProfile, shiftNumber, type LegacyProfile } from './keys/fkeys'
 import { ChoiceOverlay, ConfirmOverlay, CliCommandOverlay, MessageOverlay } from './overlays/basic'
 import { Extensions } from './extensions'
 import { PrintTracker, printScreen } from './printing'
@@ -37,6 +38,8 @@ export interface Settings {
   singleKeys: boolean
   /** Copy CLI equivalents to the clipboard automatically (ui.copyCliCommands; default off). */
   copyCli?: boolean
+  /** The F-key bar: one row, two rows (primary and Shift), or auto (two from 30 lines); keys/shift-bank.ts. */
+  fkeyBar?: 'one' | 'two' | 'auto'
 }
 
 export interface Status {
@@ -118,6 +121,11 @@ export class AppStore {
   /** Copies text to the clipboard (set by main); returns how it was copied, or undefined when there is no clipboard. */
   copyText: (text: string) => string | undefined = () => undefined
   sidebar?: SidebarLike
+  /** How this terminal numbers its legacy shifted F-keys (keys/fkeys.ts; QQQ_FKEYS overrides). */
+  fkeyProfile: LegacyProfile = legacyProfile()
+  /** One-row bar: the Shift row is shown instead of the primary row until this time (after a Shift+F press). */
+  shiftRowUntil = 0
+  private shiftRowTimer?: ReturnType<typeof setTimeout>
   private listeners = new Set<Listener>()
   private timers: Array<ReturnType<typeof setInterval>> = []
   private streamAbort?: AbortController
@@ -363,6 +371,8 @@ export class AppStore {
     // F-key fallbacks for terminals that take the F-keys: Esc then a digit (arrives as Alt+digit) or Ctrl+digit; 0 is F10
     const digit = /^[0-9]$/.test(raw.name) ? raw.name : /^[0-9]$/.test(raw.sequence?.slice(-1) ?? '') && raw.meta ? raw.sequence.slice(-1) : undefined
     if (digit !== undefined && (raw.meta || raw.ctrl)) key = { name: `f${digit === '0' ? 10 : digit}`, sequence: '' }
+    // Shift+F1…F12 (any terminal's form, keys/fkeys.ts) are the Shift bank: shift+f1…shift+f12
+    key = bankKey(key, this.fkeyProfile)
     try {
       this.dispatch(key)
     } catch (e) {
@@ -399,6 +409,8 @@ export class AppStore {
     // Ctrl+P prints what you see on every screen; Print Screen too when the terminal passes it on
     // (kitty keyboard protocol); F8 prints where the screen has no Delete for it
     if ((key.ctrl && key.name === 'p') || key.name === 'printscreen' || (key.name === 'f8' && this.fkeys().find((k) => k.n === 8)?.label === 'Print')) return printScreen(this)
+    const shifted = shiftNumber(key)
+    if (shifted !== undefined) return this.commands().shiftKey(shifted)
     if (key.name === 'f1') return this.commands().help()
     if (this.backslash && charOf(key) === '?') {
       this.backslash = false
@@ -517,6 +529,8 @@ export class AppStore {
   dispose(): void {
     for (const t of this.timers) clearInterval(t)
     this.timers = []
+    if (this.shiftRowTimer) clearTimeout(this.shiftRowTimer)
+    this.shiftRowTimer = undefined
     this.clockTimer = undefined
     this.streamAbort?.abort()
     this.printTracker.dispose()
@@ -659,6 +673,22 @@ export class AppStore {
     this.bump()
   }
 
+  /** One-row bar: shows the Shift row for `ms` (keys/shift-bank.ts SHIFT_ROW_MS), then the primary row again. */
+  showShiftRow(ms = 2000): void {
+    this.shiftRowUntil = Date.now() + ms
+    if (this.shiftRowTimer) clearTimeout(this.shiftRowTimer)
+    this.shiftRowTimer = setTimeout(() => {
+      this.shiftRowTimer = undefined
+      this.bump()
+    }, ms + 10)
+    ;(this.shiftRowTimer as { unref?: () => void }).unref?.()
+  }
+
+  /** Whether one-row mode shows the Shift row now. */
+  shiftRowShown(): boolean {
+    return Date.now() < this.shiftRowUntil
+  }
+
   /** The function-key bar for the current context; from 120 columns also 11 (reserved, blank) and 12 (the Assistant). */
   fkeys(): Array<{ n: number; label: string | null; global: string }> {
     const defaults: Record<number, string> = { 1: 'Help', 2: 'Search', 3: 'View', 4: 'Edit', 5: 'Refresh', 6: 'Filter', 7: 'New', 8: 'Delete', 9: 'Menu', 10: 'Quit' }
@@ -704,6 +734,8 @@ export interface CommandsLike {
   menu(): void
   /** The Servers dialog (Ctrl+O). */
   servers(): void
+  /** Shift+Fn: the Shift bank's key n (keys/shift-bank.ts). */
+  shiftKey(n: number): void
   commandLine(initial?: string): void
   viewSettings(): void
   lock(): void
