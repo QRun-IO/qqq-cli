@@ -24,8 +24,8 @@ import { wheelAsKeys } from '../mouse/keys'
 import type { AppStore } from '../store'
 import { borderProps, theme } from '../theme'
 import type { FKeyLabels } from '../types'
-import { errorText, hintLine, pad, trunc } from '../util/text'
-import { chatLines, chatLinks, contextLabel, wrap, type ChatLine, type Exchange } from './model'
+import { cellWidth, errorText, hintLine, pad, trunc } from '../util/text'
+import { chatLines, chatLinks, contextLabel, wrap, type ChatLine, type Exchange, type Seg } from './model'
 
 /** Below this terminal width the panel takes the whole body instead of a right-hand pane. */
 export const SIDE_MIN_WIDTH = 110
@@ -92,9 +92,26 @@ export class AssistantPanel {
     void this.loadConfig().then(() => this.ask(question))
   }
 
-  /** The page under the panel as context: a record, or a grid with its filter. */
+  /** The context questions carry: the screen the panel was shown over (kept while hidden). */
+  private pinned?: AssistantPageContext
+
+  /**
+   * Takes the screen under the panel as the context: when the panel is shown, and while it is shown
+   * beside the screen (a link opened from it becomes the context). A screen without one (Home)
+   * keeps the context the panel had.
+   */
+  capturePageContext(): void {
+    const context = this.screenContext()
+    if (context) this.pinned = context
+  }
+
+  /** The context the next question carries (none after Ctrl+D). */
   pageContext(): AssistantPageContext | undefined {
-    if (this.dropContext) return undefined
+    return this.dropContext ? undefined : this.pinned
+  }
+
+  /** The screen's context: a record, or a grid with its filter. */
+  screenContext(): AssistantPageContext | undefined {
     const screen = this.store.screen as unknown as { kind?: string; tableName?: string; primaryKey?: string; filter?: Record<string, unknown> } | undefined
     if (screen?.kind === 'record' && screen.tableName && screen.primaryKey !== undefined) return assistantContextFor({ tableName: screen.tableName, recordId: screen.primaryKey })
     if (screen?.kind === 'table' && screen.tableName) return assistantContextFor({ tableName: screen.tableName, filter: screen.filter })
@@ -170,9 +187,23 @@ export class AssistantPanel {
     this.store.bump()
   }
 
+  /** A table's primary key field from the metadata (links that filter on it are that record). */
+  readonly primaryKeyOf = (table: string): string | undefined => (this.store.meta?.tables?.[table] as { primaryKeyField?: string } | undefined)?.primaryKeyField
+
+  /** Every link of the conversation, in reading order, once per target. */
+  links(): Array<{ label: string; href: string }> {
+    return chatLinks(this.exchanges, this.primaryKeyOf)
+  }
+
+  /** `u` on a link: its address, shown (never opened). */
+  showUrl(index = this.linkCursor): void {
+    const link = this.links()[index]
+    if (link) this.store.message(`${link.label}\n${link.href}`, 'info', 'Link address')
+  }
+
   /** Opens the link under the cursor in the screen beside (or, on a narrow terminal, under) the panel. */
   openLink(index = this.linkCursor): void {
-    const link = chatLinks(this.exchanges)[index]
+    const link = this.links()[index]
     if (!link) return
     this.linkCursor = -1
     this.store.focus = 'content'
@@ -198,13 +229,14 @@ export class AssistantPanel {
       ['Ctrl+D', 'send without / with the page context'],
       ['Ctrl+L', 'new conversation'],
       ['Ctrl+X', 'stop the answer'],
-      ['Ctrl+G', 'back to the screen (the panel stays)'],
-      ['Esc', 'close the panel (the conversation is kept)'],
+      ['u', 'on a link: show its address'],
+      ['F12  Ctrl+G', 'hide the panel (the conversation, context and draft are kept); again shows it'],
+      ['Esc', 'hide the panel (on a link: back to the question line)'],
     ]
   }
 
   onKey(key: Key): boolean {
-    const links = chatLinks(this.exchanges).length
+    const links = this.links().length
     if (key.ctrl && key.name === 'x') return this.stop(), true
     if (key.ctrl && key.name === 'l') return this.clear(), true
     if (key.ctrl && key.name === 'd') {
@@ -214,6 +246,7 @@ export class AssistantPanel {
     }
     switch (key.name) {
       case 'escape':
+        // hides the panel; the draft on the question line stays for next time
         if (this.linkCursor >= 0) this.linkCursor = -1
         else this.store.closeAssistant()
         return true
@@ -247,6 +280,7 @@ export class AssistantPanel {
         break
     }
     if (key.name.startsWith('f') && /^f\d+$/.test(key.name)) return false
+    if (this.linkCursor >= 0 && !key.ctrl && !key.meta && key.sequence === 'u') return this.showUrl(), true
     if (this.editor.handle(key)) {
       this.linkCursor = -1
       return true
@@ -285,15 +319,16 @@ export class AssistantPanel {
 
   render(width: number, height: number, focused: boolean) {
     const t = theme()
+    if (this.store.assistantLayout()?.mode === 'side') this.capturePageContext()
     const inner = Math.max(10, width - 2)
     const context = this.pageContext()
     const label = this.label(context)
     const ctxLine = this.dropContext ? 'no page context (Ctrl+D adds it)' : label ? `on: ${label} (Ctrl+D drops)` : 'no page context'
     const bodyHeight = Math.max(1, height - 2 - 3)
     this.lastHeight = bodyHeight
-    const all: ChatLine[] = this.exchanges.length ? chatLines(this.exchanges, inner) : this.intro().flatMap((x) => wrap(x.text, inner).map((text) => ({ ...x, text })))
+    const all: ChatLine[] = this.exchanges.length ? chatLines(this.exchanges, inner, Date.now(), this.primaryKeyOf) : this.intro().flatMap((x) => wrap(x.text, inner).map((text) => ({ ...x, text })))
     if (this.pendingReveal && this.linkCursor >= 0) {
-      const at = all.findIndex((l) => l.link === this.linkCursor)
+      const at = all.findIndex((l) => l.segs?.some((x) => x.link === this.linkCursor) || l.link === this.linkCursor)
       if (at >= 0) {
         const bottom = all.length - this.scrollBack
         if (at < bottom - bodyHeight) this.scrollBack = all.length - at - bodyHeight
@@ -306,27 +341,40 @@ export class AssistantPanel {
     const shown = all.slice(Math.max(0, end - bodyHeight), end)
     const color = (l: ChatLine): string => {
       switch (l.role) {
-        case 'question': return t.acc
-        case 'context': case 'meta': case 'activity': return t.dim
+        case 'question': case 'heading': case 'header': return t.acc
+        case 'context': case 'meta': case 'activity': case 'rule': return t.dim
         case 'number': return t.acc2
         case 'link': return t.ok
         case 'error': return t.err
         default: return t.fg
       }
     }
+    const segColor = (l: ChatLine, seg: Seg): string => seg.style === 'link' ? t.ok : seg.style === 'code' ? t.acc2 : seg.style === 'dim' ? t.dim : color(l)
     const rows = shown.map((l, i) => {
-      const selected = l.link !== undefined && l.link === this.linkCursor
-      const text = <text flexShrink={0} wrapMode="none" fg={selected ? t.selFg : color(l)} bg={selected ? t.selBg : undefined}>{pad(l.text, inner)}</text>
+      const used = l.segs ? l.segs.reduce((n, x) => n + cellWidth(x.text), 0) : 0
+      const body = l.segs
+        ? (
+          <text flexShrink={0} wrapMode="none">
+            {l.segs.map((seg, k) => {
+              const selected = seg.link !== undefined && seg.link === this.linkCursor
+              const fg = selected ? t.selFg : segColor(l, seg)
+              const bg = selected ? t.selBg : undefined
+              return <span key={k} fg={fg} bg={bg}>{seg.style === 'bold' ? <strong>{seg.text}</strong> : seg.text}</span>
+            })}
+            <span>{' '.repeat(Math.max(0, inner - used))}</span>
+          </text>
+        )
+        : <text flexShrink={0} wrapMode="none" fg={color(l)}>{pad(l.text, inner)}</text>
       return l.link === undefined
-        ? <box key={i} height={1} width={inner}>{text}</box>
-        : <Zone key={i} onClick={() => { this.store.focus = 'assistant'; this.linkCursor = l.link!; this.openLink(l.link) }}><box height={1} width={inner}>{text}</box></Zone>
+        ? <box key={i} height={1} width={inner}>{body}</box>
+        : <Zone key={i} onClick={() => { this.store.focus = 'assistant'; this.linkCursor = l.link!; this.openLink(l.link) }}><box height={1} width={inner}>{body}</box></Zone>
     })
     while (rows.length < bodyHeight) rows.push(<box key={`p${rows.length}`} height={1} width={inner}><text flexShrink={0} wrapMode="none">{pad('', inner)}</text></box>)
     const view = this.editor.view(Math.max(1, inner - 2))
     const ready = !this.config || this.config.enabled
     const hint = this.linkCursor >= 0
-      ? 'Enter opens · ↑↓ Tab links · Esc back to the question'
-      : this.streaming ? 'answering… Ctrl+X stops · PgUp PgDn scroll · Esc closes' : 'Enter asks · Tab links · ↑↓ history · Ctrl+L new · Esc closes'
+      ? 'Enter opens · u address · ↑↓ Tab links · Esc back to the question'
+      : this.streaming ? 'answering… Ctrl+X stops · PgUp PgDn scroll · F12/Esc hides' : 'Enter asks · Tab links · ↑↓ history · Ctrl+L new · F12/Esc hides'
     const title = `Assistant${this.config?.model && ready ? ` · ${this.config.model}` : ''}${this.scrollBack ? ` · ↑${this.scrollBack}` : ''}`
     return (
       <Zone

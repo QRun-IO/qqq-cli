@@ -1,0 +1,85 @@
+{
+  "conversationId": 4,
+  "text": "3 services are not fully healthy&#58; one degraded &#40;email&#41; and two with unknown status&#46; None are down&#46;\n\nUnhealthy services\n\n| Service | Status | Since | Checks up | Degraded | Unknown |\n| --- | --- | --- | ---: | ---: | ---: |\n| [email](/app/health_component?filter=%7B%22criteria%22%3A%5B%7B%22fieldName%22%3A%22id%22%2C%22operator%22%3A%22EQUALS%22%2C%22values%22%3A%5B4%5D%7D%5D%2C%22booleanOperator%22%3A%22AND%22%7D) | DEGRADED | 2026-11-01 11&#58;25 UTC | 0 | 1 | 0 |\n| [db&#95;performance](/app/health_component?filter=%7B%22criteria%22%3A%5B%7B%22fieldName%22%3A%22id%22%2C%22operator%22%3A%22EQUALS%22%2C%22values%22%3A%5B3%5D%7D%5D%2C%22booleanOperator%22%3A%22AND%22%7D) | UNKNOWN | 2026-11-01 17&#58;25 UTC | 2 | 0 | 1 |\n| [esb](/app/health_component?filter=%7B%22criteria%22%3A%5B%7B%22fieldName%22%3A%22id%22%2C%22operator%22%3A%22EQUALS%22%2C%22values%22%3A%5B10%5D%7D%5D%2C%22booleanOperator%22%3A%22AND%22%7D) | UNKNOWN | 2026-11-01 11&#58;23 UTC | 1 | 0 | 1 |\n\n- [Open unhealthy components](/app/health_component?filter=%7B%22criteria%22%3A%5B%7B%22fieldName%22%3A%22status%22%2C%22operator%22%3A%22NOT_EQUALS%22%2C%22values%22%3A%5B%22UP%22%5D%7D%5D%2C%22booleanOperator%22%3A%22AND%22%7D)\nThree services aren't fully healthy right now:\n\n- **email** is degraded. Its only check is degraded.\n- **db_performance** is unknown. One of its three checks has no status.\n- **esb** is unknown. One of its two checks has no status.\n\nNo service is down.",
+  "status": "COMPLETE",
+  "notices": [],
+  "numbers": [],
+  "links": [
+    {
+      "label": "db_performance (Health Components)",
+      "href": "/app/health_component/3",
+      "kind": "record",
+      "tableName": "health_component",
+      "recordId": "3"
+    },
+    {
+      "label": "email (Health Components)",
+      "href": "/app/health_component/4",
+      "kind": "record",
+      "tableName": "health_component",
+      "recordId": "4"
+    },
+    {
+      "label": "esb (Health Components)",
+      "href": "/app/health_component/10",
+      "kind": "record",
+      "tableName": "health_component",
+      "recordId": "10"
+    },
+    {
+      "label": "Health Components (3)",
+      "href": "/app/health_component?filter=eyJjcml0ZXJpYSI6W3siZmllbGROYW1lIjoic3RhdHVzIiwib3BlcmF0b3IiOiJOT1RfRVFVQUxTIiwidmFsdWVzIjpbIlVQIl19XSwiYm9vbGVhbk9wZXJhdG9yIjoiQU5EIn0%3D",
+      "kind": "table",
+      "tableName": "health_component"
+    },
+    {
+      "label": "email · DEGRADED",
+      "href": "/app/health_component?filter=%7B%22criteria%22%3A%5B%7B%22fieldName%22%3A%22id%22%2C%22operator%22%3A%22EQUALS%22%2C%22values%22%3A%5B4%5D%7D%5D%2C%22booleanOperator%22%3A%22AND%22%7D",
+      "kind": "table",
+      "tableName": "health_component"
+    },
+    {
+      "label": "db_performance · UNKNOWN",
+      "href": "/app/health_component?filter=%7B%22criteria%22%3A%5B%7B%22fieldName%22%3A%22id%22%2C%22operator%22%3A%22EQUALS%22%2C%22values%22%3A%5B3%5D%7D%5D%2C%22booleanOperator%22%3A%22AND%22%7D",
+      "kind": "table",
+      "tableName": "health_component"
+    },
+    {
+      "label": "esb · UNKNOWN",
+      "href": "/app/health_component?filter=%7B%22criteria%22%3A%5B%7B%22fieldName%22%3A%22id%22%2C%22operator%22%3A%22EQUALS%22%2C%22values%22%3A%5B10%5D%7D%5D%2C%22booleanOperator%22%3A%22AND%22%7D",
+      "kind": "table",
+      "tableName": "health_component"
+    },
+    {
+      "label": "Open unhealthy components",
+      "href": "/app/health_component?filter=%7B%22criteria%22%3A%5B%7B%22fieldName%22%3A%22status%22%2C%22operator%22%3A%22NOT_EQUALS%22%2C%22values%22%3A%5B%22UP%22%5D%7D%5D%2C%22booleanOperator%22%3A%22AND%22%7D",
+      "kind": "table",
+      "tableName": "health_component"
+    }
+  ],
+  "tools": [
+    {
+      "name": "describe_table",
+      "summary": "Described Health Components",
+      "outcome": "OK"
+    },
+    {
+      "name": "query_records",
+      "summary": "Queried Health Components · 3 rows",
+      "outcome": "OK"
+    },
+    {
+      "name": "present_results",
+      "summary": "Presented results",
+      "outcome": "OK"
+    }
+  ],
+  "turnId": 7,
+  "messageId": 14,
+  "usage": {
+    "inputTokens": 10,
+    "outputTokens": 729,
+    "costMicros": 34021
+  },
+  "elapsedMs": 7140
+}

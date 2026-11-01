@@ -6,7 +6,10 @@
 import { afterEach, beforeAll, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import { App } from '../src/app'
-import { chatLines, contextLabel, plainText, wrap } from '../src/assistant/model'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { chatLines, chatLinks, contextLabel, plainText, wrap } from '../src/assistant/model'
+import { fkeyAt } from '../src/mouse/hit'
 import { boot, parseArgs } from '../src/boot'
 import { linkFilter } from '../src/links'
 import { fakeFetch, type FakeLog } from './fake-server'
@@ -26,7 +29,7 @@ const TURN = sse([
   { type: 'message.end', messageId: 2, status: 'COMPLETE' },
 ])
 
-interface AssistantFake { installed: boolean; config: J; turns: J[]; conversations: J[] }
+interface AssistantFake { installed: boolean; config: J; turns: J[]; conversations: J[]; stream?: string }
 
 function assistantFetch(log: FakeLog, state: AssistantFake): typeof fetch {
   const base = fakeFetch(log)
@@ -44,7 +47,7 @@ function assistantFetch(log: FakeLog, state: AssistantFake): typeof fetch {
     }
     if (/^\/assistant\/conversations\/\d+\/turns$/.test(path)) {
       state.turns.push(body ?? {})
-      return new Response(TURN, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+      return new Response(state.stream ?? TURN, { status: 200, headers: { 'content-type': 'text/event-stream' } })
     }
     return json({ code: 'NOT_FOUND', message: path }, 404)
   }) as typeof fetch
@@ -181,4 +184,130 @@ test('chat lines wrap to the width, number links across exchanges and drop markd
   expect(lines.every((l) => [...l.text].length <= 30)).toBe(true)
   expect(contextLabel({ tableName: 'order', recordId: 5 }, 'Order')).toBe('Order #5')
   expect(contextLabel({ tableName: 'order', filter: {} }, 'Order')).toBe('Order (filtered)')
+})
+
+/** The answer to "what services are not healthy right now?" as 8078 gave it (qqq assistant ask --json). */
+const UNHEALTHY = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'core', 'src', 'test', 'fixtures', 'assistant-unhealthy.json'), 'utf8')) as J & { text: string; links: Array<{ label: string; href: string }> }
+const unhealthyAnswer = () => ({ ...(UNHEALTHY as never as import('@qrun-io/qqq-core').AssistantAnswer), status: 'COMPLETE' as const })
+
+test('before: the 8078 answer drawn as plain text had entities, a pipe table, URLs and a duplicate link list', () => {
+  const before = plainText(UNHEALTHY.text)
+  expect(before).toContain('healthy&#58;')
+  expect(before).toContain('| --- |')
+  expect(before).toContain('/app/health_component?filter=%7B')
+  expect(UNHEALTHY.links.length).toBe(8)
+})
+
+for (const width of [98, 158]) {
+  test(`after (${width} wide): entities decoded, a table, links as label ↗ once each, no URLs, no → list`, () => {
+    const lines = chatLines([{ question: 'what services are not healthy right now?', startedAt: 0, answer: unhealthyAnswer() }], width)
+    const text = lines.map((l) => l.text).join('\n')
+    expect(text).not.toMatch(/&#|\/app\/|%7B|\| ---|^→/m)
+    expect(text).toContain('3 services are not fully healthy: one degraded (email) and two with unknown status.')
+    expect(text).toMatch(/Service\s+Status\s+Since/)
+    expect(text).toMatch(/db_performance ↗\s+UNKNOWN/)
+    expect(text).toContain('• Open unhealthy components ↗')
+    expect(text).toContain('• email is degraded. Its only check is degraded.')
+    expect(text).toContain('7.1 s · 10 in / 729 out tokens')
+    expect(lines.every((l) => [...l.text].length <= width)).toBe(true)
+    expect(lines.find((l) => l.role === 'meta' && l.text.includes('tokens'))).toBeTruthy()
+    // four Tab targets in reading order: the three services, then the open-all link
+    expect(chatLinks([{ question: 'q', startedAt: 0, answer: unhealthyAnswer() }]).map((l) => l.label)).toEqual(['email', 'db_performance', 'esb', 'Open unhealthy components'])
+    const linked = lines.flatMap((l) => (l.segs ?? []).filter((x) => x.link !== undefined).map((x) => x.link))
+    expect([...new Set(linked)]).toEqual([0, 1, 2, 3])
+  })
+}
+
+test('narrow: the table keeps the columns that fit and names the rest', () => {
+  const lines = chatLines([{ question: 'q', startedAt: 0, answer: unhealthyAnswer() }], 38)
+  expect(lines.every((l) => [...l.text].length <= 38)).toBe(true)
+  expect(lines.map((l) => l.text).join('\n')).toMatch(/more columns?:/)
+})
+
+test('duplicate paragraphs collapse; a link the text does not show is listed once under →', () => {
+  const answer = { conversationId: 1, status: 'COMPLETE' as const, notices: [], numbers: [], tools: [], text: 'All good.\n\nAll good.',
+    links: [{ label: 'Person (3)', href: '/app/person', kind: 'table' as const }, { label: 'People', href: '/app/person', kind: 'table' as const }] }
+  const lines = chatLines([{ question: 'q', startedAt: 0, answer }], 60)
+  expect(lines.filter((l) => l.text === 'All good.').length).toBe(1)
+  expect(lines.filter((l) => l.text.startsWith('→ ')).map((l) => l.text)).toEqual(['→ Person (3) ↗'])
+})
+
+test('F12 shows and hides the panel; hiding keeps the conversation, context and draft; Esc hides without asking', async () => {
+  const state = fresh()
+  h = await start(state, 120, 36)
+  await command(h, 'record person 1')
+  await waitFor(h, () => h!.store.screen?.kind === 'record')
+  await key('F12')
+  expect(h.store.assistantOpen).toBe(true)
+  expect(h.store.focus).toBe('assistant')
+  await waitFor(h, (x) => x.includes('on: Person #1'))
+  await type('draft question')
+  await key('F12')
+  expect(h.store.assistantOpen).toBe(false)
+  expect(h.store.focus).toBe('content')
+  // back on Home the panel keeps the record's context and the draft
+  await key('ESCAPE')
+  await key('F12')
+  expect(h.store.assistantOpen).toBe(true)
+  expect(h.store.assistant!.editor.value).toBe('draft question')
+  expect(await waitFor(h, (x) => x.includes('on: Person #1'))).toBeTruthy()
+  // Esc with text on the question line hides; nothing is asked; the draft stays
+  await key('ESCAPE')
+  expect(h.store.assistantOpen).toBe(false)
+  expect(state.turns.length).toBe(0)
+  expect(h.store.assistant!.editor.value).toBe('draft question')
+  // Ctrl+G and :ask do the same
+  await key('g', { ctrl: true })
+  expect(h.store.assistantOpen).toBe(true)
+  await key('g', { ctrl: true })
+  expect(h.store.assistantOpen).toBe(false)
+  await command(h, 'ask')
+  expect(h.store.assistantOpen).toBe(true)
+})
+
+test('F-key bar: 11 and 12 from 120 columns, 12Ask lit with the extension, a click on it toggles', async () => {
+  h = await start(fresh(), 120, 36)
+  let keys = h.store.fkeys()
+  expect(keys.map((k) => k.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  expect(keys.find((k) => k.n === 12)?.label).toBe('Ask')
+  expect(keys.find((k) => k.n === 11)?.label).toBeNull()
+  const bar = h.frame().split('\n').filter((l) => l.trim()).pop()!
+  expect(bar).toContain('12Ask')
+  expect(bar).toMatch(/11\s+12Ask/)
+  expect([...bar].length).toBeLessThanOrEqual(120)
+  const x = bar.indexOf('12Ask') + 2
+  expect(fkeyAt(x, 120, keys.map((k) => k.n))).toBe(12)
+  const y = h.frame().split('\n').findIndex((l) => l.includes('12Ask'))
+  await press(h, () => h!.setup.mockMouse.click(x, y))
+  expect(h.store.assistantOpen).toBe(true)
+  await press(h, () => h!.setup.mockMouse.click(x, y))
+  expect(h.store.assistantOpen).toBe(false)
+  h.store.resize(100, 36)
+  keys = h.store.fkeys()
+  expect(keys.map((k) => k.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+})
+
+test('F-key bar without the extension: 12Ask is dimmed (no label), the press says what is missing', async () => {
+  h = await start({ ...fresh(), installed: false }, 120, 36)
+  expect(h.store.fkeys().find((k) => k.n === 12)?.label).toBeNull()
+  await key('F12')
+  await waitFor(h, (f) => f.includes('needs the assistant extension'))
+  expect(h.store.assistantOpen).toBe(false)
+})
+
+test('a markdown answer in the panel: a table and links as label ↗, Tab to a link, u shows its address', async () => {
+  const state = { ...fresh(), stream: sse([
+    { type: 'message.start', turnId: 1, conversationId: 7, userMessageId: 1, messageId: 2 },
+    { type: 'text.delta', messageId: 2, text: 'Two people&#58;\n\n| Person | Last |\n| --- | --- |\n| [Blair](/app/person/2) | Odd |\n| [Casey](/app/person/3) | Even |\n' },
+    { type: 'message.end', messageId: 2, status: 'COMPLETE' },
+  ]) }
+  h = await start(state, 100, 30)
+  await command(h, 'ask who are they')
+  const f = await waitFor(h, (x) => x.includes('Blair ↗'))
+  expect(f).toContain('Two people:')
+  expect(f).toMatch(/Person\s+Last/)
+  expect(f).not.toContain('/app/person')
+  await key('TAB')
+  await key('u')
+  expect(await waitFor(h, (x) => x.includes('/app/person/2') && x.includes('Link address'))).toBeTruthy()
 })

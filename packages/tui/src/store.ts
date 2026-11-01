@@ -25,6 +25,9 @@ import { errorText } from './util/text'
 import { SQL_EXTENSION, hideRunnerApps } from './sql/apps'
 import { AssistantPanel, SIDE_MIN_WIDTH, sideWidth } from './assistant/panel'
 
+/** From this width the F-key bar also has the 11 and 12 slots (12 is the Assistant). */
+export const FKEY_WIDE = 120
+
 export interface Settings {
   theme: string
   ascii: boolean
@@ -253,6 +256,7 @@ export class AppStore {
     this.assistant ??= new AssistantPanel(this)
     this.assistantOpen = true
     this.focus = 'assistant'
+    this.assistant.capturePageContext()
     void this.assistant.loadConfig()
     if (question?.trim()) this.assistant.askWhenReady(question)
     this.bump()
@@ -265,16 +269,20 @@ export class AppStore {
     this.bump()
   }
 
-  /** Ctrl+G: opens the panel, moves between the panel and the screen beside it, or (full width) closes it. */
+  /**
+   * F12 (and Ctrl+G, and `:ask` without a question): shows the panel (focus on the question line,
+   * the current screen as context) or hides it. Hiding keeps the conversation, the context and the
+   * draft; the next press shows them again. When the panel is shown but the screen beside it has the
+   * focus, the press goes back to the question line instead.
+   */
   toggleAssistant(): void {
     if (!this.assistantOpen) return this.openAssistant()
+    // shown beside a screen that has the focus (a link was opened from it): back to the question line
     if (this.focus !== 'assistant') {
       this.focus = 'assistant'
       return this.bump()
     }
-    if (this.assistantLayout()?.mode === 'full') return this.closeAssistant()
-    this.focus = 'content'
-    this.bump()
+    this.closeAssistant()
   }
 
   // ---- overlays and messages ----
@@ -396,7 +404,8 @@ export class AppStore {
     if (key.name === 'f9') return this.commands().menu()
     if (key.ctrl && key.name === 'o') return this.commands().servers()
     if (key.name === 'f10') return this.requestQuit()
-    if (key.ctrl && key.name === 'g') return this.toggleAssistant()
+    // F12 shows and hides the Assistant panel (Ctrl+G where the terminal or the OS takes F12); F11 is reserved
+    if (key.name === 'f12' || (key.ctrl && key.name === 'g')) return this.toggleAssistant()
     if (this.focus === 'assistant' && this.assistantOpen && this.assistant) {
       // the panel has every other key while it has focus (text goes to the question line)
       this.assistant.onKey(key)
@@ -645,16 +654,18 @@ export class AppStore {
     this.bump()
   }
 
-  /** The function-key bar for the current context. */
+  /** The function-key bar for the current context; from 120 columns also 11 (reserved, blank) and 12 (the Assistant). */
   fkeys(): Array<{ n: number; label: string | null; global: string }> {
     const defaults: Record<number, string> = { 1: 'Help', 2: 'Search', 3: 'View', 4: 'Edit', 5: 'Refresh', 6: 'Filter', 7: 'New', 8: 'Delete', 9: 'Menu', 10: 'Quit' }
     const overrides: FKeyLabels = this.focus === 'assistant' && this.assistantOpen && this.assistant ? this.assistant.fkeys() : this.screen?.fkeys?.() ?? { 3: null, 4: null, 6: null, 7: null, 8: null }
-    return Object.entries(defaults).map(([n, label]) => {
+    const keys = Object.entries(defaults).map(([n, label]): { n: number; label: string | null; global: string } => {
       const k = Number(n)
       const shown = k in overrides ? overrides[k]! : label
       // F8 prints on screens that have no Delete for it
       return { n: k, label: k === 8 && shown === null ? 'Print' : shown, global: label }
     })
+    if (this.width >= FKEY_WIDE) keys.push({ n: 11, label: null, global: '' }, { n: 12, label: this.extensions.has('assistant') ? 'Ask' : null, global: 'Ask' })
+    return keys
   }
 
   themeTokens() {

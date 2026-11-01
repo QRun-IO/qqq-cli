@@ -112,7 +112,7 @@ function StatusLine({ store, width }: { store: AppStore; width: number }) {
 }
 
 /** Short labels for narrow terminals (below ~100 columns), so nothing clips at 80. */
-const SHORT: Record<string, string> = { Help: 'Help', Search: 'Search', 'Go to': 'Go', View: 'View', Edit: 'Edit', Refresh: 'Refr', Filter: 'Filt', New: 'New', Delete: 'Del', Menu: 'Menu', Quit: 'Quit', NewChild: 'Child', 'Re-run': 'Again', Open: 'Open' }
+const SHORT: Record<string, string> = { Help: 'Help', Search: 'Search', 'Go to': 'Go', View: 'View', Edit: 'Edit', Refresh: 'Refr', Filter: 'Filt', New: 'New', Delete: 'Del', Menu: 'Menu', Quit: 'Quit', NewChild: 'Child', 'Re-run': 'Again', Open: 'Open', Ask: 'Ask' }
 
 function FKeyBar({ store, width }: { store: AppStore; width: number }) {
   const t = theme()
@@ -124,7 +124,7 @@ function FKeyBar({ store, width }: { store: AppStore; width: number }) {
     <FKeyZone store={store} width={width} keys={keys.map((k) => k.n)}>
     <text flexShrink={0} wrapMode="none">
       {keys.map((k) => {
-        const w = k.n === 10 ? Math.max(0, width - used) : cell
+        const w = k === keys[keys.length - 1] ? Math.max(0, width - used) : cell
         used += w
         const num = String(k.n).padStart(2)
         // a key that does nothing here still shows its global label, dimmed, so the bar teaches the keymap
