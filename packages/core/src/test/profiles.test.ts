@@ -10,7 +10,8 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { FileStore, SecretFileError, defaultSecretStore } from '../session/keyring.js'
 import { readFilePreferences, writeFilePreferences } from '../files/navigator.js'
-import { ConfigFileError, DEFAULT_CHILD_ROWS, profileNameForServer, readChildRows, readConfig, readTheme, removeProfile, resolveProfile, upsertProfile, writeTheme } from '../session/profiles.js'
+import { probeServer } from '../session/probe.js'
+import { ConfigFileError, DEFAULT_CHILD_ROWS, defaultShortName, descriptionOf, editProfile, profileNameForServer, readChildRows, readConfig, readTheme, removeProfile, resolveProfile, setDefaultProfile, shortNameOf, shortNameProblem, touchProfile, upsertProfile, writeTheme } from '../session/profiles.js'
 
 test('profiles resolve from --profile, QQQ_PROFILE, --server, then the default', () => {
   const dir = mkdtempSync(join(tmpdir(), 'qqq-cfg-'))
@@ -117,4 +118,69 @@ test('record child-list rows: the profile, else the global ui setting, else 5; b
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('a 1.0.0-rc.1 config.json loads and keeps every field; short name, description, edit, rename, default and touch are additive', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-cfg-'))
+  const env = { QQQ_CONFIG_DIR: dir }
+  try {
+    // as 1.0.0-rc.1 wrote it: server, note, createdAt, per-profile ui, plus global ui sections
+    const rc1 = { defaultProfile: 'sample', profiles: { sample: { server: 'http://localhost:8077', createdAt: '2026-10-31T22:24:56.276Z' }, enterprise: { server: 'http://localhost:8078', note: 'big', createdAt: '2026-11-01T10:53:34.789Z', ui: { theme: 'light' } } }, ui: { theme: 'dark', recents: { x: [] } }, futureSection: { kept: true } }
+    writeFileSync(join(dir, 'config.json'), JSON.stringify(rc1))
+    const loaded = readConfig(env)
+    assert.deepEqual(loaded.profiles, rc1.profiles)
+    assert.equal(resolveProfile({ profile: 'enterprise' }, env).server, 'http://localhost:8078')
+    assert.equal(shortNameOf('sample', loaded.profiles.sample), 'sample')
+    assert.equal(shortNameOf('enterprise', loaded.profiles.enterprise), 'ent')
+    assert.equal(descriptionOf(loaded.profiles.enterprise), 'big')
+    assert.equal(defaultShortName('acme-prod-eu'), 'ape')
+    assert.equal(defaultShortName('prod'), 'prod')
+    assert.equal(shortNameProblem('x'), 'a short name has 2 to 6 characters')
+    assert.equal(shortNameProblem('a b'), 'a short name is letters, digits, dots, dashes and underscores')
+    assert.equal(shortNameProblem('ent'), undefined)
+    editProfile('enterprise', { short: 'ENT', description: 'Enterprise demo', authMode: 'device' }, {}, env)
+    touchProfile('enterprise', { user: 'Admin' }, env)
+    let c = readConfig(env)
+    assert.equal(c.profiles.enterprise!.short, 'ENT')
+    assert.equal(descriptionOf(c.profiles.enterprise), 'Enterprise demo')
+    assert.equal(c.profiles.enterprise!.note, 'big')
+    assert.equal(c.profiles.enterprise!.user, 'Admin')
+    assert.ok(c.profiles.enterprise!.lastUsedAt)
+    assert.deepEqual(c.profiles.enterprise!.ui, { theme: 'light' })
+    assert.deepEqual(c.futureSection, { kept: true })
+    assert.equal(c.defaultProfile, 'sample')
+    // rename keeps the place in the file and moves the default along
+    setDefaultProfile('enterprise', env)
+    editProfile('enterprise', {}, { rename: 'ent2', clear: ['short'] }, env)
+    c = readConfig(env)
+    assert.deepEqual(Object.keys(c.profiles), ['sample', 'ent2'])
+    assert.equal(c.defaultProfile, 'ent2')
+    assert.equal(c.profiles.ent2!.short, undefined)
+    assert.throws(() => editProfile('ent2', {}, { rename: 'sample' }, env), /exists already/)
+    assert.throws(() => editProfile('nope', {}, {}, env), /No profile/)
+    assert.throws(() => setDefaultProfile('nope', env), /No profile/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('probeServer: version and authentication type, HTTP errors, not a QQQ server, a timeout', async () => {
+  const answer = (routes: Record<string, unknown>) => (async (input: RequestInfo | URL) => {
+    const path = new URL(String(input)).pathname
+    const body = routes[path]
+    if (body === undefined) return new Response('nope', { status: 404 })
+    return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
+  }) as typeof fetch
+  const ok = await probeServer('http://a.test/', { fetch: answer({ '/qqq/v1/version': { apiVersion: '1.9.0' }, '/qqq/v1/metaData/authentication': { type: 'MOCK' } }) })
+  assert.equal(ok.reachable, true)
+  assert.equal(ok.apiVersion, '1.9.0')
+  assert.equal(ok.authType, 'MOCK')
+  const noAuth = await probeServer('http://a.test', { fetch: answer({ '/qqq/v1/version': { apiVersion: '1.8.0' } }) })
+  assert.deepEqual([noAuth.reachable, noAuth.authType], [true, undefined])
+  assert.match((await probeServer('http://a.test', { fetch: answer({}) })).error!, /HTTP 404/)
+  assert.match((await probeServer('http://a.test', { fetch: answer({ '/qqq/v1/version': { hello: 1 } }) })).error!, /not a QQQ UI API server/)
+  const hang = ((_input: RequestInfo | URL, init?: RequestInit) => new Promise((_resolve, reject) => init?.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))))) as typeof fetch
+  const slow = await probeServer('http://a.test', { fetch: hang, timeoutMs: 50 })
+  assert.equal(slow.reachable, false)
+  assert.match(slow.error!, /no answer in 0\.1 s/)
 })

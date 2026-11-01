@@ -21,7 +21,7 @@ import { registerAuth } from './commands/auth.js'
 import { registerBulk } from './commands/bulk.js'
 import { registerReports } from './commands/reports.js'
 import { registerCompletion } from './commands/completion.js'
-import { registerConfig } from './commands/config.js'
+import { registerConfig, registerProfileCommands } from './commands/config.js'
 import { registerDeveloper } from './commands/developer.js'
 import { registerDoctor } from './commands/doctor.js'
 import { registerExtensions } from './commands/extensions.js'
@@ -75,6 +75,7 @@ export function createProgram(): Command {
   registerExtensions(program, ctx)
   registerCompletion(program, ctx)
   registerConfig(program, ctx)
+  registerProfileCommands(program.command('profile').description('Named servers: list, add, edit, use, remove (the TUI\'s Servers dialog, Ctrl+O).'), ctx)
   registerDoctor(program, ctx)
   registerHelp(program, ctx)
   registerUi(program, ctx)

@@ -284,6 +284,45 @@ describe('local state', () => {
       local.dispose()
     }
   })
+  test('qqq profile add|edit|list|use|remove agree with the Servers dialog: short name, description, sign-in mode', async () => {
+    const local = sandbox()
+    try {
+      const file = join(local.env.QQQ_CONFIG_DIR!, 'config.json')
+      // a 1.0.0-rc.1 file (with a note) loads and keeps what it had
+      mkdirSync(local.env.QQQ_CONFIG_DIR!, { recursive: true })
+      writeFileSync(file, JSON.stringify({ defaultProfile: 'old', profiles: { old: { server: 'http://old.test', note: 'from rc.1', createdAt: '2026-10-31T00:00:00Z', ui: { theme: 'light' } } }, ui: { theme: 'dark' } }))
+      let r = await runCli(['profile', 'add', 'sample', server.url, '--short', 'smp', '--description', 'The sample server', '--check'], local.env)
+      assert.equal(r.code, 0, r.stderr)
+      assert.match(r.stderr, /UI API 1\.\d+\.\d+/)
+      r = await runCli(['profile', 'add', 'down', 'http://127.0.0.1:9', '--check'], local.env)
+      assert.equal(r.code, 2)
+      assert.match(r.stderr, /did not answer/)
+      r = await runCli(['profile', 'add', 'bad', server.url, '--short', 'x'], local.env)
+      assert.equal(r.code, 2)
+      assert.match(r.stderr, /2 to 6 characters/)
+      r = await runCli(['profile', 'edit', 'sample', '--auth-mode', 'device', '--description', 'Sample, edited', '--rename', 'samp'], local.env)
+      assert.equal(r.code, 0, r.stderr)
+      r = await runCli(['config', 'profile', 'use', 'samp'], local.env)
+      assert.equal(r.code, 0, r.stderr)
+      r = await runCli(['profile', 'list', '-O', 'json', '--probe'], local.env)
+      assert.equal(r.code, 0, r.stderr)
+      const rows = JSON.parse(r.stdout) as Array<Record<string, string>>
+      assert.deepEqual(rows.map((p) => [p.name, p.short, p.default, p.authMode, p.description]), [['old', 'old', '', 'auto', 'from rc.1'], ['samp', 'smp', '*', 'device', 'Sample, edited']])
+      assert.match(rows[1]!.status!, /^UI API /)
+      const cfg = JSON.parse(readFileSync(file, 'utf8')) as { defaultProfile: string; profiles: Record<string, Record<string, unknown>>; ui: unknown }
+      assert.deepEqual(cfg.profiles.old, { server: 'http://old.test', note: 'from rc.1', createdAt: '2026-10-31T00:00:00Z', ui: { theme: 'light' } })
+      assert.deepEqual(cfg.ui, { theme: 'dark' })
+      assert.equal(cfg.profiles.samp!.short, 'smp')
+      r = await runCli(['profile', 'edit', 'samp', '--short', ''], local.env)
+      assert.equal(r.code, 0, r.stderr)
+      assert.equal((JSON.parse(readFileSync(file, 'utf8')) as typeof cfg).profiles.samp!.short, undefined)
+      r = await runCli(['profile', 'remove', 'old'], local.env)
+      assert.equal(r.code, 0, r.stderr)
+      assert.deepEqual(Object.keys((JSON.parse(readFileSync(file, 'utf8')) as typeof cfg).profiles), ['samp'])
+    } finally {
+      local.dispose()
+    }
+  })
   test('--version prints the version', async () => {
     const result = await runCli(['--version'], box.env)
     assert.equal(result.code, 0)

@@ -16,11 +16,26 @@ import { join } from 'node:path'
 
 export interface Profile {
   server: string
+  /** Free text from 1.0.0-rc.1 (`--note`); shown where `description` is when that is missing. */
   note?: string
   createdAt?: string
+  /** 2 to 6 characters for compact places (the footer, the Home header); defaults to `defaultShortName`. */
+  short?: string
+  /** Free text: what the server is (shown in the Servers dialog and `qqq profile list`). */
+  description?: string
+  /** How to sign in to an OAuth2 server: ask (auto, the default), the browser (PKCE) or the device flow. */
+  authMode?: AuthMode
+  /** Who signed in last (display name), recorded when the TUI connects; no secret. */
+  user?: string
+  /** The last time the TUI connected with this profile (ISO time). */
+  lastUsedAt?: string
   /** Display settings of the terminal UI for this profile only (override the global `ui`). */
   ui?: Pick<UiSettings, 'theme' | 'childRows'>
 }
+
+/** Sign-in preference of a profile; the server's authentication type decides the rest. */
+export type AuthMode = 'auto' | 'browser' | 'device'
+export const AUTH_MODES: AuthMode[] = ['auto', 'browser', 'device']
 
 /** Local display settings of the terminal UI (not server preferences): theme and per-screen view settings. */
 export interface UiSettings {
@@ -135,6 +150,81 @@ export function resolveProfile(options: { profile?: string; server?: string }, e
     return { name: config.defaultProfile, server: config.profiles[config.defaultProfile]!.server, source: 'default' }
   }
   throw new Error('No server: pass --server https://..., set QQQ_SERVER, or sign in with `qqq login --server URL` (which makes that the default profile).')
+}
+
+/** Profile names: letters, digits, dots, dashes and underscores, starting with a letter or digit. */
+export const PROFILE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+
+/**
+ * The short name when none is saved: the name itself up to 6 characters; a longer name of several
+ * parts (`acme-prod-eu`) gives its initials (`ape`), one long word its first 3 characters (`ent`).
+ */
+export function defaultShortName(name: string): string {
+  if (name.length <= 6) return name
+  const parts = name.split(/[-_.\s]+/).filter(Boolean)
+  const initials = parts.map((p) => p[0]).join('').slice(0, 6)
+  return parts.length >= 2 && initials.length >= 2 ? initials : name.slice(0, 3)
+}
+
+/** The short name shown for a profile: the saved one, else the default. */
+export function shortNameOf(name: string, profile?: Profile): string {
+  return profile?.short || defaultShortName(name)
+}
+
+/** The description shown for a profile: `description`, else the rc.1 `note`, else ''. */
+export function descriptionOf(profile?: Profile): string {
+  return profile?.description ?? profile?.note ?? ''
+}
+
+/** Why a short name is refused, or undefined when it is fine (2 to 6 letters, digits, dots, dashes, underscores). */
+export function shortNameProblem(short: string): string | undefined {
+  if (short.length < 2 || short.length > 6) return 'a short name has 2 to 6 characters'
+  if (!/^[A-Za-z0-9._-]+$/.test(short)) return 'a short name is letters, digits, dots, dashes and underscores'
+  return undefined
+}
+
+/** Makes a profile the default (it must exist). */
+export function setDefaultProfile(name: string, env: NodeJS.ProcessEnv = process.env): Config {
+  const config = readConfig(env)
+  if (!config.profiles[name]) throw new Error(`No profile "${name}".`)
+  config.defaultProfile = name
+  writeConfig(config, env)
+  return config
+}
+
+/**
+ * Changes a profile in place: defined fields of `changes` replace, the fields named in `clear` are
+ * removed, `rename` moves it to a new name (the default follows). Fields this version does not know stay.
+ */
+export function editProfile(name: string, changes: Partial<Profile>, options: { rename?: string; clear?: Array<keyof Profile> } = {}, env: NodeJS.ProcessEnv = process.env): Config {
+  const config = readConfig(env)
+  const current = config.profiles[name]
+  if (!current) throw new Error(`No profile "${name}".`)
+  const next: Profile = { ...current }
+  for (const [k, v] of Object.entries(changes)) if (v !== undefined) (next as unknown as Record<string, unknown>)[k] = v
+  for (const k of options.clear ?? []) delete next[k]
+  const target = options.rename ?? name
+  if (target !== name) {
+    if (!PROFILE_NAME.test(target)) throw new Error('Profile names are letters, digits, dots, dashes and underscores.')
+    if (config.profiles[target]) throw new Error(`A profile "${target}" exists already.`)
+    // keep the order of the file: the renamed entry takes the old one's place
+    config.profiles = Object.fromEntries(Object.entries(config.profiles).map(([k, p]) => (k === name ? [target, next] : [k, p])))
+    if (config.defaultProfile === name) config.defaultProfile = target
+  } else {
+    config.profiles[name] = next
+  }
+  writeConfig(config, env)
+  return config
+}
+
+/** Records a connection: last used now, and who signed in (no default change, nothing else touched). */
+export function touchProfile(name: string, info: { user?: string } = {}, env: NodeJS.ProcessEnv = process.env): void {
+  const config = readConfig(env)
+  const p = config.profiles[name]
+  if (!p) return
+  p.lastUsedAt = new Date().toISOString()
+  if (info.user) p.user = info.user
+  writeConfig(config, env)
 }
 
 /** Adds or updates a profile; the first profile becomes the default. */
