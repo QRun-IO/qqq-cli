@@ -204,6 +204,26 @@ export async function runConformance(options: ConformanceOptions): Promise<Check
     return `count ${r.json?.count}`
   })
 
+  await check('printing (when installed): GET /qbit/printing/session and the printing tables validate', async () => {
+    const printing = (version?.extensions ?? []).find((e: Json) => e.name === 'printing')
+    if (!printing) throw new Skip('the server does not list printing')
+    const r = await call('GET', '/qqq/v1/qbit/printing/session')
+    expect(r.status === 200 || r.status === 403, `session: status ${r.status} ${r.text.slice(0, 200)}`)
+    if (r.status === 403) {
+      expectError(r, 'PERMISSION_DENIED', validator, 'get', '/qqq/v1/qbit/printing/session', 403)
+      return 'session refused (the user lacks printing_admin or the printing tenant)'
+    }
+    validator?.response('get', '/qqq/v1/qbit/printing/session', 200, r.json)
+    expect(r.json?.principalId && r.json?.tenantId, 'session answer has no principalId or tenantId')
+    for (const table of ['printing_printer', 'printing_device', 'printing_job']) {
+      const q = await call('POST', `/qqq/v1/table/${table}/query`, { body: { filter: { limit: 1 } } })
+      expect(q.status === 200, `${table}: status ${q.status}`)
+      validator?.response('post', '/qqq/v1/table/{tableName}/query', 200, q.json)
+    }
+    const prints = Object.keys(metaData?.processes ?? {}).filter((n) => n.startsWith('printingPrintRecords_')).map((n) => n.slice('printingPrintRecords_'.length))
+    return `printing ${printing.version}, tenant ${r.json.tenantId}, Print on ${prints.join(', ') || 'no table'}`
+  })
+
   await check('GET /qqq/v1/table/{tableName}/{primaryKey} validates', async () => {
     const pk = firstRecord?.values?.[tableMeta?.primaryKeyField ?? 'id']
     if (pk === undefined || pk === null) throw new Skip('no record to read')
