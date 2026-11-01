@@ -13,7 +13,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
-import { assistantContextFor, describeAssistantConfig, type AssistantAnswer } from '@qrun-io/qqq-core'
+import { answerDocument, assistantContextFor, describeAssistantConfig, linkTargetKey, markdownText, parseAppHref, parseMarkdown, type AssistantAnswer, type MdInline } from '@qrun-io/qqq-core'
 import { io, type Context, UsageError } from '../context.js'
 import { positiveInt, type Json } from './shared.js'
 
@@ -22,16 +22,73 @@ export function plainAnswer(text: string): string {
   return text.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/^#{1,6}\s+/gm, '')
 }
 
-/** Rows for the links table: kind, label, table, id, the app path and the qqq command that opens it. */
-export function linkRows(answer: AssistantAnswer): Json[] {
-  return answer.links.map((link) => ({
-    kind: link.kind,
-    label: link.label,
-    table: link.tableName ?? '',
-    id: link.recordId ?? '',
-    href: link.href,
-    open: link.kind === 'record' ? `qqq table get ${link.tableName} ${link.recordId}` : link.kind === 'table' ? `qqq table query ${link.tableName}` : '',
-  }))
+/** The qqq command that opens a link's target (`qqq table get t 4`, `qqq table query t --filter-json '…'`), or '' for other pages. */
+export function linkCommand(href: string): string {
+  const target = parseAppHref(href)
+  if (!target?.tableName) return ''
+  const key = linkTargetKey(href)
+  const record = /^record:[^:]+:(.*)$/.exec(key)
+  if (record) return `qqq table get ${target.tableName} ${shellQuote(record[1]!)}`
+  if (key === `table:${target.tableName}:` || !target.filter) return `qqq table query ${target.tableName}`
+  return `qqq table query ${target.tableName} --filter-json ${shellQuote(JSON.stringify(target.filter))}`
+}
+
+function shellQuote(text: string): string {
+  return /^[A-Za-z0-9_.:@%+=,/-]+$/.test(text) ? text : `'${text.replace(/'/g, `'\\''`)}'`
+}
+
+/**
+ * Renders an answer's markdown for the terminal, block by block (so it can print while the model
+ * writes): entities decoded, tables as sub-tables, each link as `label (qqq table get …)` when that
+ * is short, else `label [n]` with the command listed under Links (numbered once per target).
+ */
+export class AnswerRenderer {
+  readonly footnotes: Array<{ n: number; label: string; open: string }> = []
+  private readonly noted = new Map<string, number>()
+  private printed = 0
+
+  constructor(private readonly width = 100) {}
+
+  private note(label: string, href: string): number {
+    const key = linkTargetKey(href)
+    let n = this.noted.get(key)
+    if (n === undefined) {
+      n = this.noted.size + 1
+      this.noted.set(key, n)
+      this.footnotes.push({ n, label, open: linkCommand(href) || href })
+    }
+    return n
+  }
+
+  /** Text for the blocks completed since the last call (all of them when `done`), '' when none. */
+  next(text: string, done: boolean): string {
+    const doc = parseMarkdown(text)
+    const complete = done ? doc.blocks.length : Math.max(0, doc.blocks.length - 1)
+    const out: string[] = []
+    for (; this.printed < complete; this.printed++) {
+      const block = doc.blocks[this.printed]!
+      const inTable = block.kind === 'table'
+      out.push(markdownText({ blocks: [block], links: doc.links }, this.width, (part: MdInline) => {
+        const open = linkCommand(part.href ?? '')
+        if (!inTable && open && !open.includes('--filter-json') && open.length <= 48) return `${part.text} (${open})`
+        return `${part.text} [${this.note(part.text, part.href ?? '')}]`
+      }))
+    }
+    return out.join('\n\n')
+  }
+
+  /** Numbers the answer's other links (tool results) the text did not show, once per target. */
+  extra(answer: { text: string; links: Array<{ label: string; href: string }> }): void {
+    for (const link of answerDocument(answer).extraLinks) this.note(link.label, link.href)
+  }
+}
+
+/** The whole answer rendered at once (tests, and output that is not streamed). */
+export function renderAnswer(answer: { text: string; links: Array<{ label: string; href: string }> }, width = 100): { text: string; links: Array<{ n: number; label: string; open: string }> } {
+  const renderer = new AnswerRenderer(width)
+  const text = renderer.next(answer.text, true)
+  renderer.extra(answer)
+  return { text, links: renderer.footnotes }
 }
 
 export function registerAssistant(noun: Command, ctx: () => Context): void {
@@ -66,38 +123,42 @@ export function registerAssistant(noun: Command, ctx: () => Context): void {
       const conversationId = options.conversation ? positiveInt(options.conversation, '--conversation') : undefined
       const assistant = await c.assistant()
       const human = c.format === 'table' || c.format === 'text'
-      let streamed = false
+      const renderer = new AnswerRenderer(Math.max(40, io.width() ?? 100))
+      let printedAny = false
+      const emit = (text: string) => {
+        if (!text) return
+        io.out(`${printedAny ? '\n\n' : ''}${text}`)
+        printedAny = true
+      }
       const answer = await assistant.ask(question, {
         conversationId,
         context: assistantContextFor({ tableName: options.table, recordId: options.record }),
-        onEvent: (event) => {
+        onEvent: (event, partial) => {
           if (!human) return
-          if (event.type === 'text.delta' && typeof event.text === 'string') {
-            io.out(plainAnswer(event.text))
-            streamed = true
-          } else if (event.type === 'tool.start' && typeof event.summary === 'string' && event.summary) {
-            c.note(`… ${event.summary}`)
-          }
+          // whole blocks as the model completes them, rendered (a table prints once it is complete)
+          if (event.type === 'text.delta') emit(renderer.next(partial.text, false))
+          else if (event.type === 'tool.start' && typeof event.summary === 'string' && event.summary) c.note(`… ${event.summary}`)
         },
       })
       if (answer.status === 'ERROR') {
-        if (streamed) io.out('\n')
+        if (printedAny) io.out('\n')
         throw new UiApiError(502, { code: answer.error?.code ?? 'INTERNAL', message: answer.error?.message ?? 'The assistant could not answer.' })
       }
       if (!human) {
         c.print({ data: answer })
         return
       }
-      if (!streamed) io.out(plainAnswer(answer.text))
+      emit(renderer.next(answer.text, true))
       io.out('\n')
       for (const notice of answer.notices) c.note(`${notice.level}: ${notice.text}`)
       if (answer.numbers.length) {
         io.out('\n')
-        c.print({ data: answer.numbers, rows: answer.numbers.map((n) => ({ number: n.label, value: n.value, href: n.href ?? '' })), columns: ['number', 'value', 'href'] })
+        c.print({ data: answer.numbers, rows: answer.numbers.map((n) => ({ number: n.label, value: n.value })), columns: ['number', 'value'] })
       }
-      if (answer.links.length) {
-        io.out('\n')
-        c.print({ data: answer.links, rows: linkRows(answer), columns: ['kind', 'label', 'table', 'id', 'open'] })
+      renderer.extra(answer)
+      if (renderer.footnotes.length) {
+        io.out('\nLinks\n')
+        c.print({ data: renderer.footnotes, rows: renderer.footnotes.map((f) => ({ n: `[${f.n}]`, label: f.label, open: f.open })), columns: ['n', 'label', 'open'] })
       }
       const seconds = answer.elapsedMs === undefined ? '' : `${(answer.elapsedMs / 1000).toFixed(1)} s, `
       c.note(`(${seconds}conversation ${answer.conversationId}; continue with: qqq assistant ask -c ${answer.conversationId} "...")`)

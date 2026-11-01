@@ -5,7 +5,10 @@
 
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
-import { plainAnswer } from '../commands/assistant.js'
+import { linkCommand, plainAnswer, renderAnswer } from '../commands/assistant.js'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { TEST_SOURCE } from './harness.js'
 import { runCli, sandbox } from './harness.js'
 import { StubResponse, startStub, type J, type Stub } from './stub.js'
 
@@ -59,9 +62,11 @@ describe('qqq assistant against a stub', () => {
     const r = await qqq(['-O', 'table', 'assistant', 'ask', '--table', 'customer', '--record', '5', 'how', 'many', 'customers?'])
     assert.equal(r.code, 0, r.stderr)
     assert.match(r.stdout, /^There are 42 customers\.\n/)
-    assert.match(r.stdout, /Customer\s+42\s+\/app\/customer/)
-    assert.match(r.stdout, /record\s+Acme \(Customer\)\s+customer\s+5\s+qqq table get customer 5/)
-    assert.match(r.stdout, /table\s+Customer \(42\)\s+customer\s+qqq table query customer/)
+    assert.match(r.stdout, /Customer\s+42\n/)
+    assert.match(r.stdout, /Links\n/)
+    assert.match(r.stdout, /\[1\]\s+Acme \(Customer\)\s+qqq table get customer 5/)
+    assert.match(r.stdout, /\[2\]\s+Customer \(42\)\s+qqq table query customer/)
+    assert.doesNotMatch(r.stdout, /\/app\//)
     assert.match(r.stderr, /Counting Customer/)
     assert.match(r.stderr, /conversation 12; continue with: qqq assistant ask -c 12/)
     const created = stub.requests.find((q) => q.path === '/assistant/conversations')!
@@ -94,4 +99,24 @@ describe('qqq assistant against a stub', () => {
   test('plain answer text drops markdown markers', () => {
     assert.equal(plainAnswer('## Total\nThere are **42** `customers` and __3__ orders.'), 'Total\nThere are 42 customers and 3 orders.')
   })
+
+  test('the 8078 answer about unhealthy services renders as text: no entities, no URLs, a sub-table, links once', () => {
+    const fixture = JSON.parse(readFileSync(join(TEST_SOURCE, '..', '..', '..', 'core', 'src', 'test', 'fixtures', 'assistant-unhealthy.json'), 'utf8')) as { text: string; links: Array<{ label: string; href: string }> }
+    const { text, links } = renderAnswer(fixture, 100)
+    assert.doesNotMatch(text, /&#|\/app\/|%7B|\| ---/)
+    assert.match(text, /Service\s+Status\s+Since/)
+    assert.match(text, /email \[1\]\s+DEGRADED/)
+    assert.match(text, /- Open unhealthy components \[4\]/)
+    assert.ok(text.split('\n').every((l) => [...l].length <= 100))
+    assert.deepEqual(links.map((l) => [l.n, l.label, l.open.split(' --')[0]]), [
+      [1, 'email', 'qqq table get health_component 4'],
+      [2, 'db_performance', 'qqq table get health_component 3'],
+      [3, 'esb', 'qqq table get health_component 10'],
+      [4, 'Open unhealthy components', 'qqq table query health_component'],
+    ])
+    assert.match(links[3]!.open, /--filter-json '\{"criteria":\[\{"fieldName":"status","operator":"NOT_EQUALS","values":\["UP"\]\}\],"booleanOperator":"AND"\}'/)
+    assert.equal(linkCommand('/app/person/2'), 'qqq table get person 2')
+    assert.equal(linkCommand('https://x'), '')
+  })
 })
+

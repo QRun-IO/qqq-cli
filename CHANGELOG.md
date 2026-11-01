@@ -9,6 +9,27 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
 
 - The screen saver's Online tile said "nobody around" with two terminals signed in. It now counts signed-in sessions first (the session store's table: sessions active in the last 10 minutes and their users, your own included, "2 sessions · 1 user (you ×2)"), else you plus the people in collaboration presence; it never says nobody is around while you are signed in. The saver also keeps its presence lease on the screen under it (the extension has no idle state), so other clients see you still viewing it instead of gone. A server that stores no sessions and merges presence per user (mock auth) shows both terminals as "1 online · you".
 - Query in the screen saver looked like a different dog. All sizes are now generated from the drawing on https://www.qrun.io/query/ (`scripts/gen-query-art.mjs`) in its indigo, with a new medium size (25×13 cells, used where there is room) between the large (42×22) and the small (17×9).
+### Added
+
+- **F12 shows and hides the Assistant panel** on every screen (Ctrl+G, `:ask` and a click on `12Ask` do
+  the same). Hiding keeps the conversation, its context and the draft; Esc hides too (with a draft,
+  nothing is asked). The F-key bar has `11` (reserved, blank) and `12Ask` from 120 columns (dimmed
+  without the extension); narrower, the `?` help and F9 › Work say "F12 assistant". F12 is read as the
+  legacy `ESC [24~` and as the kitty keyboard protocol key; README notes macOS's F12 mapping.
+- Assistant panel: `u` on a link shows its address.
+- Kernel: `parseMarkdown`, `markdownText`, `answerDocument` and `linkTargetKey` (render/markdown.ts): the
+  assistant's markdown as blocks with numbered links, one per target (a filter on the primary key is
+  that record; JSON and base64 filters compare by content).
+
+### Fixed
+
+- **The assistant's answers render** instead of showing raw markdown, in the TUI panel and in
+  `qqq assistant ask`: HTML entities decoded (`healthy&#58;` was shown as is), headings, wrapped
+  paragraphs, lists, bold and code, and pipe tables laid out as a grid (CLI: sub-tables) instead of `| --- |`
+  rows. Links show as `label ↗` (CLI: `label (qqq table get …)` or `label [n]` with the command under
+  Links), never their URL-encoded `/app/...?filter=` targets; the tool results' links are listed only
+  when the text does not already show the same target, so `db_performance` no longer appears three times.
+  Exact duplicate paragraphs are shown once; the timing and token line stays, dimmed.
 
 ## [1.0.0] - 2026-11-01
 

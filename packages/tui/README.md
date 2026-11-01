@@ -350,31 +350,51 @@ help-authoring mode (F1 shows every help slot key).
 
 ## Assistant
 
-With the `assistant` UI API extension (qbit-assistant), `Ctrl+G`, `:ask [question]` or F9 › Work ›
-Assistant opens the Assistant panel: a chat pane on the right of the screen (40 to 64 columns), or the
-whole body on terminals narrower than 110 columns. The question line is at the bottom and the
-conversation above it: each question, the answer as it is written, its numbers (counts and metrics) and
-its links. Answers are read-only and use your permissions.
+With the `assistant` UI API extension (qbit-assistant), **F12** shows and hides the Assistant panel on
+every screen (also `Ctrl+G`, `:ask [question]`, F9 › Work › Assistant, or a click on `12Ask`). It is a
+chat pane on the right of the screen (40 to 64 columns), or the whole body on terminals narrower than 110
+columns. The question line is at the bottom and the conversation above it. Answers are read-only and use
+your permissions.
 
-Questions carry the screen under the panel as context, the way the Next UI's panel sends it: a record
-(`/app/{table}/{id}`) or a grid with its filter; the first line of the panel says which (`on: Person #3`).
+Hiding the panel keeps the conversation, its context and the draft on the question line; the next F12
+shows them again. When the panel is shown but the screen beside it has the focus (after opening a link),
+F12 goes back to the question line. F11 is reserved.
+
+Answers are drawn from their markdown: entities decoded, headings in the accent colour, paragraphs
+wrapped to the pane, bullet and numbered lists, **bold** and `code`, and pipe tables laid out like the
+grid (columns that do not fit are named underneath, cells cut with `…`). A link shows as `label ↗`, never
+its address; each is a Tab target in reading order, once per target. Records and tables the tool results
+refer to that the text does not show are listed under `→`. Exact duplicate paragraphs are shown once;
+the timing and token line stays, dimmed.
+
+Questions carry the screen the panel was shown over as context, the way the Next UI's panel sends it: a
+record (`/app/{table}/{id}`) or a grid with its filter; the first line of the panel says which
+(`on: Person #3`). While the panel is beside the screen, a record or grid you open becomes the context.
 
 | Key | Does |
 |---|---|
-| Enter | ask the question; on a link, open it (a record or a grid, beside the panel; a full-width panel closes so the screen shows) |
+| Enter | ask the question; on a link, open it (a record or a grid, beside the panel; a full-width panel hides so the screen shows) |
 | Tab, Shift+Tab | move over the answer's links; typing returns to the question line |
+| u | on a link: show its address |
 | ↑ ↓ | the questions you asked on this profile (on the links: previous and next link) |
 | PgUp PgDn, wheel | scroll the conversation |
 | Ctrl+D | send without (or again with) the page context |
 | Ctrl+L | a new conversation |
 | Ctrl+X | stop the answer being written |
-| Ctrl+G | back to the screen (the panel stays); again to return |
-| Esc | close the panel (the conversation is kept) |
+| F12, Ctrl+G | hide the panel (again: show it) |
+| Esc | hide the panel (with text on the question line too: nothing is asked, the draft stays); on a link, back to the question line |
 
-Without the extension the menu entry is disabled and Ctrl+G says what is missing. When the assistant is
-off for you (no model provider on the server, no permission, the kill switch) the panel shows the server's
-reason and what to configure; F5 checks again. The command line has the same: `qqq assistant ask`,
-`qqq assistant config`.
+**F12 in your terminal.** The F-key bar shows `11` (blank, reserved) and `12Ask` from 120 columns;
+narrower, the `?` help and F9 › Work say "F12 assistant". The TUI reads F12 both as the legacy sequence
+(`ESC [24~`, also with modifiers, as tmux and iTerm2 send it by default) and as the kitty keyboard
+protocol's key (57375). macOS may take F12 for Mission Control or Dashboard, or send it only with `fn`
+(System Settings › Keyboard › Keyboard Shortcuts, or "Use F1, F2, etc. keys as standard function keys");
+Ctrl+G is the fallback everywhere.
+
+Without the extension the menu entry is disabled, `12Ask` is dimmed and F12 says what is missing. When
+the assistant is off for you (no model provider on the server, no permission, the kill switch) the panel
+shows the server's reason and what to configure; F5 checks again. The command line has the same:
+`qqq assistant ask`, `qqq assistant config`.
 
 ## SQL Runner
 

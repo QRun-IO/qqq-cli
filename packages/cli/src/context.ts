@@ -14,31 +14,55 @@ import { Assistant, Collaboration, Printing, missingQBitMessage, runProcess, typ
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieHeaderFor, target, type Target } from './session.js'
 
+/** A write that ends the process quietly (status 0) when it throws because the reader has gone. */
+function safeWrite(stream: NodeJS.WriteStream, text: string): void {
+  try {
+    stream.write(text)
+  } catch (error) {
+    if (isBrokenPipe(error)) process.exit(0)
+    throw error
+  }
+}
+
 /**
  * Where output goes. The CLI writes to the process streams; `runCli` (the TUI's `:` command line)
  * points these at a pane for the duration of one command.
  */
 export const io = {
-  out: (text: string): void => { process.stdout.write(text) },
-  err: (text: string): void => { process.stderr.write(text) },
+  out: (text: string): void => { safeWrite(process.stdout, text) },
+  err: (text: string): void => { safeWrite(process.stderr, text) },
   isTTY: (): boolean => Boolean(process.stdout.isTTY),
   /** The terminal width table output fits nested results in; undefined when not on a terminal. */
   width: (): number | undefined => (process.stdout.isTTY ? process.stdout.columns : undefined),
 }
 
+/** What a write to a pipe whose reader has gone ends with: EPIPE, or (macOS, a stream already torn down) the errors that follow it. */
+const BROKEN_PIPE_CODES = new Set(['EPIPE', 'ECONNRESET', 'ERR_STREAM_DESTROYED', 'ERR_STREAM_WRITE_AFTER_END'])
+
 /** Whether an error is a write to a pipe whose reader has gone (`qqq table query | head -1`). */
 export function isBrokenPipe(error: unknown): boolean {
-  return (error as NodeJS.ErrnoException | undefined)?.code === 'EPIPE'
+  return BROKEN_PIPE_CODES.has(String((error as NodeJS.ErrnoException | undefined)?.code))
 }
 
-/** Exits quietly with status 0 when stdout or stderr is a pipe nobody reads any more, as `yes | head` does. */
-export function exitOnBrokenPipe(streams: Array<NodeJS.WriteStream> = [process.stdout, process.stderr], exit: (code: number) => void = (code) => process.exit(code)): void {
+/**
+ * A pipe nobody reads any more ends the command at once with status 0, as `yes | head` does, whatever
+ * else was going on: the process exits from the stream's error event, from a write that throws, and
+ * from an uncaught error that is one, so no later code can turn it into a failure.
+ */
+export function exitOnBrokenPipe(streams: Array<NodeJS.WriteStream> = [process.stdout, process.stderr], exit: (code: number) => void = (code) => process.exit(code), on: (event: 'uncaughtException', listener: (error: Error) => void) => unknown = (event, listener) => process.on(event, listener)): void {
   for (const stream of streams) {
     stream.on('error', (error) => {
       if (isBrokenPipe(error)) exit(0)
       else throw error
     })
   }
+  on('uncaughtException', (error) => {
+    if (isBrokenPipe(error)) exit(0)
+    else {
+      process.stderr.write(`${error.stack ?? error.message}\n`)
+      process.exit(1)
+    }
+  })
 }
 
 /** Exit codes, as in the design doc (KofTwentyTwo ADR-0031 shape). */
