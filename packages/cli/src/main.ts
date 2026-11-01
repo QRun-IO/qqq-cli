@@ -33,10 +33,7 @@ importLegacyCredentials().then(() => program.parseAsync()).catch((error: unknown
     return
   }
   // a stream that failed with EPIPE (an export piped into head): the reader left, nothing to report
-  if (isBrokenPipe(error)) {
-    process.exitCode = 0
-    return
-  }
+  if (isBrokenPipe(error)) process.exit(0)
   const { code, text } = describeError(error, Boolean(program.opts().trace))
   process.stderr.write(text + '\n')
   process.exitCode = code
