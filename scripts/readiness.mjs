@@ -74,7 +74,9 @@ const GLOBAL_WITH_VALUE = new Set(['--server', '-p', '--profile', '-O', '--outpu
 /** The `qqq ...` command lines in a document's code blocks and inline code, as token lists. */
 export function commandLines(text) {
   const lines = []
-  const code = [...text.matchAll(/```[a-z]*\n([\s\S]*?)```/g)].map((m) => m[1]).join('\n') + '\n' + [...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]).join('\n')
+  // code blocks without their shell comments (`qqq ...   # what it does`), then inline code
+  const blocks = [...text.matchAll(/```[a-z]*\n([\s\S]*?)```/g)].map((m) => m[1].split('\n').map((l) => l.replace(/(^|\s)#\s.*$/, '')).join('\n'))
+  const code = blocks.join('\n') + '\n' + [...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]).join('\n')
   for (const m of code.matchAll(/(?:^|[\s;(&|"$])qqq((?:[ \t]+[^\s;|&)"#]+)+)/gm)) {
     const tokens = m[1].trim().split(/\s+/)
     lines.push(tokens)
