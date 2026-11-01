@@ -60,11 +60,12 @@ export function center(text: string, width: number): string {
 }
 
 /**
- * A one-line key hint ("a · b · c") in exactly `width` cells with one cell of indent: tokens that do not
+ * A one-line key hint ("a · b · c", or tokens with `drop` priorities) in exactly `width` cells with one cell of indent: tokens that do not
  * fit are dropped whole (Esc, Enter and Ctrl+S tokens last), never cut in the middle.
  */
-export function hintLine(text: string, width: number): string {
-  return pad(` ${fitKeyLine(text.trim().split(KEY_SEP), Math.max(1, width - 2), 1)[0] ?? ''}`, width)
+export function hintLine(text: string | Array<KeyToken | string>, width: number): string {
+  const tokens = typeof text === 'string' ? text.trim().split(KEY_SEP) : text
+  return pad(` ${fitKeyLine(tokens, Math.max(1, width - 2), 1)[0] ?? ''}`, width)
 }
 
 /** Cuts styled segments to `width` cells: the segment that crosses the edge ends in an ellipsis, later ones go. */

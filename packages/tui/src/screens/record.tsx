@@ -24,7 +24,7 @@ import { ChoiceOverlay } from '../overlays/basic'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
-import { cell, errorText, fieldCell, pad, trunc } from '../util/text'
+import { cell, errorText, fieldCell, hintLine, pad, trunc, type KeyToken } from '../util/text'
 import { blockLines } from '../widgets'
 import { followLine } from '../links'
 import { ListModel, Panel, type Row } from './list'
@@ -93,6 +93,8 @@ export class RecordScreen implements Screen {
   readonly id: string
   meta?: TableMetaData
   record?: FullRecord
+  /** The fields drawn on each field row (by row key), for V (whole value). */
+  private rowFields = new Map<string, string[]>()
   error?: string
   childMeta = new Map<string, TableMetaData>()
   widgets = new Map<string, RenderBlock[] | { error: string }>()
@@ -368,6 +370,7 @@ export class RecordScreen implements Screen {
       const links = pair.filter((f) => { const v = valueText(f as FieldMeta, rec as never, { tableNames }); return Boolean(v.link || v.file || v.masked || isBlob(rec, f)) })
       const text = '  ' + (two ? pad(fieldText(pair[0]!), colWidth) + '    ' + (pair[1] ? fieldText(pair[1]) : '') : fieldText(pair[0]!))
       const chip = pair.some((f) => valueText(f as FieldMeta, rec as never, {}).adornment === 'CHIP' && cell(rec, f.name))
+      this.rowFields.set(`f:${pair[0]!.name}`, pair.map((f) => f.name))
       rows.push({ text, key: `f:${pair[0]!.name}`, action: () => this.follow(links), ...(chip ? { fg: chipColor(pair.find((f) => valueText(f as FieldMeta, rec as never, {}).adornment === 'CHIP')!, rec) } : {}) })
     }
     return rows
@@ -707,6 +710,7 @@ export class RecordScreen implements Screen {
       case 'K': if (this.collab()) { this.openCollab('tasks'); return true } return false
       case 'W': if (this.collab()) { this.toggleFollow(); return true } return false
       case 'D': this.openDeveloper(); return true
+      case 'V': this.showValue(); return true
       case 'Z': {
         const entry = this.shareEntry()[0]
         if (!entry) return false
@@ -768,6 +772,7 @@ export class RecordScreen implements Screen {
     out.push({ section: 'Context', label: this.store.extensions.has('printing') ? 'Print… (a record sheet)' : 'Print… (saves the screen as a file: no printing on this server)', key: 'p Ctrl+P', command: 'print', run: () => printScreen(this.store) })
     if (this.store.extensions.has('collaboration')) out.push({ section: 'Context', label: 'Tags…', key: 't', command: 'tags', detail: this.tags?.map((x) => x.label).join(', '), run: () => this.openTags() })
     out.push(...this.collabEntries())
+    out.push({ section: 'Context', label: 'Whole value of the field under the cursor', key: 'V', run: () => this.showValue() })
     out.push({ section: 'Context', label: 'Audit history', key: 'A', command: 'audits', run: () => this.openAudits() })
     out.push({ section: 'Context', label: 'Developer: security, events, scripts, JSON, metadata, audits, APIs', key: 'D', command: 'dev', run: () => this.openDeveloper() })
     return out
@@ -798,17 +803,33 @@ export class RecordScreen implements Screen {
     })
   }
 
+  /** The whole value of the field(s) on the row under the cursor, wrapped in a dialog (field rows cut values with …). */
+  showValue(): void {
+    const names = this.rowFields.get(this.list.current?.key ?? '')
+    const rec = this.record
+    const fields = (names ?? []).map((n) => this.meta?.fields[n] ?? this.fullMeta?.fields[n]).filter((f): f is FieldMetaData => Boolean(f))
+    if (!rec || !fields.length) return this.store.flash('V shows the whole value of a field row: move to a field first')
+    const text = (f: FieldMetaData) => fieldCell(rec, f) || '(empty)'
+    if (fields.length === 1) return this.store.message(text(fields[0]!), 'info', fields[0]!.label)
+    this.store.message(fields.map((f) => `${f.label}: ${text(f)}`).join('\n\n'), 'info', fields.map((f) => f.label).join(' · '))
+  }
+
   render(width: number, height: number, focused: boolean) {
     if (width !== this.width) {
       this.width = width
       this.build()
     }
     const t = theme()
-    const hint = `${this.cursor ? `${this.cursor.describe()} · PgDn/PgUp next/previous · ` : ''}a actions · A audits · D developer · Enter follows ${glyphs().link} or opens a child · Esc back`
+    // dropped whole from the highest `drop` when the width is short (A and D first), never cut mid-key
+    const hint: KeyToken[] = [
+      ...(this.cursor ? [{ text: this.cursor.describe(), drop: 2 }, { text: 'PgDn/PgUp next/previous', drop: 1 }] : []),
+      { text: 'a actions', drop: 1 }, { text: 'V whole value', drop: 2 }, { text: 'A audits', drop: 3 }, { text: 'D developer', drop: 3 },
+      { text: `Enter follows ${glyphs().link} or opens a child`, drop: 2 }, { text: 'Esc back' },
+    ]
     return (
       <Panel title={`${this.meta?.label ?? this.tableName} › ${this.title()}`} width={width} height={height} focused={focused}>
         {this.list.view(width - 2, height - 3, focused)}
-        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(` ${hint}`, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{hintLine(hint, width - 2)}</text>
       </Panel>
     )
   }

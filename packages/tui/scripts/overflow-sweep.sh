@@ -7,6 +7,7 @@
 # 80/100/120/200 columns by 24 and 50 rows, and checks every capture with overflow-check.ts (no line
 # wider than the terminal, every box border intact: text past a border breaks it).
 #   packages/tui/scripts/overflow-sweep.sh [server-url]      OUT=dir SIZES="80x24 120x50"
+# Expects the sample app's tables and processes (the sample server, or the enterprise server that includes them).
 # Uses an isolated config directory; never touches the server beyond reads and cancelled dialogs.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,7 +30,9 @@ start() {
   tmux kill-session -t "$s" 2>/dev/null || true
   tmux new-session -d -s "$s" -x 120 -y 36 "cd '$pkg' && QQQ_CONFIG_DIR='$cfg/config' QQQ_STATE_DIR='$cfg/state' QQQ_KEYRING=file QQQ_CACHE_DIR='$cfg/cache' bun run src/main.tsx --no-check --server '$server'; sleep 30"
   tmux set-option -t "$s" window-size manual > /dev/null
-  wait_for start 'Quick actions'
+  # a large instance can take a while to load its metadata
+  for _ in 1 2 3; do wait_for start 'Quick actions' && return 0; done
+  echo "FAIL start: the home screen never showed"; fails=$((fails + 1)); return 0
 }
 # waits for every text to be on screen (at the base size)
 wait_for() {
@@ -70,11 +73,19 @@ keys T:?; shot 02-help 'Keys'
 start; keys T:/; shot 03-palette 'Go to'
 start; keys T:: 'T:table q'; shot 04-command-line ': table q'
 start; keys F9; shot 05-command-center 'Menu' 'Go to'
+keys T:job; shot 05b-command-center-search 'Menu'
 start; cmd 'app peopleApp'; shot 06-app-home 'People App'
 start; cmd 'table query person'; keys S:1 Tab Down Right Down Down Right; shot 07-app-tree '▾'
 start; cmd 'table query person'; shot 08-grid 'First Name' 'records'
 keys v; shot 09-view-settings 'View settings'
 keys Down Down Down Down Down Down Down Down Down Down Down; shot 10-view-settings-pinned 'columns that stay left while scrolling'
+# the widest table there is with records (39 columns on the enterprise server), else the widest at all
+wide="$(curl -sf "$server/qqq/v1/metaData" | python3 -c 'import json,sys; t=json.load(sys.stdin)["tables"]; print(next((n for n in ["db_perf_snapshot", "fieldLab"] if n in t), ""))')"
+if [[ -n $wide ]]; then
+  start; cmd "table query $wide"; shot 11a-grid-many-columns 'records'
+  keys Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right Right; shot 11b-grid-many-columns-right 'records'
+  keys v; shot 11c-view-settings-many-columns 'View settings'
+fi
 start; cmd 'table query person'; keys S:1 v S:0.5 T:w C-u T:120 Enter Down T:w C-u T:120 Enter Enter; shot 11-grid-wide-columns 'records'
 keys End; shot 12-grid-wide-columns-scrolled 'records'
 keys T:v T:r

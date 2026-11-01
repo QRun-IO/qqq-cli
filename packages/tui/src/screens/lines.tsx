@@ -62,20 +62,14 @@ export abstract class LinesScreen implements Screen {
     return 'Enter opens · PgUp PgDn page · F5 refresh · Esc back'
   }
 
-  /** Rebuilds rows that were wrapped to the old width (the screen was resized); a no-op by default. */
-  protected rewrap(): void {}
-
-  /** Width to wrap text rows to: the panel's inside, before the first render the terminal's. */
+  /** Width to wrap text rows to when they load: the panel's inside (before the first render, the terminal's less the Apps tree). */
   protected wrapWidth(): number {
-    return Math.max(20, (this.width || this.store.width) - 2)
+    return Math.max(20, this.width || this.store.width - (this.store.showSidebar ? 32 : 0) - 2)
   }
 
   render(width: number, height: number, focused: boolean) {
     const t = theme()
-    if (width - 2 !== this.width) {
-      this.width = width - 2
-      if (!this.loading) this.rewrap()
-    }
+    this.width = width - 2
     if (this.loading && !this.list.rows.length) this.list.setRows([{ text: 'loading…', fg: t.dim }])
     return (
       <Panel title={this.heading} width={width} height={height} focused={focused}>

@@ -174,3 +174,15 @@ test('V on the grid shows the whole value of the cell under the cursor', async (
   const f = await waitFor(h, (x) => x.includes('First Name') && x.includes('any key closes'))
   expect(checkCapture(f, 80, 24)).toEqual([])
 })
+
+test('record view at 80: the key line drops whole keys, V shows the whole value of the field row', async () => {
+  h = await at80()
+  await command(h, 'table get person 1')
+  let f = await waitFor(h, (x) => x.includes('Esc back'))
+  expect(checkCapture(f, 80, 24)).toEqual([])
+  const hint = f.split('\n').find((l) => l.includes('Esc back'))!
+  expect(hint).not.toContain('…')
+  await press(h, () => h!.setup.mockInput.typeText('V'))
+  f = await waitFor(h, (x) => x.includes('any key closes'))
+  expect(checkCapture(f, 80, 24)).toEqual([])
+})

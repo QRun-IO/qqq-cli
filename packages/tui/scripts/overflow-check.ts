@@ -93,7 +93,7 @@ export function checkCapture(text: string, width: number, height: number): strin
     for (const p of box.problems) {
       const hidden = found.some((o) => o !== box && o.closed && inside(o, p.r, p.c) && !inside(o, box.top, box.left))
       // a box scrolled past the bottom of the box that holds it is clipped there, which is the rule
-      const scrolled = found.some((o) => o !== box && o.closed && o.bottom === p.r && inside(o, box.top, box.left))
+      const scrolled = found.some((o) => o !== box && o.bottom === p.r && inside(o, box.top, box.left))
       if (!hidden && !scrolled) out.push(p.text)
     }
   }

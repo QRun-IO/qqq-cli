@@ -256,8 +256,8 @@ Nothing is drawn outside its container: every line is cut to the cells it has (m
 so wide characters count double) and a cut ends in `…`; dialogs never extend past the screen, and key help
 lines break between keys (at ` · `), dropping the least important keys first when they do not fit. Long
 values in grid cells and record fields are cut with `…` to the column; `V` on the grid (or "Whole value" in
-`a` / F9) shows the whole value of the cell under the cursor, wrapped in a dialog; the record view (Enter)
-gives each field more room (up to 100 cells in one column). A column width saved wider than the terminal is held to the grid's width.
+`a` / F9) shows the whole value of the cell under the cursor, wrapped in a dialog, and `V` on a field row of
+the record view does the same for its field (both fields of a two-column row). A column width saved wider than the terminal is held to the grid's width.
 
 Widgets (home, app homes, record sections) have their actions on Enter: reload, the payload's dropdowns
 (possible values or a date; kept per widget when it asks), export CSV, run a process widget, data bag
