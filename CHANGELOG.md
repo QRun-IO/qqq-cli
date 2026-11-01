@@ -404,11 +404,10 @@ candidate's, plus the changes since it listed first.
   lines default to the dialog's inner width. View settings shows only the value in each row (Pinned columns
   `0`, not the explanation) and explains the selected row on a help line; its key help breaks between keys
   in at most three lines, dropping the least important first; `+`/`-` change Pinned columns as the help
-  said. Screen footers drop whole keys instead of cutting one in the middle. The help's key table switches
-  to one column when two would cut it, process errors wrap to the pane, the home screen's header
-  lines end in `…`, and a column width saved wider than the terminal is held to the grid.
-  `V` on the grid shows a cell's whole value, and on a record view field row its field's whole value; the
-  record view's key line drops whole keys. `packages/tui/scripts/overflow-sweep.sh` checks every screen
+  said. Screen footers, including the record view's, drop whole keys instead of cutting one in the
+  middle. Process errors wrap to the pane, the home screen's header lines end in `…`, and a column width
+  saved wider than the terminal is held to the grid. `V` shows the whole value of the grid cell, or of the
+  record view field row, under the cursor. `packages/tui/scripts/overflow-sweep.sh` checks every screen
   and dialog at 80/100/120/200 columns by 24/50 rows, and `smoke.sh` checks its captures the same way.
 
 ### Security
