@@ -4,8 +4,11 @@
  */
 
 /**
- * Repository lint: every TypeScript and script source carries the license header, and no file under
- * packages/* /src imports from another package's src (only from its built entry point).
+ * Repository lint: every TypeScript and script source carries the license header, no file under
+ * packages/* /src imports from another package's src (only from its built entry point), and the
+ * release versions agree: the CLI's compiled-in version with its package.json, the client's
+ * UI_API_VERSION with its OpenAPI document, and every workspace dependency with the version of the
+ * workspace it names.
  *
  * Usage: node scripts/lint.mjs
  */
@@ -33,7 +36,28 @@ function check(path) {
   if (cross) problems.push(`${relative('.', path)}: imports another package's src (${cross[0]}); import the package by name`)
 }
 
+function checkVersions() {
+  const read = (path) => JSON.parse(readFileSync(path, 'utf8'))
+  const workspaces = Object.fromEntries(read('package.json').workspaces.map((dir) => {
+    const pkg = read(join(dir, 'package.json'))
+    return [pkg.name, { dir, pkg }]
+  }))
+  const cli = workspaces['@qrun-io/qqq-cli'].pkg
+  const cliConstant = readFileSync('packages/cli/src/version.ts', 'utf8').match(/export const CLI_VERSION = '([^']+)'/)?.[1]
+  if (cliConstant !== cli.version) problems.push(`packages/cli/src/version.ts: CLI_VERSION ${cliConstant} != packages/cli/package.json ${cli.version}`)
+  const uiApiConstant = readFileSync('packages/ui-api-client/src/index.ts', 'utf8').match(/export const UI_API_VERSION = '([^']+)'/)?.[1]
+  const documentVersion = read('packages/ui-api-client/openapi/qqq-v1.json').info?.version
+  if (uiApiConstant !== documentVersion) problems.push(`packages/ui-api-client/src/index.ts: UI_API_VERSION ${uiApiConstant} != document info.version ${documentVersion}`)
+  for (const { dir, pkg } of Object.values(workspaces)) {
+    for (const [name, range] of Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })) {
+      const target = workspaces[name]
+      if (target && range !== target.pkg.version) problems.push(`${dir}/package.json: depends on ${name} ${range}, the workspace is ${target.pkg.version}`)
+    }
+  }
+}
+
 for (const root of roots) walk(root)
+checkVersions()
 if (problems.length) {
   console.error(problems.join('\n'))
   process.exit(1)

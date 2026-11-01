@@ -21,7 +21,9 @@ import {
 } from '@qrun-io/qqq-ui-api-client'
 import { defaultSecretStore, readConfig, resolveProfile, upsertProfile, type ResolvedProfile, type SecretStore } from '@qrun-io/qqq-core'
 
-export const CLI_VERSION = '0.2.0-dev'
+import { CLI_VERSION } from './version.js'
+
+export { CLI_VERSION }
 export const CLIENT_CHANNEL = `cli/qqq-cli ${CLI_VERSION}`
 
 /** What is stored per profile: OAuth2 tokens from the device flow, or a server session from manageSession. */

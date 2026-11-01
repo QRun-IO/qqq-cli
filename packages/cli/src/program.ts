@@ -11,9 +11,8 @@
  */
 
 import { Command, CommanderError } from 'commander'
-import { UI_API_VERSION } from '@qrun-io/qqq-ui-api-client'
 import { Context, EXIT, describeError, io } from './context.js'
-import { CLI_VERSION } from './session.js'
+import { versionText } from './version.js'
 import { registerApi } from './commands/api.js'
 import { registerAudit } from './commands/audit.js'
 import { registerAuth } from './commands/auth.js'
@@ -38,7 +37,7 @@ export function createProgram(): Command {
   program
     .name('qqq')
     .description('Command-line client for QQQ applications, built only on the QQQ UI API (/qqq/v1).')
-    .version(`${CLI_VERSION} (UI API client ${UI_API_VERSION})`, '--version', 'print the version')
+    .version(versionText(), '--version', 'print the version')
     .option('--server <url>', 'the QQQ server (default: QQQ_SERVER, or the default profile)')
     .option('-p, --profile <name>', 'the profile to use (default: QQQ_PROFILE, or the default profile)')
     .option('-O, --output <format>', 'json, table, text, csv or yaml (default: table on a terminal, json in a pipe; QQQ_OUTPUT)')

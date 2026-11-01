@@ -10,7 +10,25 @@ import { fileURLToPath } from 'node:url'
 import type { Command } from 'commander'
 import { UsageError, type Context } from '../context.js'
 
-/** The TUI entry in this checkout (dev); a packaged binary replaces this in M5. */
+/**
+ * A qqq binary built with the terminal UI (scripts/build-binaries.mjs --with-tui) sets this before the
+ * CLI starts: it runs the bundled TUI in this process with the given arguments.
+ */
+declare global {
+  var __qqqRunTui: ((args: string[]) => Promise<void>) | undefined
+}
+
+/** What qqq ui says when neither a bundled TUI nor a source checkout is there. */
+export const NO_TUI_MESSAGE = [
+  'The terminal UI (qqq ui) is not part of this installation: the npm package and the plain qqq binaries carry the CLI only.',
+  'To get it:',
+  '  - a qqq binary built with the UI (its qqq --version says "with ui"): https://github.com/QRun-IO/qqq-cli/releases',
+  '  - or from source, with Node 20+ and Bun 1.4+ (https://bun.sh):',
+  '      git clone https://github.com/QRun-IO/qqq-cli && cd qqq-cli && npm ci && npm run build',
+  '      node packages/cli/dist/main.js ui',
+].join('\n')
+
+/** The TUI entry in a source checkout, next to this package (dev). */
 export function tuiEntry(): string {
   const here = dirname(fileURLToPath(import.meta.url))
   return resolve(join(here, '..', '..', '..', 'tui', 'src', 'main.tsx'))
@@ -26,11 +44,9 @@ export function registerUi(program: Command, _ctx: () => Context): void {
     .option('--check', 'check the terminal and tmux setup, offer fixes, and exit')
     .option('--no-check', 'skip the quick terminal check at startup')
     .allowUnknownOption(true)
-    .action((route: string[], options: { theme?: string; ascii?: boolean; linear?: boolean; mouse?: boolean; check?: boolean }) => {
-      const entry = tuiEntry()
-      if (!existsSync(entry)) throw new UsageError(`The TUI is not in this installation (looked for ${entry}).`)
+    .action(async (route: string[], options: { theme?: string; ascii?: boolean; linear?: boolean; mouse?: boolean; check?: boolean }) => {
       const globals = program.opts<{ profile?: string; server?: string }>()
-      const args = ['run', entry]
+      const args: string[] = []
       if (globals.profile) args.push('--profile', globals.profile)
       if (globals.server) args.push('--server', globals.server)
       if (options.theme) args.push('--theme', options.theme)
@@ -40,7 +56,10 @@ export function registerUi(program: Command, _ctx: () => Context): void {
       if (options.check === true) args.push('--check')
       if (options.check === false) args.push('--no-check')
       if (route.length) args.push('--', ...route)
-      const result = spawnSync(process.env.QQQ_BUN ?? 'bun', args, { stdio: 'inherit' })
+      if (globalThis.__qqqRunTui) return globalThis.__qqqRunTui(args)
+      const entry = tuiEntry()
+      if (!existsSync(entry)) throw new UsageError(NO_TUI_MESSAGE)
+      const result = spawnSync(process.env.QQQ_BUN ?? 'bun', ['run', entry, ...args], { stdio: 'inherit' })
       if (result.error) throw new UsageError(`Cannot start Bun (${result.error.message}); install it (https://bun.sh) or set QQQ_BUN.`)
       process.exitCode = result.status ?? 1
     })

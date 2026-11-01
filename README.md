@@ -1,71 +1,110 @@
 # qqq-cli
 
-The reference command-line client for [QQQ](https://github.com/QRun-IO/qqq) applications, and the kit for writing your own CLI, TUI or native client. Everything here talks to a QQQ server only through the **UI API** (`/qqq/v1`), the API the web UI uses too.
+`qqq` is the command-line client for [QQQ](https://github.com/QRun-IO/qqq) applications. It talks to a
+QQQ server only through the **UI API** (`/qqq/v1`), the API the web UI uses too. Nothing about an
+application is built in: apps, tables, fields, processes, widgets and extensions all come from the
+server's metadata, so the same binary works against any QQQ application.
 
-| Package | What it is |
-|---|---|
-| [`@qrun-io/qqq-cli`](packages/cli) | `qqq`, the reference CLI: device-code sign-in, apps, tables, filtered queries, records, processes, jobs, and a live event stream |
-| [`@qrun-io/qqq-ui-api-client`](packages/ui-api-client) | A typed TypeScript client, generated from the merged UI API document (core plus extensions). It also does OAuth2 device-flow sign-in, token refresh, and reads the realtime (SSE) stream |
-| [`@qrun-io/qqq-ui-api-conformance`](packages/conformance) | A black-box conformance suite you can run against any server, plus `qqq-dev-idp`, a local OIDC provider for testing native clients |
+This is **1.0.0-rc.1**, the first release candidate. It works with servers that serve UI API 1.6.0 up to
+2.0 (QQQ 4.1.0-RC.15 or later); `qqq --version` prints the range.
 
-The packages are published to GitHub Packages:
+The repository also holds the libraries the CLI is built on, for anyone writing a CLI, TUI or native client:
+
+| Package | Version | What it is |
+|---|---|---|
+| [`@qrun-io/qqq-cli`](packages/cli) | 1.0.0-rc.1 | `qqq`, the CLI |
+| [`@qrun-io/qqq-core`](packages/core) | 1.0.0-rc.1 | the client kernel: sessions and keyring, metadata cache, filter grammar, forms, processes, records, render model, output formats. No terminal code |
+| [`@qrun-io/qqq-ui-api-client`](packages/ui-api-client) | 1.8.0-rc.2 | a typed TypeScript client generated from the merged UI API document (core plus 13 extensions), with OAuth2 device-flow and PKCE sign-in, token refresh and the realtime (SSE) stream |
+| [`@qrun-io/qqq-ui-api-conformance`](packages/conformance) | 1.6.0-rc.2 | a read-only conformance suite for any UI API server, and `qqq-dev-idp`, a local OIDC provider for testing native clients |
+| [`packages/tui`](packages/tui) | not released | `qqq ui`, the full-screen terminal UI (OpenTUI on Bun), in development |
+
+## Install
+
+A single-file binary (no Node needed) for macOS (arm64, x64), Linux (x64, arm64; glibc, and musl for
+Alpine) or Windows (x64), from the [releases](https://github.com/QRun-IO/qqq-cli/releases):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh   # to ~/.local/bin
+```
+
+The installer picks the right build and checks it against the release's `SHA256SUMS`
+(`--version 1.0.0-rc.1`, `--dir /usr/local/bin`). Homebrew and Scoop packages are drafted in
+[`docs/packaging`](docs/packaging/README.md) and land with the release.
+
+Or from npm (GitHub Packages), with Node.js 20 or later:
 
 ```sh
 echo "@qrun-io:registry=https://npm.pkg.github.com" >> ~/.npmrc
 npm install -g @qrun-io/qqq-cli@rc
 ```
 
-Requires Node.js 20 or later and a QQQ server with UI API 1.6.0 or later (QQQ 4.1.0-RC.15 or later).
-
-## The CLI
+## First sign-in
 
 ```console
-$ qqq login --server https://admin.example.com
+$ qqq login --server https://admin.example.com --profile prod
 To sign in to https://admin.example.com, open:
 
   https://auth.example.com/device?code=ED84-CC03
 
 and confirm the code ED84-CC03 (it expires in 10 minutes).
-Waiting for approval...
-Signed in to https://admin.example.com as darin@example.com.
+Signed in to https://admin.example.com as darin@example.com; sign-in kept in the macos-keychain.
 
-$ qqq tables --app peopleApp
-name     label     insert  edit  delete
--------  --------  ------  ----  ------
-person   Person    yes     yes   yes
-pet      Pet       yes     yes   yes
-
-$ qqq query person --where "firstName ~ a" --where "id < 100" --order -id --limit 5
-Id  First Name  Last Name  Annual Salary  ...
-5   Morgan      Sample     $1,500,000.00
-3   Casey       Sample     $300,000.00
-(2 records)
-
-$ qqq get person 1
-$ qqq run greetInteractive --records 1,2 --value greetingPrefix=Hi
-$ qqq jobs --all
-$ qqq tail --channel table:person
+$ qqq whoami
+$ qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5
 ```
 
-| Command | UI API operations |
+- **OAuth2 and Auth0** servers use the device flow; `--browser` uses the authorization code with PKCE on
+  a loopback redirect. Tokens are refreshed before they expire; `qqq logout --provider-logout` also
+  revokes them at the provider. **MOCK** and fully anonymous servers get a server session.
+- **Profiles** name servers, as `aws --profile`: `qqq --profile prod …`, `QQQ_PROFILE`, `qqq config profile
+  list|use|remove`. The first sign-in becomes the default.
+- **Sign-ins** live in the OS keyring: macOS Keychain, Secret Service on Linux, DPAPI on Windows, or a
+  0600 file with `QQQ_KEYRING=file` (headless hosts). `QQQ_TOKEN` overrides everything with a bearer token.
+- `qqq doctor` checks the connection, the sign-in and the terminal.
+
+## The grammar
+
+`qqq <noun> <verb> [arguments] [options]`, with global options anywhere.
+
+| Noun | Verbs |
 |---|---|
-| `login` | `getAuthenticationMetaData`, then the provider's device-authorization grant with `values.nativeClientId` |
-| `whoami` | `getVersion`, `getMetaData` |
-| `apps`, `tables [--app]` | `getMetaData` |
-| `query <table> [--where "field OP value"]... [--or] [--order [-]field] [--limit n] [--fields a,b]` | `getTableMetaData`, `queryTable` |
-| `get <table> <pk>` | `getTableMetaData`, `getRecord` |
-| `run <process> [--value k=v]... [--records ids]` | `getProcessMetaData`, `initProcess`, `stepProcess`, `getProcessStatus` |
-| `jobs [--all]` | `listJobs` |
-| `tail [--channel ...]` | `openRealtimeStream`, `updateRealtimeSubscriptions` (`user:me`, plus your channels) |
+| `table` | `list`, `describe`, `query`, `count`, `stats`, `get`, `create`, `copy`, `update`, `delete`, `export`, `children`, `download`, `variants` |
+| `process` | `list`, `describe`, `run` (every step screen, async jobs with progress, Ctrl-C cancels on the server) |
+| `apps`, `search`, `tail`, `whoami` | app homes, global search, the live event stream |
+| `saved-view`, `audit`, `report`, `widget`, `job`, `prefs`, `help-search` | saved views, audit history, reports, dashboard widgets as text, jobs, preferences, help |
+| `api <operationId>` | any of the 202 UI API operations by id: the escape hatch |
+| `extensions`, and one noun per extension | `esb`, `collab`, `health`, `alerts`, `assistant`, `sql-workbench`, … gated on what the server has installed |
+| `login`, `logout`, `config`, `cache`, `completion`, `doctor` | sign-in, profiles and settings, the metadata cache, shell completion (bash, zsh, fish, PowerShell) |
 
-Add `--json` for machine-readable output. Errors print the server's `message`, `code` and `traceId`.
+```sh
+qqq table query person -g "(firstName = Avery OR firstName = Blair) AND birthDate > now(-40y)"
+qqq table create pet --set name=Pixel --set personId=2 --set speciesId=Dog
+qqq table export person -w "id <= 5" --fields id,firstName,email --out people.xlsx
+qqq process run greetInteractive -r 1,2,3 -v greetingPrefix=Hi
+qqq api getTableMetaData --path tableName=person -Q 'fields.*.label'
+eval "$(qqq completion zsh)"
+```
 
-Where things are kept:
-- **Tokens** go in `~/.config/qqq-cli/credentials.json` (mode 0600), one entry per server. The CLI refreshes the access token at the provider before it expires, and once more on a 401.
-- **`QQQ_TOKEN`** overrides the stored token with any bearer token, such as a QQQ access token exchanged for a JWT, or a session UUID.
-- **`QQQ_SERVER`** sets the default server.
+Output is a table on a terminal and JSON in a pipe; `-O json|table|text|csv|yaml` (or `QQQ_OUTPUT`)
+chooses, and `-Q` reshapes it with JMESPath. Values are labels and display values from the server;
+DATE_TIME values are shown in your zone (`--utc` for raw). Exit codes: 0 ok, 1 error, 2 usage or bad
+filter, 3 auth, 4 server unreachable or rate limited, 5 not found, 6 validation, 70 server error,
+130 interrupted. Every request carries `X-QQQ-Client: cli/qqq-cli <version>` for the server's audits.
 
-Every request carries `X-QQQ-Client: cli/qqq-cli <version>`, so the server's audits attribute it to the CLI.
+[TRY-IT.md](TRY-IT.md) walks through every command against the QQQ sample server.
+
+## Documentation
+
+- [TRY-IT.md](TRY-IT.md): the CLI (and the TUI as it is built) against the local sample server
+- [`docs/parity/feature-matrix.md`](docs/parity/feature-matrix.md): CLI status of every row of the web UI's acceptance matrix
+- [`docs/extensions.md`](docs/extensions.md): the extension documents merged into the client
+- [`docs/server-findings.md`](docs/server-findings.md): UI API issues found while building the clients
+- [`docs/review-2026-10-31.md`](docs/review-2026-10-31.md): the hardening review of the CLI and kernel
+- [`docs/packaging`](docs/packaging/README.md) and [`docs/ci-lanes.md`](docs/ci-lanes.md): install paths, release and CI
+- [`packages/core/README.md`](packages/core/README.md): the kernel's modules
+- QQQ's [`UI-API-CLIENTS.md`](https://github.com/QRun-IO/qqq/blob/develop/docs/UI-API-CLIENTS.md) and
+  [`UI-API-CHANGELOG.md`](https://github.com/QRun-IO/qqq/blob/develop/docs/UI-API-CHANGELOG.md): the API itself
+- [CHANGELOG.md](CHANGELOG.md)
 
 ## Writing a client
 
@@ -82,55 +121,36 @@ const page = await unwrap(api.POST('/qqq/v1/table/{tableName}/query', {
 }))
 ```
 
-Paths, parameters, bodies and responses are typed from the document. Read the QQQ docs before you write a client:
-- [`UI-API-CLIENTS.md`](https://github.com/QRun-IO/qqq/blob/develop/docs/UI-API-CLIENTS.md) covers authentication, errors, widgets, processes, capabilities and validation.
-- [`UI-API-CHANGELOG.md`](https://github.com/QRun-IO/qqq/blob/develop/docs/UI-API-CHANGELOG.md) covers versioning.
+Paths, parameters, bodies and responses are typed from the document. `@qrun-io/qqq-core` adds the
+pieces every client needs above that (filter grammar, forms with contingent fields, the process runner,
+record view, output formats); see its README.
 
-## Mock server
-
-`npm run mock` serves the merged document with [Prism](https://github.com/stoplightio/prism) on http://127.0.0.1:4010, so you can build a client without a server. Responses come from the document's examples and schemas.
-
-## Conformance suite
+`npm run mock` serves the merged document with [Prism](https://github.com/stoplightio/prism) on
+http://127.0.0.1:4010, to build against without a server. To check a server:
 
 ```sh
 qqq-ui-api-conformance --server https://admin.example.com              # public checks only
 qqq-ui-api-conformance --server https://admin.example.com --token "$T"  # all read-only checks
 ```
 
-The suite only reads. It never writes. It checks that:
-- the version and the served document agree;
-- every operation has a unique operationId and every `$ref` resolves;
-- every extension the server lists has operations;
-- requests without credentials or with forged tokens (`alg: none`, garbage) get a 401 with the error schema;
-- metadata, table metadata (with `clientCapabilities`), query, count, record, jobs and realtime responses validate against the document;
-- a 404 has the error schema, and `X-Request-Id` comes back as `traceId`.
-
-## Testing a client locally
-
-`qqq-dev-idp` is a small OIDC provider for **local development only**: device grant, authorization code with S256 PKCE on loopback redirects (an Approve / Deny page, or `--auto-approve`), refresh, revocation, end-session and RS256 JWTs, with one issuer per client, as Authentik does it. Run it with the QQQ sample app:
-
-```sh
-npx qqq-dev-idp --port 9400 --client sample-app --client sample-cli --user you@example.com --groups admins --auto-approve
-
-# in a qqq checkout (QQQ 4.1.0-RC.15 or later)
-export OAUTH2_BASE_URL=http://localhost:9400/application/o/sample-app/ OAUTH2_CLIENT_ID=sample-app OAUTH2_CLIENT_SECRET=dev \
-       OAUTH2_SCOPES="openid profile email offline_access" \
-       OAUTH2_NATIVE_CLIENT_ID=sample-cli OAUTH2_NATIVE_CLIENT_BASE_URL=http://localhost:9400/application/o/sample-cli/
-./mvnw -f qqq-sample-project/pom.xml compile exec:java -Dexec.mainClass=com.kingsrook.sampleapp.SampleJavalinServer -Dqqq.sample.port=8077
-
-qqq login --server http://localhost:8077
-```
+`qqq-dev-idp` is a local OIDC provider (device grant, PKCE, refresh, revocation, RS256 JWTs) for testing
+OAuth2 sign-in against a local QQQ server; TRY-IT.md has the recipe.
 
 ## Development
 
 ```sh
 npm ci
-npm run spec:merge -- <core openapi.yaml> <extension yaml>...   # or a server's /qqq/v1/openapi.json
-npm run generate        # regenerate packages/ui-api-client/src/schema.ts
-npm run build && npm test
+npm run build && npm test && npm run lint
+npm run test:tui                     # the TUI's tests (Bun 1.4+)
+npm run generate                     # regenerate the client and the operations index from the document
+npm run spec:merge-extensions        # remerge the extension documents (sample server running)
+npm run binaries                     # dist/qqq-<os>-<arch>[.exe] and SHA256SUMS (Bun 1.4+); --host, --musl
+npm run release                      # every release check, then the tag and publish commands (prints only)
 ```
 
-Releases: push a tag `v<client version>`. The `publish` workflow publishes the three packages to GitHub Packages.
+The CLI runs on Node 20 and later and uses no Bun-only API; Bun is needed only to build the binaries
+and for the TUI. CI is the qqq-orb `cli` profile (`.qqq-ci.yml`); a tag `v<client version>` publishes the
+packages to GitHub Packages (see `docs/ci-lanes.md` for what it does and does not cover).
 
 ## License
 
