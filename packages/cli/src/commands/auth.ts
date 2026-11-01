@@ -26,6 +26,22 @@ export function registerAuth(program: Command, ctx: () => Context): void {
       const c = ctx()
       const t = c.target
       const origin = t.server
+      if (t.movedFrom) {
+        // QQQ_PROFILE (or --profile) names an existing profile and --server another server: that moves the profile
+        const where = t.source === 'env' ? `QQQ_PROFILE=${t.name}` : `--profile ${t.name}`
+        c.note(`warning: profile "${t.name}" (${where}) points at ${t.movedFrom}; signing in to ${origin} would point it there instead. To keep it and add a profile for ${origin}, pass --profile <new-name>.`)
+        let move: boolean
+        try {
+          move = await c.confirm(`Point profile "${t.name}" at ${origin}?`)
+        } catch (error) {
+          if (error instanceof UsageError) throw new UsageError(`Profile "${t.name}" points at ${t.movedFrom}, not ${origin}; nothing was changed. Pass --yes to point it at ${origin}, or --profile <new-name> to add a profile.`)
+          throw error
+        }
+        if (!move) {
+          c.note(`Nothing changed; profile "${t.name}" still points at ${t.movedFrom}.`)
+          return
+        }
+      }
       const auth = await getAuthenticationMetaData(origin)
       const type = String(auth.type ?? '').toUpperCase()
       if (options.device && options.browser) throw new UsageError('--device and --browser exclude each other.')
@@ -33,7 +49,7 @@ export function registerAuth(program: Command, ctx: () => Context): void {
       if (!options.device && !options.browser && (type === 'MOCK' || type === 'FULLY_ANONYMOUS')) {
         const session = await createSession(origin, {}, CLIENT_CHANNEL)
         const user = (session.values.user ?? {}) as Record<string, unknown>
-        await saveLogin(t, { kind: 'session', authType: type, sessionUUID: session.sessionUUID, user, createdAt: new Date().toISOString() })
+        await saveLogin(t, { kind: 'session', authType: type, sessionUUID: session.sessionUUID, user, createdAt: new Date().toISOString() }, { moveProfile: true })
         c.note(`Signed in to ${origin} (${type.toLowerCase()} authentication${user.name || user.email ? ` as ${user.name ?? user.email}` : ''}) as profile "${t.name}"; sign-in kept in the ${secretStoreKind()}.`)
         return
       }
@@ -55,7 +71,7 @@ export function registerAuth(program: Command, ctx: () => Context): void {
           if (error instanceof PasswordSignInError) throw new UiApiError(401, { code: 'UNAUTHENTICATED', message: error.message })
           throw error
         }
-        await saveLogin(t, { kind: 'session', authType: type, sessionUUID: sessionId, cookieName: 'sessionId', user: { username }, createdAt: new Date().toISOString() })
+        await saveLogin(t, { kind: 'session', authType: type, sessionUUID: sessionId, cookieName: 'sessionId', user: { username }, createdAt: new Date().toISOString() }, { moveProfile: true })
         c.note(`Signed in to ${origin} as ${username} (table-based authentication) as profile "${t.name}"; the session is kept in the ${secretStoreKind()}, the password is not.`)
         return
       }
@@ -75,7 +91,7 @@ export function registerAuth(program: Command, ctx: () => Context): void {
       // the server must accept the token before the sign-in counts (audience, issuer, bearer tokens enabled)
       const check = await fetch(new URL('/qqq/v1/metaData', origin), { headers: { Authorization: `Bearer ${tokens.accessToken}`, 'X-QQQ-Client': CLIENT_CHANNEL } })
       if (check.status === 401 || check.status === 403) throw new UiApiError(check.status, await check.json().catch(() => ({ message: `the server refused the new token (HTTP ${check.status})` })))
-      await saveLogin(t, { kind: 'oauth', config, tokens })
+      await saveLogin(t, { kind: 'oauth', config, tokens }, { moveProfile: true })
       c.note(`Signed in to ${origin} as ${claims.email ?? claims.preferred_username ?? claims.sub} (profile "${t.name}", ${options.browser ? 'browser' : 'device'} sign-in kept in the ${secretStoreKind()}).`)
     })
 

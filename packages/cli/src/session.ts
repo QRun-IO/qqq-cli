@@ -60,9 +60,13 @@ function account(t: Target): string {
   return `${t.name}@${t.server}`
 }
 
-/** Keeps a new sign-in for the target, naming the profile and making it the default when it is the first. */
-export async function saveLogin(t: Target, login: StoredLogin): Promise<void> {
-  upsertProfile(t.name, { server: t.server })
+/**
+ * Keeps a new sign-in for the target, naming the profile and making it the default when it is the
+ * first. A profile that points at another server (a one-off --server) keeps its server unless
+ * `moveProfile` (login, after asking).
+ */
+export async function saveLogin(t: Target, login: StoredLogin, options: { moveProfile?: boolean } = {}): Promise<void> {
+  if (!t.movedFrom || options.moveProfile) upsertProfile(t.name, { server: t.server })
   await secrets().set(account(t), JSON.stringify(login))
 }
 

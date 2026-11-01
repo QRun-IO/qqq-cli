@@ -98,6 +98,12 @@ export interface ResolvedProfile {
   server: string
   /** How the profile was chosen, for messages. */
   source: 'option' | 'env' | 'server' | 'default'
+  /**
+   * Set when an existing profile (from --profile or QQQ_PROFILE) was given a different --server:
+   * the server the profile points at now. Saving a sign-in for this target would move the
+   * profile, so `login` asks first.
+   */
+  movedFrom?: string
 }
 
 /**
@@ -109,7 +115,10 @@ export function resolveProfile(options: { profile?: string; server?: string }, e
   const named = options.profile ?? env.QQQ_PROFILE
   if (named) {
     const p = config.profiles[named]
-    if (p) return { name: named, server: options.server ? new URL(options.server).origin : p.server, source: options.profile ? 'option' : 'env' }
+    if (p) {
+      const server = options.server ? new URL(options.server).origin : p.server
+      return { name: named, server, source: options.profile ? 'option' : 'env', ...(server !== p.server ? { movedFrom: p.server } : {}) }
+    }
     // a new name with a server: the profile is created when the sign-in is saved
     if (options.server) return { name: named, server: new URL(options.server).origin, source: 'option' }
     throw new Error(`No profile "${named}"; \`qqq config profile list\` shows them, \`qqq login --server URL --profile ${named}\` creates it.`)
