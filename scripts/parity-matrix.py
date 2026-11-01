@@ -366,6 +366,9 @@ TUI.update({
  'HLP-006': (P, ':helpkeys (F9 Help) turns on help-authoring mode: F1 shows every slot key, with or without content (unit-tested only)'),
 })
 
+TUI.update({
+ 'SEC-030': (B, 'needs a real Auth0 tenant: [qqq-cli#10](https://github.com/QRun-IO/qqq-cli/issues/10); the sample has no AUTH_0 configuration ([qqq#1359](https://github.com/QRun-IO/qqq/issues/1359), finding 28); the Auth0 protocol path is SEC-029'),
+})
 rows = []
 for line in open(SRC, encoding='utf-8', errors='replace'):
     m = re.match(r'^\|\s*([A-Z]{3}-\d{3})\s*\|\s*(.*?)\s*\|', line)

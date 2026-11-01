@@ -647,8 +647,18 @@ export class Commands implements CommandsLike {
     const names = Object.keys(THEMES)
     s.open(new ChoiceOverlay(s, 'Theme', Object.values(THEMES).map((t) => ({ label: t.label, value: t.name, detail: t.name === s.settings.theme ? 'current' : t.name })), (name) => {
       s.setTheme(name)
-      writeTheme(name)
-      s.flash(`theme ${name} (saved)`)
+      const profile = s.target?.name
+      if (!profile) {
+        writeTheme(name)
+        return s.flash(`theme ${name} (saved)`)
+      }
+      s.open(new ChoiceOverlay<'all' | 'profile'>(s, `Keep ${name} for`, [
+        { label: 'Every profile', value: 'all', detail: 'unless a profile has its own' },
+        { label: `This profile only (${profile})`, value: 'profile' },
+      ], (where) => {
+        writeTheme(name, where === 'profile' ? { profile } : {})
+        s.flash(`theme ${name} saved ${where === 'profile' ? `for ${profile}` : 'for every profile'}`)
+      }))
     }, 'saved for next time', Math.max(0, names.indexOf(s.settings.theme))))
   }
 

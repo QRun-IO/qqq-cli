@@ -62,7 +62,8 @@ renderer.on('destroy', () => {
   setTimeout(() => process.exit(0), 10)
 })
 
-const store = boot({ args, quit: restore, build: process.env.QQQ_UI_BUILD ?? 'dev', timers: true })
+// QQQ_UI_NO_QUIT=1 (the soak test): quitting from a menu is ignored, so only a crash ends the program
+const store = boot({ args, quit: process.env.QQQ_UI_NO_QUIT === '1' ? () => store.flash('quit is off (QQQ_UI_NO_QUIT)') : restore, build: process.env.QQQ_UI_BUILD ?? 'dev', timers: true })
 process.on('unhandledRejection', (reason) => store.error(reason))
 
 store.editExternal = async (text: string) => {

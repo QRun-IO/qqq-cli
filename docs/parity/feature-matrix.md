@@ -35,9 +35,9 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | REC | 65 | 59 | 0 | 0 | 0 | 6 |
 | REL | 9 | 9 | 0 | 0 | 0 | 0 |
 | RPT | 20 | 20 | 0 | 0 | 0 | 0 |
-| SEC | 43 | 30 | 1 | 0 | 0 | 12 |
+| SEC | 43 | 30 | 0 | 0 | 1 | 12 |
 | WID | 69 | 56 | 0 | 0 | 0 | 13 |
-| **all** | 401 | 330 | 1 | 0 | 3 | 67 |
+| **all** | 401 | 330 | 0 | 0 | 4 | 67 |
 
 ## Rows
 
@@ -317,7 +317,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | SEC-027 | OAUTH2 logout: backend session deleted, provider end-session called, next visit requires provider sign-in | pass | pass | logout --provider-logout: refresh token revoked (RFC 7009), end-session URL opened; bearer sign-ins have no server session; TUI: sign out: here, or also revoke the refresh token and open the provider end-session address (unit-tested only) |
 | SEC-028 | OAUTH2 session revoked server-side mid-use: 401 sends the user through the provider and back to the page | pass | pass | a refresh the provider refuses exits 3 with sign in again; refresh before expiry verified; TUI: a 401 after the refresh opens sign-in (browser or device) on top and returns to the refreshed screen (unit-tested only) |
 | SEC-029 | AUTH_0 authorization code + PKCE with an owned Auth0-compatible provider (browser token exchange, backend JWT  | todo | pass | TUI: AUTH_0: authorize at baseUrl with the audience (PKCE), code exchanged at /oauth/token, the token handed to manageSession, the session kept; sign-out offers v2/logout (unit-tested only) |
-| SEC-030 | AUTH_0 against a real Auth0 tenant | todo | todo |  |
+| SEC-030 | AUTH_0 against a real Auth0 tenant | todo | blocked | TUI: needs a real Auth0 tenant: [qqq-cli#10](https://github.com/QRun-IO/qqq-cli/issues/10); the sample has no AUTH_0 configuration ([qqq#1359](https://github.com/QRun-IO/qqq/issues/1359), finding 28); the Auth0 protocol path is SEC-029 |
 | SEC-031 | FULLY_ANONYMOUS authentication: session without an identity provider, anonymous identity, logout and sign-in a | pass | pass |  |
 | SEC-032 | Unsupported authentication type (a type this UI does not know, as a newer backend could declare) is reported,  | pass | pass | unknown type refused; TUI: unknown type refused with a message |
 | SEC-033 | Server-side logout invalidation: v1 logout expires every session cookie it issued and an ended Auth0 session c | n/a | n/a |  |
