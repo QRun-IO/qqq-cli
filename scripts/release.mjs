@@ -80,29 +80,37 @@ for (const dir of PUBLISHED) step(`pack ${versions[dir].name}`, 'npm', ['pack', 
 if (!argv.has('--skip-binaries')) step('binaries', 'node', ['scripts/build-binaries.mjs', '--no-build', '--musl', ...(argv.has('--cli-only') ? ['--cli-only'] : [])])
 
 const registry = 'https://npm.pkg.github.com'
+// a prerelease (1.0.0-rc.1) goes out as dist-tag rc and a GitHub prerelease; a final version as latest
+const prerelease = cli.version.includes('-')
+const distTag = prerelease ? 'rc' : 'latest'
+const releaseKind = prerelease ? '--prerelease' : '--latest'
 console.log(`
 All checks passed at ${branch}@${sha}. Nothing was tagged or published. To release:
 
   # 1. tag (signed) and push. ${orbTag} makes the qqq-orb cli profile publish the client, conformance
-  #    and CLI packages to GitHub Packages with dist-tag rc (the orb checks ${orbTag} = client version).
+  #    and CLI packages to GitHub Packages with dist-tag rc (the orb checks ${orbTag} = client version).${prerelease ? '' : `
+  #    The orb always uses rc: after it, move latest by hand (docs/release-runbook.md step 5):
+${PUBLISHED.map((dir) => `  #      npm dist-tag add ${versions[dir].name}@${versions[dir].version} latest --registry ${registry}`).join('\n')}`}
   git tag -s ${orbTag} -m "UI API client ${client.version}, qqq-cli ${cli.version}"
   git tag -s ${cliTag} -m "qqq-cli ${cli.version}"
   git push origin ${orbTag} ${cliTag}
 
   # 2. the orb does not publish @qrun-io/qqq-core yet, and the CLI depends on it: publish it by hand
   #    before (or right after) the orb job, or the CLI package cannot be installed.
-  npm publish -w ${versions['packages/core'].name} --registry ${registry} --tag rc
+  npm publish -w ${versions['packages/core'].name} --registry ${registry} --tag ${distTag}
 
   #    without the orb (all four, in dependency order):
-${PUBLISHED.map((dir) => `  npm publish -w ${versions[dir].name} --registry ${registry} --tag rc`).join('\n')}
+${PUBLISHED.map((dir) => `  npm publish -w ${versions[dir].name} --registry ${registry} --tag ${distTag}`).join('\n')}
 
   # 3. the binaries, as a prerelease with their checksums
-  gh release create ${cliTag} --repo QRun-IO/qqq-cli --prerelease --title "qqq-cli ${cli.version}" \\
+  gh release create ${cliTag} --repo QRun-IO/qqq-cli ${releaseKind} --title "qqq ${cli.version}" \\
     --notes-file <(sed -n '/^## \\[${cli.version.replace(/\./g, '\\.')}\\]/,/^## \\[/p' CHANGELOG.md | sed '$d') \\
     dist/qqq-* dist/SHA256SUMS
 
-  # 4. fill the sha256 values from dist/SHA256SUMS into docs/packaging/qqq.rb and qqq.json and
-  #    open pull requests on the Homebrew tap and the Scoop bucket (see docs/packaging/README.md).
+  # 4. node scripts/update-packaging.mjs <SHA256SUMS of the GitHub release>, then copy
+  #    docs/packaging/homebrew-tap/Formula/qqq.rb to the tap and docs/packaging/qqq.json to the Scoop
+  #    bucket (docs/release-runbook.md steps 7 and 8). With the certificates, sign the macOS and Windows
+  #    binaries and recompute dist/SHA256SUMS before step 3 (runbook step 4).
 `)
 const conformance = versions['packages/conformance']
 console.log(`Note: the orb also publishes ${conformance.name} ${conformance.version} on ${orbTag}; bump it first if that version is already in the registry.`)
