@@ -108,23 +108,143 @@ export function isSecretName(name: string): boolean {
 
 export const REDACTED = '***'
 
-const CRITERION = /([A-Za-z_][\w.]*)(\s*(?:!=|<>|>=|<=|=|<|>|~)\s*|\s+(?:[A-Z][A-Z_]+|[a-z][a-z_]*)\s+)("[^"]*"|'[^']*'|\S+)/g
+// Redaction is done with linear scans (no backtracking regular expressions): arguments can be long
+// (pasted JSON, filter text) and must never make a command slow to finish.
+
+const NAME_START = /[A-Za-z_]/
+const NAME_CHAR = /[\w.]/
+const SPACE = /\s/
+
+function isNameToken(text: string, first = NAME_START, rest = NAME_CHAR): boolean {
+  if (!text || !first.test(text[0]!)) return false
+  for (let i = 1; i < text.length; i++) if (!rest.test(text[i]!)) return false
+  return true
+}
+
+/** A header name (`Authorization`, `X-Api-Key`): a letter, then letters, digits, `_` and `-`. */
+function isHeaderName(text: string): boolean {
+  return isNameToken(text, /[A-Za-z]/, /[\w-]/)
+}
+
+/** A word operator of the filter grammar (`EQUALS`, `STARTS_WITH`, `is`): all capitals, or all lowercase. */
+function isWordOperator(text: string): boolean {
+  return (text.length >= 2 && /^[A-Z][A-Z_]*$/.test(text)) || /^[a-z][a-z_]*$/.test(text)
+}
+
+const SYMBOL_OPERATORS = ['!=', '<>', '>=', '<=', '=', '<', '>', '~']
+
+interface Token { text: string; kind: 'space' | 'name' | 'op' | 'quoted' | 'other' }
+
+/** Splits filter text into whitespace, names, symbol operators, quoted strings and other runs, in one pass. */
+function tokenize(text: string): Token[] {
+  const out: Token[] = []
+  let i = 0
+  while (i < text.length) {
+    const ch = text[i]!
+    let j = i + 1
+    if (SPACE.test(ch)) {
+      while (j < text.length && SPACE.test(text[j]!)) j++
+      out.push({ text: text.slice(i, j), kind: 'space' })
+    } else if (ch === '"' || ch === "'") {
+      // an unterminated quote is a character like any other
+      const close = text.indexOf(ch, i + 1)
+      j = close < 0 ? i + 1 : close + 1
+      out.push({ text: text.slice(i, j), kind: close < 0 ? 'other' : 'quoted' })
+    } else if (NAME_START.test(ch)) {
+      while (j < text.length && NAME_CHAR.test(text[j]!)) j++
+      out.push({ text: text.slice(i, j), kind: 'name' })
+    } else {
+      const op = SYMBOL_OPERATORS.find((o) => text.startsWith(o, i))
+      if (op) {
+        j = i + op.length
+        out.push({ text: op, kind: 'op' })
+      } else {
+        while (j < text.length && !SPACE.test(text[j]!) && !NAME_START.test(text[j]!) && text[j] !== '"' && text[j] !== "'" && !SYMBOL_OPERATORS.some((o) => text.startsWith(o, j))) j++
+        out.push({ text: text.slice(i, j), kind: 'other' })
+      }
+    }
+    i = j
+  }
+  return out
+}
+
+/**
+ * Filter criteria on secret names with their values redacted: `password = x`, `pin=1234`,
+ * `apiToken EQUALS "x y"` (the value: one quoted string, else everything up to the next space or `)`).
+ */
+function redactCriteria(text: string): string {
+  const tokens = tokenize(text)
+  const out: string[] = []
+  let i = 0
+  while (i < tokens.length) {
+    const t = tokens[i]!
+    if (t.kind === 'name' && isSecretName(t.text)) {
+      // name [space] symbol [space] value   |   name space word space value
+      let j = i + 1
+      const parts: string[] = [t.text]
+      const space = (): boolean => {
+        if (tokens[j]?.kind !== 'space') return false
+        parts.push(tokens[j]!.text)
+        j++
+        return true
+      }
+      let operator = false
+      const hadSpace = space()
+      if (tokens[j]?.kind === 'op') {
+        parts.push(tokens[j]!.text)
+        j++
+        space()
+        operator = true
+      } else if (hadSpace && tokens[j]?.kind === 'name' && isWordOperator(tokens[j]!.text) && tokens[j + 1]?.kind === 'space') {
+        parts.push(tokens[j]!.text)
+        j++
+        space()
+        operator = true
+      }
+      if (operator && j < tokens.length && tokens[j]!.kind !== 'space') {
+        if (tokens[j]!.kind === 'quoted') j++
+        // up to the next space, or the `)` that closes a group
+        else while (j < tokens.length && tokens[j]!.kind !== 'space' && !(tokens[j]!.kind === 'other' && tokens[j]!.text.startsWith(')'))) j++
+        out.push(parts.join(''), REDACTED)
+        i = j
+        continue
+      }
+    }
+    // a quoted string that is not a value may hold criteria itself (`"password = x"`): its inside is
+    // scanned once more (it holds no quote of its own kind, so this goes at most two levels deep)
+    if (t.kind === 'quoted') out.push(t.text[0]!, redactCriteria(t.text.slice(1, -1)), t.text[0]!)
+    else out.push(t.text)
+    i++
+  }
+  return out.join('')
+}
 
 /** Redacts the secret parts of one argument that is not a flag's value of its own. */
 function redactArg(arg: string): string {
-  if (/^bearer\s+\S/i.test(arg)) return `Bearer ${REDACTED}`
-  // a JWT or another long opaque token on its own
-  if (/^eyJ[\w-]+\.[\w-]+\.[\w-]*$/.test(arg)) return REDACTED
-  // a header: `Authorization: Bearer x`, `X-Api-Key: y`
-  const header = /^([A-Za-z][\w-]*):\s*(.+)$/.exec(arg)
-  if (header && isSecretName(header[1]!)) return `${header[1]}: ${REDACTED}`
-  // name=value pairs (--set, --values, -v, query strings)
-  if (/^[A-Za-z_][\w.-]*=/.test(arg)) {
-    const at = arg.indexOf('=')
-    if (isSecretName(arg.slice(0, at))) return `${arg.slice(0, at + 1)}${REDACTED}`
+  if (arg.slice(0, 6).toLowerCase() === 'bearer' && SPACE.test(arg[6] ?? '') && arg.slice(7).trim()) return `Bearer ${REDACTED}`
+  // a JWT or another long opaque token on its own: eyJ<part>.<part>.<part>
+  if (arg.startsWith('eyJ')) {
+    const parts = arg.split('.')
+    if (parts.length === 3 && parts[0]!.length > 3 && parts[1] && parts.every((p) => /^[\w-]*$/.test(p))) return REDACTED
   }
+  // a header: `Authorization: Bearer x`, `X-Api-Key: y`
+  const colon = arg.indexOf(':')
+  if (colon > 0 && isHeaderName(arg.slice(0, colon)) && arg.slice(colon + 1).trim() && isSecretName(arg.slice(0, colon))) return `${arg.slice(0, colon)}: ${REDACTED}`
+  // name=value pairs (--set, --values, -v, query strings)
+  const eq = arg.indexOf('=')
+  if (eq > 0 && isNameToken(arg.slice(0, eq), NAME_START, /[\w.-]/) && isSecretName(arg.slice(0, eq))) return `${arg.slice(0, eq + 1)}${REDACTED}`
   // filter criteria: `password = x`, `apiKey EQUALS y`
-  return arg.replace(CRITERION, (all, name: string, op: string) => (isSecretName(name) ? `${name}${op}${REDACTED}` : all))
+  return redactCriteria(arg)
+}
+
+/** A flag (`--token`, `-p`, `--password=x`): its name and, after `=`, its value. */
+function parseFlag(arg: string): { name: string; value?: string } | undefined {
+  if (!arg.startsWith('-')) return undefined
+  const eq = arg.indexOf('=')
+  const name = eq < 0 ? arg : arg.slice(0, eq)
+  const bare = name.startsWith('--') ? name.slice(2) : name.slice(1)
+  if (!isNameToken(bare, /[A-Za-z]/, /[\w-]/)) return undefined
+  return eq < 0 ? { name } : { name, value: arg.slice(eq + 1) }
 }
 
 /**
@@ -136,12 +256,12 @@ export function redactArgv(argv: readonly string[]): string[] {
   const out: string[] = []
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!
-    const flag = /^(--?[A-Za-z][\w-]*)(=(.*))?$/.exec(arg)
-    if (flag && isSecretName(flag[1]!)) {
-      if (flag[2] !== undefined) out.push(`${flag[1]}=${REDACTED}`)
+    const flag = parseFlag(arg)
+    if (flag && isSecretName(flag.name)) {
+      if (flag.value !== undefined) out.push(`${flag.name}=${REDACTED}`)
       else {
         out.push(arg)
-        if (i + 1 < argv.length && !/^--?[A-Za-z]/.test(argv[i + 1]!)) {
+        if (i + 1 < argv.length && !parseFlag(argv[i + 1]!)) {
           out.push(REDACTED)
           i++
         }
@@ -244,7 +364,7 @@ export function appendActivity(event: Omit<ActivityEvent, 'at'> & { at?: string 
 function readFile(file: string): ActivityEvent[] {
   if (!existsSync(file)) return []
   const out: ActivityEvent[] = []
-  for (const line of readFileSync(file, 'utf8').split('\n')) {
+  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
     if (!line.trim()) continue
     try {
       const e = JSON.parse(line) as ActivityEvent

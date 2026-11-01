@@ -69,7 +69,7 @@ test('invocations are recorded with exit code and duration; secrets are redacted
 test('the listing: table with numbers, filters, --commands in full', async () => {
   const table = await qqq(['history', '-O', 'table', '--limit', '0'])
   assert.equal(table.code, 0, table.stderr)
-  const lines = table.stdout.split('\n')
+  const lines = table.stdout.split(/\r?\n/)
   assert.match(lines[0]!, /^#\s+Time\s+Client\s+Kind\s+Summary$/)
   assert.match(table.stdout, /\n1\s+(now|\d+s ago)\s+cli\s+cli\s+qqq table get person 1/)
   assert.match(table.stdout, /`qqq history rerun <#>` runs one again/)

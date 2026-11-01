@@ -21,17 +21,22 @@ test('events are appended one JSON line each, per profile, with the local offset
     appendActivity({ profile: 'dev', server: 'http://localhost:8078', client: 'cli', kind: 'cli', summary: 'qqq apps', command: 'qqq apps', exit: 0, ms: 12 }, { env: box.env })
     appendActivity({ profile: 'dev', client: 'ui', kind: 'open', summary: 'Opened Person 3', command: 'qqq table get person 3', target: { type: 'record', name: 'person', key: '3' } }, { env: box.env })
     appendActivity({ profile: 'prod', client: 'ui', kind: 'auth', summary: 'Signed in' }, { env: box.env })
-    const lines = readFileSync(activityFile('dev', box.env), 'utf8').trim().split('\n')
+    const lines = readFileSync(activityFile('dev', box.env), 'utf8').trim().split(/\r?\n/)
     assert.equal(lines.length, 2)
     const first = JSON.parse(lines[0]!)
+    // the local offset: a valid time whose offset is this machine's (any platform, any TZ name)
     assert.match(first.at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/)
+    assert.ok(Math.abs(Date.parse(first.at) - Date.now()) < 60_000, first.at)
+    const offset = -new Date(Date.parse(first.at)).getTimezoneOffset()
+    assert.equal(first.at.slice(-6), `${offset >= 0 ? '+' : '-'}${String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0')}:${String(Math.abs(offset) % 60).padStart(2, '0')}`)
     assert.deepEqual({ ...first, at: undefined }, { at: undefined, profile: 'dev', server: 'http://localhost:8078', client: 'cli', kind: 'cli', summary: 'qqq apps', command: 'qqq apps', exit: 0, ms: 12 })
     const dev = readActivity({ profile: 'dev', env: box.env })
     assert.deepEqual(dev.map((e) => [e.n, e.summary]), [[1, 'qqq apps'], [2, 'Opened Person 3']])
     assert.deepEqual(dev[1]!.target, { type: 'record', name: 'person', key: '3' })
     assert.deepEqual(activityProfiles(box.env), ['dev', 'prod'])
     assert.deepEqual(readActivity({ allProfiles: true, env: box.env }).map((e) => e.profile), ['dev', 'dev', 'prod'])
-    assert.equal(statSync(activityFile('dev', box.env)).mode & 0o777, 0o600)
+    // POSIX permissions: owner only (Windows has no mode bits to check)
+    if (process.platform !== 'win32') assert.equal(statSync(activityFile('dev', box.env)).mode & 0o777, 0o600)
   } finally {
     box.dispose()
   }
@@ -53,6 +58,55 @@ test('the file rotates to .1 once over the limit, and both are read back in orde
   } finally {
     box.dispose()
   }
+})
+
+test('CRLF line endings are read back (a file edited or copied on Windows)', () => {
+  const box = sandbox()
+  try {
+    appendActivity({ profile: 'w', client: 'cli', kind: 'cli', summary: 'one' }, { env: box.env })
+    appendActivity({ profile: 'w', client: 'cli', kind: 'cli', summary: 'two' }, { env: box.env })
+    const file = activityFile('w', box.env)
+    writeFileSync(file, readFileSync(file, 'utf8').replace(/\n/g, '\r\n'))
+    assert.deepEqual(readActivity({ profile: 'w', env: box.env }).map((e) => e.summary), ['one', 'two'])
+  } finally {
+    box.dispose()
+  }
+})
+
+test('redaction is linear: 100k-character adversarial arguments finish quickly', () => {
+  const n = 100_000
+  const inputs = [
+    'A:' + ' '.repeat(n),
+    'A'.repeat(n),
+    'A:' + ' '.repeat(n) + 'x',
+    'password' + ' '.repeat(n) + '=',
+    'password' + ' '.repeat(n),
+    'password = ' + 'x'.repeat(n),
+    'apiToken ' + 'EQUALS '.repeat(n / 10),
+    'a '.repeat(n / 2),
+    'a='.repeat(n / 2),
+    '-'.repeat(n),
+    '--' + 'a'.repeat(n) + '=',
+    'Bearer' + ' '.repeat(n),
+    'eyJ' + '.'.repeat(n),
+    '"'.repeat(n),
+    `"'`.repeat(n / 2),
+    '!'.repeat(n),
+    'Authorization:' + ' '.repeat(n) + 'Bearer x',
+    'x'.repeat(n) + '=' + 'y'.repeat(n),
+  ]
+  for (const input of inputs) {
+    const started = performance.now()
+    const out = redactArgv(['-w', input, input, '--token', input])
+    redactCommandLine(input)
+    const ms = performance.now() - started
+    assert.ok(ms < 500, `${JSON.stringify(input.slice(0, 20))}… took ${ms.toFixed(0)} ms`)
+    // a value that is a flag itself is not taken as the token's value
+    if (!input.startsWith('-')) assert.equal(out[4], '***')
+  }
+  // and still right on a long input
+  assert.equal(redactArgv(['Authorization:' + ' '.repeat(n) + 'Bearer x'])[0], 'Authorization: ***')
+  assert.equal(redactArgv(['password = ' + 'x'.repeat(n)])[0], 'password = ***')
 })
 
 test('a torn line is skipped; QQQ_HISTORY=off writes nothing', () => {
@@ -82,6 +136,9 @@ test('secrets are never written: flags, pairs, headers, bearer tokens, filter cr
   assert.equal(joinCommandLine(['table', 'query', 'person', '-w', 'lastName = S', '--token', 't']), 'table query person -w "lastName = S" --token ***')
   assert.equal(redactCommandLine('table query person -w "pin = 4321"'), 'table query person -w "pin = ***"')
   assert.equal(redactCommandLine('theme light'), 'theme light')
+  assert.deepEqual(redactArgv(['pin=4321', 'xpassword=1', '(password = x) OR (lastName = "a b")', 'name ~ "unterminated', 'secret STARTS_WITH "a b" AND x = 1', 'filter: "token != abc"']), ['pin=***', 'xpassword=1', '(password = ***) OR (lastName = "a b")', 'name ~ "unterminated', 'secret STARTS_WITH *** AND x = 1', 'filter: "token != ***"'])
+  assert.deepEqual(redactArgv(['--token', '-5', 'Bearer', 'bearer  abc', 'eyJ.x.y', 'Note: password in text']), ['--token', '***', 'Bearer', 'Bearer ***', 'eyJ.x.y', 'Note: password in ***'])
+  // (a lowercase word counts as an operator, as `in` does in the grammar: redacting too much is the safe side)
   const box = sandbox()
   try {
     appendActivity({ profile: 'p', client: 'ui', kind: 'command', summary: ':api GET /x -H "Authorization: Bearer abc"', command: 'qqq login --token abc' }, { env: box.env })
