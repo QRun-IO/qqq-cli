@@ -445,7 +445,9 @@ stays put, so an OLED or CRT does not keep a ghost of the saver. The clock · se
 swapping); Bounce's tile panel follows the logo, on the side with room (if Query and the panel do not fit
 together, the panel shows for 20 s and then Query for 20 s, both drifting); the flip clock's cards and tiles
 drift a cell every few seconds inside a small box; Big numbers moves its whole stack to another spot near the centre at each rotation;
-Starfield's tiles keep floating. The clock stays visible throughout. `off` keeps the fixed layout (clock
+Starfield's tiles keep floating. Each style is one compact group (Big numbers and Flip clock are at most about
+90 columns wide however wide the terminal, the tiles in one or two adjacent columns), and the clock line and
+the lock line sit just above and below it, swapping every 30 s. The clock stays visible throughout. `off` keeps the fixed layout (clock
 and server on the top row, the hint on the last, tiles in the bottom-right corner).
 
 Dimming (F9 › Settings › Screen saver dim, `:saver dim <minutes|off>`, default 10): once the saver has been

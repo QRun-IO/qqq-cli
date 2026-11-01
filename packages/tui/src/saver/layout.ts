@@ -169,24 +169,27 @@ function footerText(input: SaverInput): string {
   return trunc(hint, input.width - 2)
 }
 
-export function chromeLayout(input: SaverInput): ChromeLayout {
+export function chromeLayout(input: SaverInput, group?: Box): ChromeLayout {
   const clock = new Date(input.now).toLocaleTimeString('en-GB')
   const last = input.height - 1
   if (!input.burnin) {
     return { headerRow: 0, headerX: 0, headerText: ` ${clock}  ${input.server}  ·  ${input.profile}`, footerRow: last, footerX: -1, footerText: footerText(input) }
   }
+  const g = group ?? { x: 0, y: 1, w: input.width, h: input.height - 2 }
   const cycle = Math.floor(input.now / SHIFT_MILLIS)
-  // a left margin of one cell, and the row is the whole width
   const headerText = trunc(`${clock}  ${input.server}  ·  ${input.profile}  ·  ${input.brand}`, input.width - 1)
   const text = footerText(input)
+  // the two lines sit just above and just below the group, swapping every 30 s, a little off its centre by a new amount each time
+  const above = Math.max(0, g.y - 1)
+  const below = Math.min(last, g.y + g.h)
   const even = cycle % 2 === 0
+  const place = (len: number, seed: number) => {
+    const jitter = Math.round((rand(cycle * seed + seed) - 0.5) * 24)
+    return Math.max(1, Math.min(input.width - len, Math.round(g.x + g.w / 2 - len / 2) + jitter))
+  }
   return {
-    headerRow: even ? 0 : last,
-    headerX: 1 + Math.floor(rand(cycle * 2.7 + 1) * Math.max(1, input.width - headerText.length)),
-    headerText,
-    footerRow: even ? last : 0,
-    footerX: 1 + Math.floor(rand(cycle * 3.1 + 2) * Math.max(1, input.width - text.length)),
-    footerText: text,
+    headerRow: even ? above : below, headerX: place(headerText.length, 2.7), headerText,
+    footerRow: even ? below : above, footerX: place(text.length, 3.1), footerText: text,
   }
 }
 
@@ -355,7 +358,7 @@ function drawQuery(c: Canvas, x: number, y: number, size: 'large' | 'small', pos
   c.block(x, y, queryFrame(size, pose, input.ascii), { fg: color, bold: true })
 }
 
-function paintBounce(c: Canvas, input: SaverInput): void {
+function paintBounce(c: Canvas, input: SaverInput): Box {
   const t = input.theme
   const top = 1
   const layout = bounceLayout(input)
@@ -382,6 +385,11 @@ function paintBounce(c: Canvas, input: SaverInput): void {
     }
   }
   if (layout.panel) drawHud(c, layout.panel.x, layout.panel.y, layout.panel.w, layout.panel.h, input)
+  // everything drawn, for the lines that sit just above and below it (a row more above for the hop and the bubble)
+  const parts = [layout.showSprite ? { ...box, y: Math.max(top, box.y - 1), h: box.h + (box.y > top ? 1 : 0) } : undefined, layout.panel].filter((b): b is Box => Boolean(b))
+  const x0 = Math.min(...parts.map((b) => b.x))
+  const y0 = Math.min(...parts.map((b) => b.y))
+  return { x: x0, y: y0, w: Math.max(...parts.map((b) => b.x + b.w)) - x0, h: Math.max(...parts.map((b) => b.y + b.h)) - y0 }
 }
 
 /** A deterministic 0…1 value for a seed (the star field). */
@@ -390,7 +398,7 @@ function rand(seed: number): number {
   return x - Math.floor(x)
 }
 
-function paintStarfield(c: Canvas, input: SaverInput): void {
+function paintStarfield(c: Canvas, input: SaverInput): Box {
   const t = input.theme
   const bodyH = input.height - 2
   const cx = input.width / 2
@@ -426,6 +434,7 @@ function paintStarfield(c: Canvas, input: SaverInput): void {
   const hx = Math.max(0, Math.min(input.width - hud.w, Math.floor((input.width - hud.w) / 2) + ox))
   const hy = Math.max(1, Math.min(bodyH - hud.h + 1, Math.floor(1 + bodyH * 0.55 - hud.h / 2) + oy + 2))
   drawHud(c, hx, hy, hud.w, hud.h, input)
+  return { x: hx, y: hy, w: hud.w, h: hud.h }
 }
 
 /** Whether the flip clock is mid-flip (the first 500 ms of a minute). */
@@ -456,7 +465,7 @@ function tileBlock(c: Canvas, x: number, y: number, tiles: SaverTile[], columns:
  * Flip clock: the cards, the date and server, the tiles beneath and Query beside them are one
  * group, centred (and, guarded, drifting a cell every few seconds inside the room that is left).
  */
-function paintFlip(c: Canvas, input: SaverInput): void {
+function paintFlip(c: Canvas, input: SaverInput): Box {
   const t = input.theme
   const bodyH = input.height - 2
   const now = hhmm(input.now)
@@ -479,7 +488,7 @@ function paintFlip(c: Canvas, input: SaverInput): void {
   const date = trunc(new Date(input.now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), input.width - 4)
   const host = trunc(`${input.server} · ${input.profile}`, input.width - 4)
   // the tiles with Query beside them, bottom-aligned
-  const colW = Math.max(0, Math.min(columns === 2 ? 44 : 56, Math.floor((input.width - 6 - q.width - 3 - (columns - 1) * 3) / columns)))
+  const colW = Math.max(0, Math.min(columns === 2 ? 43 : 56, Math.floor((input.width - 6 - q.width - 3 - (columns - 1) * 3) / columns)))
   const tilesW = input.tiles.length ? columns * colW + (columns - 1) * 3 : 0
   const blockW = input.tiles.length ? (queryBeside ? tilesW + 3 + q.width : Math.max(tilesW, q.width)) : q.width
   const rowsCap = Math.max(1, bodyH - (cardH + 4) - (queryBeside ? 0 : q.height + 1))
@@ -534,6 +543,7 @@ function paintFlip(c: Canvas, input: SaverInput): void {
   const qy = y + blockH - shown
   c.fill(qx, qy, q.width, shown, {})
   c.block(qx, qy, frame, { fg: t.acc2, bold: true })
+  return { x: gx, y: gy, w: groupW, h: groupH }
 }
 
 /**
@@ -544,7 +554,7 @@ function paintFlip(c: Canvas, input: SaverInput): void {
  */
 const BIG_OFFSETS: ReadonlyArray<readonly [number, number]> = [[-1, -1], [1, 1], [1, -1], [-1, 1]]
 
-function paintBig(c: Canvas, input: SaverInput): void {
+function paintBig(c: Canvas, input: SaverInput): Box {
   const t = input.theme
   const bodyH = input.height - 2
   const candidates = input.tiles
@@ -554,14 +564,15 @@ function paintBig(c: Canvas, input: SaverInput): void {
     .map((e) => e.x)
   const q = querySize('small')
   const rotation = Math.floor(input.now / 8000)
-  const avail = input.width - 4
+  // compact: the stack is at most about 90 columns wide, however wide the screen
+  const avail = Math.min(input.width - 4, 90)
   const pose0 = queryPoseAt(input.now, { dx: 1 })
   const tile = candidates.length ? candidates[rotation % candidates.length]! : undefined
   const others = tile ? input.tiles.filter((x) => x !== tile) : []
   const columns = others.length > 1 && input.width >= 100 ? 2 : 1
   // the tile block is as wide as its longest line (so one tile sits centred under the number)
   const natural = Math.max(24, ...others.map((o) => tileNaturalWidth(o, input.ramp)))
-  const colW = Math.max(0, Math.min(natural, columns === 2 ? 46 : 60, Math.floor((avail - (columns - 1) * 3) / columns)))
+  const colW = Math.max(0, Math.min(natural, columns === 2 ? 43 : 56, Math.floor((avail - (columns - 1) * 3) / columns)))
   const tilesW = others.length ? columns * colW + (columns - 1) * 3 : 0
 
   // the parts, top to bottom, each with its own width
@@ -585,11 +596,11 @@ function paintBig(c: Canvas, input: SaverInput): void {
   const groupW = Math.min(input.width, Math.max(label.length, heroW, caption.length, dots.length, tileRows ? tilesW : 0))
   const groupH = Math.min(bodyH, fixedH + (tileRows ? 1 + tileRows : 0))
 
-  // where: centred; guarded, offset by up to a sixth of the width and an eighth of the height, never off the screen
+  // where: centred; guarded, offset by up to a tenth of the width and an eighth of the height, never off the screen
   const slackX = input.width - groupW
   const slackY = bodyH - groupH
   const [sx, sy] = input.burnin ? BIG_OFFSETS[rotation % BIG_OFFSETS.length]! : [0, 0]
-  const rx = Math.min(Math.floor(slackX / 2), Math.floor(input.width / 6))
+  const rx = Math.min(Math.floor(slackX / 2), Math.floor(input.width / 10))
   const ry = Math.min(Math.floor(slackY / 2), Math.floor(bodyH / 8))
   const gx = Math.max(0, Math.floor(slackX / 2) + sx * rx)
   const gy = 1 + Math.max(0, Math.floor(slackY / 2) + sy * ry)
@@ -624,24 +635,34 @@ function paintBig(c: Canvas, input: SaverInput): void {
   c.put(centred(caption.length), y++, caption, { fg: t.dim })
   if (dots) c.put(centred(dots.length), y++, dots, { fg: t.dim })
   if (tileRows) tileBlock(c, centred(tilesW), y + 1, others, columns, colW, tileRows, input)
+  return { x: gx, y: gy, w: groupW, h: groupH }
 }
 
-/** One frame of the saver. */
-export function paintSaver(input: SaverInput): Canvas {
+export interface SaverFrame {
+  canvas: Canvas
+  /** What the style drew as one group (the header and lock line sit just above and below it). */
+  group: Box
+  chrome: ChromeLayout
+}
+
+/** One frame with its group box and where the header and lock line went (the tests read these). */
+export function saverFrame(input: SaverInput): SaverFrame {
   const t = input.theme
   const c = new Canvas(input.width, input.height, { bg: t.overlayBg, fg: t.fg })
   if (input.width < 20 || input.height < 6) {
     c.put(0, 0, trunc(new Date(input.now).toLocaleTimeString('en-GB'), input.width), { fg: t.acc2 })
-    return c
+    return { canvas: c, group: { x: 0, y: 0, w: input.width, h: 1 }, chrome: chromeLayout({ ...input, burnin: false }) }
   }
-  if (input.style === 'bounce') paintBounce(c, input)
-  else if (input.style === 'starfield') paintStarfield(c, input)
-  else if (input.style === 'flip') paintFlip(c, input)
-  else paintBig(c, input)
-  const chrome = chromeLayout(input)
+  const group = input.style === 'bounce' ? paintBounce(c, input) : input.style === 'starfield' ? paintStarfield(c, input) : input.style === 'flip' ? paintFlip(c, input) : paintBig(c, input)
+  const chrome = chromeLayout(input, group)
   header(c, input, chrome)
   footer(c, input, chrome)
   drawPin(c, input)
   if (input.dim) c.dim(DIM_AMOUNT)
-  return c
+  return { canvas: c, group, chrome }
+}
+
+/** One frame of the saver. */
+export function paintSaver(input: SaverInput): Canvas {
+  return saverFrame(input).canvas
 }

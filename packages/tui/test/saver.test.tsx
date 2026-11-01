@@ -8,7 +8,7 @@ import { removePin, setPin } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { SaverOverlay } from '../src/overlays/saver'
 import { FONT_HEIGHT, blockText, blockWidth, canDraw } from '../src/saver/font'
-import { ALTERNATE_MILLIS, AUTO_STYLE_MILLIS, FRAME_MILLIS, SHIFT_MILLIS, bounce, bounceLayout, chromeLayout, isDimmed, logoName, nextFrameDelay, paintSaver, styleAt, type SaverInput, type SaverTile } from '../src/saver/layout'
+import { ALTERNATE_MILLIS, AUTO_STYLE_MILLIS, FRAME_MILLIS, SHIFT_MILLIS, bounce, bounceLayout, isDimmed, logoName, nextFrameDelay, paintSaver, saverFrame, styleAt, type SaverInput, type SaverTile } from '../src/saver/layout'
 import { EventRate, MAX_BACKOFF_MS, TileModel, isAbsent, sparkline, type TileSource, type TileValue } from '../src/saver/model'
 import { decodeBraille, encodeBraille, mirrorAscii, queryFrame, queryPoseAt, querySize } from '../src/saver/query-art'
 import { readSaverSettings, writeSaverSettings, SAVER_STYLES } from '../src/saver/settings'
@@ -388,20 +388,22 @@ describe('burn-in guard', () => {
       expect(seen.size).toBe(1)
     })
 
-    test(`header and lock line at ${width}×${height} change place every cycle in every style; the clock stays visible`, () => {
+    test(`header and lock line at ${width}×${height} change place every cycle in every style, just above and below the group; the clock stays visible`, () => {
       for (const style of SAVER_STYLES) {
         const header = new Set<string>()
         const lock = new Set<string>()
-        const rows = new Set<number>()
         for (let cycle = 0; cycle < 12; cycle++) {
           const now = 1_000_000_000 + cycle * SHIFT_MILLIS + 5_000
           const i = input({ style, width, height, now, burnin: true, locked: true })
-          const c = chromeLayout(i)
+          const { canvas, group: g, chrome: c } = saverFrame(i)
           header.add(`${c.headerRow},${c.headerX}`)
           lock.add(`${c.footerRow},${c.footerX}`)
-          rows.add(c.headerRow)
-          expect(c.headerRow).not.toBe(c.footerRow)
-          const lines = paintSaver(i).text().split('\n')
+          const above = Math.max(0, g.y - 1)
+          const below = Math.min(height - 1, g.y + g.h)
+          const even = Math.floor(now / SHIFT_MILLIS) % 2 === 0
+          expect(c.headerRow).toBe(even ? above : below)
+          expect(c.footerRow).toBe(even ? below : above)
+          const lines = canvas.text().split('\n')
           expect(lines[c.headerRow]!.slice(c.headerX, c.headerX + c.headerText.length)).toBe(c.headerText)
           expect(lines[c.footerRow]!.slice(c.footerX, c.footerX + c.footerText.length)).toBe(c.footerText)
           expect(c.footerText).toBe('locked · any key to unlock')
@@ -409,9 +411,8 @@ describe('burn-in guard', () => {
           expect(lines.length).toBe(height)
           for (const l of lines) expect([...l].length).toBe(width)
         }
-        expect(header.size).toBeGreaterThanOrEqual(8)
-        expect(lock.size).toBeGreaterThanOrEqual(8)
-        expect([...rows].sort()).toEqual([0, height - 1])
+        expect(header.size).toBeGreaterThanOrEqual(5)
+        expect(lock.size).toBeGreaterThanOrEqual(5)
       }
     })
 
@@ -468,7 +469,7 @@ describe('burn-in guard', () => {
     })
   }
 
-  const LAYOUT_SIZES = [[75, 95], [200, 30], [80, 24], [120, 40], [160, 50]] as const
+  const LAYOUT_SIZES = [[75, 95], [200, 30], [80, 24], [120, 40], [160, 50], [200, 50]] as const
   const ONE_TILE = [tile('events', 'Events', { value: '0/min', detail: 'last: no events yet', big: '0', interest: 16 }), tile('server', 'Server', { value: '19 ms', detail: 'UI API 1.8.0 · stream connected', level: 'ok', big: '19', interest: 20 })]
 
   /** Spans of the non-blank cells of every body row (the header and the lock line live in the first and last). */
@@ -533,22 +534,27 @@ describe('burn-in guard', () => {
       }
     }
 
-    test(`header at ${width}×${height}: a left margin of at least one, the whole width over time, never in the group's rows`, () => {
+    test(`header at ${width}×${height}: a left margin of at least one, over the group, never inside it; the group is compact`, () => {
       const xs = new Set<number>()
       for (let cycle = 0; cycle < 40; cycle++) {
-        const i = input({ style: 'big', width, height, now: 1_000_000_000 + cycle * SHIFT_MILLIS + 2_000, burnin: true })
-        const c = chromeLayout(i)
-        expect(c.headerX).toBeGreaterThanOrEqual(1)
-        expect(c.headerX + c.headerText.length).toBeLessThanOrEqual(width)
-        expect(c.footerX).toBeGreaterThanOrEqual(1)
-        xs.add(c.headerX)
-        const lines = paintSaver(i).text().split('\n')
-        expect(lines[c.headerRow]!.trim()).toBe(c.headerText)
-        expect(lines[c.footerRow]!.trim()).toBe(c.footerText)
-        expect(bodySpans(lines.join('\n'), height).every((r) => r.y > 0 && r.y < height - 1)).toBe(true)
+        for (const style of ['big', 'flip'] as const) {
+          const i = input({ style, width, height, now: 1_000_000_000 + cycle * SHIFT_MILLIS + 2_000, burnin: true })
+          const { canvas, group: g, chrome: c } = saverFrame(i)
+          expect(c.headerX).toBeGreaterThanOrEqual(1)
+          expect(c.headerX + c.headerText.length).toBeLessThanOrEqual(width)
+          expect(c.footerX).toBeGreaterThanOrEqual(1)
+          // overlapping the group's columns, in the rows just outside it
+          expect(c.headerX < g.x + g.w && c.headerX + c.headerText.length > g.x).toBe(true)
+          expect(c.headerRow < g.y || c.headerRow >= g.y + g.h).toBe(true)
+          expect(c.footerRow < g.y || c.footerRow >= g.y + g.h).toBe(true)
+          // one compact group, however big the screen
+          expect(g.w).toBeLessThanOrEqual(92)
+          xs.add(c.headerX)
+          const lines = canvas.text().split('\n')
+          expect(lines[c.headerRow]!.trim()).toBe(c.headerText)
+        }
       }
-      const room = width - chromeLayout(input({ style: 'big', width, height, burnin: true })).headerText.length
-      expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(room * 0.5)
+      expect(xs.size).toBeGreaterThan(4)
     })
   }
 
@@ -620,10 +626,11 @@ describe('burn-in guard', () => {
     const plain = paintSaver(input({ style: 'bounce', burnin: true, dim: false }))
     const dimmed = paintSaver(input({ style: 'bounce', burnin: true, dim: true }))
     expect(dimmed.text()).toBe(plain.text())
-    const first = (c: ReturnType<typeof paintSaver>) => c.runs(0).filter((r) => r.text.trim()).map((r) => r.fg)
+    const row = saverFrame(input({ style: 'bounce', burnin: true })).chrome.headerRow
+    const first = (c: ReturnType<typeof paintSaver>) => c.runs(row).filter((r) => r.text.trim()).map((r) => r.fg)
     expect(first(dimmed)).not.toEqual(first(plain))
     const lum = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16)
-    const bright = (c: ReturnType<typeof paintSaver>) => Math.max(...c.runs(0).filter((r) => r.text.trim() && r.fg?.startsWith('#')).map((r) => lum(r.fg!)))
+    const bright = (c: ReturnType<typeof paintSaver>) => Math.max(...c.runs(row).filter((r) => r.text.trim() && r.fg?.startsWith('#')).map((r) => lum(r.fg!)))
     expect(bright(dimmed)).toBeLessThan(bright(plain))
   })
 })
