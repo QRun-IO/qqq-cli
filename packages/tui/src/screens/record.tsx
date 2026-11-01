@@ -12,7 +12,7 @@ import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
 import { RecordCollaboration, uploadBlocked, viewingText, type CollabSummary } from '../collab'
 import { CollabScreen, sharePreview, toggleFollow, uploadAttachment, type CollabView } from './collab'
-import { presenceSource } from '../presence'
+import { presenceSource, timesText } from '../presence'
 import { canPrintTable, printScreen } from '../printing'
 import { AuditScreen } from './audits'
 import { DeveloperScreen } from './developer'
@@ -303,7 +303,9 @@ export class RecordScreen implements Screen {
   /** Who else is on the record, in a dialog. */
   showViewers(): void {
     const viewers = this.viewers()
-    this.store.message(viewers.length ? `Also viewing ${this.title()}:\n${viewers.join('\n')}` : `No one else is viewing ${this.title()}.`, 'info', 'Presence')
+    const self = presenceSource().get(this.presenceScope()).everyone?.find((p) => p.self)
+    const yours = self?.connections && self.connections > 1 ? `\n\nYou have it open in ${self.connections} terminals.` : ''
+    this.store.message((viewers.length ? `Also viewing ${this.title()}:\n${viewers.join('\n')}` : `No one else is viewing ${this.title()}.`) + yours, 'info', 'Presence')
   }
 
   build(): void {
@@ -644,7 +646,7 @@ export class RecordScreen implements Screen {
 
   /** The names of the others viewing this record (presence; this client is not counted). */
   viewers(): string[] {
-    return presenceSource().get(this.presenceScope()).people.map((p) => p.name)
+    return presenceSource().get(this.presenceScope()).people.map((p) => `${p.name}${timesText(p)}`)
   }
 
   /** Opens comments, attachments, the timeline or tasks. */

@@ -17,6 +17,7 @@
  * there) and the other calls throw ExtensionNotInstalledError.
  */
 
+import { createHash } from 'node:crypto'
 import type { RealtimeMessage } from '@qrun-io/qqq-ui-api-client'
 import type { CallInput, CallResult } from '../api/call.js'
 import type { ExtensionRegistry } from './registry.js'
@@ -104,6 +105,20 @@ export interface PresenceScope {
   pk?: string
 }
 
+/** One live connection (a tab or terminal) of a person, from collaboration 1.2.0's per-connection presence. */
+export interface PresenceConnection {
+  /** Opaque per-connection id from the server (never the client's own connection id). */
+  connectionId: string
+  mode: 'VIEWING' | 'EDITING' | string
+  fieldName?: string | null
+  /** When the lease started, as the server reports it. */
+  since?: Date
+  /** Opaque id of the signed-in session behind it (never the session itself). */
+  sessionId?: string
+  /** True for this client's own connection. */
+  self?: boolean
+}
+
 /** One person on the scope, merged across their tabs. */
 export interface PresencePerson {
   userId: string
@@ -112,6 +127,10 @@ export interface PresencePerson {
   fieldName?: string | null
   /** When this client first saw them there (the qbit does not send join times). */
   since: Date
+  /** Live connections (tabs, terminals) merged into this person; 1 from servers before collaboration 1.2.0 (always set by this module). */
+  connections?: number
+  /** Each connection, when the server sent per-connection presence (perConnection, or any 1.2.0 event). */
+  leases?: PresenceConnection[]
 }
 
 export interface PresenceState {
@@ -120,6 +139,8 @@ export interface PresenceState {
   scope: PresenceScope
   count: number
   people: PresencePerson[]
+  /** Live connections behind `people` (two terminals of one user count twice); equals `count` on older servers (always set by this module). */
+  connections?: number
   /** True while the realtime stream is connected and subscribed (else presence is polled). */
   live: boolean
   /** The last error (presence not enabled on the table, record not visible, ...), cleared on success. */
@@ -140,6 +161,8 @@ export interface PresenceOptions {
   announce?: boolean
   /** Delay before reconnecting a dropped stream; default 2000 ms, doubling to 30 s. */
   reconnectMs?: number
+  /** Ask for each connection's mode, field and start (collaboration 1.2.0; ignored by older servers). */
+  perConnection?: boolean
 }
 
 export interface PresenceHandle {
@@ -159,12 +182,64 @@ interface Viewer {
   displayName?: string
   mode?: string
   fieldName?: string | null
+  connections?: number
+  connectionId?: string
+  sessionId?: string
+  since?: string
 }
 
 interface Snapshot {
   table?: string
   pk?: string | null
   viewers?: Viewer[]
+  leaseCount?: number
+  leases?: Viewer[]
+}
+
+/**
+ * The opaque id the server gives a connection (collaboration 1.2.0): `c` and the first 16 hex
+ * digits of SHA-256 of the user id, a newline and the client's connection id.
+ */
+export function opaqueConnectionId(userId: string, connectionId: string): string {
+  return `c${createHash('sha256').update(`${userId}\n${connectionId}`).digest('hex').slice(0, 16)}`
+}
+
+/**
+ * People and connection totals from a snapshot or event. Servers before collaboration 1.2.0 send
+ * neither `connections` nor `leases`: each person then counts as one connection.
+ */
+export function presencePeople(snapshot: Snapshot, firstSeen: (userId: string) => Date, ownConnectionId?: string): { people: PresencePerson[]; connections: number } {
+  const viewers = (snapshot.viewers ?? []).filter((v) => v.userId !== undefined)
+  const leases = new Map<string, PresenceConnection[]>()
+  for (const l of snapshot.leases ?? []) {
+    if (l.userId === undefined || !l.connectionId) continue
+    const userId = String(l.userId)
+    const since = l.since ? new Date(l.since) : undefined
+    const entry: PresenceConnection = {
+      connectionId: l.connectionId, mode: l.mode ?? 'VIEWING', fieldName: l.fieldName ?? null,
+      ...(since && !Number.isNaN(since.getTime()) ? { since } : {}), ...(l.sessionId ? { sessionId: l.sessionId } : {}),
+      ...(ownConnectionId && l.connectionId === opaqueConnectionId(userId, ownConnectionId) ? { self: true } : {}),
+    }
+    leases.set(userId, [...(leases.get(userId) ?? []), entry])
+  }
+  const people = viewers.map((v) => {
+    const userId = String(v.userId)
+    const own = leases.get(userId)
+    const connections = typeof v.connections === 'number' && v.connections > 0 ? v.connections : own?.length || 1
+    return { userId, name: String(v.displayName ?? userId), mode: v.mode ?? 'VIEWING', fieldName: v.fieldName ?? null, since: firstSeen(userId), connections, ...(own ? { leases: own } : {}) }
+  })
+  const sum = people.reduce((n, p) => n + p.connections, 0)
+  return { people, connections: typeof snapshot.leaseCount === 'number' ? Math.max(snapshot.leaseCount, people.length) : sum }
+}
+
+/** ` ×2` after a person with more than one connection, else nothing. */
+export function connectionsSuffix(p: { connections?: number }): string {
+  return p.connections && p.connections > 1 ? ` ×${p.connections}` : ''
+}
+
+/** GET /presence query for a scope; `perConnection` only when asked (older servers ignore it). */
+function presenceQuery(scope: PresenceScope, perConnection?: boolean): Record<string, string | undefined> {
+  return { table: scope.table, pk: scope.pk, ...(perConnection ? { perConnection: 'true' } : {}) }
 }
 
 /** The channel presence events for a scope arrive on. */
@@ -281,13 +356,15 @@ export class Collaboration {
   }
 
   /** Who is on a table or record right now, without joining. Empty when the extension is absent. */
-  async presenceSnapshot(scope: PresenceScope): Promise<PresenceState> {
-    const state: PresenceState = { available: this.available, scope, count: 0, people: [], live: false }
+  async presenceSnapshot(scope: PresenceScope, options: { perConnection?: boolean } = {}): Promise<PresenceState> {
+    const state: PresenceState = { available: this.available, scope, count: 0, people: [], connections: 0, live: false }
     if (!state.available) return state
-    const snapshot = (await this.transport.call('getQbitCollaborationPresence', { query: { table: scope.table, pk: scope.pk } })).data as Snapshot
+    const snapshot = (await this.transport.call('getQbitCollaborationPresence', { query: presenceQuery(scope, options.perConnection) })).data as Snapshot
     const now = new Date()
-    state.people = (snapshot.viewers ?? []).map((v) => ({ userId: String(v.userId ?? ''), name: String(v.displayName ?? v.userId ?? ''), mode: v.mode ?? 'VIEWING', fieldName: v.fieldName ?? null, since: now }))
-    state.count = state.people.length
+    const { people, connections } = presencePeople(snapshot, () => now)
+    state.people = people
+    state.count = people.length
+    state.connections = connections
     return state
   }
 
@@ -297,7 +374,7 @@ export class Collaboration {
    * at once with a no-op handle when the extension is absent.
    */
   async joinPresence(scope: PresenceScope, options: PresenceOptions = {}): Promise<PresenceHandle> {
-    const state: PresenceState = { available: this.available, scope, count: 0, people: [], live: false }
+    const state: PresenceState = { available: this.available, scope, count: 0, people: [], connections: 0, live: false }
     const notify = () => options.onChange?.({ ...state, people: [...state.people] })
     if (!state.available) {
       return { state, get count() { return 0 }, get people() { return [] }, refresh: async () => {}, setMode: async () => {}, stop: async () => {} }
@@ -313,22 +390,22 @@ export class Collaboration {
 
     const apply = (snapshot: Snapshot) => {
       const now = new Date()
-      const viewers = (snapshot.viewers ?? []).filter((v) => v.userId !== undefined)
-      const ids = new Set(viewers.map((v) => String(v.userId)))
+      const ids = new Set((snapshot.viewers ?? []).filter((v) => v.userId !== undefined).map((v) => String(v.userId)))
       for (const id of [...firstSeen.keys()]) if (!ids.has(id)) firstSeen.delete(id)
-      state.people = viewers.map((v) => {
-        const userId = String(v.userId)
+      const { people, connections } = presencePeople(snapshot, (userId) => {
         if (!firstSeen.has(userId)) firstSeen.set(userId, now)
-        return { userId, name: String(v.displayName ?? userId), mode: v.mode ?? 'VIEWING', fieldName: v.fieldName ?? null, since: firstSeen.get(userId)! }
-      })
-      state.count = state.people.length
+        return firstSeen.get(userId)!
+      }, announce ? connectionId : undefined)
+      state.people = people
+      state.count = people.length
+      state.connections = connections
       state.error = undefined
       notify()
     }
 
     const refresh = async () => {
       try {
-        apply((await this.transport.call('getQbitCollaborationPresence', { query: { table: scope.table, pk: scope.pk } })).data as Snapshot)
+        apply((await this.transport.call('getQbitCollaborationPresence', { query: presenceQuery(scope, options.perConnection) })).data as Snapshot)
       } catch (error) {
         state.error = messageOf(error)
         notify()
@@ -341,8 +418,9 @@ export class Collaboration {
         try {
           const result = await this.transport.call('postQbitCollaborationPresence', { json: { connectionId, table: scope.table, pk: scope.pk, mode, fieldName } })
           const data = result.data as Snapshot | undefined
-          // The qbit answers the heartbeat with the snapshot; older builds answer {success}.
-          if (data && typeof data.table === 'string') {
+          // The qbit answers the heartbeat with the merged snapshot; older builds answer {success}.
+          // Per-connection detail only comes with GET, so re-read rather than drop it.
+          if (data && typeof data.table === 'string' && !options.perConnection) {
             apply(data)
             return
           }

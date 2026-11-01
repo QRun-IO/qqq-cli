@@ -93,3 +93,29 @@ test('panel rows: tags, latest two comments, tasks with the next due, files, fol
   expect(rows.filter((r) => r.key === 'C').length).toBe(5)
   expect(panelRows(busy, PANEL_WIDTH - 1, 5)).toHaveLength(5)
 })
+
+test('two terminals of one user: "×2" on the strip and in the panel, each terminal with its mode and start', () => {
+  const since = '2026-11-01T12:00:05Z'
+  const local = new Date(since).toTimeString().slice(0, 5)
+  const twice: CollabState = {
+    ...alone,
+    everyone: [
+      { name: 'Admin', self: true, mode: 'EDITING', fieldName: 'name', connections: 2, terminals: [{ mode: 'EDITING', fieldName: 'name', since }, { mode: 'VIEWING', self: true }] },
+      { name: 'Pat Smith', mode: 'VIEWING', connections: 3 },
+    ],
+  }
+  expect(text(twice, 200)).toContain('viewing: Pat Smith ×3 (viewing)')
+  expect(text({ ...alone, everyone: [twice.everyone![0]!] }, 200).trimEnd()).toEndWith('viewing: Admin ×2 (you)')
+  const lines = panelRows(twice, PANEL_WIDTH - 1, 40).map((r) => r.text.trimEnd())
+  expect(lines.slice(lines.indexOf(' Viewing now'))).toEqual([
+    ' Viewing now',
+    '   Pat Smith ×3 · viewing',
+    '   Admin ×2 (you) · editing name',
+    '     this terminal · viewing',
+    `     #2 · editing name · ${local}`,
+  ])
+  // a server before collaboration 1.2.0 sends no connections: no "×", no terminal lines
+  const old = panelRows(busy, PANEL_WIDTH - 1, 40).map((r) => r.text.trimEnd())
+  expect(old.join('\n')).not.toContain('×')
+  expect(old.join('\n')).not.toContain('this terminal')
+})

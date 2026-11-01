@@ -31,10 +31,10 @@
     },
     {
       "name": "collaboration",
-      "version": "1.1.0",
-      "document": "qbit-collaboration/src/main/resources/openapi/qqq-v1/collaboration.yaml",
-      "branch": "develop",
-      "commit": "03407ae"
+      "version": "1.2.0",
+      "document": ".worktrees/qbit-collab-sessions/src/main/resources/openapi/qqq-v1/collaboration.yaml",
+      "branch": "feat/per-session-presence",
+      "commit": "0ae1e62"
     },
     {
       "name": "data-analysis",

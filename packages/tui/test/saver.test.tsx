@@ -134,6 +134,22 @@ describe('sources', () => {
     expect((await s.load()).value).toBe('1')
   })
 
+  test('presence counts connections: two terminals of one user are 2 online; older servers count each person once', async () => {
+    const viewers: Record<string, Array<{ userId: string; displayName: string; mode: string; connections?: number }>> = {
+      person: [{ userId: 'core:me', displayName: 'Me', mode: 'VIEWING', connections: 1 }, { userId: 'u:bob', displayName: 'Bob', mode: 'VIEWING', connections: 2 }],
+      order: [{ userId: 'core:me', displayName: 'Me', mode: 'VIEWING', connections: 1 }],
+    }
+    const s = presenceSource(ctx({ data: (_id, input) => ({ viewers: viewers[(input as { query: { table: string } }).query.table] ?? [] }) }))
+    const v = await s.load()
+    expect(v.value).toBe('4')
+    expect(v.detail).toBe('4 online · you ×2, Bob ×2 · PERSON')
+    // only this terminal's own lease, no "connections" (collaboration 1.1.0): you, once
+    const old = presenceSource(ctx({ data: () => ({ viewers: [{ userId: 'core:me', displayName: 'Me', mode: 'VIEWING' }] }) }))
+    const o = await old.load()
+    expect(o.value).toBe('1')
+    expect(o.detail).toBe('1 online · you')
+  })
+
   test('presence on a table that refuses it is skipped; the source hides when nothing is left', async () => {
     const refuse = () => { throw new UiApiError(404, {}) }
     // signed out: nothing to show once every table refuses

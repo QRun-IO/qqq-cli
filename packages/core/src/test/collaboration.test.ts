@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { RealtimeMessage } from '@qrun-io/qqq-ui-api-client'
 import type { CallInput, CallResult } from '../api/call.js'
-import { Collaboration, presenceChannel, type CollaborationTransport, type PresenceState } from '../extensions/collaboration.js'
+import { Collaboration, connectionsSuffix, opaqueConnectionId, presenceChannel, presencePeople, type CollaborationTransport, type PresenceState } from '../extensions/collaboration.js'
 import { ExtensionNotInstalledError, ExtensionRegistry } from '../extensions/registry.js'
 
 const withCollab = ExtensionRegistry.fromVersion({ extensions: [{ name: 'collaboration', version: '1.1.0' }] })
@@ -163,4 +163,66 @@ test('tags: vocabulary search, create, record tags and apply call the qbit opera
   assert.deepEqual(calls[0]!.input.query, { table: 'person', q: 'vi', limit: '50' })
   assert.deepEqual(calls[1]!.input.json, { table: 'person', label: 'New one', color: 'teal' })
   assert.deepEqual(calls[3]!.input, { path: { table: 'person', pk: '3' }, json: { add: [9] } })
+})
+
+test('two connections of one user: one person with connections 2, and per connection each mode, field and start', async () => {
+  const leases = [
+    { userId: 'admin', displayName: 'Admin', mode: 'VIEWING', connections: 1, connectionId: opaqueConnectionId('admin', 'cli-mine'), sessionId: 's1', since: '2026-11-01T12:00:00Z' },
+    { userId: 'admin', displayName: 'Admin', mode: 'EDITING', fieldName: 'name', connections: 1, connectionId: opaqueConnectionId('admin', 'cli-other'), sessionId: 's2', since: '2026-11-01T12:00:05Z' },
+  ]
+  const { calls, transport } = fake((id, input) => {
+    if (id === 'deleteQbitCollaborationPresence') return { success: true }
+    const per = (input.query as Record<string, string | undefined> | undefined)?.perConnection === 'true'
+    return { table: 'person', pk: '1', viewers: [{ userId: 'admin', displayName: 'Admin', mode: 'EDITING', fieldName: 'name', connections: 2 }], leaseCount: 2, ...(per ? { leases } : {}) }
+  })
+  const collab = new Collaboration(withCollab, transport)
+  const merged = await collab.presenceSnapshot({ table: 'person', pk: '1' })
+  assert.deepEqual([merged.count, merged.connections, merged.people[0]!.connections, merged.people[0]!.leases], [1, 2, 2, undefined])
+  assert.equal(connectionsSuffix(merged.people[0]!), ' ×2')
+  assert.equal((calls.at(-1)!.input.query as Record<string, unknown>).perConnection, undefined, 'merged by default')
+
+  const handle = await collab.joinPresence({ table: 'person', pk: '1' }, { perConnection: true, connectionId: 'cli-mine', heartbeatMs: 10000 })
+  try {
+    const admin = handle.people[0]!
+    assert.equal(admin.connections, 2)
+    assert.deepEqual(admin.leases!.map((l) => [l.mode, l.fieldName, l.since?.toISOString(), l.self ?? false]), [
+      ['VIEWING', null, '2026-11-01T12:00:00.000Z', true],
+      ['EDITING', 'name', '2026-11-01T12:00:05.000Z', false],
+    ])
+    assert.deepEqual(calls.filter((c) => c.id === 'getQbitCollaborationPresence').at(-1)!.input.query, { table: 'person', pk: '1', perConnection: 'true' })
+  } finally {
+    await handle.stop()
+  }
+})
+
+test('servers before collaboration 1.2.0 send no connections: each person is one connection', async () => {
+  const { transport } = fake(() => ({ table: 'person', viewers: [{ userId: 'admin', displayName: 'Admin', mode: 'VIEWING' }, { userId: 'bob', displayName: 'Bob' }] }))
+  const state = await new Collaboration(withCollab, transport).presenceSnapshot({ table: 'person' }, { perConnection: true })
+  assert.deepEqual([state.count, state.connections], [2, 2])
+  assert.deepEqual(state.people.map((p) => [p.connections, p.leases, connectionsSuffix(p)]), [[1, undefined, ''], [1, undefined, '']])
+  const fromEvent = presencePeople({ table: 'person', viewers: [{ userId: 'x', displayName: 'X', connections: 3 }], leaseCount: 3 }, () => new Date(0))
+  assert.deepEqual([fromEvent.connections, fromEvent.people[0]!.connections], [3, 3])
+})
+
+test('presence.changed with leases updates connections live', async () => {
+  const events: RealtimeMessage[] = [
+    { event: 'hello', data: { connectionId: 'sse-1' } },
+    { event: 'presence.changed', data: { table: 'person', pk: '1', viewers: [{ userId: 'admin', displayName: 'Admin', mode: 'VIEWING', connections: 2 }], leaseCount: 2,
+      leases: [{ userId: 'admin', displayName: 'Admin', mode: 'VIEWING', connections: 1, connectionId: 'c1', since: '2026-11-01T12:00:00Z' }, { userId: 'admin', displayName: 'Admin', mode: 'VIEWING', connections: 1, connectionId: 'c2', since: '2026-11-01T12:00:01Z' }] } },
+  ]
+  async function* stream(signal: AbortSignal): AsyncIterable<RealtimeMessage> {
+    let next = 0
+    while (!signal.aborted) {
+      await tick(2)
+      if (next < events.length) yield events[next++]!
+    }
+  }
+  const { transport } = fake((id, input) => (id === 'updateRealtimeSubscriptions' ? { active: (input.json as { add: string[] }).add } : { table: 'person', pk: '1', viewers: [] }), stream)
+  const handle = await new Collaboration(withCollab, transport).joinPresence({ table: 'person', pk: '1' }, { announce: false, heartbeatMs: 10000 })
+  try {
+    await until('the event with two connections', () => handle.state.connections === 2)
+    assert.equal(handle.people[0]!.leases?.length, 2)
+  } finally {
+    await handle.stop()
+  }
 })

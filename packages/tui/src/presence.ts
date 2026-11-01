@@ -20,6 +20,24 @@ export interface PresencePerson {
   /** VIEWING or EDITING (the server's mode), and the field being edited when it says. */
   mode?: string
   fieldName?: string | null
+  /** Live connections (tabs, terminals) of this person; absent or 1 before collaboration 1.2.0. */
+  connections?: number
+  /** Each connection's mode, field and start when the server sends them (collaboration 1.2.0). */
+  terminals?: PresenceTerminal[]
+}
+
+/** One connection of a person: what that tab or terminal does. */
+export interface PresenceTerminal {
+  mode?: string
+  fieldName?: string | null
+  since?: string
+  /** This terminal. */
+  self?: boolean
+}
+
+/** ` ×2` after a person with more than one connection. */
+export function timesText(p: { connections?: number }): string {
+  return p.connections && p.connections > 1 ? ` ×${p.connections}` : ''
 }
 
 export interface Presence {
@@ -64,7 +82,7 @@ export function usePresence(scope: string | undefined): Presence {
 /** Title-bar text for presence, empty when nobody else is there. */
 export function presenceText(p: Presence): string {
   if (!p.count) return ''
-  const names = p.people.slice(0, 3).map((x) => x.name).join(', ')
+  const names = p.people.slice(0, 3).map((x) => `${x.name}${timesText(x)}`).join(', ')
   return `${p.count} other${p.count === 1 ? '' : 's'} viewing${names ? `: ${names}${p.count > 3 ? ', …' : ''}` : ''}`
 }
 
@@ -94,8 +112,13 @@ export function collaborationPresence(registry: ExtensionRegistry, client: TuiCl
       const entry: { scope: string; handle?: PresenceHandle; value: Presence } = { scope, value: NONE }
       current = entry
       collab.joinPresence(kind === 'record' ? { table, pk: pk.join(':') } : { table }, {
+        perConnection: true,
         onChange: (state) => {
-          const everyone = state.people.map((p) => ({ name: p.name, since: p.since.toISOString(), mode: p.mode, fieldName: p.fieldName, self: p.name === selfName }))
+          const everyone = state.people.map((p) => ({
+            name: p.name, since: p.since.toISOString(), mode: p.mode, fieldName: p.fieldName, self: p.name === selfName,
+            ...(p.connections && p.connections > 1 ? { connections: p.connections } : {}),
+            ...(p.leases?.length ? { terminals: p.leases.map((l) => ({ mode: l.mode, fieldName: l.fieldName, since: l.since?.toISOString(), ...(l.self ? { self: true } : {}) })) } : {}),
+          }))
           const people = everyone.filter((p) => !p.self).map(({ self: _self, ...person }) => person)
           entry.value = { count: people.length, people, everyone }
           notify()

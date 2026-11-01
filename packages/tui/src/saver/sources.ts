@@ -51,6 +51,8 @@ interface Viewer {
   userId: string
   displayName: string
   mode?: string
+  /** Live connections (tabs, terminals) of this user on the table; absent before collaboration 1.2.0. */
+  connections?: number
 }
 
 /** Sessions that count as online: active in the last 10 minutes. */
@@ -64,11 +66,13 @@ function userLabel(userId: string): string {
  * Who is online: signed-in sessions from the session store's table when the server has one and it
  * holds sessions active in the last 10 minutes (own sessions count: "2 sessions · 1 user (you ×2)"),
  * else this terminal plus everyone seen in collaboration presence across a few tables per refresh
- * (the saver keeps its lease, so the signed-in viewer is always one of them). Never "nobody around"
- * while the viewer is signed in.
+ * (the saver keeps its lease, so the signed-in viewer is always one of them). Collaboration 1.2.0
+ * counts connections, so two terminals of one user are "2 online · you ×2"; older servers count each
+ * person once. Never "nobody around" while the viewer is signed in.
  */
 export function presenceSource(ctx: SaverContext): TileSource {
-  const seen = new Map<string, { name: string; table: string; mode?: string; at: number }>()
+  // keyed by user and table: a user's terminals on different tables add up
+  const seen = new Map<string, { userId: string; name: string; table: string; mode?: string; connections?: number; self: boolean; at: number }>()
   const skip = new Set<string>()
   let cursor = 0
   let sessionsGone = false
@@ -130,10 +134,9 @@ export function presenceSource(ctx: SaverContext): TileSource {
           for (const [id, v] of seen) if (v.table === table) seen.delete(id)
           for (const v of snap.viewers ?? []) {
             const you = v.userId === self.userId || (Boolean(self.user) && v.displayName === self.user)
-            // this terminal is you (it keeps its lease while the saver shows): not a second person
-            if (you) continue
-            names.set(v.userId, v.displayName || v.userId)
-            seen.set(v.userId, { name: v.displayName || v.userId, table, mode: v.mode, at: t })
+            const connections = typeof v.connections === 'number' && v.connections > 0 ? v.connections : undefined
+            if (!you) names.set(v.userId, v.displayName || v.userId)
+            seen.set(`${v.userId}\u0000${table}`, { userId: v.userId, name: v.displayName || v.userId, table, mode: v.mode, connections, self: you, at: t })
           }
         } catch (error) {
           const status = (error as { status?: number }).status
@@ -146,9 +149,21 @@ export function presenceSource(ctx: SaverContext): TileSource {
       const ttl = Math.ceil(Math.max(1, all.length) / PRESENCE_TABLES_PER_REFRESH) * ctx.intervalMs() + 45_000
       const t = now()
       for (const [id, v] of seen) if (t - v.at > ttl) seen.delete(id)
-      const others = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
-      const total = others.length + (signedIn ? 1 : 0)
-      const parts = [...(signedIn ? ['you'] : []), ...others.map((p) => `${p.name}${p.mode === 'EDITING' ? ' editing' : ''} · ${ctx.tableLabel(p.table)}`)]
+      // one entry per person, their connections summed over the tables they are on; a server
+      // before collaboration 1.2.0 sends no connections, and then each person counts once
+      const people = new Map<string, { name: string; table: string; mode?: string; connections: number; counted: boolean; self: boolean }>()
+      for (const v of seen.values()) {
+        const p = people.get(v.userId)
+        if (!p) people.set(v.userId, { name: v.name, table: v.table, mode: v.mode, connections: v.connections ?? 1, counted: v.connections !== undefined, self: v.self })
+        else if (p.counted && v.connections !== undefined) p.connections += v.connections
+        else p.connections = 1, p.counted = false
+      }
+      const others = [...people.values()].filter((p) => !p.self).sort((a, b) => a.name.localeCompare(b.name))
+      // this terminal is you (it keeps its lease while the saver shows); your other terminals count too
+      const yours = signedIn ? Math.max(1, [...people.values()].filter((p) => p.self).reduce((n, p) => n + p.connections, 0)) : 0
+      const times = (n: number) => (n > 1 ? ` ×${n}` : '')
+      const total = others.reduce((n, p) => n + p.connections, 0) + yours
+      const parts = [...(signedIn ? [`you${times(yours)}`] : []), ...others.map((p) => `${p.name}${times(p.connections)}${p.mode === 'EDITING' ? ' editing' : ''} · ${ctx.tableLabel(p.table)}`)]
       const detail = parts.length ? `${total} online · ${parts.join(', ')}` : 'nobody around'
       return { value: String(total), detail, big: String(total), interest: total ? 50 + total : 5 }
     },

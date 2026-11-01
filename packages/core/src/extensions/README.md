@@ -43,6 +43,7 @@ const presence = await collab.joinPresence({ table: 'person', pk: '1' }, {
   announce: true,           // false: watch without appearing
 })
 presence.count; presence.people; presence.state.live; presence.state.error
+presence.state.connections          // two terminals of one user count twice (collaboration 1.2.0)
 await presence.stop()       // DELETE /presence, stop the heartbeat, close the stream
 ```
 
@@ -55,6 +56,12 @@ await presence.stop()       // DELETE /presence, stop the heartbeat, close the s
 - `since` is when this client first saw the person; the qbit does not send join times.
 - The list includes the signed-in user when they hold a lease (tabs and clients merge per user;
   EDITING wins).
+- Collaboration 1.2.0: each person has `connections` (their live tabs and terminals) and
+  `state.connections` totals them. `perConnection: true` (option of `joinPresence` and
+  `presenceSnapshot`) also fills `person.leases`: each connection's mode, field, start and opaque
+  ids, this client's own marked `self` (the server's id is `c` + 16 hex digits of SHA-256 of
+  user id, newline, connection id; see `opaqueConnectionId`). Older servers send neither: each
+  person is then one connection and `leases` stays unset.
 - One stream per joinPresence. A TUI that already holds a stream for other channels can pass an
   `openStream` that fans out its own connection's events instead of opening another.
 - `state.error` holds a refused heartbeat (404 when presence is off for the table or the record is

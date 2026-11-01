@@ -10,7 +10,7 @@
  */
 
 import type { Command } from 'commander'
-import { COLLABORATION, type TagEntry, type CollaborationTarget, type CommentEntry, type FavoriteEntry, type PresenceState } from '@qrun-io/qqq-core'
+import { COLLABORATION, connectionsSuffix, type TagEntry, type CollaborationTarget, type CommentEntry, type FavoriteEntry, type PresenceState } from '@qrun-io/qqq-core'
 import type { Context } from '../context.js'
 import { UsageError } from '../context.js'
 import { COLUMNS_OPTION, chooseColumns, countFooter, instantText, positiveInt, type Json } from './shared.js'
@@ -27,14 +27,15 @@ function hhmmss(date: Date): string {
   return date.toTimeString().slice(0, 8)
 }
 
-/** `2 here: Alice Morgan (viewing since 17:50:01), Bob Chen (editing email since 17:51:10)`. */
+/** `2 on person 1: Alice Morgan ×2 (viewing since 17:50:01), Bob Chen (editing email since 17:51:10)`. */
 export function presenceLine(state: PresenceState): string {
   if (!state.available) return 'presence: the collaboration extension is not installed'
   if (state.error) return `presence: ${state.error}`
   const where = state.scope.pk !== undefined ? `${state.scope.table} ${state.scope.pk}` : state.scope.table
   if (!state.count) return `nobody on ${where}`
-  const people = state.people.map((p) => `${p.name} (${String(p.mode).toLowerCase()}${p.fieldName ? ` ${p.fieldName}` : ''} since ${hhmmss(p.since)})`)
-  return `${state.count} on ${where}: ${people.join(', ')}`
+  const people = state.people.map((p) => `${p.name}${connectionsSuffix(p)} (${String(p.mode).toLowerCase()}${p.fieldName ? ` ${p.fieldName}` : ''} since ${hhmmss(p.since)})`)
+  const connections = state.connections ?? state.count
+  return `${state.count} on ${where}${connections > state.count ? ` (${connections} connections)` : ''}: ${people.join(', ')}`
 }
 
 function favoriteRows(items: FavoriteEntry[]): Json[] {
@@ -71,7 +72,8 @@ export function registerCollab(noun: Command, ctx: () => Context): void {
     .option('--watch', 'join and follow changes (heartbeat every 20 s, leaves on exit)')
     .option('--observe', 'follow changes without joining')
     .option('--editing [field]', 'with --watch: join as EDITING, optionally on a field')
-    .action(async (table: string, pk: string | undefined, options: { watch?: boolean; observe?: boolean; editing?: string | boolean }) => {
+    .option('--per-connection', 'one row per connection (tab, terminal) with its mode, field and start (collaboration 1.2.0)')
+    .action(async (table: string, pk: string | undefined, options: { watch?: boolean; observe?: boolean; editing?: string | boolean; perConnection?: boolean }) => {
       const c = ctx()
       const collaboration = await collab(c)
       const scope = { table, pk }
@@ -81,18 +83,30 @@ export function registerCollab(noun: Command, ctx: () => Context): void {
         else process.stdout.write(`${hhmmss(new Date())}  ${presenceLine(state)}${state.live ? '' : '  (polling)'}\n`)
       }
       if (!options.watch && !options.observe) {
-        const state = await collaboration.presenceSnapshot(scope)
-        const rows = state.people.map((p) => ({ name: p.name, user: p.userId, mode: p.mode, field: p.fieldName ?? '' }))
-        c.print({ data: { table, pk: pk ?? null, count: state.count, viewers: rows }, rows, columns: ['name', 'user', 'mode', 'field'], footer: countFooter(state.count, 'person', [`on ${pk !== undefined ? `${table} ${pk}` : table}`, '--watch to join and follow'], 'people') })
+        const state = await collaboration.presenceSnapshot(scope, { perConnection: options.perConnection })
+        const connections = state.connections ?? state.count
+        const where = `on ${pk !== undefined ? `${table} ${pk}` : table}`
+        const notes = [where, ...(connections > state.count ? [`${connections} connections`] : []), '--watch to join and follow']
+        const rows = state.people.map((p) => ({ name: p.name, user: p.userId, mode: p.mode, field: p.fieldName ?? '', connections: p.connections ?? 1 }))
+        if (options.perConnection) {
+          // older servers send no per-connection detail: one row per person, connection unknown
+          const leaseRows = state.people.flatMap((p) => p.leases?.length
+            ? p.leases.map((l) => ({ name: p.name, user: p.userId, mode: l.mode, field: l.fieldName ?? '', since: l.since ? hhmmss(l.since) : '', connection: l.connectionId }))
+            : [{ name: p.name, user: p.userId, mode: p.mode, field: p.fieldName ?? '', since: '', connection: '' }])
+          c.print({ data: { table, pk: pk ?? null, count: state.count, connections, viewers: rows, leases: leaseRows }, rows: leaseRows, columns: ['name', 'user', 'mode', 'field', 'since', 'connection'], footer: countFooter(state.count, 'person', notes, 'people') })
+          return
+        }
+        c.print({ data: { table, pk: pk ?? null, count: state.count, connections, viewers: rows }, rows, columns: ['name', 'user', 'mode', 'field', 'connections'], footer: countFooter(state.count, 'person', notes, 'people') })
         return
       }
       let last = ''
       const handle = await collaboration.joinPresence(scope, {
         announce: Boolean(options.watch),
+        perConnection: options.perConnection,
         mode: options.editing ? 'EDITING' : 'VIEWING',
         fieldName: typeof options.editing === 'string' ? options.editing : undefined,
         onChange: (state) => {
-          const key = JSON.stringify([state.people.map((p) => [p.userId, p.mode, p.fieldName]), state.error, state.live])
+          const key = JSON.stringify([state.people.map((p) => [p.userId, p.mode, p.fieldName, p.connections, p.leases?.map((l) => [l.connectionId, l.mode, l.fieldName])]), state.error, state.live])
           if (key !== last) {
             last = key
             emit(state)

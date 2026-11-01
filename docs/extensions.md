@@ -17,7 +17,7 @@ Versions merged on 2026-10-31 (machine-readable copy: `packages/ui-api-client/op
 | health | 1.1.0 | `/health` | 4 | qqq `develop` 6ac64fc66 (qqq-middleware-javalin) | 1.1.0 (same) |
 | alerts | 1.2.0 | `/alerts` | 6 | qbit-alerts `develop` a3fc6ac | |
 | assistant | 1.6.0 | `/assistant` | 16 | qbit-assistant `develop` bcf173f | |
-| collaboration | 1.1.0 | `/qbit/collaboration` | 45 | qbit-collaboration `develop` 03407ae | 1.1.0 (presence schemas, error contract) |
+| collaboration | 1.2.0 | `/qbit/collaboration` | 45 | qbit-collaboration `feat/per-session-presence` 0ae1e62 (local worktree `.worktrees/qbit-collab-sessions`, not yet on `develop`) | 1.1.0 (presence schemas, error contract); 1.2.0 adds per-connection presence (`connections`, `leaseCount`, `perConnection`), used when present |
 | data-analysis | 1.5.0 | `/qbit/data-analysis` | 21 | qbit-data-analysis `develop` 368d2c0 | |
 | db-performance | 1.0.0 | `/qbit/db-performance` | 4 | qbit-db-performance `develop` 4fd2c30 | |
 | edi | 1.1.0 | `/qbit/edi` | 4 | qbit-edi `develop` 75a4e6b | |

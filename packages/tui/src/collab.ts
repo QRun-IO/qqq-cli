@@ -210,10 +210,10 @@ export class RecordCollaboration {
 }
 
 /** Who is on the record (the actions entry): everyone the server reports, this user marked "(you)". */
-export function viewingText(everyone: Array<{ name: string; self?: boolean }> | undefined): string {
+export function viewingText(everyone: Array<{ name: string; self?: boolean; connections?: number }> | undefined): string {
   if (!everyone) return 'Viewing now: …'
   if (!everyone.length) return 'Viewing now: no one else'
-  const names = everyone.map((p) => (p.self ? `${p.name} (you)` : p.name))
+  const names = everyone.map((p) => `${p.name}${p.connections && p.connections > 1 ? ` ×${p.connections}` : ''}${p.self ? ' (you)' : ''}`)
   const others = everyone.filter((p) => !p.self).length
   return `Viewing now: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` +${names.length - 3}` : ''}${others ? ` · ${others} other${others === 1 ? '' : 's'}` : ''}`
 }

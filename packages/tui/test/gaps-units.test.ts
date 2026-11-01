@@ -243,6 +243,7 @@ test('collaboration: who is viewing (this user marked) and comment lines', () =>
   expect(viewingText([{ name: 'Admin', self: true }])).toBe('Viewing now: Admin (you)')
   expect(viewingText([{ name: 'Tester', self: true }, { name: 'Pat Smith' }])).toBe('Viewing now: Tester (you), Pat Smith · 1 other')
   expect(viewingText(undefined)).toBe('Viewing now: …')
+  expect(viewingText([{ name: 'Admin', self: true, connections: 2 }, { name: 'Pat Smith', connections: 1 }])).toBe('Viewing now: Admin ×2 (you), Pat Smith · 1 other')
   expect(commentLines({ authorDisplayName: 'Pat', body: 'hi @[Lee](user:7)', createdAt: undefined, replies: [{ authorDisplayName: 'Lee', body: 'ok' }] }, () => 'now')).toEqual(['Pat · now: hi @Lee', '    ↳ Lee · now: ok'])
 })
 

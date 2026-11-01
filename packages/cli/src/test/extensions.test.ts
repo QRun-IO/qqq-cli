@@ -41,4 +41,5 @@ test('presence lines say who is there and since when', () => {
   assert.equal(presenceLine({ available: true, scope: { table: 'person', pk: '1' }, count: 0, people: [], live: true }), 'nobody on person 1')
   assert.equal(presenceLine({ available: true, scope: { table: 'person' }, count: 2, people: [{ userId: 'a', name: 'Alice', mode: 'VIEWING', since }, { userId: 'b', name: 'Bob', mode: 'EDITING', fieldName: 'email', since }], live: true }), '2 on person: Alice (viewing since 17:50:01), Bob (editing email since 17:50:01)')
   assert.match(presenceLine({ available: false, scope: { table: 'person' }, count: 0, people: [], live: false }), /not installed/)
+  assert.equal(presenceLine({ available: true, scope: { table: 'person', pk: '1' }, count: 1, connections: 2, people: [{ userId: 'admin', name: 'Admin', mode: 'VIEWING', since, connections: 2 }], live: true }), '1 on person 1 (2 connections): Admin ×2 (viewing since 17:50:01)')
 })

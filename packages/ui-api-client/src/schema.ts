@@ -8936,9 +8936,14 @@ export interface components {
             pk?: string | null;
             /** @description Parent table name. */
             table?: string;
+            /** @description Live viewers; always present, empty once the last viewer leaves. */
             viewers?: components["schemas"]["CollaborationPresenceViewerV1"][];
+            /** @description Live connections (leases) behind viewers; a user with two terminals counts twice. Since 1.2.0. */
+            leaseCount?: number | null;
+            /** @description One viewer per live connection, with connectionId and since. On GET only with perConnection=true; always on presence.changed. Since 1.2.0. */
+            leases?: components["schemas"]["CollaborationPresenceViewerV1"][] | null;
         };
-        /** @description One user merged across live tabs; EDITING takes precedence. */
+        /** @description One user merged across live tabs (EDITING takes precedence), or one live connection in leases. */
         CollaborationPresenceViewerV1: {
             /** @description Session display name. */
             displayName?: string;
@@ -8951,6 +8956,17 @@ export interface components {
             mode?: "VIEWING" | "EDITING";
             /** @description Stable user identity. */
             userId?: string;
+            /** @description Opaque per-connection id, only in leases: c + the first 16 hex digits of SHA-256(userId + newline + connectionId). Since 1.2.0. */
+            connectionId?: string | null;
+            /** @description Live connections (tabs, terminals) merged into this viewer; 1 in leases. Since 1.2.0. */
+            connections?: number | null;
+            /** @description Opaque id of the signed-in session behind this connection, only in leases (HMAC of the server session; never the session itself). Since 1.2.0. */
+            sessionId?: string | null;
+            /**
+             * Format: date-time
+             * @description When this connection's lease started (ISO-8601), only in leases. Since 1.2.0.
+             */
+            since?: string | null;
         };
         /** @description Most recent visible targets, at most fifty. */
         CollaborationRecentListV1: {
@@ -19478,6 +19494,8 @@ export interface operations {
                 table: string;
                 /** @description Parent record primary key. */
                 pk?: string;
+                /** @description Also return one viewer per live connection (lease) in leases; default false. Since collaboration 1.2.0. */
+                perConnection?: boolean;
             };
             header?: never;
             path?: never;

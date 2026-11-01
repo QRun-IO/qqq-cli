@@ -73,7 +73,7 @@
       },
       {
         "name": "collaboration",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "description": "Record collaboration: favorites, recents, attachments, tags, conversations, following, timeline, people and presence",
         "pathPrefix": "/qbit/collaboration",
         "operations": [
@@ -13971,6 +13971,15 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Also return one viewer per live connection (lease) in leases; default false. Since collaboration 1.2.0.",
+            "in": "query",
+            "name": "perConnection",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -41284,13 +41293,28 @@
             "items": {
               "$ref": "#/components/schemas/CollaborationPresenceViewerV1"
             },
+            "type": "array",
+            "description": "Live viewers; always present, empty once the last viewer leaves.",
+            "nullable": false
+          },
+          "leaseCount": {
+            "description": "Live connections (leases) behind viewers; a user with two terminals counts twice. Since 1.2.0.",
+            "nullable": true,
+            "type": "integer"
+          },
+          "leases": {
+            "description": "One viewer per live connection, with connectionId and since. On GET only with perConnection=true; always on presence.changed. Since 1.2.0.",
+            "items": {
+              "$ref": "#/components/schemas/CollaborationPresenceViewerV1"
+            },
+            "nullable": true,
             "type": "array"
           }
         },
         "type": "object"
       },
       "CollaborationPresenceViewerV1": {
-        "description": "One user merged across live tabs; EDITING takes precedence.",
+        "description": "One user merged across live tabs (EDITING takes precedence), or one live connection in leases.",
         "properties": {
           "displayName": {
             "description": "Session display name.",
@@ -41314,6 +41338,27 @@
           "userId": {
             "description": "Stable user identity.",
             "nullable": false,
+            "type": "string"
+          },
+          "connectionId": {
+            "description": "Opaque per-connection id, only in leases: c + the first 16 hex digits of SHA-256(userId + newline + connectionId). Since 1.2.0.",
+            "nullable": true,
+            "type": "string"
+          },
+          "connections": {
+            "description": "Live connections (tabs, terminals) merged into this viewer; 1 in leases. Since 1.2.0.",
+            "nullable": true,
+            "type": "integer"
+          },
+          "sessionId": {
+            "description": "Opaque id of the signed-in session behind this connection, only in leases (HMAC of the server session; never the session itself). Since 1.2.0.",
+            "nullable": true,
+            "type": "string"
+          },
+          "since": {
+            "description": "When this connection's lease started (ISO-8601), only in leases. Since 1.2.0.",
+            "format": "date-time",
+            "nullable": true,
             "type": "string"
           }
         },

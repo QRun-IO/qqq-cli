@@ -12,7 +12,7 @@
 
 import type { TagEntry } from '@qrun-io/qqq-core'
 import type { CollabSummary } from '../collab'
-import type { PresencePerson } from '../presence'
+import { timesText, type PresencePerson } from '../presence'
 import { ago } from '../servers'
 import { KEY_SEP, cellWidth, pad, trunc } from '../util/text'
 
@@ -77,7 +77,7 @@ export function tagsText(tags: TagEntry[] | undefined): string {
 }
 
 /** What a person is doing on the record: "editing email", "editing", "viewing". */
-export function personState(p: PresencePerson): string {
+export function personState(p: Pick<PresencePerson, 'mode' | 'fieldName'>): string {
   return /edit/i.test(p.mode ?? '') ? `editing${p.fieldName ? ` ${p.fieldName}` : ''}` : 'viewing'
 }
 
@@ -92,11 +92,11 @@ function viewingParts(state: CollabState): StripPart[] {
   const others = othersOf(state)
   // others (with what they do) take the place of "(you)": the strip is about who else is here
   if (others.length) {
-    const named = others.slice(0, 2).map((p) => `${p.name} (${personState(p)})`).join(', ')
+    const named = others.slice(0, 2).map((p) => `${p.name}${timesText(p)} (${personState(p)})`).join(', ')
     return [{ text: 'viewing: ' }, { text: named + (others.length > 2 ? ` +${others.length - 2}` : ''), em: true }]
   }
   const self = everyone.find((p) => p.self)
-  return [{ text: 'viewing: ' }, { text: self ? self.name : 'you', em: true }, ...(self ? [{ text: ' (you)' }] : [])]
+  return [{ text: 'viewing: ' }, { text: self ? `${self.name}${timesText(self)}` : 'you', em: true }, ...(self ? [{ text: ' (you)' }] : [])]
 }
 
 const count = (n: number | undefined, one: string, many = `${one}s`): StripPart[] => [{ text: n === undefined ? '…' : String(n), em: true }, { text: ` ${n === 1 ? one : many}` }]
@@ -193,8 +193,19 @@ export function panelRows(state: CollabState, width: number, height: number, now
   else if (!everyone.length) add('  no one else', 'dim', 'viewing')
   // others first, with what they are doing; this user last
   const people: Array<PresencePerson & { self?: boolean }> = [...othersOf(state), ...(everyone ?? []).filter((x) => x.self)]
-  for (const p of people) add(`  ${p.name}${p.self ? ' (you)' : ''} · ${personState(p)}`, p.self ? 'fg' : 'accent', 'viewing')
+  for (const p of people) {
+    add(`  ${p.name}${timesText(p)}${p.self ? ' (you)' : ''} · ${personState(p)}`, p.self ? 'fg' : 'accent', 'viewing')
+    // with more than one terminal, what each does (this one first)
+    const terminals = p.terminals && p.terminals.length > 1 ? [...p.terminals].sort((a, b) => Number(Boolean(b.self)) - Number(Boolean(a.self))) : []
+    terminals.forEach((x, i) => add(`    ${x.self ? 'this terminal' : `#${i + 1}`} · ${personState(x)}${x.since ? ` · ${hhmm(x.since)}` : ''}`, 'dim', 'viewing'))
+  }
   return rows.slice(0, Math.max(0, height))
+}
+
+/** A lease start as local "17:50". */
+function hhmm(iso: string): string {
+  const at = new Date(iso)
+  return Number.isNaN(at.getTime()) ? iso : at.toTimeString().slice(0, 5)
 }
 
 /** A due date as "3 Nov" (and the year when it is not this one). */
