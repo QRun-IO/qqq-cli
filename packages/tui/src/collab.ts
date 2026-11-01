@@ -1,0 +1,195 @@
+/*
+ * Copyright 2026 QRun.IO, Inc.
+ * Licensed under the Apache License, Version 2.0 (see LICENSE).
+ */
+
+/**
+ * One record's collaboration (the collaboration extension): comments, following, attachments,
+ * the timeline, tasks and share previews. Comments, following and people go through the kernel's
+ * Collaboration module; the rest are the extension's operations by id, as the CLI's generated
+ * `collab` subcommands call them.
+ */
+
+import { basename } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { Collaboration, type CommentEntry, type ExtensionRegistry, type FollowState, type PersonEntry } from '@qrun-io/qqq-core'
+import type { CallInput, CallResult } from '@qrun-io/qqq-core'
+
+type J = Record<string, unknown>
+
+export interface AttachmentEntry {
+  id?: number
+  fileName?: string
+  contentType?: string
+  sizeBytes?: number
+  description?: string | null
+  createDate?: string
+  createdByDisplayName?: string
+  canDelete?: boolean
+}
+
+export interface TimelineEntry {
+  kind?: string
+  id?: number
+  at?: string
+  actorName?: string
+  summary?: string
+  details?: Array<{ message?: string; fieldName?: string; oldValue?: unknown; newValue?: unknown }>
+}
+
+export interface TaskEntry {
+  id?: number
+  title?: string
+  status?: string
+  dueAt?: string | null
+  notes?: string | null
+  assigneeDisplayName?: string | null
+  completedAt?: string | null
+}
+
+export interface ShareRecipient {
+  userId?: string
+  displayName?: string
+  canRead?: boolean
+}
+
+/** A summary for the record header: counts and the follow state (undefined parts are still loading or failed). */
+export interface CollabSummary {
+  comments?: number
+  attachments?: number
+  tasks?: number
+  following?: boolean
+}
+
+export interface CollabClient {
+  call(id: string, input?: CallInput): Promise<CallResult>
+  fetch: typeof fetch
+  server: string
+}
+
+export class RecordCollaboration {
+  readonly kernel: Collaboration
+
+  constructor(registry: ExtensionRegistry, private client: CollabClient, readonly table: string, readonly pk: string) {
+    this.kernel = new Collaboration(registry, { call: (id, input) => client.call(id, input) })
+  }
+
+  get available(): boolean {
+    return this.kernel.available
+  }
+
+  private get path() {
+    return { table: this.table, pk: this.pk }
+  }
+
+  private async data<T>(id: string, input: CallInput = {}): Promise<T> {
+    return (await this.client.call(id, input)).data as T
+  }
+
+  comments(): Promise<CommentEntry[]> {
+    return this.kernel.comments(this.table, this.pk, { limit: 50 }).then((p) => p.threads)
+  }
+
+  addComment(body: string, parentCommentId?: number): Promise<CommentEntry> {
+    return this.kernel.addComment(this.table, this.pk, body, parentCommentId === undefined ? {} : { parentCommentId })
+  }
+
+  followState(): Promise<FollowState> {
+    return this.kernel.followState(this.table, this.pk)
+  }
+
+  /** Follows when not following, stops when following; returns the new state. */
+  async toggleFollow(following: boolean): Promise<FollowState> {
+    return following ? this.kernel.unfollow(this.table, this.pk) : this.kernel.follow(this.table, this.pk, { notifyOnChange: true, notifyOnComment: true })
+  }
+
+  async attachments(): Promise<AttachmentEntry[]> {
+    return (await this.data<{ items?: AttachmentEntry[] }>('getQbitCollaborationRecordsByTableByPkAttachments', { path: this.path, query: { limit: '100' } })).items ?? []
+  }
+
+  /** An attachment's bytes: the server hands out a temporary URL; credentials go only to the server itself. */
+  async download(id: number): Promise<{ bytes: Uint8Array; url: string }> {
+    const link = await this.data<{ url?: string }>('getQbitCollaborationAttachmentsByIdDownload', { path: { id: String(id) } })
+    if (!link.url) throw new Error('the server gave no download address for this attachment')
+    const url = new URL(link.url, this.client.server)
+    const own = url.origin === new URL(this.client.server).origin
+    const response = await (own ? this.client.fetch : fetch)(url.toString())
+    if (!response.ok) throw new Error(`downloading the attachment answered ${response.status}`)
+    return { bytes: new Uint8Array(await response.arrayBuffer()), url: url.toString() }
+  }
+
+  /** Uploads a file from disk as an attachment of the record. */
+  async upload(file: string, description?: string): Promise<AttachmentEntry> {
+    const bytes = readFileSync(file)
+    const form: Record<string, string | Blob> = { file: new File([bytes], basename(file)) }
+    if (description) form.description = description
+    return this.data<AttachmentEntry>('postQbitCollaborationRecordsByTableByPkAttachments', { path: this.path, form })
+  }
+
+  async deleteAttachment(id: number): Promise<void> {
+    await this.client.call('deleteQbitCollaborationAttachmentsById', { path: { id: String(id) } })
+  }
+
+  async timeline(): Promise<TimelineEntry[]> {
+    return (await this.data<{ items?: TimelineEntry[] }>('getQbitCollaborationRecordsByTableByPkTimeline', { path: this.path, query: { limit: '100' } })).items ?? []
+  }
+
+  async tasks(includeDone = true): Promise<TaskEntry[]> {
+    return (await this.data<{ items?: TaskEntry[] }>('getQbitCollaborationRecordsByTableByPkTasks', { path: this.path, query: { includeDone: String(includeDone), limit: '100' } })).items ?? []
+  }
+
+  addTask(title: string, dueAt?: string): Promise<TaskEntry> {
+    return this.data<TaskEntry>('postQbitCollaborationRecordsByTableByPkTasks', { path: this.path, json: { title, ...(dueAt ? { dueAt } : {}) } })
+  }
+
+  setTaskStatus(id: number, status: string): Promise<TaskEntry> {
+    return this.data<TaskEntry>('patchQbitCollaborationTasksById', { path: { id: String(id) }, json: { status } })
+  }
+
+  people(q: string): Promise<PersonEntry[]> {
+    return this.kernel.people(q || undefined, 25)
+  }
+
+  /** Who of these people could read the record if it were shared with them. */
+  async sharePreview(userIds: string[]): Promise<ShareRecipient[]> {
+    return (await this.data<{ recipients?: ShareRecipient[] }>('postQbitCollaborationRecordsByTableByPkSharesPreview', { path: this.path, json: { toUserIds: userIds } })).recipients ?? []
+  }
+
+  async share(userIds: string[], message?: string): Promise<J> {
+    return this.data<J>('postQbitCollaborationRecordsByTableByPkShares', { path: this.path, json: { toUserIds: userIds, ...(message ? { message } : {}) } })
+  }
+
+  /** Counts and follow state for the record header; each part fails on its own. */
+  async summary(): Promise<CollabSummary> {
+    const [comments, attachments, tasks, follow] = await Promise.allSettled([this.comments(), this.attachments(), this.tasks(false), this.followState()])
+    return {
+      comments: comments.status === 'fulfilled' ? comments.value.length : undefined,
+      attachments: attachments.status === 'fulfilled' ? attachments.value.length : undefined,
+      tasks: tasks.status === 'fulfilled' ? tasks.value.length : undefined,
+      following: follow.status === 'fulfilled' ? follow.value.following : undefined,
+    }
+  }
+}
+
+/** Who is on the record, for the header: everyone the server reports, this user marked "(you)". */
+export function viewingText(everyone: Array<{ name: string; self?: boolean }> | undefined): string {
+  if (!everyone) return 'Viewing now: …'
+  if (!everyone.length) return 'Viewing now: no one else'
+  const names = everyone.map((p) => (p.self ? `${p.name} (you)` : p.name))
+  const others = everyone.filter((p) => !p.self).length
+  return `Viewing now: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` +${names.length - 3}` : ''}${others ? ` · ${others} other${others === 1 ? '' : 's'}` : ''}`
+}
+
+/** The record header line: counts and the follow state, each with its key. */
+export function summaryText(s: CollabSummary | undefined): string {
+  const n = (v: number | undefined) => (v === undefined ? '…' : String(v))
+  const follow = s?.following === undefined ? 'following …' : s.following ? 'following' : 'not following'
+  return `Comments ${n(s?.comments)} (C) · Attachments ${n(s?.attachments)} (P) · Tasks ${n(s?.tasks)} (K) · Timeline (T) · ${follow} (W)`
+}
+
+/** One comment thread as lines (the comment, then its replies indented). */
+export function commentLines(c: CommentEntry, when: (iso: string | undefined) => string): string[] {
+  const head = (x: CommentEntry) => `${x.authorDisplayName ?? x.authorUserId ?? 'someone'} · ${when(x.createdAt)}${x.editedAt ? ' (edited)' : ''}${(x as { resolved?: boolean }).resolved ? ' · resolved' : ''}`
+  const body = (x: CommentEntry) => (x.deleted ? '(deleted)' : String(x.body ?? '').replace(/@\[([^\]]+)\]\(user:[^)]+\)/g, '@$1'))
+  return [`${head(c)}: ${body(c)}`, ...(c.replies ?? []).map((r) => `    ↳ ${head(r)}: ${body(r)}`)]
+}

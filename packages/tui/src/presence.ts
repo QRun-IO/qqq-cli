@@ -20,8 +20,11 @@ export interface PresencePerson {
 }
 
 export interface Presence {
+  /** Others on the scope (this user not counted). */
   count: number
   people: PresencePerson[]
+  /** Everyone on the scope as the server reports it, this user included (the record header lists them). */
+  everyone?: Array<PresencePerson & { self?: boolean }>
 }
 
 export interface PresenceSource {
@@ -89,8 +92,9 @@ export function collaborationPresence(registry: ExtensionRegistry, client: TuiCl
       current = entry
       collab.joinPresence(kind === 'record' ? { table, pk: pk.join(':') } : { table }, {
         onChange: (state) => {
-          const people = state.people.filter((p) => p.name !== selfName).map((p) => ({ name: p.name, since: p.since.toISOString() }))
-          entry.value = { count: people.length, people }
+          const everyone = state.people.map((p) => ({ name: p.name, since: p.since.toISOString(), self: p.name === selfName }))
+          const people = everyone.filter((p) => !p.self).map(({ name, since }) => ({ name, since }))
+          entry.value = { count: people.length, people, everyone }
           notify()
         },
       }).then((h) => { entry.handle = h }).catch(() => undefined)

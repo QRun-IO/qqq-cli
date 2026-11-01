@@ -10,6 +10,9 @@ import { WidgetView } from '../widget-view'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
+import { RecordCollaboration, summaryText, viewingText, type CollabSummary } from '../collab'
+import { CollabScreen, sharePreview, toggleFollow, uploadAttachment, type CollabView } from './collab'
+import { presenceSource } from '../presence'
 import { AuditScreen } from './audits'
 import { DeveloperScreen } from './developer'
 import type { FieldMetaData, SectionMetaData, TableMetaData } from '../client'
@@ -148,6 +151,7 @@ export class RecordScreen implements Screen {
       this.store.remember({ kind: 'record', table: this.tableName, key: this.primaryKey, label: record.recordLabel ?? String(this.primaryKey) })
       this.loadWidgets()
       this.loadTags()
+      this.loadCollab()
       this.build()
       this.store.bump()
     }).catch((e) => {
@@ -240,6 +244,7 @@ export class RecordScreen implements Screen {
       this.list.top = 0
       this.childOffsets.clear()
       this.tags = undefined
+      this.collabSummary = undefined
       this.widgets.clear()
       this.load()
     }))
@@ -279,6 +284,11 @@ export class RecordScreen implements Screen {
     rows.push({ text: `${rec.recordLabel ?? this.primaryKey}${this.cursor ? `   (${this.cursor.describe()})` : ''}`, fg: t.fg, bold: true })
     // the tags line is there for every record (collaboration), loaded or not, so nothing below moves
     if (this.store.extensions.has('collaboration')) rows.push({ text: `Tags: ${!this.tags ? '…' : this.tags.length ? this.tags.map((x) => x.label ?? x.name).join(' · ') : '(none)'}   t edits`, fg: t.acc2, key: 'tags', action: () => this.openTags() })
+    // comments, attachments, tasks, following and who else is here (collaboration); Enter offers them all
+    if (this.store.extensions.has('collaboration')) {
+      rows.push({ text: summaryText(this.collabSummary), fg: t.acc2, key: 'collab', action: () => this.collabMenu() })
+      rows.push({ text: viewingText(presenceSource().get(this.presenceScope()).everyone), fg: t.dim })
+    }
     const tables: Record<string, TableMetaLike | undefined> = Object.fromEntries([...this.childMeta].map(([k, v]) => [k, v as unknown as TableMetaLike]))
     this.groups = associationGroups(rec as never, meta as unknown as TableMetaLike, tables, { widgets: this.store.meta?.widgets as never, maxDepth: 3 })
     for (const item of planRecordLayout(orderedSections(meta), meta, this.groups, this.store.meta?.widgets as never, this.childMeta)) {
@@ -561,6 +571,83 @@ export class RecordScreen implements Screen {
     this.store.open(new TagOverlay(this.store, collab, this.tableName, this.primaryKey, (t) => { this.tags = t; this.build() }))
   }
 
+  /** Counts and follow state of the collaboration line (collaboration extension). */
+  collabSummary?: CollabSummary
+  private presenceOff?: () => void
+
+  /** The record's collaboration client (undefined without the extension or a key). */
+  collab(): RecordCollaboration | undefined {
+    const client = this.store.client
+    if (!client || !this.store.extensions.has('collaboration') || this.primaryKey === undefined) return undefined
+    return new RecordCollaboration(this.store.extensions.registry, client, this.tableName, this.primaryKey)
+  }
+
+  loadCollab(): void {
+    const c = this.collab()
+    if (!c) return
+    // who else is viewing comes from the presence source; the line redraws when it changes
+    this.presenceOff ??= presenceSource().subscribe(() => { this.build(); this.store.bump() })
+    const pk = this.primaryKey
+    c.summary().then((sum) => {
+      if (pk !== this.primaryKey) return
+      this.collabSummary = sum
+      this.build()
+      this.store.bump()
+    }).catch(() => undefined)
+  }
+
+  dispose(): void {
+    this.presenceOff?.()
+    this.presenceOff = undefined
+  }
+
+  /** The names of the others viewing this record (presence; this client is not counted). */
+  viewers(): string[] {
+    return presenceSource().get(this.presenceScope()).people.map((p) => p.name)
+  }
+
+  /** Opens comments, attachments, the timeline or tasks. */
+  openCollab(view: CollabView): void {
+    const c = this.collab()
+    if (!c) return this.store.flash(this.store.extensions.missing('collaboration'), 'error')
+    this.store.push(new CollabScreen(this.store, c, view, this.title(), () => this.loadCollab()))
+  }
+
+  toggleFollow(): void {
+    const c = this.collab()
+    if (!c) return this.store.flash(this.store.extensions.missing('collaboration'), 'error')
+    toggleFollow(this.store, c, Boolean(this.collabSummary?.following), (following) => {
+      this.collabSummary = { ...this.collabSummary, following }
+      this.build()
+    })
+  }
+
+  /** The collaboration entries (the record's actions, F9 and `a`); one disabled entry without the extension. */
+  collabEntries(): MenuEntry[] {
+    const c = this.collab()
+    if (!this.store.extensions.has('collaboration')) return [{ section: 'Context', label: 'Collaboration', disabled: 'needs the collaboration extension' }]
+    if (!c) return []
+    const sum = this.collabSummary
+    const viewers = this.viewers()
+    return [
+      { section: 'Context', label: `Comments${sum?.comments !== undefined ? ` (${sum.comments})` : ''}…`, key: 'C', run: () => this.openCollab('comments') },
+      { section: 'Context', label: 'Add a comment…', run: () => { this.openCollab('comments'); (this.store.screen as CollabScreen | undefined)?.add?.() } },
+      { section: 'Context', label: sum?.following ? 'Stop following this record' : 'Follow this record', key: 'W', detail: sum?.following ? 'following' : 'notifies you of changes and comments', run: () => this.toggleFollow() },
+      { section: 'Context', label: `Attachments${sum?.attachments !== undefined ? ` (${sum.attachments})` : ''}…`, key: 'P', run: () => this.openCollab('attachments') },
+      { section: 'Context', label: 'Upload an attachment…', run: () => uploadAttachment(this.store, c, () => { this.store.flash('uploaded'); this.loadCollab() }) },
+      { section: 'Context', label: 'Timeline…', key: 'T', detail: 'changes, comments and activity', run: () => this.openCollab('timeline') },
+      { section: 'Context', label: `Tasks${sum?.tasks !== undefined ? ` (${sum.tasks} open)` : ''}…`, key: 'K', run: () => this.openCollab('tasks') },
+      { section: 'Context', label: 'Share preview: who could read it…', detail: 'pick people, see who can read, then send', run: () => sharePreview(this.store, c, this.title()) },
+      { section: 'Context', label: viewingText(presenceSource().get(this.presenceScope()).everyone), run: () => this.store.message(viewers.length ? `Also viewing ${this.title()}:\n${viewers.join('\n')}` : `No one else is viewing ${this.title()}.`, 'info', 'Presence') },
+    ]
+  }
+
+  /** Enter on the collaboration line: its entries in a list. */
+  collabMenu(): void {
+    const entries = this.collabEntries().filter((e) => e.run)
+    this.store.open(new ChoiceOverlay<MenuEntry>(this.store, `Collaboration · ${this.title()}`, entries.map((e) => ({ label: e.label, value: e, detail: e.key ?? e.detail })), (e) => e.run?.()))
+  }
+
   openAudits(): void {
     if (this.primaryKey !== undefined) this.store.push(new AuditScreen(this.store, this.tableName, this.primaryKey, this.record?.recordLabel))
   }
@@ -612,6 +699,11 @@ export class RecordScreen implements Screen {
       case 'l': this.list.current?.action?.(); return true
       case 'A': this.openAudits(); return true
       case 't': if (collaborationOf(this.store)) { this.openTags(); return true } return false
+      case 'C': if (this.collab()) { this.openCollab('comments'); return true } return false
+      case 'P': if (this.collab()) { this.openCollab('attachments'); return true } return false
+      case 'T': if (this.collab()) { this.openCollab('timeline'); return true } return false
+      case 'K': if (this.collab()) { this.openCollab('tasks'); return true } return false
+      case 'W': if (this.collab()) { this.toggleFollow(); return true } return false
       case 'D': this.openDeveloper(); return true
       case 'Z': {
         const entry = this.shareEntry()[0]
@@ -671,6 +763,7 @@ export class RecordScreen implements Screen {
     }
     for (const p of this.recordProcesses()) out.push({ section: 'Context', label: `Run ${p.label} on this record`, run: () => openProcess(this.store, p.name, { recordIds: [String(this.primaryKey)] }) })
     if (this.store.extensions.has('collaboration')) out.push({ section: 'Context', label: 'Tags…', key: 't', command: 'tags', detail: this.tags?.map((x) => x.label).join(', '), run: () => this.openTags() })
+    out.push(...this.collabEntries())
     out.push({ section: 'Context', label: 'Audit history', key: 'A', command: 'audits', run: () => this.openAudits() })
     out.push({ section: 'Context', label: 'Developer: security, events, scripts, JSON, metadata, audits, APIs', key: 'D', command: 'dev', run: () => this.openDeveloper() })
     return out

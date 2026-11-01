@@ -209,7 +209,7 @@ export class ChoiceOverlay<T> implements Overlay {
   render(sw: number, sh: number) {
     const t = theme()
     const list = this.matches()
-    const width = Math.min(sw - 4, Math.max(40, Math.min(100, Math.max(...this.choices.map((c) => c.label.length + (c.detail ? c.detail.length + 4 : 0) + 6), this.title.length + 6))))
+    const width = Math.min(sw - 4, Math.max(40, Math.min(100, Math.max(...this.choices.map((c) => c.label.length + ((c.disabled ?? c.detail) ? (c.disabled ?? c.detail)!.length + 4 : 0) + 6), this.title.length + 6))))
     const rows = Math.max(3, Math.min(list.length, sh - 10))
     const top = Math.max(0, Math.min(this.index - Math.floor(rows / 2), list.length - rows))
     const shown = list.slice(top, top + rows)

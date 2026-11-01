@@ -6,6 +6,7 @@
 /** A fake UI API server for in-memory TUI tests: a person table with pets, a contingent address form, a process. */
 
 import { accRoute } from './fake-acc'
+import { collabRoute, fakeExtensions } from './fake-collab'
 import { bulkProcessesMeta, bulkRoute } from './fake-bulk'
 import { savedReportWidgets, shareRoute } from './fake-share'
 import { dashApp, dashWidgets, widgetRoute } from './fake-widgets'
@@ -142,7 +143,9 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown, au
     if (widget) return widget
     const sec = await secRoute(path, request.method)
     if (sec) return sec
-    if (path === '/version') return json({ apiVersion: '1.8.0', features: ['metaData', 'tables', 'processes'], extensions: [] })
+    const collab = await collabRoute(path, request.method, body)
+    if (collab) return collab
+    if (path === '/version') return json({ apiVersion: '1.8.0', features: ['metaData', 'tables', 'processes'], extensions: [...fakeExtensions] })
     if (path === '/metaData' && bigMeta) return json(bigMeta)
     if (path === '/metaData') {
       return json({
