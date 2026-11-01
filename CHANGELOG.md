@@ -198,6 +198,26 @@ candidate's, plus the changes since it listed first.
   its label, with the widget's columns (Next's binding: `manageAssociationName`, or the association's
   `joinName`).
 
+### Security
+
+Fixes for the 19 CodeQL alerts raised on the release pull request:
+
+- `qqq table edit` and `qqq developer` no longer build the editor's shell command from the file
+  name. A primary key holding shell syntax (such as `$(...)`) ran as a command when `$EDITOR` opened.
+  The path is now passed to the shell as `$1` (POSIX) or as a quoted variable (Windows), and the name
+  keeps only letters, digits and `._-`.
+- `qqq-dev-idp` end-session redirects only to a loopback `post_logout_redirect_uri`, rebuilt from its
+  parts, and answers 400 for any other one. Before, it showed the signed-out page instead.
+- Filter values escape backslashes as well as double quotes when printed or completed, and the
+  parser and tokenizers read `\\` and `\"` back. A value ending in a backslash no longer swallows its
+  closing quote.
+- HTML help and widget text is turned into terminal text in one linear pass. Entities are decoded
+  once, so `&amp;lt;` shows as `&lt;`, not `<`, and upload template names are decoded the same way.
+- Regular expressions that took quadratic time on long server- or user-supplied input are replaced
+  with linear scans: slash trimming in API paths, BLOB sizes, `${name}` interpolation and
+  `${input.x}` dependencies, filter error positions, and `tmux list-keys` parsing.
+- The release helper escapes every sed metacharacter in the version it puts into its notes command.
+
 ### Known limitations
 
 - Jobs need a durable-jobs server. Auth0 sign-in (CLI and UI) is built but has not met a real Auth0
