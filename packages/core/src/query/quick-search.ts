@@ -26,11 +26,11 @@ export function quickSearchFields(tableMeta: J, columns?: string[]): string[] {
   return names.filter((n) => fields[n] && QUICK_SEARCH_TYPES.has(String(fields[n]!.type)) && fields[n]!.isRestricted !== true && fields[n]!.hasReadAccess !== false)
 }
 
-/** CONTAINS on each field, ORed; undefined for a blank term or no fields. */
-export function quickSearchFilter(term: string, fieldNames: string[]): QueryFilter | undefined {
+/** CONTAINS on each field, ORed, case-insensitive (CASE_INSENSITIVE) unless asked; undefined for a blank term or no fields. */
+export function quickSearchFilter(term: string, fieldNames: string[], options: { caseSensitive?: boolean } = {}): QueryFilter | undefined {
   const text = term.trim()
   if (!text || !fieldNames.length) return undefined
-  return { criteria: fieldNames.map((fieldName) => ({ fieldName, operator: 'CONTAINS', values: [text] })), booleanOperator: 'OR' }
+  return { criteria: fieldNames.map((fieldName) => ({ fieldName, operator: 'CONTAINS', values: [text], ...(options.caseSensitive ? {} : { options: ['CASE_INSENSITIVE'] }) })), booleanOperator: 'OR' }
 }
 
 function isEmpty(filter: QueryFilter): boolean {

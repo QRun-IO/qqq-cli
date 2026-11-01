@@ -36,7 +36,7 @@ test('quick search ORs CONTAINS over visible string fields and ANDs it onto the 
   assert.deepEqual(quickSearchFields(person, ['id', 'email']), ['email'])
   assert.equal(quickSearchFilter('  ', ['email']), undefined)
   const quick = quickSearchFilter(' ann ', ['firstName', 'email'])!
-  assert.deepEqual(quick, { booleanOperator: 'OR', criteria: [{ fieldName: 'firstName', operator: 'CONTAINS', values: ['ann'] }, { fieldName: 'email', operator: 'CONTAINS', values: ['ann'] }] })
+  assert.deepEqual(quick, { booleanOperator: 'OR', criteria: [{ fieldName: 'firstName', operator: 'CONTAINS', values: ['ann'], options: ['CASE_INSENSITIVE'] }, { fieldName: 'email', operator: 'CONTAINS', values: ['ann'], options: ['CASE_INSENSITIVE'] }] })
   // an empty filter becomes the quick group, keeping the sort
   assert.deepEqual(combineWithQuickSearch({ criteria: [], booleanOperator: 'AND', orderBys: [{ fieldName: 'id', isAscending: false }] }, quick), { ...quick, orderBys: [{ fieldName: 'id', isAscending: false }] })
   const combined = combineWithQuickSearch({ criteria: [{ fieldName: 'salary', operator: 'GREATER_THAN', values: ['5'] }], booleanOperator: 'OR', limit: 10 }, quick)

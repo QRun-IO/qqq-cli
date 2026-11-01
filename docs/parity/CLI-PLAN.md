@@ -21,7 +21,7 @@ Status column: **plan** = what the row becomes; **done** once the STATUS source 
 |---|---|---|
 | PRC-029 Bulk edit, switched-on fields | `qqq table bulk-edit <t> -r ids\|-w … --set f=v --clear f`; kernel `bulkEditValues` sends `bulkEditEnabledFields`; review shown, `--yes` | done (pass) |
 | PRC-030 Bulk delete | `qqq table bulk-delete <t> -r ids\|-w …`: review, validation, result; asks unless `--yes` | done (pass) |
-| PRC-031 Bulk insert | `qqq table bulk-insert <t> --file x.csv [--mapping m.yaml] [-i]`: upload, mapping (server suggestion cleaned, finding 11), value mapping, review preview, result | done (pass) |
+| PRC-031 Bulk insert | `qqq table bulk-insert <t> --file x.csv [--mapping m.yaml] [-i]`: upload, mapping (server suggestion cleaned, finding 26), value mapping, review preview, result | done (pass) |
 | PRC-032 Mapping validation, Back | local mapping checks before submit (unmapped column, required without value, layout, key fields); `b` at a mapping or review prompt goes back (isStepBack) | done (pass) |
 | PRC-016 Back (moved here) | verified on bulk insert -i | done (pass) |
 | PRC-033 Bulk edit with a file by key fields | `qqq table bulk-edit <t> --file x.csv --key f[,g]` runs `bulkEditWithFile` | done (pass) |

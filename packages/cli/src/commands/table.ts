@@ -14,7 +14,7 @@ import { copyToClipboard, countFooter, defaultFields, editText, useColor, intOpt
 import { getRecord, showRecord } from './related.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
-interface QueryOptions { where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit?: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean; view?: string; reveal?: boolean }
+interface QueryOptions { caseSensitive?: boolean; where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit?: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean; view?: string; reveal?: boolean }
 
 /** The formats the export route writes. */
 const EXPORT_FORMATS = ['csv', 'xlsx', 'json', 'tsv']
@@ -46,12 +46,12 @@ function filterFrom(options: QueryOptions, meta: Json, columns?: string[], joins
   const knownFields = [...Object.keys((meta.fields ?? {}) as Json), ...joinFieldNames(joins)]
   // --where / --group values on DATE_TIME fields are local times (or dates: local midnight), sent as UTC instants; --filter-json is sent as given
   const filter = options.filterJson ? readJson(options.filterJson, '--filter-json') as QueryFilter
-    : filterDateTimesToUtc(buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields }), (meta.fields ?? {}) as Record<string, FieldMeta>)
+    : filterDateTimesToUtc(buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields, caseSensitive: options.caseSensitive }), (meta.fields ?? {}) as Record<string, FieldMeta>)
   if (options.search === undefined) return filter
   // quick search as the web UI does it: CONTAINS on each shown string field, ORed, ANDed onto the filter
   const fields = quickSearchFields(meta, columns)
   if (!fields.length) throw new UsageError(`--search: ${meta.label} has no text fields to search${columns ? ' among --fields' : ''}`)
-  return combineWithQuickSearch(filter, quickSearchFilter(options.search, fields))
+  return combineWithQuickSearch(filter, quickSearchFilter(options.search, fields, { caseSensitive: options.caseSensitive }))
 }
 
 /**
@@ -184,6 +184,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-w, --where <criteria...>', 'criteria, ANDed (or --or)')
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses, e.g. "(a = 1 AND b = 2) OR c IS_BLANK"')
     .option('--or', 'OR the --where criteria instead of AND')
+    .option('--case-sensitive', 'text matches (~, CONTAINS, STARTS_WITH, …, --search) match case; by default they ignore it (CASE_INSENSITIVE)')
     .option('-o, --order <field...>', 'order by fields; prefix - for descending')
     .option('-l, --limit <n>', 'most records to return (default: the view\'s page size, else 25)')
     .option('--skip <n>', 'records to skip')
@@ -317,6 +318,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-w, --where <criteria...>', 'criteria, ANDed (or --or)')
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
     .option('--or', 'OR the --where criteria')
+    .option('--case-sensitive', 'text matches (~, CONTAINS, STARTS_WITH, …, --search) match case; by default they ignore it (CASE_INSENSITIVE)')
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON')
     .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
     .option('-j, --join <table...>', 'join exposed joins (the field may be table.field)')
@@ -371,6 +373,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-w, --where <criteria...>', 'criteria, ANDed (or --or)')
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
     .option('--or', 'OR the --where criteria')
+    .option('--case-sensitive', 'text matches (~, CONTAINS, STARTS_WITH, …, --search) match case; by default they ignore it (CASE_INSENSITIVE)')
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON')
     .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
     .option('-j, --join <table...>', 'join exposed joins (by joined table name or label); joined fields are named table.field in --fields, --where and --order')
@@ -639,6 +642,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-w, --where <criteria...>', 'criteria, ANDed (or --or)')
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
     .option('--or', 'OR the --where criteria')
+    .option('--case-sensitive', 'text matches (~, CONTAINS, STARTS_WITH, …, --search) match case; by default they ignore it (CASE_INSENSITIVE)')
     .option('-o, --order <field...>', 'order by fields; prefix - for descending')
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON')
     .option('--format <fmt>', 'csv, xlsx, json or tsv (default: from the --out extension, else csv)')
