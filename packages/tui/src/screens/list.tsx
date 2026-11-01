@@ -5,6 +5,8 @@
 
 import type { ReactNode } from 'react'
 import type { Key } from '../keys'
+import type { ZoneHandlers } from '../mouse/registry'
+import { Zone } from '../mouse/zone'
 import { borderProps, theme } from '../theme'
 import type { StyledLine } from '../widgets'
 import { pad } from '../util/text'
@@ -61,6 +63,21 @@ export class ListModel {
     return true
   }
 
+  /** Mouse on row `at`: a click selects it (when it is selectable), a double-click runs it. */
+  rowMouse(at: number): ZoneHandlers {
+    const select = () => {
+      if (this.rows[at]?.action) this.cursor = at
+      return false
+    }
+    const run = () => {
+      const action = this.rows[at]?.action
+      if (!action) return false
+      this.cursor = at
+      action()
+    }
+    return { onClick: select, onRight: select, onDouble: run }
+  }
+
   /** Draws the visible rows. */
   view(width: number, height: number, focused: boolean): ReactNode {
     const t = theme()
@@ -70,9 +87,10 @@ export class ListModel {
     this.top = Math.max(0, Math.min(this.top, Math.max(0, this.rows.length - height)))
     const shown = this.rows.slice(this.top, this.top + height)
     const lines = shown.map((r, i) => {
-      const sel = this.top + i === this.cursor && Boolean(r.action)
+      const at = this.top + i
+      const sel = at === this.cursor && Boolean(r.action)
       const text = pad(r.text, width)
-      return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? (focused ? t.selFg : t.fg) : r.fg ?? t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : r.bg}>{r.bold ? <strong>{text}</strong> : text}</text>
+      return <Zone key={i} {...this.rowMouse(at)}><text flexShrink={0} wrapMode="none" fg={sel ? (focused ? t.selFg : t.fg) : r.fg ?? t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : r.bg}>{r.bold ? <strong>{text}</strong> : text}</text></Zone>
     })
     while (lines.length < height) lines.push(<text flexShrink={0} wrapMode="none" key={`pad${lines.length}`}>{pad('', width)}</text>)
     return <>{lines}</>

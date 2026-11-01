@@ -3,6 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
+import { SELECT_HINT } from '../mouse/settings'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
 import { structuredLines } from '../structured'
@@ -106,7 +107,7 @@ export class OutputScreen implements Screen {
     const shown = all.slice(this.top, this.top + this.height)
     const rows = shown.map((l, i) => <text flexShrink={0} wrapMode="none" key={i} fg={l.err ? t.err : l.fg ?? t.fg}>{l.bold ? <strong>{pad(l.text, width - 2)}</strong> : pad(l.text, width - 2)}</text>)
     while (rows.length < this.height) rows.push(<text flexShrink={0} wrapMode="none" key={`p${rows.length}`}>{pad('', width - 2)}</text>)
-    const status = this.running ? 'running…' : `exit ${this.code}${this.code === 0 ? '' : ' (see the message above)'} · ${all.length} lines${this.structured ? ` · J ${this.showRaw ? 'rows and tables' : 'raw JSON'}` : ''} · ↑↓ PgUp PgDn scroll · F5 again · Enter or Esc closes`
+    const status = this.running ? 'running…' : `exit ${this.code}${this.code === 0 ? '' : ' (see the message above)'} · ${all.length} lines${this.structured ? ` · J ${this.showRaw ? 'rows and tables' : 'raw JSON'}` : ''} · ↑↓ PgUp PgDn scroll · F5 again · Enter or Esc closes${this.store.settings.mouse ? ` · ${SELECT_HINT}` : ''}`
     return (
       <Panel title={`qqq ${this.command}`} width={width} height={height} focused={focused}>
         {rows}

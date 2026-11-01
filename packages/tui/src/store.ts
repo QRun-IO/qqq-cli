@@ -560,6 +560,18 @@ export class AppStore {
     this.bump()
   }
 
+  /** Presses a key as if typed (the mouse layer: a click does what its key does). */
+  readonly pressKey = (key: Key): void => this.handleKey(key)
+
+  /** Turns mouse tracking on or off in the terminal (set by main: the renderer's useMouse). */
+  applyMouse: (on: boolean) => void = () => undefined
+
+  setMouse(on: boolean): void {
+    this.settings.mouse = on
+    this.applyMouse(on)
+    this.bump()
+  }
+
   setAscii(ascii: boolean): void {
     this.settings.ascii = ascii
     setAscii(ascii)

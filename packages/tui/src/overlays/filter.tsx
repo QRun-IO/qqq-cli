@@ -31,6 +31,8 @@ import { ChoiceOverlay, ConfirmOverlay, EditorLine, PromptOverlay, overlayId, wr
 import { Frame, Line } from './frame'
 import { pickFilterDates } from '../controls/date-filter'
 import { dateSettingsFor } from '../controls/date-settings'
+import { tokenAt } from '../mouse/hit'
+import { Zone } from '../mouse/zone'
 
 type Sort = { field: string; asc: boolean } | undefined
 
@@ -1201,7 +1203,7 @@ export class FilterOverlay implements Overlay {
     const height = Math.min(sh - 3, 32)
     this.scheduleCount()
     const lines: React.ReactNode[] = []
-    const tabs = <text flexShrink={0} wrapMode="none" key="tabs"><span fg={this.mode === 'guided' ? t.selFg : t.fg} bg={this.mode === 'guided' ? t.selBg : undefined}>{' Guided '}</span><span fg={t.dim}>{` ${g.sep} `}</span><span fg={this.mode === 'advanced' ? t.selFg : t.fg} bg={this.mode === 'advanced' ? t.selBg : undefined}>{' Advanced '}</span><span fg={t.dim}>{pad('   F2 switches', inner - 21)}</span></text>
+    const tabs = <Zone key="tabs" onClick={(e) => { const tab = tokenAt(' Guided ' + ` ${g.sep} ` + ' Advanced ', e.x, [' Guided ', ' Advanced ']); if (tab && (tab === ' Guided ') !== (this.mode === 'guided')) this.onKey({ name: 'f2', sequence: '' }) }}><text flexShrink={0} wrapMode="none"><span fg={this.mode === 'guided' ? t.selFg : t.fg} bg={this.mode === 'guided' ? t.selBg : undefined}>{' Guided '}</span><span fg={t.dim}>{` ${g.sep} `}</span><span fg={this.mode === 'advanced' ? t.selFg : t.fg} bg={this.mode === 'advanced' ? t.selBg : undefined}>{' Advanced '}</span><span fg={t.dim}>{pad('   F2 switches', inner - 21)}</span></text></Zone>
     lines.push(tabs)
     let grammar = ''
     if (this.mode === 'guided') {
@@ -1213,6 +1215,13 @@ export class FilterOverlay implements Overlay {
       const wo = inner >= 96 ? 18 : 15
       rows.slice(top, top + body).forEach((r, i) => {
         const sel = top + i === this.row
+        // the mouse: a click puts the focus on this row (and the cell under it), a double-click is Enter
+        const select = (cell?: number) => {
+          if (this.editing && !sel) this.onKey({ name: 'return', sequence: '' })
+          this.row = top + i
+          if (cell !== undefined) this.cell = cell
+        }
+        const enter = () => this.onKey({ name: 'return', sequence: '' })
         const ptr = sel ? g.pointer : ' '
         const key = `r${top + i}`
         if (r.kind === 'cond') {
@@ -1240,12 +1249,15 @@ export class FilterOverlay implements Overlay {
             const vt = this.valueText(c)
             valueNode = <span fg={cellFg(2, vt === '(any)' ? t.dim : fg)} bg={cellBg(2)}>{pad(vt || (UNARY_OPERATORS.has(c.operator) ? '' : ' '), vw)}</span>
           }
-          lines.push(<text flexShrink={0} wrapMode="none" key={key}><span fg={sel ? t.acc : t.dim}>{head}</span><span fg={cellFg(0, fg)} bg={cellBg(0)}>{fieldCell}</span><span>{' '}</span><span fg={cellFg(1, fg)} bg={cellBg(1)}>{opCell}</span><span>{' '}</span>{valueNode}</text>)
+          const cellAt = (x: number) => (x < head.length + wf + 1 ? 0 : x < head.length + wf + wo + 2 ? 1 : 2)
+          lines.push(<Zone key={key} onClick={(e) => select(cellAt(e.x))} onDouble={(e) => { select(cellAt(e.x)); enter() }}><text flexShrink={0} wrapMode="none"><span fg={sel ? t.acc : t.dim}>{head}</span><span fg={cellFg(0, fg)} bg={cellBg(0)}>{fieldCell}</span><span>{' '}</span><span fg={cellFg(1, fg)} bg={cellBg(1)}>{opCell}</span><span>{' '}</span>{valueNode}</text></Zone>)
           return
         }
         if (r.kind === 'buttons') {
           const b = (label: string, n: number) => <span fg={sel && this.cell === n ? t.selFg : t.acc} bg={sel && this.cell === n ? t.selBg : undefined}>{`[ ${label} ]`}</span>
-          lines.push(<text flexShrink={0} wrapMode="none" key={key}><span fg={t.acc}>{`${ptr}           `}</span>{b('Apply', 0)}<span>{'  '}</span>{b('Cancel', 1)}<span>{' '.repeat(Math.max(0, inner - 12 - 21))}</span></text>)
+          // a button acts on a single click
+          const buttonAt = (x: number) => tokenAt(`${ptr}           [ Apply ]  [ Cancel ]`, x, ['[ Apply ]', '[ Cancel ]'])
+          lines.push(<Zone key={key} onClick={(e) => { const btn = buttonAt(e.x); if (!btn) return; select(btn === '[ Apply ]' ? 0 : 1); enter() }}><text flexShrink={0} wrapMode="none"><span fg={t.acc}>{`${ptr}           `}</span>{b('Apply', 0)}<span>{'  '}</span>{b('Cancel', 1)}<span>{' '.repeat(Math.max(0, inner - 12 - 21))}</span></text></Zone>)
           return
         }
         let text = ''
@@ -1271,7 +1283,7 @@ export class FilterOverlay implements Overlay {
           text = `${lead}${this.sort ? `sorted by ${this.field(this.sort.field)?.label ?? this.sort.field}, ${this.sort.asc ? 'ascending' : 'descending'}` : 'sorted in the default order'}`
           fg = t.dim
         }
-        lines.push(<text flexShrink={0} wrapMode="none" key={key} fg={sel ? t.selFg : fg} bg={sel ? t.selBg : undefined}>{pad(`${ptr}${text.slice(1)}`, inner)}</text>)
+        lines.push(<Zone key={key} onClick={() => select()} onDouble={() => { select(); enter() }}><text flexShrink={0} wrapMode="none" fg={sel ? t.selFg : fg} bg={sel ? t.selBg : undefined}>{pad(`${ptr}${text.slice(1)}`, inner)}</text></Zone>)
       })
       for (let i = Math.min(body, rows.length - top); i < body; i++) lines.push(<Line key={`p${i}`} text="" width={inner} />)
       grammar = printWithCase(this.current())

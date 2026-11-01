@@ -40,6 +40,19 @@ const MOVE: KeyRow[] = [
   ['Esc', 'back, cancel'],
 ]
 
+/** The mouse, shown after the screen's help while the mouse is on (F9 › Settings › Mouse). */
+export const MOUSE_KEYS: KeyGroup = {
+  title: 'Mouse (F9 › Settings › Mouse: off for plain text selection)',
+  keys: [
+    ['Click', 'select, focus, F-key'],
+    ['Double-click', 'open, run, fold'],
+    ['Right click', 'actions at the row'],
+    ['Wheel', '3 lines; Shift: columns'],
+    ['Drag grid header', 'resize, move column'],
+    ['Shift+drag', 'select text (Alt in some)'],
+  ],
+}
+
 /** Whether a key only works with single-key shortcuts on (a bare letter or symbol). */
 function singleKey(keys: string): boolean {
   const last = keys.trim().split(/\s+/).pop() ?? ''

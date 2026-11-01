@@ -3,6 +3,8 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 import { FormInputError, FormSession, ResultCursor, copyRecordValues, dateTimesToUtc, formatSize, helpEntryText, selectHelpContent, defaultTimeZone, isInstant, isMissingValue, utcToLocalInput, validateValue, type FieldMeta, type FieldValues } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { readFileSync } from 'node:fs'
@@ -366,11 +368,13 @@ export class FormEditor {
       const fieldHelp = idx === this.index ? helpEntryText(selectHelpContent(f.helpContents, ['INSERT_SCREEN', 'EDIT_SCREEN', 'WRITE_SCREENS', 'ALL_SCREENS'])) : ''
       const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : fieldHelp ? fieldHelp : idx === this.index ? (isFileField(f) ? 'Enter chooses a file · Backspace clears' : this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : ed instanceof DateEditor ? dateFieldHelp(ed) : hintFor(f)) : ''
       return (
-        <box key={name} flexDirection="row" height={1}>
+        <Zone key={name} {...pickRow(() => { if (idx !== this.index) this.move(idx - this.index) }, this.session.hasChoices(name) || isFileField(f) || f.type === 'BOOLEAN' ? () => this.onKey({ name: 'space', sequence: ' ' }) : undefined)}>
+        <box flexDirection="row" height={1}>
           <text flexShrink={0} wrapMode="none" fg={sel ? t.acc2 : disabled ? t.dim : t.fg}>{`${sel ? g.pointer : ' '}${bulk}${pad(f.label, labelWidth - 1)}${required} `}</text>
           {editor}
           <text flexShrink={0} wrapMode="none" fg={error ? t.err : t.dim}>{pad(msgWidth > 2 ? ' ' + trunc(msg, msgWidth - 1) : '', msgWidth + 1)}</text>
         </box>
+        </Zone>
       )
     })
     return (

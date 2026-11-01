@@ -4,8 +4,9 @@
  */
 
 /**
- * qqq ui: the terminal UI. Runs in the alternate screen with the mouse off; any crash restores the
- * terminal (renderer.destroy) before the stack trace is printed.
+ * qqq ui: the terminal UI. Runs in the alternate screen with mouse tracking on (SGR 1006; the Mouse
+ * setting or --no-mouse turns it off); any crash restores the terminal (renderer.destroy) before the
+ * stack trace is printed.
  */
 
 import { spawnSync } from 'node:child_process'
@@ -39,7 +40,10 @@ quietShutdownNoise()
 
 const renderer = await createCliRenderer({
   exitOnCtrlC: true,
-  useMouse: args.mouse,
+  // tracking starts once the store has read the saved Mouse setting (below); presses, drags and the
+  // wheel only (button-event tracking, SGR 1006): no motion events, so hovering does nothing
+  useMouse: false,
+  enableMouseMovement: false,
   screenMode: 'alternate-screen',
   openConsoleOnError: false,
   targetFps: 30,
@@ -73,6 +77,11 @@ process.on('unhandledRejection', (reason) => {
   if (destroyed && isShutdownNoise([reason])) return
   store.error(reason)
 })
+
+store.applyMouse = (on) => {
+  renderer.useMouse = on
+}
+store.applyMouse(store.settings.mouse)
 
 store.editExternal = async (text: string) => {
   const dir = mkdtempSync(join(tmpdir(), 'qqq-edit-'))

@@ -12,6 +12,8 @@ import type { Overlay } from '../types'
 import { errorText, pad } from '../util/text'
 import { EditorLine, overlayId } from './basic'
 import { Frame, Line } from './frame'
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 
 /** The collaboration client of the store's server (undefined without the extension). */
 export function collaborationOf(store: AppStore): Collaboration | undefined {
@@ -107,11 +109,11 @@ export class TagOverlay implements Overlay {
     return (
       <Frame title={`Tags · ${this.store.meta?.tables?.[this.table]?.label ?? this.table} ${this.pk}`} width={width} height={rows * 2 + 9} screenWidth={sw} screenHeight={sh}>
         <Line text={` On this record${this.focus === 'applied' ? '  (Delete or Enter removes)' : ''}`} width={inner} fg={t.acc} />
-        {this.applied.length ? this.applied.slice(0, rows).map((tag, i) => <box key={`a${i}`} height={1}>{line(`${tag.label ?? tag.name}${tag.color ? `  [${tag.color}]` : ''}`, this.focus === 'applied' && i === this.index)}</box>) : <Line text="  (no tags)" width={inner} fg={t.dim} />}
+        {this.applied.length ? this.applied.slice(0, rows).map((tag, i) => <Zone key={`a${i}`} {...pickRow(() => { this.focus = 'applied'; this.index = i }, () => this.onKey({ name: 'return', sequence: '' }))}><box height={1}>{line(`${tag.label ?? tag.name}${tag.color ? `  [${tag.color}]` : ''}`, this.focus === 'applied' && i === this.index)}</box></Zone>) : <Line text="  (no tags)" width={inner} fg={t.dim} />}
         {Array.from({ length: Math.max(0, rows - Math.max(1, this.applied.length)) }, (_, i) => <Line key={`pa${i}`} text="" width={inner} />)}
         <Line text={' Add a tag  (type to search; Enter adds)'} width={inner} fg={t.acc} />
         <box paddingLeft={1}><EditorLine editor={this.search} width={inner - 2} focused={this.focus === 'vocabulary'} placeholder="search or name a new tag" /></box>
-        {choices.slice(0, rows).map((c, i) => <box key={`v${i}`} height={1}>{line(c.label, this.focus === 'vocabulary' && i === this.index, c.create ? t.acc2 : t.fg)}</box>)}
+        {choices.slice(0, rows).map((c, i) => <Zone key={`v${i}`} {...pickRow(() => { this.focus = 'vocabulary'; this.index = i }, () => this.onKey({ name: 'return', sequence: '' }))}><box height={1}>{line(c.label, this.focus === 'vocabulary' && i === this.index, c.create ? t.acc2 : t.fg)}</box></Zone>)}
         {Array.from({ length: Math.max(0, rows - choices.length) }, (_, i) => <Line key={`pv${i}`} text="" width={inner} />)}
         <Line text={` ${this.message}`} width={inner} fg={/fail|cannot|denied|error|not /i.test(this.message) ? t.err : t.dim} />
         <Line text=" Tab switches lists · Esc back · renaming or deleting tags is not in the UI API" width={inner} fg={t.dim} />

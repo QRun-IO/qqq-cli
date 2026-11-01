@@ -15,6 +15,7 @@
 import { Collaboration, readRecents, readViewSettings, writeViewSettings, type RecentItem, type RenderBlock } from '@qrun-io/qqq-core'
 import type { AppTreeNode } from '../client'
 import type { Key } from '../keys'
+import { Zone } from '../mouse/zone'
 import { openApp, openForm, openProcess, openRecord, openTable } from '../nav'
 import { ChoiceOverlay } from '../overlays/basic'
 import type { AppStore } from '../store'
@@ -74,7 +75,8 @@ interface PanelModel {
   static?: StyledLine[]
 }
 
-type Seg = { text: string; fg?: string; bg?: string; bold?: boolean }
+/** A drawn piece of a line; `hit` is the panel item under it (the mouse). */
+type Seg = { text: string; fg?: string; bg?: string; bold?: boolean; hit?: { panel: number; item: number } }
 
 export class HomeScreen implements Screen {
   readonly kind = 'home'
@@ -328,7 +330,7 @@ export class HomeScreen implements Screen {
             const segs: Seg[] = row.map((it, k) => {
               const sel = isActive && r * per + k === activeIndex
               const text = pad(` ${it.card?.[li] ?? ''}`, cw - 1) + ' '
-              return { text, fg: sel ? t.selFg : li === 0 ? t.fg : t.dim, bg: sel ? t.selBg : undefined, bold: li === 0 }
+              return { text, fg: sel ? t.selFg : li === 0 ? t.fg : t.dim, bg: sel ? t.selBg : undefined, bold: li === 0, hit: { panel: panels.indexOf(p), item: r * per + k } }
             })
             const used = row.length * cw
             body([...segs, { text: ' '.repeat(Math.max(0, w - 2 - used)) }])
@@ -341,7 +343,7 @@ export class HomeScreen implements Screen {
           if (sel) activeRow = rows.length
           const detail = it.detail ? `  ${it.detail}` : ''
           const label = trunc(it.label, Math.max(4, w - 4 - detail.length))
-          body([{ text: pad(` ${label}${detail ? ' '.repeat(Math.max(1, w - 4 - label.length - detail.length)) + it.detail : ''}`, w - 2), fg: sel ? t.selFg : t.fg, bg: sel ? t.selBg : undefined }])
+          body([{ text: pad(` ${label}${detail ? ' '.repeat(Math.max(1, w - 4 - label.length - detail.length)) + it.detail : ''}`, w - 2), fg: sel ? t.selFg : t.fg, bg: sel ? t.selBg : undefined, hit: { panel: panels.indexOf(p), item: i } }])
         })
       }
       rows.push([{ text: `${g.border ? '+' : '└'}${h.repeat(Math.max(0, w - 2))}${g.border ? '+' : '┘'}`, fg: border }])
@@ -380,11 +382,29 @@ export class HomeScreen implements Screen {
       <box flexDirection="column" overflow="hidden" width={width} height={height} border borderColor={focused ? t.focusBorder : t.border} {...(g.border ? { customBorderChars: g.border } : {})} title={` ${brand} `}>
         {shown.map((segs, i) => {
           const used = segs.reduce((a, x) => a + x.text.length, 0)
+          // the mouse: the item under the pointer (segments laid end to end)
+          const hitAt = (x: number) => {
+            let at = 0
+            for (const seg of segs) {
+              if (x >= at && x < at + seg.text.length) return seg.hit
+              at += seg.text.length
+            }
+            return undefined
+          }
+          const select = (x: number) => {
+            const hit = hitAt(x)
+            if (!hit) return false
+            this.panelIndex = hit.panel
+            this.cursors.set(panels[hit.panel]!.id, hit.item)
+            return true
+          }
           return (
-            <text flexShrink={0} wrapMode="none" key={i}>
+            <Zone key={i} onClick={(e) => { select(e.x); return false }} onRight={(e) => { select(e.x); return false }} onDouble={(e) => (select(e.x) ? void this.onKey({ name: 'return', sequence: '' }) : false)}>
+            <text flexShrink={0} wrapMode="none">
               {segs.map((x, k) => <span key={k} fg={x.fg ?? t.fg} bg={x.bg}>{x.bold ? <strong>{x.text}</strong> : x.text}</span>)}
               <span>{' '.repeat(Math.max(0, inner - used))}</span>
             </text>
+            </Zone>
           )
         })}
       </box>

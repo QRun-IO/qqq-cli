@@ -17,6 +17,8 @@ import { openShareDialog, shareState } from '../overlays/share'
 import { TableDeveloperScreen } from './developer'
 import { canPrintTable, openPrintDialog, printUnavailable } from '../printing'
 import { GridViewSettingsOverlay } from '../overlays/view-settings'
+import { GridMouse } from '../mouse/grid'
+import { Zone } from '../mouse/zone'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
@@ -131,6 +133,7 @@ export class TableScreen implements Screen {
   variant?: TableVariant
   /** The column layout, frozen while paging, sorting, filtering and stepping. */
   private frozen?: { key: string; fromEmpty: boolean; cols: GridColumn[] }
+  private gridMouse?: GridMouse
 
   constructor(private store: AppStore, readonly tableName: string, filter?: QueryFilter, options: { index?: number } = {}) {
     this.id = `table:${tableName}:${Date.now()}`
@@ -759,8 +762,9 @@ export class TableScreen implements Screen {
       return c.numeric ? padLeft(label, c.width) : pad(label, c.width)
     }).join(' ')
     const lines: React.ReactNode[] = []
+    const mouse = (this.gridMouse ??= new GridMouse(this, this.store))
     lines.push(
-      <text flexShrink={0} wrapMode="none" key="h">
+      <Zone key="h" {...mouse.header(shown, cols)}><text flexShrink={0} wrapMode="none">
         {shown.map((c, i) => {
           const hot = cols.findIndex((x) => x.name === c.name) === this.colCursor
           const mark = this.sort?.field === c.name ? (this.sort.asc ? g.up : g.down) : ''
@@ -768,7 +772,7 @@ export class TableScreen implements Screen {
           return <span key={c.name} fg={hot && focused ? t.acc2 : t.acc}>{(i === 0 ? '  ' : ' ') + (c.numeric ? padLeft(label, c.width) : pad(label, c.width))}</span>
         })}
         <span>{' '.repeat(Math.max(0, inner - header.length))}</span>
-      </text>,
+      </text></Zone>,
     )
     if (headerRule) lines.push(<text flexShrink={0} wrapMode="none" key="r" fg={t.border}>{pad(g.rule.repeat(Math.min(inner, header.length)), inner)}</text>)
     const pk = this.meta?.primaryKeyField ?? 'id'
@@ -778,7 +782,7 @@ export class TableScreen implements Screen {
       const marked = this.selection.has(key)
       const text = (marked ? g.mark + ' ' : '  ') + shown.map((c) => (c.numeric ? padLeft(fieldCell(r, c), c.width) : pad(fieldCell(r, c), c.width))).join(' ')
       const bg = sel ? (focused ? t.selBg : t.selInactiveBg) : zebra && i % 2 === 1 ? t.zebraBg : undefined
-      lines.push(<text flexShrink={0} wrapMode="none" key={`r${i}`} fg={sel ? (focused ? t.selFg : t.fg) : marked ? t.markFg : t.fg} bg={bg}>{pad(text, inner)}</text>)
+      lines.push(<Zone key={`r${i}`} {...mouse.row(i, shown, cols)}><text flexShrink={0} wrapMode="none" fg={sel ? (focused ? t.selFg : t.fg) : marked ? t.markFg : t.fg} bg={bg}>{pad(text, inner)}</text></Zone>)
       if (comfortable) lines.push(<text flexShrink={0} wrapMode="none" key={`s${i}`}>{pad('', inner)}</text>)
     })
     const used = lines.length - 1 - (headerRule ? 1 : 0)

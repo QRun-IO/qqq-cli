@@ -4,6 +4,7 @@
  */
 
 import type { ReactNode } from 'react'
+import { DialogZone } from '../mouse/zone'
 import { glyphs, theme } from '../theme'
 
 /** A centred modal frame drawn over the screen. */
@@ -12,11 +13,13 @@ export function Frame(props: { title: string; width: number; height?: number; sc
   const left = Math.max(0, Math.floor((props.screenWidth - props.width) / 2))
   const top = props.top ?? Math.max(1, Math.floor((props.screenHeight - (props.height ?? 10)) / 3))
   return (
+    <DialogZone>
     <box position="absolute" overflow="hidden" left={left} top={top} width={props.width} {...(props.height ? { height: props.height } : {})} flexDirection="column"
       border borderStyle="double" borderColor={t.focusBorder} {...(glyphs().border ? { customBorderChars: glyphs().border } : {})}
       backgroundColor={t.overlayBg} title={` ${props.title} `} zIndex={20}>
       {props.children}
     </box>
+    </DialogZone>
   )
 }
 

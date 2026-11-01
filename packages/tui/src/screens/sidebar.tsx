@@ -7,6 +7,10 @@ import type { AppTreeNode } from '../client'
 import { isPrintable, type Key } from '../keys'
 import { LineEditor } from '../line-editor'
 import { EditorLine } from '../overlays/basic'
+import { treeHit } from '../mouse/hit'
+import { pickRow } from '../mouse/keys'
+import type { ZoneHandlers } from '../mouse/registry'
+import { Zone } from '../mouse/zone'
 import { openNode } from '../nav'
 import type { AppStore, SidebarLike } from '../store'
 import { glyphs, theme } from '../theme'
@@ -111,6 +115,29 @@ export class Sidebar implements SidebarLike {
     }
   }
 
+  /** Mouse on a tree line: a click selects (on the ▸ glyph it opens or closes the node), a double-click opens or closes a node with children and opens a leaf. */
+  nodeMouse(idx: number, f: FlatNode): ZoneHandlers {
+    const parent = Boolean(f.node.children?.length)
+    const toggle = () => {
+      if (f.expanded) this.expanded.delete(f.path)
+      else this.expanded.add(f.path)
+    }
+    return {
+      ...pickRow(() => { this.cursor = idx }),
+      onClick: (e) => {
+        this.cursor = idx
+        if (treeHit(e.x, f.depth, parent) === 'toggle') toggle()
+        return false
+      },
+      onDouble: (e) => {
+        this.cursor = idx
+        if (!parent) return void openNode(this.store, f.node)
+        // the first click of the pair already toggled when it landed on the glyph
+        if (treeHit(e.x, f.depth, parent) !== 'toggle') toggle()
+      },
+    }
+  }
+
   render(width: number, height: number, focused: boolean) {
     const t = theme()
     const g = glyphs()
@@ -122,7 +149,7 @@ export class Sidebar implements SidebarLike {
       const rows = list.slice(this.top, this.top + inner).map((e, i) => {
         const sel = this.top + i === this.cursor
         const mark = e.kind === 'process' ? g.process + ' ' : e.kind === 'report' ? g.report + ' ' : e.kind === 'app' ? g.app + ' ' : ''
-        return <text flexShrink={0} wrapMode="none" key={`${e.kind}:${e.name}`} fg={sel && focused ? t.selFg : t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{pad(` ${mark}${e.label}${e.path.length ? `  ${e.path[e.path.length - 1]}` : ''}`, width - 2)}</text>
+        return <Zone key={`${e.kind}:${e.name}`} {...pickRow(() => { this.cursor = this.top + i }, () => this.onKey({ name: 'return', sequence: '' }))}><text flexShrink={0} wrapMode="none" fg={sel && focused ? t.selFg : t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{pad(` ${mark}${e.label}${e.path.length ? `  ${e.path[e.path.length - 1]}` : ''}`, width - 2)}</text></Zone>
       })
       while (rows.length < inner) rows.push(<text flexShrink={0} wrapMode="none" key={`p${rows.length}`} fg={t.dim}>{pad(rows.length === 0 && !list.length ? ' (no match)' : '', width - 2)}</text>)
       return (
@@ -147,7 +174,7 @@ export class Sidebar implements SidebarLike {
       const denied = kind ? ((this.store.meta as Record<string, unknown> | undefined)?.[kind] as Record<string, { hasPermission?: boolean }> | undefined)?.[f.node.name]?.hasPermission === false : false
       const text = pad(' '.repeat(f.depth) + glyph + marker + f.node.label + (denied ? ' (no access)' : ''), width - 3) + (f.node.name === here ? '◂' : ' ')
       const sel = idx === this.cursor
-      return <text flexShrink={0} wrapMode="none" key={f.path} fg={sel && focused ? t.selFg : f.node.type === 'APP' ? t.fg : t.dim} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{text}</text>
+      return <Zone key={f.path} {...this.nodeMouse(idx, f)}><text flexShrink={0} wrapMode="none" fg={sel && focused ? t.selFg : f.node.type === 'APP' ? t.fg : t.dim} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{text}</text></Zone>
     })
     while (lines.length < inner) lines.push(<text flexShrink={0} wrapMode="none" key={`p${lines.length}`}>{pad('', width - 2)}</text>)
     return <Panel title={focused ? 'Apps · type to find' : 'Apps (Tab)'} width={width} height={height} focused={focused}>{lines}</Panel>

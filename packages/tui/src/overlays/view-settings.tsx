@@ -15,6 +15,8 @@ import { ChoiceOverlay, EditorLine, PromptOverlay, overlayId } from './basic'
 import { LineEditor } from '../line-editor'
 import { defaultColumns } from '../screens/table'
 import { Frame, Line } from './frame'
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 
 /**
  * How a grid is shown, saved per table in the local config file: which columns and in what order,
@@ -180,7 +182,7 @@ export class GridViewSettingsOverlay implements Overlay {
           const sel = it.idx === this.row
           if (it.heading) return <text flexShrink={0} wrapMode="none" key={it.idx} fg={t.acc}>{pad(` ${it.text}`, inner)}</text>
           const isOpt = it.idx >= this.order.length
-          return <text flexShrink={0} wrapMode="none" key={it.idx} fg={sel ? t.selFg : isOpt ? t.acc : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${it.text}`, inner)}</text>
+          return <Zone key={it.idx} {...pickRow(() => { this.row = it.idx }, () => this.onKey({ name: 'space', sequence: ' ' }))}><text flexShrink={0} wrapMode="none" fg={sel ? t.selFg : isOpt ? t.acc : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${it.text}`, inner)}</text></Zone>
         })}
         <Line text="" width={inner} />
         <Line text=" Space on/off · / search · Shift+↑↓ or +/- move · ←→ width · w width · a auto · * changed from the default" width={inner} fg={t.dim} />

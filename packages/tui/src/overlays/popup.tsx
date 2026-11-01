@@ -10,6 +10,8 @@
  */
 
 import type { Key } from '../keys'
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 import { glyphs, theme } from '../theme'
 import { pad, trunc } from '../util/text'
 
@@ -82,7 +84,7 @@ export class CompletionPopup {
 }
 
 /** The popup drawn as a bordered box at (left, top) inside its parent, `width` wide, up to `rows` items. */
-export function PopupBox(props: { popup: CompletionPopup; left: number; top: number; width: number; rows: number; title?: string }) {
+export function PopupBox(props: { popup: CompletionPopup; left: number; top: number; width: number; rows: number; title?: string; insert?: () => void }) {
   const t = theme()
   const g = glyphs()
   const list = props.popup.matches()
@@ -90,18 +92,28 @@ export function PopupBox(props: { popup: CompletionPopup; left: number; top: num
   const inner = props.width - 2
   const lines = props.popup.window(rows)
   const title = props.title ?? `${list.length} match${list.length === 1 ? '' : 'es'}${props.popup.filter ? ` · ${props.popup.filter}` : ''}`
+  const n = list.length
+  // the mouse: the wheel moves the choice, a click selects a line, a double-click inserts it
   return (
+    <Zone onClick={() => undefined} onWheel={(e) => {
+      if (e.direction !== 'up' && e.direction !== 'down') return false
+      props.popup.cursor = Math.max(0, Math.min(n - 1, props.popup.cursor + (e.direction === 'up' ? -e.lines : e.lines)))
+    }}>
     <box position="absolute" left={props.left} top={props.top} width={props.width} height={rows + 2} flexDirection="column" overflow="hidden" border borderStyle="single"
       borderColor={t.focusBorder} {...(g.border ? { customBorderChars: g.border } : {})} backgroundColor={t.overlayBg} title={trunc(` ${title} `, Math.max(0, props.width - 4))} zIndex={40}>
       {lines.length ? lines.map(({ item, selected }, i) => {
         const { label, detail } = CompletionPopup.line(item, inner)
+        const at = props.popup.top + i
         return (
-          <text key={i} flexShrink={0} wrapMode="none" bg={selected ? t.selBg : t.overlayBg}>
+          <Zone key={i} {...pickRow(() => { props.popup.cursor = at }, props.insert)}>
+          <text flexShrink={0} wrapMode="none" bg={selected ? t.selBg : t.overlayBg}>
             <span fg={selected ? t.selFg : t.fg} bg={selected ? t.selBg : t.overlayBg}>{label}</span>
             <span fg={selected ? t.selFg : t.dim} bg={selected ? t.selBg : t.overlayBg}>{pad(detail, inner - label.length)}</span>
           </text>
+          </Zone>
         )
       }) : <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(' (nothing fits here)', inner)}</text>}
     </box>
+    </Zone>
   )
 }

@@ -6,6 +6,8 @@
 import { useKeyboard, usePaste, useTerminalDimensions } from '@opentui/react'
 import { Component, useEffect, useReducer, type ReactNode } from 'react'
 import type { AppTreeNode } from './client'
+import { FKeyZone, PaneZone, StatusZone, useMouseDispatcher } from './mouse/app-zones'
+import { MouseCapture, MouseLayer, MouseRoot } from './mouse/zone'
 import { presenceText, usePresence } from './presence'
 import type { AppStore } from './store'
 import { glyphs, theme } from './theme'
@@ -92,16 +94,20 @@ function StatusLine({ store, width }: { store: AppStore; width: number }) {
   const left = ` ${s.server.replace(/^https?:\/\//, '')} · ${profile}${s.auth ? ` · ${s.auth}` : ''} · UI API ${s.apiVersion} · ${ping} · `
   const stream = `stream ${s.stream}`
   const right = ` · jobs ${s.jobs}${s.print ? ` · ${s.print}` : ''}${presence.count ? ` · ${presence.count} viewing` : ''} · ${s.lastEvent} · ${s.build} · ${s.clock} `
+  // the connection segment (server, profile, sign-in): a click opens the connection entries
+  const connection = ` ${s.server.replace(/^https?:\/\//, '')} · ${profile}${s.auth ? ` · ${s.auth}` : ''}`.length
   if (left.length + stream.length + right.length > width) {
     const short = ` ${profile} · ${ping} · ${stream} · jobs ${s.jobs}${s.print ? ` · ${s.print}` : ''} · ${s.clock} `
-    return <text flexShrink={0} wrapMode="none" fg={t.statusFg} bg={t.statusBg}>{pad(short, width)}</text>
+    return <StatusZone store={store} segment={profile.length + 1}><text flexShrink={0} wrapMode="none" fg={t.statusFg} bg={t.statusBg}>{pad(short, width)}</text></StatusZone>
   }
   return (
-    <text flexShrink={0} wrapMode="none" bg={t.statusBg}>
-      <span fg={t.statusFg} bg={t.statusBg}>{left}</span>
-      <span fg={streamColor} bg={t.statusBg}>{stream}</span>
-      <span fg={t.statusFg} bg={t.statusBg}>{pad(right, width - left.length - stream.length)}</span>
-    </text>
+    <StatusZone store={store} segment={connection}>
+      <text flexShrink={0} wrapMode="none" bg={t.statusBg}>
+        <span fg={t.statusFg} bg={t.statusBg}>{left}</span>
+        <span fg={streamColor} bg={t.statusBg}>{stream}</span>
+        <span fg={t.statusFg} bg={t.statusBg}>{pad(right, width - left.length - stream.length)}</span>
+      </text>
+    </StatusZone>
   )
 }
 
@@ -115,6 +121,7 @@ function FKeyBar({ store, width }: { store: AppStore; width: number }) {
   const narrow = width < 100
   let used = 0
   return (
+    <FKeyZone store={store} width={width} keys={keys.map((k) => k.n)}>
     <text flexShrink={0} wrapMode="none">
       {keys.map((k) => {
         const w = k.n === 10 ? Math.max(0, width - used) : cell
@@ -132,6 +139,7 @@ function FKeyBar({ store, width }: { store: AppStore; width: number }) {
         )
       })}
     </text>
+    </FKeyZone>
   )
 }
 
@@ -142,6 +150,7 @@ export function App({ store }: { store: AppStore }) {
   useEffect(() => {
     if (width !== store.width || height !== store.height) store.resize(width, height)
   }, [width, height, store])
+  const mouse = useMouseDispatcher(store)
   useKeyboard((key) => store.handleKey(key))
   usePaste((event) => store.handlePaste(new TextDecoder().decode(event.bytes)))
   const t = theme()
@@ -153,20 +162,23 @@ export function App({ store }: { store: AppStore }) {
   const screen = store.screen
   const top = store.overlays[store.overlays.length - 1]
   return (
+    <MouseRoot dispatcher={mouse} press={store.pressKey}>
     <box flexDirection="column" overflow="hidden" width={w} height={h}>
       <TitleBar store={store} width={w} />
       <box flexDirection="row" overflow="hidden" width={w} height={bodyHeight}>
         {sidebarWidth > 0 && store.sidebar && (
-          <ErrorBoundary resetKey="sidebar" width={sidebarWidth} label="Apps">{store.sidebar.render(sidebarWidth, bodyHeight, store.focus === 'sidebar' && !top)}</ErrorBoundary>
+          <PaneZone store={store} pane="sidebar" width={sidebarWidth} height={bodyHeight}><ErrorBoundary resetKey="sidebar" width={sidebarWidth} label="Apps">{store.sidebar.render(sidebarWidth, bodyHeight, store.focus === 'sidebar' && !top)}</ErrorBoundary></PaneZone>
         )}
         {screen
-          ? <ErrorBoundary key={screen.id} resetKey={screen.id} width={contentWidth} label="Screen">{screen.render(contentWidth, bodyHeight, store.focus === 'content' && !top)}</ErrorBoundary>
+          ? <PaneZone key={screen.id} store={store} pane="content" width={contentWidth} height={bodyHeight}><ErrorBoundary resetKey={screen.id} width={contentWidth} label="Screen">{screen.render(contentWidth, bodyHeight, store.focus === 'content' && !top)}</ErrorBoundary></PaneZone>
           : <box width={contentWidth} height={bodyHeight}><text flexShrink={0} wrapMode="none" fg={t.dim}>{' starting…'}</text></box>}
       </box>
       <StatusLine store={store} width={w} />
       <FKeyBar store={store} width={w} />
-      {store.overlays.map((o) => <ErrorBoundary key={o.id} resetKey={o.id} width={Math.min(60, w)} label="Dialog">{o.render(w, h)}</ErrorBoundary>)}
+      {store.overlays.map((o, i) => <MouseLayer key={o.id} layer={i + 1}><ErrorBoundary resetKey={o.id} width={Math.min(60, w)} label="Dialog">{o.render(w, h)}</ErrorBoundary></MouseLayer>)}
       {store.lock && <ErrorBoundary key="lock" resetKey="lock" width={w} label="Lock">{store.lock.render(w, h)}</ErrorBoundary>}
+      <MouseCapture width={w} height={h} />
     </box>
+    </MouseRoot>
   )
 }

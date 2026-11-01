@@ -14,10 +14,13 @@ import { glyphs, theme } from '../theme'
 import type { MenuEntry, Overlay } from '../types'
 import { center, errorText, pad, trunc } from '../util/text'
 import { EditorLine, overlayId, wrap } from './basic'
-import { HELP_POINTER, type KeyGroup } from '../help-keys'
+import { HELP_POINTER, MOUSE_KEYS, type KeyGroup } from '../help-keys'
 import { paletteGroups, paletteRows, type PaletteGroup, type PaletteItem, type RecordState } from '../palette'
 import { Frame, Line } from './frame'
 import { CompletionPopup, PopupBox, type PopupItem } from './popup'
+import { pickRow } from '../mouse/keys'
+import { SELECT_HINT } from '../mouse/settings'
+import { Zone } from '../mouse/zone'
 
 export { MenuOverlay } from './menu'
 
@@ -145,7 +148,8 @@ export class PaletteOverlay implements Overlay {
           const it = r.item!
           const sel = top + i === selRow
           const note = !it.run
-          return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? t.selFg : note ? t.dim : t.fg} bg={sel ? t.selBg : undefined}>{pad(note ? `   ${it.label}` : `   ${pad(it.label, 40)} ${it.context ?? ''}`, inner)}</text>
+          const at = selectable.indexOf(top + i)
+          return <Zone key={i} {...pickRow(() => { if (at >= 0) this.index = at }, () => this.onKey({ name: 'return', sequence: '' }))}><text flexShrink={0} wrapMode="none" fg={sel ? t.selFg : note ? t.dim : t.fg} bg={sel ? t.selBg : undefined}>{pad(note ? `   ${it.label}` : `   ${pad(it.label, 40)} ${it.context ?? ''}`, inner)}</text></Zone>
         })}
         {Array.from({ length: Math.max(0, rows - Math.min(rows, all.length - top)) }, (_, i) => <Line key={`e${i}`} text={i === 0 && !all.length ? (typed ? ' (nothing matches)' : ' (no recents yet; type to search)') : ''} width={inner} fg={t.dim} />)}
         <Line text="" width={inner} />
@@ -179,7 +183,19 @@ export class HelpOverlay implements Overlay {
     const t = theme()
     const body: Array<{ text: string; fg?: string }> = []
     const half = Math.floor((inner - 3) / 2)
-    for (const g of this.groups) {
+    this.keyLines(this.groups, body, half)
+    if (this.topicHelp.length) {
+      body.push({ text: '' })
+      body.push({ text: ' About this screen', fg: t.acc })
+      for (const p of this.topicHelp) for (const l of wrap(p, inner - 4)) body.push({ text: `   ${l}` })
+    }
+    if (this.store.settings.mouse) this.keyLines([MOUSE_KEYS], body, half)
+    return body
+  }
+
+  private keyLines(groups: KeyGroup[], body: Array<{ text: string; fg?: string }>, half: number): void {
+    const t = theme()
+    for (const g of groups) {
       if (body.length) body.push({ text: '' })
       body.push({ text: ` ${g.title}`, fg: t.acc })
       const keyWidth = Math.min(22, Math.max(...g.keys.map(([k]) => k.length)) + 2)
@@ -196,12 +212,6 @@ export class HelpOverlay implements Overlay {
         body.push({ text: `   ${pad(a[0], keyWidth)}${pad(a[1], half - keyWidth)}${b ? `${pad(b[0], keyWidth)}${b[1]}` : ''}` })
       }
     }
-    if (this.topicHelp.length) {
-      body.push({ text: '' })
-      body.push({ text: ' About this screen', fg: t.acc })
-      for (const p of this.topicHelp) for (const l of wrap(p, inner - 4)) body.push({ text: `   ${l}` })
-    }
-    return body
   }
 
   render(sw: number, sh: number) {
@@ -219,7 +229,7 @@ export class HelpOverlay implements Overlay {
         {Array.from({ length: Math.max(0, rows - shown.length) }, (_, i) => <Line key={`e${i}`} text="" width={inner} />)}
         <Line text="" width={inner} />
         <Line text={` ${this.pointer}`} width={inner} fg={t.acc2} />
-        <Line text=" ↑↓ PgUp PgDn scroll · Esc, F1 or ? closes" width={inner} fg={t.dim} />
+        <Line text={` ↑↓ PgUp PgDn or the wheel scroll · Esc, F1 or ? closes${this.store.settings.mouse ? ` · ${SELECT_HINT}` : ''}`} width={inner} fg={t.dim} />
       </Frame>
     )
   }
@@ -324,7 +334,7 @@ export class CommandLineOverlay implements Overlay {
     const popupWidth = Math.min(width, 72)
     return (
       <>
-      {this.popup && <PopupBox popup={this.popup.model} left={left} top={Math.max(0, top - rows - 2)} width={popupWidth} rows={rows} title={`${this.popup.model.matches().length} matches${this.popup.model.filter ? ` · ${this.popup.model.filter}` : ''}`} />}
+      {this.popup && <PopupBox popup={this.popup.model} left={left} top={Math.max(0, top - rows - 2)} width={popupWidth} rows={rows} title={`${this.popup.model.matches().length} matches${this.popup.model.filter ? ` · ${this.popup.model.filter}` : ''}`} insert={() => this.onKey({ name: 'tab', sequence: '' })} />}
       <box position="absolute" left={left} top={top} width={width} height={4} flexDirection="column" border borderStyle="single" borderColor={t.focusBorder} {...(glyphs().border ? { customBorderChars: glyphs().border } : {})} backgroundColor={t.overlayBg} title=" : command " zIndex={30}>
         <text flexShrink={0} wrapMode="none"><span fg={t.acc2}>{':'}</span></text>
         <box position="absolute" left={2} top={0}><EditorLine editor={this.editor} width={inner - 3} /></box>

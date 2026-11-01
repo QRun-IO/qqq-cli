@@ -30,6 +30,9 @@ import {
   SqlBuffer, SqlHistory, cellSummary, coerceParameter, completionItems, errorPosition, extractParameters, keywordSet, markdownLines,
   moveCell, newCellKey, notebookRequest, scratchNotebook, schemaTables, statementAt, tokenLines, type Notebook, type NotebookCell, type SqlPosition, type SqlSchema, type Token,
 } from './model'
+import { columnAt, tokenAt } from '../mouse/hit'
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 import { CellsOverlay, HistoryOverlay, NotebooksOverlay, type HistoryEntry } from './overlays'
 import { CompletionPopup, PopupBox } from '../overlays/popup'
 import { ResultPager, allRows, barLines, exportChoices, formatCell, fullValueText, numericColumns, planLineText, planLines, rawText, sqlColumns, toDelimited, valueText, type ExecuteResponse, type ExplainResponse, type ExportTarget, type RowsResponse } from './results'
@@ -1065,7 +1068,7 @@ export class SqlRunnerScreen implements Screen {
     const popup = this.popup && focused && this.focus === 'editor' ? this.popupBox(mainW, height, strip) : null
     const main = (
       <box flexDirection="column" width={mainW} height={height} overflow="hidden">
-        {strip && <SegLine segs={this.stripSegs()} width={mainW} bg={t.statusBg} fg={t.statusFg} />}
+        {strip && <Zone onClick={(e) => { const i = this.stripCellAt(e.x); if (i !== undefined) this.goCell(i); return false }}><box flexShrink={0} height={1}><SegLine segs={this.stripSegs()} width={mainW} bg={t.statusBg} fg={t.statusFg} /></box></Zone>}
         {this.renderEditor(mainW, edInner, focused && this.focus === 'editor')}
         {errLines.map((l, i) => <PlainLine key={`err${i}`} text={l} width={mainW} fg={t.err} />)}
         {this.renderResults(mainW, resultsH, iw, focused && this.focus === 'results')}
@@ -1075,12 +1078,25 @@ export class SqlRunnerScreen implements Screen {
       </box>
     )
     if (!schemaW) return main
+    // (the schema pane registers its own zone)
     return (
       <box flexDirection="row" width={width} height={height} overflow="hidden">
         {main}
         {this.renderSchema(schemaW, height, focused && this.focus === 'schema')}
       </box>
     )
+  }
+
+  /** The notebook cell whose tab is under x on the strip (the mouse). */
+  stripCellAt(x: number): number | undefined {
+    let at = 0
+    let cell = -1
+    for (const seg of this.stripSegs()) {
+      if (x >= at && x < at + seg.text.length) return cell >= 0 && seg.text !== ' ' ? cell : undefined
+      at += seg.text.length
+      if (seg.text === ' ') cell++
+    }
+    return undefined
   }
 
   private stripSegs(): Seg[] {
@@ -1154,10 +1170,19 @@ export class SqlRunnerScreen implements Screen {
       ? ` SQL · cell ${this.cellIndex + 1}/${this.notebook.cells.length} · ${this.backendOf() ?? (this.capsError ? 'no backend' : '…')}${b?.dialect && b.dialect !== b.name ? ` (${b.dialect})` : ''}${ro ? ` · ${ro}` : ''} `
       : ` Notes (markdown) · cell ${this.cellIndex + 1}/${this.notebook.cells.length} `
     const bottom = this.popup ? ' ↑↓ choose · Enter or Tab inserts · Esc closes ' : ''
+    // the mouse: a click focuses the editor and puts the caret there; the wheel scrolls it
+    const caret = (x: number, y: number) => {
+      this.focus = 'editor'
+      if (y < 1 || y > inner || x < 1 + gutter) return
+      buf.row = Math.max(0, Math.min(buf.lines.length - 1, buf.top + y - 1))
+      buf.col = Math.max(0, Math.min(buf.lines[buf.row]!.length, buf.left + x - 1 - gutter))
+    }
     return (
+      <Zone onClick={(e) => { caret(e.x, e.y); return false }} onWheel={() => { this.focus = 'editor'; return false }}>
       <box flexDirection="column" overflow="hidden" width={mainW} height={inner + 2} {...borderProps(focused)} title={trunc(titleText, Math.max(0, mainW - 4))} {...(bottom ? { bottomTitle: trunc(bottom, Math.max(0, mainW - 4)) } : {})}>
         {rows}
       </box>
+      </Zone>
     )
   }
 
@@ -1196,9 +1221,19 @@ export class SqlRunnerScreen implements Screen {
     while (lines.length < inner) lines.push(<PlainLine key={`pad${lines.length}`} text="" width={iw} />)
     const tabs = st.pager || st.explain ? ` ${st.view === 'grid' ? '[g grid]' : 'g grid'} ${st.view === 'chart' ? '[c chart]' : 'c chart'} ${st.view === 'plan' ? '[p plan]' : 'p plan'} ` : ''
     return (
+      <Zone onClick={(e) => {
+        this.focus = 'results'
+        // the view tabs in the bottom border (drawn two cells in): g grid, c chart, p plan
+        if (tabs && e.y === e.height - 1) {
+          const tab = tokenAt(tabs, e.x - 2, ['g grid', 'c chart', 'p plan'])
+          if (tab) this.setView(tab === 'g grid' ? 'grid' : tab === 'c chart' ? 'chart' : 'plan')
+        }
+        return false
+      }} onRight={() => { this.focus = 'results'; return false }} onWheel={() => { this.focus = 'results'; return false }}>
       <box flexDirection="column" overflow="hidden" width={mainW} height={h} {...borderProps(focused)} title={trunc(title, Math.max(0, mainW - 4))} {...(tabs && mainW > 40 ? { bottomTitle: trunc(tabs, Math.max(0, mainW - 4)) } : {})}>
         {lines.slice(0, inner)}
       </box>
+      </Zone>
     )
   }
 
@@ -1229,7 +1264,7 @@ export class SqlRunnerScreen implements Screen {
     const top = below + rows + 2 <= height ? below : Math.max(0, lineTop - rows - 2)
     const caret = 1 + 4 + Math.max(0, buf.col - buf.left) - (buf.offset() - p.from)
     const left = Math.max(0, Math.min(mainW - width, caret - 1))
-    return <PopupBox popup={p.model} left={left} top={top} width={width} rows={rows} />
+    return <PopupBox popup={p.model} left={left} top={top} width={width} rows={rows} insert={() => this.onKey({ name: 'tab', sequence: '' })} />
   }
 
   /**
@@ -1294,7 +1329,14 @@ export class SqlRunnerScreen implements Screen {
         segs.push({ text: f.right ? padLeft(f.text, c.width) : pad(f.text, c.width), fg: hot ? t.selFg : f.dim ? (sel ? fg : t.dim) : fg, bg: hot ? t.acc2 : bg })
         segs.push({ text: ' ', bg })
       })
-      out.push(<SegLine key={`d${i}`} segs={segs} width={iw} />)
+      // the mouse: a click puts the cursor on the row and cell; Shift+wheel moves across the columns
+      const pick = (x: number) => {
+        st.row = index
+        const c = columnAt(x, shown, gutterW + 1)
+        if (c !== undefined) st.col = Number(shown[c]!.name)
+        return false
+      }
+      out.push(<Zone key={`d${i}`} onClick={(e) => pick(e.x)} onRight={(e) => pick(e.x)} onDouble={(e) => { pick(e.x); this.wholeValue() }} onWheel={(e) => (e.direction === 'left' || e.direction === 'right' ? void (st.col = Math.max(0, Math.min(cols.length - 1, st.col + (e.direction === 'left' ? -e.lines : e.lines)))) : false)}><box flexShrink={0} height={1}><SegLine segs={segs} width={iw} /></box></Zone>)
     })
     if (!pager.total && pager.columns.length) out.push(<PlainLine key="empty" text=" (no rows)" width={iw} fg={t.dim} />)
     return out
@@ -1372,7 +1414,7 @@ export class SqlRunnerScreen implements Screen {
     if (st.planCursor >= st.planTop + rowsShown) st.planTop = st.planCursor - rowsShown + 1
     lines.slice(st.planTop, st.planTop + rowsShown).forEach((l, i) => {
       const sel = st.planTop + i === st.planCursor
-      out.push(<PlainLine key={`pl${i}`} text={` ${planLineText(l, iw - 2, { open: g.open, closed: g.closed, bar: g.bar })}`} width={iw} fg={sel ? (focused ? t.selFg : t.fg) : l.depth === 0 ? t.acc : t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined} />)
+      out.push(<Zone key={`pl${i}`} onClick={() => { st.planCursor = st.planTop + i; return false }}><box flexShrink={0} height={1}><PlainLine text={` ${planLineText(l, iw - 2, { open: g.open, closed: g.closed, bar: g.bar })}`} width={iw} fg={sel ? (focused ? t.selFg : t.fg) : l.depth === 0 ? t.acc : t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined} /></box></Zone>)
     })
     return out
   }
@@ -1414,13 +1456,16 @@ export class SqlRunnerScreen implements Screen {
       const text = ` ${indent}${label}`
       const right = trunc(detail, Math.max(0, iw - text.length))
       const line = pad(text, iw - right.length) + right
-      out.push(<PlainLine key={it.key} text={line} width={iw} fg={sel && focused ? t.selFg : it.kind === 'backend' ? t.acc : it.kind === 'note' ? t.dim : t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined} />)
+      const at = pane.top + i
+      out.push(<Zone key={it.key} {...pickRow(() => { this.focus = 'schema'; pane.cursor = at }, () => this.onKey({ name: 'return', sequence: '' }))}><box flexShrink={0} height={1}><PlainLine text={line} width={iw} fg={sel && focused ? t.selFg : it.kind === 'backend' ? t.acc : it.kind === 'note' ? t.dim : t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined} /></box></Zone>)
     })
     while (out.length < inner) out.push(<PlainLine key={`p${out.length}`} text="" width={iw} />)
     return (
+      <Zone onClick={() => { this.focus = 'schema'; return false }} onWheel={() => { this.focus = 'schema'; return false }}>
       <box flexDirection="column" overflow="hidden" width={w} height={h} {...borderProps(focused)} title=" Schema " {...(focused ? { bottomTitle: trunc(' Enter inserts · →← fold ', w - 4) } : {})}>
         {out}
       </box>
+      </Zone>
     )
   }
 }

@@ -9,6 +9,8 @@
  * cursor and scroll bar, and the section bar.
  */
 
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 import type { ReactNode } from 'react'
 import type { FieldMetaData } from '../client'
 import type { Key } from '../keys'
@@ -299,8 +301,8 @@ export class PaneModel {
     return `lines ${this.top + 1}–${Math.min(this.lines.length, this.top + this.height)} of ${this.lines.length}`
   }
 
-  /** The visible lines after a one-cell margin, with the scroll bar in the last column. */
-  view(width: number, focused: boolean): ReactNode {
+  /** The visible lines after a one-cell margin, with the scroll bar in the last column; `activate` is a double-click (Enter). */
+  view(width: number, focused: boolean, activate?: () => void): ReactNode {
     const t = theme()
     const ascii = glyphs().border !== undefined
     const scroll = this.lines.length > this.height
@@ -320,13 +322,18 @@ export class PaneModel {
         used += text.length
         return <span key={j} fg={sel ? (focused ? t.selFg : t.fg) : s.fg ?? t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{s.bold ? <strong>{text}</strong> : text}</span>
       })
+      const select = () => {
+        if (this.lines[i]?.id !== undefined) this.selected = this.lines[i]!.id
+      }
       rows.push(
-        <text flexShrink={0} wrapMode="none" key={k}>
+        <Zone key={k} {...pickRow(select, activate && line?.id !== undefined ? activate : undefined)}>
+        <text flexShrink={0} wrapMode="none">
           <span> </span>
           {spans}
           <span bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{' '.repeat(Math.max(0, inner - used))}</span>
           {scroll ? <span fg={t.dim}>{bar}</span> : null}
-        </text>,
+        </text>
+        </Zone>,
       )
     }
     return <>{rows}</>
@@ -334,7 +341,7 @@ export class PaneModel {
 }
 
 /** The section bar: `1 Security  2 Events …`, the active one highlighted, windowed with ‹ › when it does not fit. */
-export function sectionBar(sections: Section[], active: number, width: number, focused: boolean): ReactNode {
+export function sectionBar(sections: Section[], active: number, width: number, focused: boolean, pick?: (index: number) => void): ReactNode {
   const t = theme()
   const ascii = glyphs().border !== undefined
   const labels = sections.map((s, i) => `${i < 9 ? `${i + 1} ` : ''}${s.label}`)
@@ -352,20 +359,32 @@ export function sectionBar(sections: Section[], active: number, width: number, f
   const left = from > 0 ? (ascii ? '<' : '‹') : ''
   const right = to < cells.length ? (ascii ? '>' : '›') : ''
   let used = left.length + right.length
+  // where each section's cell is drawn, for a click
+  const at: Array<{ x: number; w: number; i: number }> = []
+  let x = left.length
   const spans = cells.slice(from, to).map((c, k) => {
     const i = from + k
     const text = trunc(c, Math.max(0, width - used))
     used += text.length
+    at.push({ x, w: text.length, i })
+    x += text.length
     const on = i === active
     return <span key={i} fg={on ? (focused ? t.selFg : t.fg) : t.acc} bg={on ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{on ? <strong>{text}</strong> : text}</span>
   })
   return (
+    <Zone onClick={(e) => {
+      const hit = at.find((a) => e.x >= a.x && e.x < a.x + a.w)
+      if (!hit || !pick) return false
+      pick(hit.i)
+      return false
+    }}>
     <text flexShrink={0} wrapMode="none">
       <span fg={t.dim}>{left}</span>
       {spans}
       <span fg={t.dim}>{right}</span>
       <span>{' '.repeat(Math.max(0, width - used))}</span>
     </text>
+    </Zone>
   )
 }
 

@@ -17,12 +17,13 @@ npm ci && npm run build                 # once, at the repo root (the kernel and
 (cd packages/tui && bun install --frozen-lockfile)   # once
 qqq ui                                  # the default profile; or: qqq --profile sample ui
 qqq ui table query person -w "lastName STARTS_WITH S"     # open a screen directly (CLI grammar)
-qqq ui --theme light | --ascii | --linear | --mouse | --check | --no-check
+qqq ui --theme light | --ascii | --linear | --no-mouse | --check | --no-check
 bun run packages/tui/src/main.tsx --profile sample        # the same without the CLI
 ```
 
 Options: `--profile|-p <name>`, `--server|-s <url>` (a profile named after the host is made), `--theme
-<name>`, `--ascii` (ASCII glyphs), `--linear` (one region, no Apps pane), `--mouse` (off by default),
+<name>`, `--ascii` (ASCII glyphs), `--linear` (one region, no Apps pane), `--no-mouse` / `--mouse` (the
+mouse for this run; the saved Mouse setting is on by default, see [Mouse](#mouse)),
 `--check` (the full terminal check, then exit), `--no-check` (skip the quick check at startup). Anything
 after the options is a route in the CLI grammar.
 
@@ -81,6 +82,41 @@ lists the recent print jobs; Enter shows one. Without the extension there is no 
 
 Single-key shortcuts follow the server preference `keyboard.singleKeyShortcuts` and can be switched in F9
 Settings; every F-key action is also in the F9 menu and on the `:` line.
+
+## Mouse
+
+The mouse works everywhere and adds to the keys; nothing needs it, and every click does what a key does.
+It follows the classic full-screen conventions (Midnight Commander, Turbo Vision):
+
+| Where | Click | Double-click | Right click | Wheel | Drag |
+|---|---|---|---|---|---|
+| Grid | row and cell under the cursor | opens the record | the actions (`a`) at that row | 3 rows; Shift+wheel 3 columns | header: at a column's right edge resizes it, elsewhere moves it (saved as the view settings save widths and order) |
+| Apps tree | selects; on ▸/▾ opens or closes | opens or closes a node, opens a table, process or app | | 3 lines | |
+| Lists (home panels, app home, record child lists, `:` results, sign-in) | selects | runs the entry (Enter) | the actions there | 3 lines | |
+| Record, form, process, bulk wizard | focuses the field or line | opens a choice list or file dialog, toggles a check box | the actions | 3 lines | |
+| Developer view | a section tab switches to it; a line selects it | follows the line (Enter) | | 3 lines | |
+| SQL Runner | focuses the editor (and puts the caret there), the results or the schema; a result row and cell; a notebook cell tab; the `g grid` `c chart` `p plan` tabs | whole value of a result cell; inserts a schema name | | 3 lines; Shift+wheel result columns | |
+| Completion popups (SQL editor, `:` line) | selects a line | inserts it (Tab) | | moves the choice | |
+| Date picker | picks the day; ◂ ▸ page the month | picks the day and accepts | | moves by weeks | |
+| Dialogs (F9 menu, Servers, `/` search, F1 keys, pickers, files, tags, view settings, filter, notebooks, cells, history) | selects an entry or cell; `[ Yes ]` `[ No ]` `[ Apply ]` `[ Cancel ]` answer; in F9 the `Menu › Area` line goes back a level | opens an F9 area, runs or picks (Enter); switches to a server | | scrolls the dialog | |
+| F-key bar | presses that key (also with a dialog open, as the key would) | | | | |
+| Footer | the server and profile open the Servers dialog (Ctrl+O) | | | | |
+| Screen saver, lock | wakes it, as a key does (then the PIN, when one is set) | | | | |
+
+A click on the screen or the Apps pane focuses it; a click beside a dialog does nothing (it does not close
+it); hovering does nothing. The terminal reports presses, drags and the wheel only (button-event tracking
+with SGR 1006 coordinates, which iTerm2, Terminal.app, Windows Terminal, kitty, WezTerm and tmux all speak);
+there is no motion tracking.
+
+**Selecting text.** While the TUI has the mouse, the terminal selects text only with a modifier: Shift+drag
+in most terminals (Windows Terminal, tmux, kitty, most Linux terminals), Option/Alt+drag in some (iTerm2);
+Terminal.app toggles mouse reporting with View › Allow Mouse Reporting (⌘R). Help (`?`) and the dialogs
+that show text to copy say so in their footer. F9 › Settings › **Mouse: off** (or `:mouse off`, saved in `ui.mouse`; `--no-mouse` for one run)
+gives the terminal plain selection back; `:mouse on` or Settings again turns it on.
+
+**tmux.** With `set -g mouse on`, tmux passes clicks and the wheel to the TUI while it has the mouse (and
+selects text with Shift+drag); with `mouse off`, tmux sends nothing and the TUI is keyboard-only. In tmux's own
+copy-mode the wheel scrolls tmux's history, as usual.
 
 ## Developer view
 
@@ -358,7 +394,7 @@ Everything below is local to the machine and shared with the CLI; nothing is sen
     1.0.0-rc.1 `note`, `lastUsedAt` and `user` recorded by the UI, and `ui.theme` for that profile only)
     and `defaultProfile`. Fields are only ever added: a 1.0.0-rc.1 file loads unchanged.
     Sign-ins themselves are in the OS keychain (or the file keyring), one per profile.
-  - `ui.theme`: the theme for every profile without its own.
+  - `ui.theme`: the theme for every profile without its own; `ui.mouse`: `false` when the mouse is off.
   - `ui.dates` (global, or in a profile's `ui`): date order (`YMD`, `MDY`, `DMY`), `clock` (`24h`, `12h`),
     `weekStart`, `weekNumbers`, `pickerOnEnter`, set with `:dates`. Without them the clock and the first day
     of the week follow the locale (`LC_ALL`, `LC_TIME`, `LANG`), else 24-hour and Monday; the order is ISO.
@@ -381,7 +417,7 @@ global choice. `--ascii` replaces box drawing and symbols. Colours come only fro
 
 The CLI equivalent dialog copies its command with `y` (or Enter); F9 › Settings can copy it automatically, and Shift+drag selects it with the terminal.
 
-F9 › Settings also holds single-key shortcuts on/off (default: the server preference
+F9 › Settings also holds the mouse on/off, single-key shortcuts on/off (default: the server preference
 `keyboard.singleKeyShortcuts`), the download and upload folders, the PIN and idle lock, and the terminal check.
 
 ## Keys that your terminal may intercept
@@ -399,7 +435,8 @@ before any program sees it. `qqq ui --check` (and the quick check at startup) fi
   ```
 
   Keep `set -g alternate-screen on`, `set -g default-terminal "tmux-256color"` and true color
-  (`set -as terminal-overrides ',*:Tc'`).
+  (`set -as terminal-overrides ',*:Tc'`); `set -g mouse on` lets clicks and the wheel through to the TUI
+  (see [Mouse](#mouse)).
 - **iTerm2.** If PgUp/PgDn scroll the window, map Page Up/Down in Profiles › Keys › Key Mappings to "Send Escape
   Sequence" `[5~` and `[6~`; "Scroll wheel sends arrow keys in alternate screen mode" affects the wheel only.
 - **Terminal.app.** F1 to F10 go to macOS unless "Use F1, F2, etc. keys as standard function keys" is on
@@ -412,6 +449,7 @@ before any program sees it. `qqq ui --check` (and the quick check at startup) fi
 ```sh
 cd packages/tui && bun test          # or npm run test:tui at the root: the whole TUI against a fake server in memory
 packages/tui/scripts/smoke.sh        # tmux against a running server (profile "sample"); captures kept
+packages/tui/scripts/mouse-smoke.sh  # the mouse in tmux: SGR 1006 clicks, drags and wheel written into the pane
 packages/tui/scripts/smoke-widths.sh # fixed grid widths across pages (fake large-instance server)
 packages/tui/scripts/smoke-sql.sh [server]  # SQL Runner at 80x24 and 120x36 (default the enterprise server on 8078)
 packages/tui/scripts/perf-large-table.sh  # PRF-001: 10,000 rows x 40 columns, timings against a 2 s budget

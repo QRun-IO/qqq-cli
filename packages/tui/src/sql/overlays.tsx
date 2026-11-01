@@ -15,6 +15,8 @@ import type { Overlay } from '../types'
 import { errorText, pad, trunc } from '../util/text'
 import { cellSummary, type Notebook } from './model'
 import type { SqlRunnerScreen } from './screen'
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 
 /** One line of key help that drops whole tokens from the end when it does not fit. */
 function hint(tokens: string[], width: number): string {
@@ -27,10 +29,14 @@ function hint(tokens: string[], width: number): string {
   return ` ${out}`
 }
 
-function Row(props: { text: string; width: number; selected: boolean; fg?: string }) {
+/** A list row; with the mouse a click calls `select`, a double-click `select` then `activate` (Enter). */
+function Row(props: { text: string; width: number; selected: boolean; fg?: string; select?: () => void; activate?: () => void }) {
   const t = theme()
-  return <text flexShrink={0} wrapMode="none" fg={props.selected ? t.selFg : props.fg ?? t.fg} bg={props.selected ? t.selBg : undefined}>{pad(props.text, props.width)}</text>
+  const row = <text flexShrink={0} wrapMode="none" fg={props.selected ? t.selFg : props.fg ?? t.fg} bg={props.selected ? t.selBg : undefined}>{pad(props.text, props.width)}</text>
+  return props.select ? <Zone {...pickRow(props.select, props.activate)}>{row}</Zone> : row
 }
+
+const ENTER = { name: 'return', sequence: '' }
 
 /** A scrolling list window around a cursor. */
 function windowOf<T>(list: T[], cursor: number, rows: number): { top: number; shown: T[] } {
@@ -151,7 +157,7 @@ export class NotebooksOverlay implements Overlay {
           const mark = n.id === current.id ? glyphs().pointer : ' '
           const flags = [n.visibility === 'SHARED' ? 'shared' : '', n.canEdit === false ? `by ${n.ownerName ?? 'someone else'}` : '', n.currentVersion ? `v${n.currentVersion}` : '', n.defaultBackendName ?? ''].filter(Boolean).join(' · ')
           const room = Math.max(10, iw - flags.length - 4)
-          return <Row key={n.id} text={` ${mark} ${pad(trunc(n.title, room), room)} ${flags}`} width={iw} selected={top + i === this.cursor} />
+          return <Row key={n.id} text={` ${mark} ${pad(trunc(n.title, room), room)} ${flags}`} width={iw} selected={top + i === this.cursor} select={() => { this.cursor = top + i }} activate={() => this.onKey(ENTER)} />
         })}
         {Array.from({ length: rows - shown.length }, (_, i) => <Line key={`e${i}`} text={i === 0 && !shown.length ? (this.error ? ` ${this.error}` : this.loading ? '' : this.scope === 'mine' ? ' (no notebooks yet: s saves this one)' : ' (nothing shared with you)') : ''} width={iw} fg={this.error ? t.err : t.dim} />)}
         <Line text={hint(['Enter open', 'Tab mine/shared', 's save', 'a save as', 'n new', 'u duplicate', 'd delete', ...(this.screen.caps?.canShare ? ['p publish'] : []), 'Esc'], iw)} width={iw} fg={t.dim} />
@@ -228,7 +234,7 @@ export class CellsOverlay implements Overlay {
           const mark = index === this.screen.cellIndex ? glyphs().pointer : ' '
           const right = `${c.cellType === 'SQL' ? 'SQL' : 'MD '} ${backend}`
           const room = Math.max(8, iw - right.length - 8)
-          return <Row key={c.cellKey} text={` ${mark} ${String(index + 1).padStart(2)} ${pad(trunc(cellSummary(c), room), room)} ${right}`} width={iw} selected={index === this.cursor} />
+          return <Row key={c.cellKey} text={` ${mark} ${String(index + 1).padStart(2)} ${pad(trunc(cellSummary(c), room), room)} ${right}`} width={iw} selected={index === this.cursor} select={() => { this.cursor = index }} activate={() => this.onKey(ENTER)} />
         })}
         {Array.from({ length: rows - shown.length }, (_, i) => <Line key={`e${i}`} text="" width={iw} />)}
         <Line text={hint(['Enter edit', 'a add SQL', 'm add notes', 'R run all', 'Esc'], iw)} width={iw} fg={t.dim} />
@@ -315,7 +321,7 @@ export class HistoryOverlay implements Overlay {
     return (
       <Frame title="History (your audited runs)" width={width} height={rows + 5} screenWidth={sw} screenHeight={sh}>
         <Line text={this.filter ? ` filter: ${this.filter}` : ' type to filter'} width={iw} fg={this.filter ? t.acc2 : t.dim} />
-        {shown.map((h, i) => <Row key={`${h.executionUuid ?? i}`} text={` ${historyLine(h, iw - 2, ascii)}`} width={iw} selected={top + i === this.cursor} fg={h.status === 'SUCCEEDED' ? t.fg : t.err} />)}
+        {shown.map((h, i) => <Row key={`${h.executionUuid ?? i}`} text={` ${historyLine(h, iw - 2, ascii)}`} width={iw} selected={top + i === this.cursor} select={() => { this.cursor = top + i }} activate={() => this.onKey(ENTER)} fg={h.status === 'SUCCEEDED' ? t.fg : t.err} />)}
         {Array.from({ length: rows - shown.length }, (_, i) => <Line key={`e${i}`} text={i === 0 && !shown.length ? ' (no runs yet)' : ''} width={iw} fg={t.dim} />)}
         <Line text={trunc(` ${detail.replace(/\s+/g, ' ')}`, iw)} width={iw} fg={e?.errorMessage ? t.err : t.dim} />
         <Line text={hint(['Enter open in the editor', 'Ctrl+R re-run', 'type to filter', 'Esc'], iw)} width={iw} fg={t.dim} />

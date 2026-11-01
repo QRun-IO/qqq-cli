@@ -10,6 +10,7 @@
  */
 
 import { createProgram, runCli } from '@qrun-io/qqq-cli/program'
+import { setMouseSetting } from './mouse/settings'
 import { THEMES } from './theme'
 import { metaHelp, processHelp, tableHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeConfig, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
@@ -47,7 +48,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates']
 
 /** One line on each TUI command, for the `:` line's completion popup. */
 export const TUI_COMMAND_HELP: Record<string, string> = {
@@ -319,6 +320,7 @@ export class Commands implements CommandsLike {
         case 'dates': try { return s.flash(datesCommand(s, rest)) } catch (e) { return fail(errorText(e)) }
         case 'linear': s.settings.linear = rest[0] !== 'off'; s.bump(); return s.flash(`linear layout ${s.settings.linear ? 'on' : 'off'}`)
         case 'shortcuts': return this.setShortcuts(rest[0] !== 'off')
+        case 'mouse': return setMouseSetting(s, rest[0] === undefined ? !s.settings.mouse : rest[0] !== 'off')
         case 'idle': {
           const m = Number(rest[0])
           if (!Number.isFinite(m)) return fail('idle <minutes>: 0 turns the screen saver timeout off')
@@ -693,13 +695,14 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Connection', label: 'Switch profile…', command: 'profile', run: () => this.chooseProfile() })
     out.push({ section: 'Connection', label: 'Connect to another server…', command: 'server <url>', run: () => s.open(new PromptOverlay(s, 'Connect to a server', 'The server URL.', (u) => this.switchServer(u.trim()), 'http://localhost:8077')) })
     out.push({ section: 'Connection', label: 'Refresh metadata', run: () => s.run(s.client!.metaData(true), (m) => { s.setMeta(m); s.client!.clearCaches(); s.flash('metadata refreshed') }) })
-    out.push({ section: 'Connection', label: 'Copy connection details', run: () => s.message(this.connectionText(), 'info', 'Connection (select with the mouse to copy)') })
+    out.push({ section: 'Connection', label: 'Copy connection details', run: () => s.message(this.connectionText(), 'info', 'Connection (select the text to copy)') })
     out.push({ section: 'Connection', label: 'Sign out', command: 'signout', run: () => this.signOut() })
     // Settings
     out.push({ id: 'settings:theme', section: 'Settings', label: `Theme: ${s.settings.theme}`, command: 'theme <name>', run: () => this.themePicker() })
     out.push({ section: 'Settings', label: 'View settings for this screen', key: 'v', command: 'view', run: () => this.viewSettings() })
     out.push({ section: 'Settings', label: `Single-key shortcuts: ${s.settings.singleKeys ? 'on' : 'off'}`, command: `shortcuts ${s.settings.singleKeys ? 'off' : 'on'}`, run: () => this.setShortcuts(!s.settings.singleKeys) })
     out.push({ section: 'Settings', label: `Linear layout: ${s.settings.linear ? 'on' : 'off'}`, command: `linear ${s.settings.linear ? 'off' : 'on'}`, run: () => { s.settings.linear = !s.settings.linear; s.bump() } })
+    out.push({ id: 'settings:mouse', section: 'Settings', label: `Mouse: ${s.settings.mouse ? 'on' : 'off'}`, command: `mouse ${s.settings.mouse ? 'off' : 'on'}`, detail: s.settings.mouse ? 'off restores plain terminal text selection' : undefined, run: () => setMouseSetting(s, !s.settings.mouse) })
     out.push({ section: 'Settings', label: `ASCII glyphs: ${s.settings.ascii ? 'on' : 'off'}`, command: `ascii ${s.settings.ascii ? 'off' : 'on'}`, run: () => s.setAscii(!s.settings.ascii) })
     out.push({ section: 'Settings', label: 'Screen saver / lock', command: 'lock', run: () => this.lock() })
     let idle = 0

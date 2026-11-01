@@ -3,6 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
+import { SELECT_HINT } from '../mouse/settings'
 import { writeFileSync } from 'node:fs'
 import { auditSource, displayDateTime, getAudits, getRecordDeveloper, getScriptLogs, getScriptRevisionFiles, getTableApiDocument, listDeveloperPanels, listTableApis, scriptText, storeScript, testScript, type AssociatedScript, type AuditEntry, type DeveloperPanel, type RecordDeveloper, type TableApi } from '@qrun-io/qqq-core'
 import type { TableMetaData } from '../client'
@@ -80,7 +81,7 @@ export class ValueScreen implements Screen {
     return (
       <Panel title={this.title()} width={width} height={height} focused={focused} {...(this.pane.position() ? { bottomTitle: this.pane.position() } : {})}>
         {this.pane.view(inner, focused)}
-        <text flexShrink={0} wrapMode="none" fg={t.dim}>{trunc(' ↑↓ PgUp PgDn scroll · y copy · Esc back', inner).padEnd(inner)}</text>
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{trunc(` ↑↓ PgUp PgDn scroll · y copy · Esc back${this.store.settings.mouse ? ` · ${SELECT_HINT}` : ''}`, inner).padEnd(inner)}</text>
       </Panel>
     )
   }
@@ -246,11 +247,11 @@ abstract class DeveloperView implements Screen {
     const busy = this.loading > 0 ? ' · loading…' : ''
     return (
       <Panel title={this.heading} width={width} height={height} focused={focused} {...(pane.position() ? { bottomTitle: pane.position() } : {})}>
-        {sectionBar(this.nav.sections, this.nav.index, inner, focused)}
+        {sectionBar(this.nav.sections, this.nav.index, inner, focused, (i) => { this.nav.index = i })}
         {section ? sectionTitle(section, inner) : <text flexShrink={0} wrapMode="none">{''.padEnd(inner)}</text>}
         {description.map((d, i) => <text flexShrink={0} wrapMode="none" key={`d${i}`} fg={t.dim}>{` ${trunc(d, inner - 1)}`.padEnd(inner)}</text>)}
         <text flexShrink={0} wrapMode="none" fg={t.border}>{glyphs().rule.repeat(Math.max(0, inner))}</text>
-        {pane.view(inner, focused)}
+        {pane.view(inner, focused, () => this.onKey({ name: 'return', sequence: '' }))}
         <text flexShrink={0} wrapMode="none" fg={t.dim}>{trunc(` ${this.keyLine()}${busy}`, inner).padEnd(inner)}</text>
       </Panel>
     )

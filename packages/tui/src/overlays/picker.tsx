@@ -12,6 +12,8 @@ import type { Overlay } from '../types'
 import { errorText, pad } from '../util/text'
 import { EditorLine, overlayId } from './basic'
 import { Frame, Line } from './frame'
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 
 /**
  * A possible-value picker: searches the field's choices on the server as you type, honouring the
@@ -86,7 +88,7 @@ export class PickerOverlay implements Overlay {
         <Line text={narrowed ? ` narrowed by ${narrowed}` : ''} width={width - 2} fg={t.dim} />
         {shown.map((o, i) => {
           const sel = top + i === this.index
-          return <text flexShrink={0} wrapMode="none" key={String(o.id)} fg={sel ? t.selFg : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${o.label}`, width - 2)}</text>
+          return <Zone key={String(o.id)} {...pickRow(() => { this.index = top + i }, () => this.onKey({ name: 'return', sequence: '' }))}><text flexShrink={0} wrapMode="none" fg={sel ? t.selFg : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${o.label}`, width - 2)}</text></Zone>
         })}
         {Array.from({ length: rows - shown.length }, (_, i) => <Line key={`e${i}`} text={i === 0 && !shown.length ? (this.error ? ` ${this.error}` : this.loading ? ' searching…' : ' (no choices)') : ''} width={width - 2} fg={this.error ? t.err : t.dim} />)}
         <Line text={` ${this.options.length} shown · ↑↓ Enter picks · Ctrl+D clears · Esc`} width={width - 2} fg={t.dim} />

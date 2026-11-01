@@ -27,6 +27,20 @@ candidate's, plus the changes since it listed first.
   (219 operations; `qqq printing ...` for the agent-side ones), and the conformance suite checks
   `GET /qbit/printing/session` and the printing tables when a server lists printing.
   `scripts/print-agent.sh` runs qqq-print-agent's virtual file printer against a local server.
+- **The mouse, everywhere in `qqq ui`** (on by default; F9 › Settings › Mouse: on/off and `:mouse on|off`,
+  saved in `ui.mouse`; `--no-mouse` / `--mouse` for one run). Classic conventions: a click selects or
+  focuses (grid rows and cells, Apps tree nodes, menu entries, list items, form fields, dialog entries and
+  `[ Yes ]` / `[ No ]` / `[ Apply ]` / `[ Cancel ]` buttons, developer-view section tabs), a double-click
+  activates (opens the record, runs the entry, opens or closes a tree node), a right click opens the
+  actions (`a`) at that row, the wheel scrolls the pane or dialog under the pointer by 3 lines (Shift+wheel
+  moves across grid columns), a drag on a grid column's right edge resizes it and a drag on its header moves
+  it (both saved with the view settings). A click on the F-key bar presses that key; a click on the footer's
+  server and profile opens the Servers dialog. The F9 areas, the Servers dialog and the SQL Runner panes
+  (caret placement, result cells, schema, notebook cells, view tabs), the date picker (days, ◂ ▸ months) and
+  the completion popups take clicks too, and a click wakes the screen saver as a key does. A click beside a dialog does nothing, and hovering does
+  nothing (button-event tracking with SGR 1006, no motion tracking). With the mouse on, the terminal selects
+  text with Shift+drag (Option/Alt+drag in some terminals), as help and the copyable-text dialogs say;
+  Mouse: off gives plain selection back. In tmux, `set -g mouse on` passes the events through.
 
 ### Changed since 1.0.0-rc.1
 
@@ -241,7 +255,7 @@ candidate's, plus the changes since it listed first.
 - **Dashboards and widgets** in block characters: stats, bar charts, sparklines, percentage bars, tables
   and steppers.
 - **Terminal care**: `qqq ui --check` (and a quick check at startup) finds tmux key and colour problems and
-  offers fixes; mouse off by default (`--mouse`), `--ascii`, `--linear` and light, classic and
+  offers fixes; the mouse on by default (`--no-mouse`, F9 › Settings › Mouse), `--ascii`, `--linear` and light, classic and
   high-contrast themes; Ctrl+C or a crash always restores the terminal.
 - **A live screen saver** (`:lock`, the idle timeout, `:saver [style]` to preview): tiles refreshed every
   10 to 30 s for people online (collaboration presence), running, queued and failed jobs, health,

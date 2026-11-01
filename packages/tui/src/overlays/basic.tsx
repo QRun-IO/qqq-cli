@@ -6,6 +6,10 @@
 import type { Key } from '../keys'
 import { charOf } from '../keys'
 import { LineEditor } from '../line-editor'
+import { pickRow } from '../mouse/keys'
+import { SELECT_HINT } from '../mouse/settings'
+import { tokenAt } from '../mouse/hit'
+import { Zone } from '../mouse/zone'
 import type { AppStore } from '../store'
 import { theme } from '../theme'
 import type { Overlay } from '../types'
@@ -49,7 +53,7 @@ export class MessageOverlay implements Overlay {
       <Frame title={this.title ?? (this.kind === 'error' ? 'Error' : 'Message')} width={width} height={lines.length + 4} screenWidth={sw} screenHeight={sh}>
         {lines.map((l, i) => <Line key={i} text={` ${l}`} width={width - 2} fg={this.kind === 'error' ? theme().err : theme().fg} />)}
         <Line text="" width={width - 2} />
-        <Line text=" any key closes" width={width - 2} fg={theme().dim} />
+        <Zone onClick={() => this.store.closeOverlay(this)}><text flexShrink={0} wrapMode="none" fg={theme().dim}>{pad(this.store.settings.mouse ? ` any key or a click here closes · ${SELECT_HINT}` : ' any key closes', width - 2)}</text></Zone>
       </Frame>
     )
   }
@@ -111,10 +115,24 @@ export class ConfirmOverlay implements Overlay {
       <Frame title="Confirm" width={width} height={lines.length + 4} screenWidth={sw} screenHeight={sh}>
         {lines.map((l, i) => <Line key={i} text={` ${l}`} width={width - 2} fg={theme().warn} />)}
         <Line text="" width={width - 2} />
-        <Line text={this.defaultYes ? ' Y/n   y or Enter = yes, n or Esc = no' : ' y/N   y = yes, n, Esc or Enter = no'} width={width - 2} fg={theme().dim} />
+        <ConfirmButtons hint={this.defaultYes ? ' Y/n   y or Enter = yes, n or Esc = no' : ' y/N   y = yes, n, Esc or Enter = no'} width={width - 2} press={(ch) => this.onKey({ name: ch, sequence: ch })} />
       </Frame>
     )
   }
+}
+
+/** The confirm line: "[ Yes ]  [ No ]" buttons (a click answers), then the keys. */
+function ConfirmButtons(props: { hint: string; width: number; press: (ch: 'y' | 'n') => void }) {
+  const t = theme()
+  const text = ` [ Yes ]  [ No ]  ${props.hint.trim()}`
+  return (
+    <Zone onClick={(e) => {
+      const button = tokenAt(text, e.x, ['[ Yes ]', '[ No ]'])
+      if (button) props.press(button === '[ Yes ]' ? 'y' : 'n')
+    }}>
+      <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(text, props.width)}</text>
+    </Zone>
+  )
 }
 
 /** Draws a LineEditor with its cursor. */
@@ -220,7 +238,7 @@ export class ChoiceOverlay<T> implements Overlay {
           const sel = top + i === this.index
           const detail = c.disabled ?? c.detail ?? ''
           const labelWidth = width - 4 - (detail ? Math.min(detail.length, Math.floor(width / 2)) + 1 : 0)
-          return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? t.selFg : c.disabled ? t.dim : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${pad(c.label, labelWidth)}${detail ? ' ' + trunc(detail, width - 5 - labelWidth) : ''}`, width - 2)}</text>
+          return <Zone key={i} {...pickRow(() => { this.index = top + i }, () => this.onKey({ name: 'return', sequence: '' }))}><text flexShrink={0} wrapMode="none" fg={sel ? t.selFg : c.disabled ? t.dim : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${pad(c.label, labelWidth)}${detail ? ' ' + trunc(detail, width - 5 - labelWidth) : ''}`, width - 2)}</text></Zone>
         })}
         {Array.from({ length: rows - shown.length }, (_, i) => <Line key={`e${i}`} text={i === 0 && !shown.length ? ' (nothing matches)' : ''} width={width - 2} fg={t.dim} />)}
         <Line text={` ${list.length} of ${this.choices.length} · ↑↓ Enter · Esc${this.hint ? ' · ' + this.hint : ''}`} width={width - 2} fg={t.dim} />

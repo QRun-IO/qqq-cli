@@ -28,6 +28,8 @@ import { Frame, Line } from '../overlays/frame'
 import { center, pad, trunc } from '../util/text'
 import { DateEditor } from './date-editor'
 import { dateSettingsFor, serverZoneOf } from './date-settings'
+import { tokenAt } from '../mouse/hit'
+import { Zone } from '../mouse/zone'
 
 type Part = 'date' | 'hour' | 'minute' | 'second' | 'ampm'
 
@@ -217,7 +219,14 @@ export class DatePickerOverlay implements Overlay {
     const lines: Array<{ key: string; node: React.ReactNode }> = []
     const line = (key: string, text: string, fg?: string, bold?: boolean) => lines.push({ key, node: <Line key={key} text={text} width={inner} fg={fg ?? t.fg} bold={bold} /> })
     const [prev, next] = isAscii() ? ['<', '>'] : ['◂', '▸']
-    line('month', center(`${prev}  ${MONTH_NAMES[c.month - 1]} ${c.year}  ${next}`, inner), t.acc, true)
+    // the mouse: ◂ and ▸ page the month, as PgUp and PgDn
+    const monthText = center(`${prev}  ${MONTH_NAMES[c.month - 1]} ${c.year}  ${next}`, inner)
+    lines.push({ key: 'month', node: (
+      <Zone key="month" onClick={(e) => {
+        const arrow = tokenAt(monthText, e.x, [prev, next])
+        if (arrow) this.onKey({ name: arrow === prev ? 'pageup' : 'pagedown', sequence: '' })
+      }}><text flexShrink={0} wrapMode="none" fg={t.acc}><strong>{monthText}</strong></text></Zone>
+    ) })
     const wk = s.weekNumbers ? 'Wk ' : ''
     const gridWidth = wk.length + 21
     const lead = ' '.repeat(Math.max(0, Math.floor((inner - gridWidth) / 2)))
@@ -234,14 +243,25 @@ export class DatePickerOverlay implements Overlay {
         return <span key={i} fg={fg} bg={bg}>{today ? <strong>{text}</strong> : text}</span>
       })
       const used = lead.length + gridWidth
+      // the mouse: a click picks the day under it, a double-click picks it and accepts (Enter)
+      const dayAt = (x: number) => week.days[Math.floor((x - lead.length - wk.length) / 3)]
+      const pickDay = (x: number) => {
+        const d = dayAt(x)
+        if (!d || x < lead.length + wk.length) return false
+        this.cursor = { ...this.cursor, year: d.year, month: d.month, day: d.day }
+        this.part = 'date'
+        return true
+      }
       lines.push({
         key: `w${r}`,
         node: (
-          <text key={`w${r}`} flexShrink={0} wrapMode="none" fg={t.fg}>
+          <Zone key={`w${r}`} onClick={(e) => { pickDay(e.x) }} onDouble={(e) => { if (pickDay(e.x)) this.onKey({ name: 'return', sequence: '' }) }}>
+          <text flexShrink={0} wrapMode="none" fg={t.fg}>
             <span fg={t.dim}>{lead}{s.weekNumbers ? String(week.week).padStart(2, ' ') + ' ' : ''}</span>
             {cells}
             <span>{' '.repeat(Math.max(0, inner - used))}</span>
           </text>
+          </Zone>
         ),
       })
     }

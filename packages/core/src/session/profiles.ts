@@ -40,6 +40,8 @@ export const AUTH_MODES: AuthMode[] = ['auto', 'browser', 'device']
 /** Local display settings of the terminal UI (not server preferences): theme and per-screen view settings. */
 export interface UiSettings {
   theme?: string
+  /** The terminal UI's mouse (clicks, wheel, drags); on unless false. */
+  mouse?: boolean
   /** Record view: data rows of each child list (default 5); a table's view settings override it. */
   childRows?: number
   /** The terminal UI copies a CLI equivalent to the clipboard as soon as it shows it (default off). */

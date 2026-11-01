@@ -7,6 +7,7 @@
 
 import { readConfig, readTheme, resolveProfile, writeTheme, defaultSecretStore, type SecretStore } from '@qrun-io/qqq-core'
 import { installCommands } from './commands'
+import { readMouse } from './mouse/settings'
 import { SignInScreen, type SignInDeps } from './screens/signin'
 import { Sidebar } from './screens/sidebar'
 import { AppStore, setSecretStoreFactory, type Target } from './store'
@@ -18,13 +19,14 @@ export interface CliArgs {
   theme?: string
   ascii: boolean
   linear: boolean
-  mouse: boolean
+  /** --mouse / --no-mouse for this run; unset: the saved Mouse setting (on by default). */
+  mouse?: boolean
   check: 'startup' | 'full' | 'off'
   route: string[]
 }
 
 export function parseArgs(argv: string[], env: NodeJS.ProcessEnv = process.env): CliArgs {
-  const out: CliArgs = { ascii: env.QQQ_UI_ASCII === '1', linear: env.QQQ_UI_LINEAR === '1', mouse: false, check: 'startup', route: [] }
+  const out: CliArgs = { ascii: env.QQQ_UI_ASCII === '1', linear: env.QQQ_UI_LINEAR === '1', check: 'startup', route: [] }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!
     if (a === '--') {
@@ -37,6 +39,7 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv = process.env):
     else if (a === '--ascii') out.ascii = true
     else if (a === '--linear') out.linear = true
     else if (a === '--mouse') out.mouse = true
+    else if (a === '--no-mouse') out.mouse = false
     else if (a === '--check') out.check = 'full'
     else if (a === '--no-check') out.check = 'off'
     else out.route.push(a)
@@ -69,7 +72,7 @@ export function boot(options: BootOptions): AppStore {
     else note = `unknown theme "${args.theme}"; themes: ${Object.keys(THEMES).join(', ')}`
   }
   const theme = (args.theme && THEMES[args.theme] ? args.theme : undefined) ?? readTheme(target?.name) ?? DEFAULT_THEME
-  const store = new AppStore({ settings: { theme, ascii: args.ascii, linear: args.linear, mouse: args.mouse, singleKeys: true, copyCli: readConfig().ui?.copyCliCommands === true }, quit: options.quit, build: options.build, target, timers: options.timers })
+  const store = new AppStore({ settings: { theme, ascii: args.ascii, linear: args.linear, mouse: args.mouse ?? readMouse(), singleKeys: true, copyCli: readConfig().ui?.copyCliCommands === true }, quit: options.quit, build: options.build, target, timers: options.timers })
   let secrets: SecretStore | undefined
   const secretsFn = options.secrets ?? (() => (secrets ??= defaultSecretStore()))
   setSecretStoreFactory(secretsFn)

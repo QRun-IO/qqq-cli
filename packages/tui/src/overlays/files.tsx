@@ -16,6 +16,8 @@ import type { Overlay } from '../types'
 import { errorText, pad, trunc } from '../util/text'
 import { ConfirmOverlay, EditorLine, PromptOverlay, overlayId } from './basic'
 import { Frame, Line } from './frame'
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 
 export interface FileDialogOptions {
   /** open: pick an existing file; save: choose a folder and a file name; folder: pick a directory. */
@@ -217,15 +219,15 @@ export class FileDialog implements Overlay {
         text = ` ${pad(r.name + (r.isDir ? '/' : ''), nameWidth)} ${r.isDir ? pad('', sizeWidth - 1) : pad(formatSize(r.size), sizeWidth - 1)}${date}`
         fg = r.isDir ? t.acc : r.hidden ? t.dim : t.fg
       }
-      return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? t.selFg : fg} bg={sel ? t.selBg : undefined}>{pad(text, inner)}</text>
+      return <Zone key={i} {...pickRow(() => { this.focus = 'list'; this.index = top + i }, () => this.onKey({ name: 'return', sequence: '' }))}><text flexShrink={0} wrapMode="none" fg={sel ? t.selFg : fg} bg={sel ? t.selBg : undefined}>{pad(text, inner)}</text></Zone>
     })
     while (lines.length < listRows) lines.push(<text flexShrink={0} wrapMode="none" key={`e${lines.length}`}>{pad(lines.length === 0 && this.filter.value ? ' (nothing matches)' : '', inner)}</text>)
     const label = (f: 'list' | 'path' | 'name', text: string) => <span fg={this.focus === f ? t.acc2 : t.dim}>{text}</span>
     return (
       <Frame title={this.options.title} width={width} height={listRows + (this.options.mode === 'save' ? 9 : 8)} screenWidth={sw} screenHeight={sh} top={1}>
-        <box flexDirection="row" height={1}><text flexShrink={0} wrapMode="none">{label('path', ' Path ')}</text><EditorLine editor={this.path} width={inner - 7} focused={this.focus === 'path'} /></box>
-        {this.options.mode === 'save' ? <box flexDirection="row" height={1}><text flexShrink={0} wrapMode="none">{label('name', ' Name ')}</text><EditorLine editor={this.name} width={inner - 7} focused={this.focus === 'name'} /></box> : null}
-        <box flexDirection="row" height={1}><text flexShrink={0} wrapMode="none">{label('list', ' Find ')}</text><EditorLine editor={this.filter} width={inner - 7} focused={this.focus === 'list'} placeholder="type to filter this folder" /></box>
+        <Zone onClick={() => { this.focus = 'path' }}><box flexDirection="row" height={1}><text flexShrink={0} wrapMode="none">{label('path', ' Path ')}</text><EditorLine editor={this.path} width={inner - 7} focused={this.focus === 'path'} /></box></Zone>
+        {this.options.mode === 'save' ? <Zone onClick={() => { this.focus = 'name' }}><box flexDirection="row" height={1}><text flexShrink={0} wrapMode="none">{label('name', ' Name ')}</text><EditorLine editor={this.name} width={inner - 7} focused={this.focus === 'name'} /></box></Zone> : null}
+        <Zone onClick={() => { this.focus = 'list' }}><box flexDirection="row" height={1}><text flexShrink={0} wrapMode="none">{label('list', ' Find ')}</text><EditorLine editor={this.filter} width={inner - 7} focused={this.focus === 'list'} placeholder="type to filter this folder" /></box></Zone>
         <Line text={this.candidates.length ? ` ${trunc(this.candidates.join('  '), inner - 2)}` : ''} width={inner} fg={t.dim} />
         {lines}
         <Line text={this.error ? ` ${this.error}` : ` ${rows.filter((r) => 'isDir' in r).length} entries${this.hidden ? ' (hidden shown)' : ''}`} width={inner} fg={this.error ? t.err : t.dim} />

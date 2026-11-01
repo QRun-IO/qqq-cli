@@ -22,6 +22,8 @@ import type { MenuEntry, Overlay } from '../types'
 import { pad, padLeft, trunc } from '../util/text'
 import { EditorLine, overlayId } from './basic'
 import { Frame, Line } from './frame'
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 
 export type Area = MenuEntry['section']
 export const AREAS: Area[] = ['Context', 'Go to', 'Work', 'Connection', 'Settings', 'Help']
@@ -389,6 +391,21 @@ export class MenuOverlay implements Overlay {
     const all = this.allEntries()
     const total = all.length
     const lines = shown.map((r, i) => {
+      const row = this.drawRow(r, i, selected, inner)
+      if (r.kind === 'head') return row
+      // the mouse: a click selects the row, a double-click opens the area or runs the entry (Enter)
+      const at = sel.indexOf(r)
+      return <Zone key={i} {...pickRow(() => { this.index = at; this.after() }, () => this.onKey({ name: 'return', sequence: '' }))}><box flexShrink={0} height={1}>{row}</box></Zone>
+    })
+    while (lines.length < listRows) lines.push(<Line key={`pad${lines.length}`} text="" width={inner} />)
+    return this.frame(sw, sh, width, height, inner, rows, sel, listRows, all, lines)
+  }
+
+  /** One row of the list. */
+  private drawRow(r: MenuRow, i: number, selected: MenuRow | undefined, inner: number) {
+    const t = theme()
+    const g = glyphs()
+    {
       const isSel = r === selected
       const fg = isSel ? t.selFg : t.fg
       const bg = isSel ? t.selBg : undefined
@@ -409,8 +426,13 @@ export class MenuOverlay implements Overlay {
       const detail = e.disabled ? ` (${e.disabled})` : e.detail ? ` ${e.detail}` : ''
       const room = Math.max(1, inner - 3 - keyText.length)
       return <Line key={i} text={pad(`${ptr}${trunc(e.label + detail, room)}`, inner - keyText.length) + keyText} width={inner} fg={isSel ? t.selFg : e.disabled ? t.dim : t.fg} bg={bg} />
-    })
-    while (lines.length < listRows) lines.push(<Line key={`pad${lines.length}`} text="" width={inner} />)
+    }
+  }
+
+  private frame(sw: number, sh: number, width: number, height: number, inner: number, rows: MenuRow[], sel: MenuRow[], listRows: number, all: MenuEntry[], lines: React.ReactNode[]) {
+    const t = theme()
+    const g = glyphs()
+    const total = all.length
     const more = rows.length > listRows ? ` ${this.scroll > 0 ? g.up : ' '}${this.scroll + listRows < rows.length ? g.down : ' '}` : ''
     let crumb: string
     let keys: Array<{ text: string; drop?: number }>
@@ -432,7 +454,7 @@ export class MenuOverlay implements Overlay {
     return (
       <Frame title="Menu  (F9)" width={width} height={height} screenWidth={sw} screenHeight={sh} top={1}>
         <box paddingLeft={1}><EditorLine editor={this.filter} width={inner - 2} placeholder={`type to search the menu · / searches ${this.summary || 'apps, tables, processes and records'}`} /></box>
-        <Line text={pad(crumb, inner - more.length) + more} width={inner} fg={t.acc} />
+        <Zone onClick={() => { if (!this.searching && this.level > 1) this.onKey({ name: 'left', sequence: '' }) }}><text flexShrink={0} wrapMode="none" fg={t.acc}>{pad(pad(crumb, inner - more.length) + more, inner)}</text></Zone>
         {lines}
         <Line text={` ${hint(keys, inner - 2)}`} width={inner} fg={t.dim} />
       </Frame>

@@ -21,6 +21,9 @@ import type { Overlay } from '../types'
 import { errorText, pad, trunc } from '../util/text'
 import { ConfirmOverlay, EditorLine, overlayId } from './basic'
 import { Frame, Line } from './frame'
+import { tokenAt } from '../mouse/hit'
+import { pickRow } from '../mouse/keys'
+import { Zone } from '../mouse/zone'
 
 /** Lays out key hints in one line of `width` cells, dropping the tokens with the highest `drop` first. */
 function hint(tokens: Array<{ text: string; drop?: number }>, width: number): string {
@@ -179,8 +182,10 @@ export class ServersOverlay implements Overlay {
       const second = [r.user || (r.signIn ? '' : 'not signed in'), this.model.authText(r), r.description].filter(Boolean).join(' · ')
       const probe = this.model.probes.get(r.server)
       const fg = sel ? t.selFg : probe?.state === 'down' ? t.dim : t.fg
-      lines.push(<Line key={`${r.name}1`} text={mark + lineOne(r)} width={inner} fg={fg} bg={sel ? t.selBg : undefined} bold={r.isCurrent} />)
-      lines.push(<Line key={`${r.name}2`} text={`     ${second}`} width={inner} fg={sel ? t.selFg : t.dim} bg={sel ? t.selBg : undefined} />)
+      // the mouse: either line of a profile selects it, a double-click switches to it (Enter)
+      const mouse = pickRow(() => { this.index = i }, () => this.onKey({ name: 'return', sequence: '' }))
+      lines.push(<Zone key={`${r.name}1`} {...mouse}><box flexShrink={0} height={1}><Line text={mark + lineOne(r)} width={inner} fg={fg} bg={sel ? t.selBg : undefined} bold={r.isCurrent} /></box></Zone>)
+      lines.push(<Zone key={`${r.name}2`} {...mouse}><box flexShrink={0} height={1}><Line text={`     ${second}`} width={inner} fg={sel ? t.selFg : t.dim} bg={sel ? t.selBg : undefined} /></box></Zone>)
     })
     if (!list.length) lines.push(<Line key="none" text={this.model.rows.length ? `   no profile matches "${this.filter.value}"` : '   no profiles yet: n adds one'} width={inner} fg={t.dim} />)
     while (lines.length < listHeight) lines.push(<Line key={`pad${lines.length}`} text="" width={inner} />)
@@ -300,10 +305,11 @@ export class ProfileFormOverlay implements Overlay {
       const label = <span fg={focused ? t.acc : t.fg}>{pad(` ${focused ? glyphs().pointer : ' '} ${f.label}`, labelW + 1)}</span>
       if (f.name === 'authMode') {
         const text = AUTH_MODES.map((m) => (m === this.authMode ? `[${m}]` : ` ${m} `)).join(' ')
-        return <text key={f.name} flexShrink={0} wrapMode="none">{label}<span fg={focused ? t.inputFg : t.fg} bg={focused ? t.inputBg : undefined}>{pad(text, fieldW)}</span></text>
+        // a click on a mode chooses it
+        return <Zone key={f.name} onClick={(e) => { this.field = i; const m = tokenAt(text, e.x - labelW - 1, AUTH_MODES.map((x) => (x === this.authMode ? `[${x}]` : ` ${x} `))); if (m) this.authMode = AUTH_MODES.find((x) => m.includes(x))! }}><text flexShrink={0} wrapMode="none">{label}<span fg={focused ? t.inputFg : t.fg} bg={focused ? t.inputBg : undefined}>{pad(text, fieldW)}</span></text></Zone>
       }
       const placeholder = f.name === 'short' ? `2 to 6 characters; empty: ${this.editors.name.value ? defaultShortName(this.editors.name.value) : 'from the name'}` : f.name === 'description' ? 'what the server is (optional)' : f.name === 'server' ? 'http://localhost:8077' : 'letters, digits, . - _'
-      return <box key={f.name} flexDirection="row">{<text flexShrink={0} wrapMode="none">{label}</text>}<EditorLine editor={this.editors[f.name]} width={fieldW} focused={focused} placeholder={placeholder} /></box>
+      return <Zone key={f.name} onClick={() => { this.field = i }}><box flexDirection="row">{<text flexShrink={0} wrapMode="none">{label}</text>}<EditorLine editor={this.editors[f.name]} width={fieldW} focused={focused} placeholder={placeholder} /></box></Zone>
     })
     const help = FIELDS[this.field]!.name === 'authMode' ? `← → or Space: ${AUTH_HELP[this.authMode]}` : FIELDS[this.field]!.name === 'short' ? 'shown in the footer, the Home header and the F9 Connection line' : FIELDS[this.field]!.name === 'server' ? 'the server is checked (GET /qqq/v1/version) when you save' : ''
     return (
