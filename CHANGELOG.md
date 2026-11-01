@@ -3,13 +3,23 @@
 All notable changes to the qqq CLI and its packages. Versions follow [semver](https://semver.org);
 `@qrun-io/qqq-ui-api-client` follows the UI API version of the document it is generated from.
 
-## [1.0.0] - YYYY-MM-DD
+## [1.0.0] - 2026-11-01
 
 `qqq` 1.0: the command-line client and the full-screen terminal UI (`qqq ui`), shipped together as one
 binary per platform. Packages: `@qrun-io/qqq-cli` 1.0.0, `@qrun-io/qqq-core` 1.0.0 (new),
 `@qrun-io/qqq-ui-api-client` 1.8.0, `@qrun-io/qqq-ui-api-conformance` 1.6.0. Servers: UI API 1.6.0 up
 to 2.0. Released as 1.0.0-rc.1 first (tags `v1.8.0-rc.2`, `cli-v1.0.0-rc.1`); this entry is that
-candidate's, unchanged in content.
+candidate's, plus the changes since it listed first.
+
+### Changed since 1.0.0-rc.1
+
+- The curl installer (`scripts/install.sh`) installs the newest **stable** `cli-v*` release, the channel
+  Homebrew and Scoop follow; `--pre` (or `QQQ_PRE=1`) takes prereleases, `--dry-run` prints what it would
+  download, and `--help` works when piped from curl.
+- `fast-uri` 3.1.9 (transitive, through ajv in the conformance package) for four URI parsing advisories.
+- Documentation: npm READMEs for every package (new for `@qrun-io/qqq-ui-api-conformance`), a rewritten
+  repository README, `docs/README.md`, CONTRIBUTING, SECURITY and CODE_OF_CONDUCT, issue and pull request
+  templates, CODEOWNERS and Dependabot.
 
 ### Changed from 0.1
 
