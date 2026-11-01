@@ -102,7 +102,7 @@ export function resolveCommand(program, tokens) {
   const find = (cmd, name) => cmd.commands.find((c) => c.name() === name || c.aliases().includes(name))
   const top = find(program, words[0])
   if (!top) return `no command "${words[0]}"`
-  if (top.commands.length && words[1] && !placeholder(words[1]) && !find(top, words[1]) && !top.registeredArguments.length) return `no verb "${words[1]}" in "${words[0]}"`
+  if (top.commands.length && words[1] && !placeholder(words[1]) && !find(top, words[1]) && !top.registeredArguments.length && !top._defaultCommandName) return `no verb "${words[1]}" in "${words[0]}"`
   return undefined
 }
 

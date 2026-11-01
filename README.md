@@ -209,11 +209,12 @@ qqq ui --theme light                                      # high-contrast (defau
 
 - **Home** is the landing screen: greeting and connection, counts, recently viewed records, quick actions,
   application cards, your work (jobs, alerts) and the instance's home widgets. F10, Reset comes back here.
-- **The function-key bar** at the bottom is always right for the current screen: F1 Help, F2 Go to,
+- **The function-key bar** at the bottom is always right for the current screen: F1 Help, F2 Search,
   F3 View, F4 Edit, F5 Refresh, F6 Filter, F7 New, F8 Delete, F9 Menu, F10 Quit. When the terminal takes
   the F-keys, Esc then a digit (or Ctrl+digit) stands for F1 to F10.
-- **`/`** (or F2, Ctrl+K) is the go-to palette: any app, table, process, report or record, searched as you
-  type, fast on instances with thousands of tables.
+- **F2** is Search: records across tables (quick search), the main way into the data. **`/`** (or `.`, Ctrl+K)
+  is the find-anything palette: any app, table, process, widget, report, record or command, searched as you
+  type, fast on instances with thousands of tables. **Ctrl+O** switches servers, **Ctrl+P** prints what you see.
 - **F9 is the command center**: every action of the current screen and of the application, searchable.
 - **`:`** opens a command line that speaks the CLI grammar (`:table query person -w "id <= 3"`,
   `:theme classic`, `:quit`), with history (Up, Down, Ctrl+R) and Tab completion. Commands that are not

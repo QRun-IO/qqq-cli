@@ -68,7 +68,8 @@ the options.
 | `report`, `saved-report`, `saved-view`, `share`, `bulk-profile`, `audit`, `widget`, `script`, `job`, `prefs`, `help-search` | reports, saved reports, saved views, sharing, bulk-load mappings, audits, widgets as text, scripts, jobs, preferences, help |
 | `api <operationId>` | any UI API operation by id |
 | `extensions`, `esb`, `collab`, `health`, `alerts`, ... | one noun per extension, run when the server has it installed |
-| `login`, `logout`, `config`, `cache`, `completion`, `doctor` | sign-in, profiles and settings, the metadata cache, shell completion (bash, zsh, fish, PowerShell), checks |
+| `print`, `printer` | print records, table lists and text through the printing extension, follow print jobs; printers and print agents |
+| `login`, `logout`, `profile`, `config`, `cache`, `completion`, `doctor` | sign-in, saved server profiles (`profile list|add|edit|use|remove`), settings, the metadata cache, shell completion (bash, zsh, fish, PowerShell), checks |
 
 Global options, anywhere on the line: `--server <url>`, `-p, --profile <name>`, `-O, --output
 json|table|text|csv|yaml`, `--json`, `-Q, --query <jmespath>`, `--fields <names>`, `-y, --yes`, `--utc`,

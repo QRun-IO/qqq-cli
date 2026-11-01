@@ -45,7 +45,7 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 | F5, `r` | refresh | Space, Shift+Space | page lists (on a grid Space selects) |
 | F6, `f` | filter: condition rows (field, operator, value) with a live match count; F2 types the grammar | ← → | columns, tree |
 | F7, `n` | new record (on a child list: a child of this record) | `s` | sort by the column under the cursor |
-| F8, `d` | delete, after a question | `]` `[`, Ctrl+N Ctrl+P, PgDn PgUp in a record | next and previous record of the list it came from |
+| F8, `d` | delete, after a question | `]` `[`, PgDn PgUp (Ctrl+N: next) in a record | next and previous record of the list it came from |
 | F9 | the menu in two levels: the areas (Context, Go to, Work, Connection, Settings, Help), then an area's entries; places and records are found with `/` | `b` | run a table process on the selection |
 | F10, `:quit` | Quit, Reset (home screen, metadata refreshed, session kept) or Cancel; `:reset` and `:home` reset | `x`, `g`, `v` | export, go to by key, view settings |
 | `:` | command line (history ↑↓, Ctrl+R, Tab completes) | Ctrl+S | save a form, continue a process step |
