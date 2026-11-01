@@ -10,6 +10,7 @@
  * a server error, the run history, and notebook cells. Tests drive all of it without a terminal.
  */
 
+import { randomUUID } from 'node:crypto'
 import { History } from '@qrun-io/qqq-core'
 import { isPrintable, type Key } from '../keys'
 
@@ -430,6 +431,73 @@ export function complete(sql: string, offset: number, schema?: SqlSchema): Compl
   return { from, prefix, candidates: unique }
 }
 
+/** One entry of the completion popup: what is inserted, how it is listed, a dim detail. */
+export interface CompletionItem {
+  value: string
+  label?: string
+  detail?: string
+}
+
+/** Keywords that start a statement (offered at the very start of one). */
+export const STATEMENT_KEYWORDS = ['SELECT', 'WITH', 'EXPLAIN', 'VALUES', 'SHOW', 'TABLE']
+const TABLE_CONTEXT = new Set(['FROM', 'JOIN', 'UPDATE', 'INTO', 'TABLE'])
+const COLUMN_CONTEXT = new Set(['SELECT', 'WHERE', 'ON', 'AND', 'OR', 'BY', 'HAVING', 'SET', 'DISTINCT', 'WHEN', 'THEN', 'ELSE', 'CASE', 'NOT', 'IN', 'LIKE', 'BETWEEN'])
+const AFTER_TABLE = ['WHERE', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'ON', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'UNION', 'AS']
+
+/**
+ * What fits at a cursor, for the completion popup (Tab, with or without a typed prefix):
+ * after `alias.` that table's columns; after FROM / JOIN / UPDATE / INTO every table of the backend
+ * (with its column count); after SELECT / WHERE / ON / a comma or an operator the columns of the
+ * statement's tables (with their types); at the start of a statement the statement keywords and
+ * recent statements; otherwise columns, tables and keywords. Filtered by the prefix (case-insensitive).
+ */
+export function completionItems(sql: string, offset: number, schema?: SqlSchema, recent: string[] = []): { from: number; prefix: string; items: CompletionItem[] } {
+  const before = sql.slice(0, offset)
+  const m = /(?:([A-Za-z_][\w$]*|"[^"]+")\.)?([A-Za-z_][\w$]*)?$/.exec(before)!
+  const prefix = m[2] ?? ''
+  const from = offset - prefix.length
+  const qualifier = m[1]?.replace(/"/g, '')
+  // the statement the cursor is in starts after the last `;` before it (outside strings and comments)
+  const semis = tokenize(sql).filter((t) => t.kind === 'punct' && t.text === ';')
+  const stmtStart = (semis.filter((t) => t.start < from).pop()?.start ?? -1) + 1
+  const nextSemi = semis.find((t) => t.start >= from)?.start ?? sql.length
+  const statementText = sql.slice(stmtStart, nextSemi)
+  const tables = schemaTables(schema)
+  const byName = new Map(tables.map((t) => [t.name.toUpperCase(), t]))
+  const refs = referencedTables(statementText)
+  const cols = (name: string) => byName.get((refs.get(name.toUpperCase()) ?? name).toUpperCase())?.columns ?? []
+  const up = prefix.toUpperCase()
+  const keep = (items: CompletionItem[]) => {
+    const seen = new Set<string>()
+    return items.filter((i) => i.value.toUpperCase().startsWith(up) && !seen.has(i.value.toUpperCase()) && Boolean(seen.add(i.value.toUpperCase())))
+  }
+  const tableItems = () => [
+    ...tables.map((t) => ({ value: t.name, detail: `${t.columns.length} col${t.columns.length === 1 ? '' : 's'}` })),
+    ...(schema?.qqqTables ?? []).map((t) => ({ value: t.sqlName ?? t.name, detail: `QQQ ${t.label ?? t.name}` })),
+  ]
+  const columnItems = () => [...new Set([...refs.values()])].flatMap((t) => cols(t).map((c) => ({ value: c.name, detail: `${c.typeName ?? ''}${refs.size > 2 ? ` · ${t}` : ''}`.trim() })))
+  const lower = prefix ? prefix === prefix.toLowerCase() : false
+  const kw = (k: string) => (lower ? k.toLowerCase() : k)
+  const keywordItems = (list: Iterable<string>) => [...list].map((k) => ({ value: kw(k), detail: 'keyword' }))
+  if (qualifier) return { from, prefix, items: keep(cols(qualifier).map((c) => ({ value: c.name, detail: c.typeName }))) }
+  const previous = tokenize(sql.slice(stmtStart, from)).filter((t) => t.kind !== 'space' && t.kind !== 'comment')
+  const last = previous[previous.length - 1]
+  if (!last) {
+    const recentItems = recent.slice(0, 10).map((r) => ({ value: r, label: r.replace(/\s+/g, ' '), detail: 'recent' }))
+    return { from, prefix, items: [...keep(keywordItems(STATEMENT_KEYWORDS)), ...recentItems.filter((r) => !prefix || r.value.toUpperCase().startsWith(up))] }
+  }
+  const word = last.text.toUpperCase()
+  if (last.kind === 'keyword' && TABLE_CONTEXT.has(word)) return { from, prefix, items: keep(tableItems()) }
+  if ((last.kind === 'keyword' && COLUMN_CONTEXT.has(word)) || (last.kind === 'punct' && /^[,(=<>+\-*/]$|^(<=|>=|<>|!=)$/.test(last.text))) {
+    const columns = columnItems()
+    if (columns.length) return { from, prefix, items: keep([...columns, ...(prefix ? keywordItems(keywordSet(schema)) : [])]) }
+    return { from, prefix, items: keep([{ value: '*', detail: 'every column' }, ...tableItems().map((t) => ({ ...t, detail: `table · ${t.detail}` })), ...keywordItems(['DISTINCT', 'COUNT(*)', 'CASE'])]) }
+  }
+  if (!prefix && (last.kind === 'ident' || last.kind === 'quoted')) return { from, prefix, items: keywordItems(AFTER_TABLE) }
+  const functions = (schema?.functions ?? []).filter((f) => /^[A-Za-z_]\w*$/.test(f)).map((f) => ({ value: f, detail: 'function' }))
+  return { from, prefix, items: keep([...columnItems(), ...tableItems(), ...keywordItems(keywordSet(schema)), ...functions]) }
+}
+
 /** The longest common prefix of candidates, ignoring case (taken from the first). */
 export function commonPrefix(candidates: string[]): string {
   if (!candidates.length) return ''
@@ -571,8 +639,9 @@ export interface Notebook {
   cells: NotebookCell[]
 }
 
+/** A new cell key or execution UUID (cryptographically random: execution ids go to the server). */
 export function newCellKey(): string {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `cell-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  return randomUUID()
 }
 
 /** A notebook that is not saved yet: one SQL cell. */

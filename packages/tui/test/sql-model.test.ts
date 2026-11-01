@@ -5,7 +5,7 @@
 
 import { expect, test } from 'bun:test'
 import {
-  SqlBuffer, SqlHistory, cellSummary, coerceParameter, commonPrefix, complete, errorPosition, extractParameters, markdownLines, moveCell,
+  SqlBuffer, SqlHistory, STATEMENT_KEYWORDS, cellSummary, completionItems, coerceParameter, commonPrefix, complete, errorPosition, extractParameters, markdownLines, moveCell,
   notebookParameters, notebookRequest, referencedTables, scratchNotebook, splitStatements, statementAt, tokenize, tokenLines, type SqlSchema,
 } from '../src/sql/model'
 import { hideRunnerApps, isRunnerWidget, runnerApps } from '../src/sql/apps'
@@ -177,4 +177,28 @@ test('absent extension: the Runner apps leave the metadata; installed, nothing c
   expect(runnerApps(hidden as never)).toEqual([])
   expect(isRunnerWidget(meta, 'w')).toBe(true)
   expect(isRunnerWidget(hidden as never, 'w')).toBe(false)
+})
+
+test('completion with nothing typed: keywords and recent SQL at the start, tables after FROM, columns after SELECT/WHERE/ON or a dot', () => {
+  const values = (sql: string, recent: string[] = []) => completionItems(sql, sql.length, schema, recent).items.map((i) => i.value)
+  // the very start (also after a finished statement): statement keywords, then recent statements
+  expect(values('', ['SELECT 1', 'SELECT * FROM ORDERS'])).toEqual([...STATEMENT_KEYWORDS, 'SELECT 1', 'SELECT * FROM ORDERS'])
+  expect(values('SELECT 1;\n  ')).toEqual(STATEMENT_KEYWORDS)
+  expect(completionItems('', 0, schema, ['SELECT 1\nFROM t']).items.at(-1)).toEqual({ value: 'SELECT 1\nFROM t', label: 'SELECT 1 FROM t', detail: 'recent' })
+  // after FROM / JOIN: every table, with its column count; QQQ tables by their SQL names
+  const from = completionItems('SELECT * FROM ', 14, schema).items
+  expect(from.map((i) => i.value)).toEqual(['CUSTOMER', 'CUSTOMER_NOTE', 'ORDERS', 'orders'].filter((v, i, a) => a.findIndex((x) => x.toUpperCase() === v.toUpperCase()) === i))
+  expect(from[0]).toEqual({ value: 'CUSTOMER', detail: '3 cols' })
+  expect(values('SELECT * FROM ORDERS o JOIN ')).toContain('CUSTOMER_NOTE')
+  // after SELECT / WHERE / ON / a comma: the columns of the statement's tables, with types
+  const sql = 'SELECT  FROM ORDERS o'
+  expect(completionItems(sql, 7, schema).items.map((i) => i.value)).toEqual(['ID', 'CUSTOMER_ID', 'STATUS'])
+  expect(values('SELECT * FROM CUSTOMER WHERE ')).toEqual(['ID', 'NAME', 'EMAIL'])
+  expect(values('SELECT ID, ')).toContain('*')
+  expect(values('SELECT * FROM ORDERS o JOIN CUSTOMER c ON c.')).toEqual(['ID', 'NAME', 'EMAIL'])
+  // after a table name: what usually follows
+  expect(values('SELECT * FROM ORDERS ')).toContain('WHERE')
+  // a typed prefix still filters, in the typed case for keywords
+  expect(values('SELECT * FROM CU')).toEqual(['CUSTOMER', 'CUSTOMER_NOTE'])
+  expect(values('sel')).toEqual(['select'])
 })

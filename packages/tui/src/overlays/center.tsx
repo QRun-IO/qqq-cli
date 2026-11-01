@@ -17,6 +17,7 @@ import { EditorLine, overlayId, wrap } from './basic'
 import { HELP_POINTER, type KeyGroup } from '../help-keys'
 import { paletteGroups, paletteRows, type PaletteGroup, type PaletteItem, type RecordState } from '../palette'
 import { Frame, Line } from './frame'
+import { CompletionPopup, PopupBox, type PopupItem } from './popup'
 
 export { MenuOverlay } from './menu'
 
@@ -229,11 +230,11 @@ export class CommandLineOverlay implements Overlay {
   readonly id = overlayId('cmdline')
   readonly editor: LineEditor
   historyIndex = -1
-  candidates: string[] = []
-  candidate = 0
+  /** The completion popup (Tab), with where the completed word starts. */
+  popup?: { model: CompletionPopup; from: number }
   search?: LineEditor
 
-  constructor(private store: AppStore, private history: History, private complete: (line: string, cursor: number) => { from: number; candidates: string[] }, private onRun: (line: string) => void, initial = '') {
+  constructor(private store: AppStore, private history: History, private complete: (line: string, cursor: number) => { from: number; candidates: string[]; items?: PopupItem[] }, private onRun: (line: string) => void, initial = '') {
     this.editor = new LineEditor(initial)
   }
 
@@ -256,6 +257,18 @@ export class CommandLineOverlay implements Overlay {
       this.search.handle(key)
       return
     }
+    if (this.popup) {
+      const r = this.popup.model.handle(key)
+      if (r === 'insert') return this.insert(this.popup.from, this.popup.model.selected()?.value)
+      if (r === 'close') return void (this.popup = undefined)
+      if (r) return
+      if (this.editor.handle(key)) {
+        const typed = this.editor.value.slice(this.popup.from, this.editor.cursor)
+        if (this.editor.cursor < this.popup.from || /\s/.test(typed)) this.popup = undefined
+        else this.popup.model.setFilter(typed)
+        return
+      }
+    }
     if (key.name === 'escape') return this.store.closeOverlay(this)
     if (key.ctrl && key.name === 'r') {
       this.search = new LineEditor('')
@@ -271,19 +284,12 @@ export class CommandLineOverlay implements Overlay {
       return
     }
     if (key.name === 'tab') {
+      // Tab: one match for what is typed is inserted; otherwise (also on an empty line) the popup lists what fits
       const r = this.complete(this.editor.value, this.editor.cursor)
-      if (!r.candidates.length) return
-      if (this.candidates.join('\u0000') === r.candidates.join('\u0000') && r.candidates.length > 1) this.candidate = (this.candidate + 1) % r.candidates.length
-      else {
-        this.candidates = r.candidates
-        this.candidate = 0
-      }
-      const pick = r.candidates[this.candidate]!
-      const before = this.editor.value.slice(0, r.from)
-      const after = this.editor.value.slice(this.editor.cursor)
-      this.editor.value = before + pick + (after.startsWith(' ') ? '' : ' ') + after
-      this.editor.cursor = before.length + pick.length + 1
-      if (r.candidates.length === 1) this.candidates = []
+      const typed = this.editor.value.slice(r.from, this.editor.cursor)
+      if (!r.candidates.length) return this.store.flash(typed ? `nothing completes "${typed}"` : 'nothing to complete here')
+      if (r.candidates.length === 1 && typed) return this.insert(r.from, r.candidates[0])
+      this.popup = { model: new CompletionPopup(r.items ?? r.candidates.map((value) => ({ value })), typed), from: r.from }
       return
     }
     if (key.name === 'up' || key.name === 'down') {
@@ -292,7 +298,17 @@ export class CommandLineOverlay implements Overlay {
       this.editor.set(this.historyIndex >= 0 ? hist[this.historyIndex]! : '')
       return
     }
-    if (this.editor.handle(key)) this.candidates = []
+    this.editor.handle(key)
+  }
+
+  /** Puts a completion in place of the word that starts at `from`, followed by a space. */
+  private insert(from: number, value: string | undefined): void {
+    this.popup = undefined
+    if (value === undefined) return
+    const before = this.editor.value.slice(0, from)
+    const after = this.editor.value.slice(this.editor.cursor)
+    this.editor.value = before + value + (after.startsWith(' ') ? '' : ' ') + after
+    this.editor.cursor = before.length + value.length + 1
   }
 
   render(sw: number, sh: number) {
@@ -301,13 +317,20 @@ export class CommandLineOverlay implements Overlay {
     const inner = width - 2
     const hint = this.search
       ? ` history search: ${this.search.value}_  → ${this.history.search(this.search.value)[0] ?? '(no match)'}`
-      : this.candidates.length > 1 ? ` ${trunc(this.candidates.map((c, i) => (i === this.candidate ? `[${c}]` : c)).join('  '), inner - 2)}` : ' ↑↓ history · Ctrl+R search · Tab completes · Enter runs · Esc · e.g. table query person -w "lastName STARTS_WITH S" · theme light · lock · quit'
+      : this.popup ? ' ↑↓ choose · Enter or Tab inserts · type to filter · Esc closes the list' : ' ↑↓ history · Ctrl+R search · Tab completes · Enter runs · Esc · e.g. table query person -w "lastName STARTS_WITH S" · theme light · lock · quit'
+    const left = Math.max(0, Math.floor((sw - width) / 2))
+    const top = Math.max(0, sh - 6)
+    const rows = this.popup ? Math.max(1, Math.min(10, top - 3, this.popup.model.matches().length)) : 0
+    const popupWidth = Math.min(width, 72)
     return (
-      <box position="absolute" left={Math.max(0, Math.floor((sw - width) / 2))} top={Math.max(0, sh - 6)} width={width} height={4} flexDirection="column" border borderStyle="single" borderColor={t.focusBorder} {...(glyphs().border ? { customBorderChars: glyphs().border } : {})} backgroundColor={t.overlayBg} title=" : command " zIndex={30}>
+      <>
+      {this.popup && <PopupBox popup={this.popup.model} left={left} top={Math.max(0, top - rows - 2)} width={popupWidth} rows={rows} title={`${this.popup.model.matches().length} matches${this.popup.model.filter ? ` · ${this.popup.model.filter}` : ''}`} />}
+      <box position="absolute" left={left} top={top} width={width} height={4} flexDirection="column" border borderStyle="single" borderColor={t.focusBorder} {...(glyphs().border ? { customBorderChars: glyphs().border } : {})} backgroundColor={t.overlayBg} title=" : command " zIndex={30}>
         <text flexShrink={0} wrapMode="none"><span fg={t.acc2}>{':'}</span></text>
         <box position="absolute" left={2} top={0}><EditorLine editor={this.editor} width={inner - 3} /></box>
         <Line text={hint} width={inner} fg={this.search ? t.acc2 : t.dim} />
       </box>
+      </>
     )
   }
 }

@@ -6,13 +6,14 @@
 # enterprise test server on 8078, MOCK sign-in). Uses its own config, state and cache directories, so
 # no profile of yours is touched. At 80x24 and 120x36: SELECT 1, a real table query (paging, sort),
 # a SQL error with its position, EXPLAIN, the schema browser and history; captures go to $OUT.
-#   packages/tui/scripts/smoke-sql.sh [server]   OUT=dir SQL_TABLE=CUSTOMER
+#   packages/tui/scripts/smoke-sql.sh [server]   OUT=dir SQL_TABLE=CUSTOMER SQL_COLUMN=EMAIL
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 pkg="$(cd "$here/.." && pwd)"
 root="$(cd "$pkg/../.." && pwd)"
 server="${1:-http://localhost:8078}"
 table="${SQL_TABLE:-CUSTOMER}"
+column="${SQL_COLUMN:-EMAIL}"   # a column of SQL_TABLE (the export check waits for it)
 out="${OUT:-$(mktemp -d)}"
 cfg="$(mktemp -d)"
 export QQQ_CONFIG_DIR="$cfg/config" QQQ_STATE_DIR="$cfg/state" QQQ_CACHE_DIR="$cfg/cache" QQQ_KEYRING=file
@@ -24,6 +25,10 @@ trap cleanup EXIT
 login="$(node "$root/packages/cli/dist/main.js" --server "$server" login 2>&1)"
 profile="$(sed -n 's/.*as profile "\([^"]*\)".*/\1/p' <<< "$login")"
 [[ -n $profile ]] || { echo "sign-in failed: $login"; exit 1; }
+# exports save silently into a folder of this run (never your Downloads)
+downloads="$cfg/downloads"
+mkdir -p "$downloads"
+node --input-type=module -e "const m = await import('$root/packages/core/dist/index.js'); m.writeFilePreferences({ downloadDir: '$downloads', downloadMode: 'silent' })"
 keys() { for k in "$@"; do if [[ $k == T:* ]]; then tmux send-keys -t "$s" -l -- "${k#T:}"; else tmux send-keys -t "$s" "$k"; fi; sleep 0.3; done; }
 cap() { tmux capture-pane -t "$s" -p > "$out/$1.txt"; }
 expect() { # name text...
@@ -68,6 +73,37 @@ run_at() { # width height suffix
   expect "$x-08-history" 'History' 'SELECT 1'
   fits "$x-08-history" "$w"
   keys Escape
+  # the owner's query: columns in the server's order, formatted cells, the status line under the results
+  keys End C-u 'T:SELECT * FROM QQQTABLE;' F5
+  expect "$x-09-qqqtable" 'LABEL' 'CREATEDATE' 'sorted by ' 'read-only'
+  fits "$x-09-qqqtable" "$w"
+  if grep -qE '\.[0-9]{6}' "$out/$x-09-qqqtable.txt"; then echo "FAIL $x-09-qqqtable: raw microseconds shown"; fails=$((fails + 1)); fi
+  # F8: the export dialog; csv of every row, saved silently; the file's rows match the status line
+  rm -f "$downloads"/*
+  keys Escape End C-u "T:SELECT * FROM $table" F5
+  expect "$x-09b-export-source" "$column" 'sorted by '
+  keys F8
+  expect "$x-10-export-dialog" 'Export the result' 'copy to clipboard'
+  fits "$x-10-export-dialog" "$w"
+  keys Enter
+  expect "$x-11-exported" 'Wrote'
+  local want got file
+  want="$(grep -oE '[0-9,]+ rows? · [0-9,]+ ms' "$out/$x-09b-export-source.txt" | head -1 | sed 's/ .*//; s/,//g')"
+  file="$(ls "$downloads"/*.csv 2>/dev/null | head -1)"
+  got=$(( $(wc -l < "${file:-/dev/null}") - 1 ))
+  if [[ -n $file && $got == "$want" ]]; then echo "ok   $x-11-exported: $got rows in the csv = the status line"; else echo "FAIL $x-11-exported: csv rows $got, status line $want"; fails=$((fails + 1)); fi
+  keys Escape Escape
+  # Tab with nothing typed: after FROM the tables, at the start keywords and recent statements
+  keys End C-u 'T:SELECT * FROM ' Tab
+  expect "$x-12-popup-from" 'matches' 'cols'
+  fits "$x-12-popup-from" "$w"
+  keys Escape C-u Tab
+  expect "$x-13-popup-start" 'SELECT' 'recent'
+  fits "$x-13-popup-start" "$w"
+  keys Escape BTab T:: Tab
+  expect "$x-14-command-popup" 'matches' 'actions of this screen'
+  fits "$x-14-command-popup" "$w"
+  keys Escape Escape
   tmux kill-session -t "$s" 2>/dev/null || true
 }
 

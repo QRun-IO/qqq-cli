@@ -267,7 +267,10 @@ tree, `/` (type "sql"), F9 › Work › SQL Runner, or `:sql` (`:sql SELECT …`
 the execution audit), and its tables open as tables.
 
 The layout is a classic database TUI: the SQL editor on top (line numbers, syntax tint, the server's
-keywords), the result grid below with a status line (rows, elapsed, backend, read-only, row limit, sort),
+keywords), the result grid below drawn like the main grid (columns in the server's order, a row-number
+gutter, a header rule, dates at seconds precision, grouped numbers right-aligned, NULL as a dim `—`, zebra
+per the `sql:results` view setting), then a status line (rows, elapsed, backend, read-only, row limit,
+sorted by) and the key line,
 an error under the editor with its SQL position marked in the text, and the schema browser on the right.
 
 | Key | Does |
@@ -275,14 +278,16 @@ an error under the editor with its SQL position marked in the text, and the sche
 | F5, Ctrl+Enter (Ctrl+J) | run the statement under the cursor (the whole cell when it has one); `:name` parameters are asked for, bound as values and remembered |
 | F6 | EXPLAIN: the plan as an indented tree with cost, rows and a relative cost bar; ←→ or Enter fold, `r` the raw text |
 | F3 | schema browser: backends › tables › columns, type to filter, → unfolds, Enter inserts the name (on a backend: run this cell there) |
-| Tab | complete table and column names from the schema endpoint (after `alias.` the columns of that table); Tabs again cycle |
+| Tab | the completion popup, also with nothing typed: after FROM / JOIN every table (with its column count), after SELECT / WHERE / ON or `alias.` the statement's columns (with types), at the start the statement keywords and recent statements; typing filters, ↑↓ Enter or Tab inserts, Esc closes |
 | Ctrl+↑ Ctrl+↓ | earlier and later SQL from your run history (kept on disk) |
 | F2 | notebooks, Mine and Shared: open, `s` save (a new version), `a` save as, `n` new, `u` duplicate, `d` delete, `p` publish |
 | F4 | cells: Enter edits one, `a` add SQL, `m` add notes, K J (Shift+↑↓) move, `t` title, `b` backend, `d` delete, `R` run all |
 | F7 | your audited runs (status, time, rows, SQL); type to filter, Enter opens the SQL in the editor, Ctrl+R re-runs it |
 | Shift+Tab, Esc | to the results and back; Esc also cancels a running statement and, from the editor, leaves (asking about unsaved changes) |
 | results: ↑↓ PgUp PgDn ←→ | move; rows load page by page from the server's cached result |
-| results: `s` `V` `x` | sort by the column (the server sorts: asc, desc, off), the whole value, export (csv, xlsx, json through the file flow) |
+| F8, results: `x` | the export dialog: csv, tsv, xlsx or json of every row of the result (the server writes csv/xlsx/json from its cached result; tsv is read page by page) through the file navigator and the download-folder preference, or copy to the clipboard for small results |
+| results: `s` `V` `y` `Y` Ctrl+Y | sort by the column (the server sorts: asc, desc, off), the whole value, copy the cell, the row (TSV), the whole result (TSV) |
+| results: Shift+←→, `a` | scroll the columns (◂ ▸ show more off screen); the actions menu (export, copy, chart…) |
 | results: `g` `c` `p` | grid, quick chart (text bars of a number column; ←→ value column, `l` label column), plan |
 
 Markdown cells are edited as text and shown rendered below. Runs are read-only (one statement, the server's
@@ -296,7 +301,9 @@ TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `m
 `views`, `share`, `actions`, `audits`, `dev`, `tags`, `report run <name>`, `theme <name>`, `ascii on|off`,
 `linear on|off`, `shortcuts on|off`, `dates [order ymd|mdy|dmy] [clock 24h|12h] [week monday|sunday] [weeknumbers on|off] [enter picker|next]`, `lock`, `saver [style|style <s>|refresh <s>|tables <a,b>]`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
 `export <format>`, `jobs`, `profile [name]`, `servers`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
-`app <name>`, `record <table> <key>`, `sql [statement | open <id>]`. `table query|get|create|update|delete` and `process run` open screens;
+`app <name>`, `record <table> <key>`, `sql [statement | open <id>]`. Tab on an empty line lists every
+command with a one-line description; after a command it lists its arguments (tables, processes, apps,
+profiles, subcommands), in the same popup as the SQL editor. `table query|get|create|update|delete` and `process run` open screens;
 any other CLI command runs in-process (`runCli` from `@qrun-io/qqq-cli/program`) and shows its output;
 an extension operation (`:alerts get-inbox`, `:collab get-records-tasks customer 1`, `:api <operationId>`)
 shows its JSON as key/value rows and sub-tables, with `J` for the raw JSON.

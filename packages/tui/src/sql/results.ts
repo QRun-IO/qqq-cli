@@ -9,6 +9,7 @@
  * EXPLAIN plan as an indented tree, and quick text bar charts.
  */
 
+import { formatDateValue, type ResolvedDateSettings } from '@qrun-io/qqq-core'
 import type { GridColumn } from '../screens/table'
 
 /** A result column as the server describes it. */
@@ -110,17 +111,66 @@ export function fullValueText(value: unknown, kind?: SqlColumn['kind']): string 
   return String(value)
 }
 
+/** A cell as the grid shows it: text, alignment, and whether it is dimmed (NULL). */
+export interface CellFormat {
+  text: string
+  right: boolean
+  dim?: boolean
+}
+
+/** Key-like number columns (`ID`, `CUSTOMER_ID`, `customerId`) keep their digits ungrouped, as the main grid shows ids. */
+const KEY_LIKE = /(^|_)id$|[a-z0-9]Id$|^(year|port|code)$/i
+
+/** Groups the digits of a number's integer part with commas (works on big decimals sent as text). */
+export function groupDigits(text: string): string {
+  const m = /^(-?)(\d+)(\.\d+)?$/.exec(text)
+  if (!m) return text
+  return `${m[1]}${m[2]!.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}${m[3] ?? ''}`
+}
+
+/** The date display settings a cell needs (order and clock); YYYY-MM-DD and 24 h unless the profile says otherwise. */
+export type DateDisplay = Pick<ResolvedDateSettings, 'order' | 'clock'>
+const DEFAULT_DATES: DateDisplay = { order: 'YMD', clock: '24h' }
+
+/**
+ * A date or date-time in the profile's display format (the kernel's formatDateValue): seconds only
+ * when the value has them, never the fraction; zoned instants in the local zone.
+ */
+export function dateTimeText(value: string, dates: DateDisplay = DEFAULT_DATES, kind: 'DATE' | 'DATE_TIME' = 'DATE_TIME'): string {
+  return formatDateValue(value.trim(), kind, dates)
+}
+
+/**
+ * The grid's formatting of a SQL value by its column: NULL as a dim `—`; numbers right-aligned with
+ * thousands separators (not in key-like columns); booleans as true/false; date-times in the local
+ * display format at seconds precision; times without fractions; JSON compact; binary as its size.
+ */
+export function formatCell(value: unknown, column: SqlColumn, dates: DateDisplay = DEFAULT_DATES): CellFormat {
+  if (value === null || value === undefined) return { text: '—', right: column.kind === 'number', dim: true }
+  switch (column.kind) {
+    case 'number': {
+      const raw = typeof value === 'number' ? (Number.isInteger(value) ? String(value) : String(value)) : String(value)
+      return { text: KEY_LIKE.test(column.name) ? raw : groupDigits(raw), right: true }
+    }
+    case 'boolean': return { text: value === true || value === 'true' || value === 1 ? 'true' : 'false', right: false }
+    case 'datetime': return { text: typeof value === 'string' ? dateTimeText(value, dates) : valueText(value), right: false }
+    case 'date': return { text: typeof value === 'string' ? dateTimeText(value, dates, 'DATE') : valueText(value), right: false }
+    case 'time': return { text: String(value).replace(/\.\d+$/, ''), right: false }
+    default: return { text: valueText(value, column.kind), right: false }
+  }
+}
+
 /** Widest a column of a kind starts (its values are cut beyond, V shows them whole). */
-const KIND_CAP: Record<string, number> = { number: 20, boolean: 5, date: 10, time: 15, datetime: 27, string: 40, json: 40, array: 30, binary: 22, other: 30 }
+const KIND_CAP: Record<string, number> = { number: 24, boolean: 5, date: 10, time: 15, datetime: 27, string: 40, json: 40, array: 30, binary: 22, other: 30 }
 
 /**
  * Column widths from the column kinds and the first rows: the longer of the label and the values,
  * capped per kind; spare width goes to text columns that were cut. Numbers are right-aligned.
  */
-export function sqlColumns(columns: SqlColumn[], rows: unknown[][], available: number): GridColumn[] {
+export function sqlColumns(columns: SqlColumn[], rows: unknown[][], available: number, dates: DateDisplay = DEFAULT_DATES): GridColumn[] {
   const cols = columns.map((c, i) => {
     const label = c.label || c.name
-    const longest = Math.max(label.length + 1, ...rows.slice(0, 200).map((r) => valueText(r[i], c.kind).length), 4)
+    const longest = Math.max(label.length + 1, ...rows.slice(0, 200).map((r) => formatCell(r[i], c, dates).text.length), 4)
     const cap = KIND_CAP[c.kind ?? 'other'] ?? 30
     return { name: String(i), label, type: c.kind ?? 'other', numeric: c.kind === 'number', width: Math.min(cap, longest), longest }
   })
@@ -300,4 +350,52 @@ export function barLines(items: Array<{ label: string; value: number }>, width: 
     const b = (it.value < 0 ? '-' : '') + bar.repeat(Math.max(it.value === 0 ? 0 : 1, n - (it.value < 0 ? 1 : 0)))
     return `${label} ${b.padEnd(barRoom)} ${values[i]!.padStart(valueWidth)}`
   })
+}
+
+// ---- copy and export ----
+
+/** A value as delimited text for copying and TSV: raw (ISO dates, full numbers), NULL empty. */
+export function rawText(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') return (value as { $binary?: boolean }).$binary ? `<binary ${(value as { length?: number }).length ?? '?'} bytes>` : JSON.stringify(value)
+  return String(value)
+}
+
+/** Rows as TSV (tabs and line breaks inside values become spaces) or CSV (RFC 4180 quoting), with a header row. */
+export function toDelimited(columns: SqlColumn[], rows: unknown[][], format: 'tsv' | 'csv', header = true): string {
+  const cell = (v: unknown) => {
+    const t = rawText(v)
+    if (format === 'tsv') return t.replace(/[\t\r\n]+/g, ' ')
+    return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
+  }
+  const sep = format === 'tsv' ? '\t' : ','
+  const lines = rows.map((r) => columns.map((_, i) => cell(r[i])).join(sep))
+  if (header) lines.unshift(columns.map((c) => cell(c.label || c.name)).join(sep))
+  return lines.join('\n') + '\n'
+}
+
+/** The most rows "copy to clipboard" takes; larger results go to a file. */
+export const CLIPBOARD_MAX_ROWS = 2000
+
+export type ExportTarget = 'csv' | 'tsv' | 'xlsx' | 'json' | 'clipboard'
+
+/** The export dialog's choices, as the main grid offers them, plus the clipboard for small results. */
+export function exportChoices(total: number, maxRows?: number): Array<{ label: string; value: ExportTarget; detail?: string; disabled?: string }> {
+  const all = `all ${total.toLocaleString('en-US')} row${total === 1 ? '' : 's'}`
+  return [
+    { label: 'csv', value: 'csv', detail: `${all}, written by the server` },
+    { label: 'tsv', value: 'tsv', detail: `${all}, read page by page` },
+    { label: 'xlsx', value: 'xlsx', detail: `Excel, ${all}` },
+    { label: 'json', value: 'json', detail: `${all} keyed by column label` },
+    { label: 'copy to clipboard', value: 'clipboard', detail: 'TSV with a header row', disabled: total > CLIPBOARD_MAX_ROWS ? `more than ${CLIPBOARD_MAX_ROWS.toLocaleString('en-US')} rows: export to a file` : undefined },
+  ].map((c) => (maxRows && total >= maxRows ? { ...c, detail: `${c.detail} (the result stopped at the ${maxRows.toLocaleString('en-US')}-row limit)` } : c)) as ReturnType<typeof exportChoices>
+}
+
+/** Every row of a result (pages the server's cached result as needed). */
+export async function allRows(pager: ResultPager): Promise<unknown[][]> {
+  // ten chunks at a time, so a 10,000-row result does not open a hundred requests at once
+  for (let start = 0; start < pager.total; start += pager.chunk * 10) await pager.ensure(start, pager.chunk * 10)
+  const rows = pager.window(0, pager.total)
+  if (rows.some((r) => !r)) throw new Error(pager.error ?? 'some rows could not be read (the server keeps a result for 15 minutes: run it again)')
+  return rows as unknown[][]
 }

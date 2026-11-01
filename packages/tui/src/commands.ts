@@ -9,7 +9,7 @@
  * Menu entries and `:` commands are the same actions.
  */
 
-import { runCli } from '@qrun-io/qqq-cli/program'
+import { createProgram, runCli } from '@qrun-io/qqq-cli/program'
 import { THEMES } from './theme'
 import { metaHelp, processHelp, tableHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeConfig, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
@@ -28,6 +28,7 @@ import { ServersOverlay } from './overlays/servers'
 import { datesCommand } from './controls/date-settings'
 import type { AppStore, CommandsLike } from './store'
 import type { MenuEntry } from './types'
+import type { PopupItem } from './overlays/popup'
 import { openSqlRunner, sqlCommand, sqlMenuEntries } from './sql/entry'
 import { isRunnerWidget } from './sql/apps'
 import { errorText, shellSplit } from './util/text'
@@ -47,6 +48,33 @@ const NOUNS: Record<string, string[]> = {
 }
 
 const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates']
+
+/** One line on each TUI command, for the `:` line's completion popup. */
+export const TUI_COMMAND_HELP: Record<string, string> = {
+  quit: 'quit, reset or cancel', home: 'reset: the home screen, metadata refreshed', reset: 'the home screen, metadata refreshed', tags: 'tags of this record',
+  audits: 'audits of this record', dev: 'developer view (record scripts, table APIs)', actions: 'actions of this screen', back: 'back one screen', help: 'keys and help',
+  menu: 'the F9 menu', goto: 'search anything', view: 'view settings of this screen', theme: 'switch the theme', ascii: 'ASCII glyphs on or off', linear: 'linear layout on or off',
+  shortcuts: 'single-key shortcuts on or off', lock: 'lock the screen', pin: 'set or remove the lock PIN', idle: 'screen saver after idle minutes', refresh: 'reload this screen',
+  filter: 'filter the grid (grammar)', export: 'export the grid or result', jobs: 'your jobs', printjobs: 'print jobs', profile: 'switch profile', servers: 'saved servers (Ctrl+O)',
+  server: 'connect to a server URL', signout: 'sign out', connection: 'connection details', open: 'open a table', record: 'open a record by key', app: 'open an app',
+  sql: 'SQL Runner (statement to run, open <notebook id>)', saver: 'the screen saver', doctor: 'check the terminal', views: 'saved views of this table', share: 'share this record', helpkeys: 'help-authoring mode',
+}
+
+/** CLI commands the `:` line does not offer (they make no sense inside the TUI). */
+const HIDDEN_CLI = new Set(['__complete', 'ui', 'login', 'logout', 'completion', 'help'])
+
+let cliCommands: Array<{ name: string; detail: string; subs: Array<{ name: string; detail: string }> }> | undefined
+/** The CLI's commands and subcommands with their one-line descriptions (read once from the program). */
+function cliCommandList(): NonNullable<typeof cliCommands> {
+  if (cliCommands) return cliCommands
+  const first = (text: string) => text.split('\n')[0]!.replace(/\s+/g, ' ').trim()
+  try {
+    cliCommands = createProgram().commands.filter((c) => !HIDDEN_CLI.has(c.name())).map((c) => ({ name: c.name(), detail: first(c.description()), subs: c.commands.map((x) => ({ name: x.name(), detail: first(x.description()) })) }))
+  } catch {
+    cliCommands = Object.entries(NOUNS).map(([name, subs]) => ({ name, detail: '', subs: subs.map((x) => ({ name: x, detail: '' })) }))
+  }
+  return cliCommands
+}
 
 export class Commands implements CommandsLike {
   constructor(private store: AppStore) {}
@@ -213,7 +241,12 @@ export class Commands implements CommandsLike {
 
   // ---- completion for the : line ----
 
-  completeLine(line: string, cursor: number): { from: number; candidates: string[] } {
+  /**
+   * Completion for the `:` line: on an empty line every command with a one-line description; after a
+   * command its subcommands or arguments (tables, processes, apps, widgets, profiles, themes, formats),
+   * each with its label. `items` feed the popup, `candidates` are their values.
+   */
+  completeLine(line: string, cursor: number): { from: number; candidates: string[]; items: PopupItem[] } {
     const before = line.slice(0, cursor)
     const words = shellSplit(before)
     const endsSpace = /\s$/.test(before) || before === ''
@@ -221,20 +254,30 @@ export class Commands implements CommandsLike {
     const from = cursor - current.length
     const pos = words.length
     const meta = this.store.meta
-    const pick = (list: string[]) => ({ from, candidates: [...new Set(list)].filter((c) => c.toLowerCase().startsWith(current.toLowerCase())).sort() })
-    if (pos === 0) return pick([...Object.keys(NOUNS), ...TUI_COMMANDS])
+    const pick = (list: PopupItem[]) => {
+      const seen = new Set<string>()
+      const items = list.filter((i) => i.value.toLowerCase().startsWith(current.toLowerCase()) && !seen.has(i.value) && Boolean(seen.add(i.value))).sort((a, b) => a.value.localeCompare(b.value))
+      return { from, candidates: items.map((i) => i.value), items }
+    }
+    const named = (map: Record<string, { label?: string }> | undefined) => Object.entries(map ?? {}).map(([value, v]) => ({ value, detail: v?.label && v.label !== value ? v.label : undefined }))
+    const cli = cliCommandList()
+    if (pos === 0) return pick([...TUI_COMMANDS.map((c) => ({ value: c, detail: TUI_COMMAND_HELP[c] ?? 'TUI command' })), ...cli.filter((c) => !TUI_COMMANDS.includes(c.name)).map((c) => ({ value: c.name, detail: c.detail }))])
     const noun = words[0]!
-    if (pos === 1 && NOUNS[noun]?.length) return pick(NOUNS[noun]!)
-    if (noun === 'theme' && pos === 1) return pick(Object.keys(THEMES))
-    if (noun === 'saver' && pos === 1) return pick(SAVER_WORDS)
-    if ((noun === 'table' && pos === 2) || (noun === 'open' && pos === 1) || (noun === 'record' && pos === 1)) return pick(Object.keys(meta?.tables ?? {}))
-    if (noun === 'process' && pos === 2) return pick(Object.keys(meta?.processes ?? {}))
-    if (noun === 'widget' && pos === 2) return pick(Object.keys(meta?.widgets ?? {}))
-    if (noun === 'app' && pos === 1) return pick(Object.keys(meta?.apps ?? {}))
-    if (noun === 'export' && pos === 1) return pick(['csv', 'xlsx', 'json', 'tsv'])
-    if (noun === 'profile' && pos === 1) return pick(Object.keys(readConfig().profiles))
-    if (noun === 'table' && words[1] === 'query') return pick(['-w', '-g', '--or', '-o', '--limit', '--fields', '--print-filter', '--count'])
-    return { from, candidates: [] }
+    const tables = () => named(meta?.tables as Record<string, { label?: string }> | undefined)
+    if (noun === 'theme' && pos === 1) return pick(Object.values(THEMES).map((t) => ({ value: t.name, detail: t.label })))
+    if (noun === 'saver' && pos === 1) return pick(SAVER_WORDS.map((value) => ({ value })))
+    if ((noun === 'table' && pos === 2) || (noun === 'open' && pos === 1) || (noun === 'record' && pos === 1) || (noun === 'query' && pos === 1)) return pick(tables())
+    if (noun === 'process' && pos === 2) return pick(named(meta?.processes as Record<string, { label?: string }> | undefined))
+    if (noun === 'widget' && pos === 2) return pick(named(meta?.widgets as Record<string, { label?: string }> | undefined))
+    if (noun === 'report' && pos === 2) return pick(named((meta as { reports?: Record<string, { label?: string }> } | undefined)?.reports))
+    if (noun === 'app' && pos === 1) return pick(named(meta?.apps as Record<string, { label?: string }> | undefined))
+    if (noun === 'export' && pos === 1) return pick(['csv', 'tsv', 'xlsx', 'json'].map((value) => ({ value })))
+    if (noun === 'profile' && pos === 1) return pick(Object.entries(readConfig().profiles).map(([value, p]) => ({ value, detail: p.server })))
+    if (noun === 'sql' && pos === 1) return pick([{ value: 'open', detail: 'open a notebook by id' }, { value: 'SELECT', detail: 'run a statement' }])
+    if (noun === 'table' && words[1] === 'query') return pick(['-w', '-g', '--or', '-o', '--limit', '--fields', '--print-filter', '--count'].map((value) => ({ value })))
+    const sub = cli.find((c) => c.name === noun)
+    if (pos === 1 && sub?.subs.length) return pick(sub.subs.map((x) => ({ value: x.name, detail: x.detail })))
+    return { from, candidates: [], items: [] }
   }
 
   // ---- the : dispatcher ----

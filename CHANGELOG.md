@@ -232,8 +232,12 @@ candidate's, plus the changes since it listed first.
   history; a server-paged, server-sorted result grid with typed column widths, whole values and export;
   errors inline with their SQL position; EXPLAIN as an indented plan tree (F6); a schema browser (F3);
   notebooks with SQL and markdown cells, run all, save, save as, duplicate, delete and publish (F2, F4);
-  quick text bar charts; the audited run history with re-run (F7). Hidden, and `:sql` explains why, when
-  the server lacks the extension. Read-only runs only.
+  quick text bar charts; the audited run history with re-run (F7). Results are drawn like the main
+  grid (server column order, row numbers, typed formatting, status line); F8 / `x` export every row as
+  csv, tsv, xlsx or json or copy it, `y` `Y` Ctrl+Y copy the cell, row or result. Tab opens a completion
+  popup even with nothing typed (tables after FROM, columns after SELECT, keywords and recent SQL), and
+  the `:` line's Tab lists every command with a description and then its arguments. Hidden, and `:sql`
+  explains why, when the server lacks the extension. Read-only runs only.
 - **Dashboards and widgets** in block characters: stats, bar charts, sparklines, percentage bars, tables
   and steppers.
 - **Terminal care**: `qqq ui --check` (and a quick check at startup) finds tmux key and colour problems and

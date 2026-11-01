@@ -17,18 +17,22 @@ import type { Key } from '../keys'
 import { charOf } from '../keys'
 import { ChoiceOverlay, MessageOverlay, PromptOverlay, wrap } from '../overlays/basic'
 import { saveFile } from '../overlays/files-helpers'
+import { actionsOverlay } from '../overlays/actions'
+import { dateSettingsFor } from '../controls/date-settings'
 import { visibleFrom, type GridColumn } from '../screens/table'
 import type { AppStore } from '../store'
 import { borderProps, glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Screen } from '../types'
+import { readViewSettings } from '@qrun-io/qqq-core'
 import { errorText, num, pad, padLeft, shellQuote, trunc } from '../util/text'
 import { runnerApps } from './apps'
 import {
-  SqlBuffer, SqlHistory, cellSummary, coerceParameter, commonPrefix, complete, errorPosition, extractParameters, keywordSet, markdownLines,
+  SqlBuffer, SqlHistory, cellSummary, coerceParameter, completionItems, errorPosition, extractParameters, keywordSet, markdownLines,
   moveCell, newCellKey, notebookRequest, scratchNotebook, schemaTables, statementAt, tokenLines, type Notebook, type NotebookCell, type SqlPosition, type SqlSchema, type Token,
 } from './model'
 import { CellsOverlay, HistoryOverlay, NotebooksOverlay, type HistoryEntry } from './overlays'
-import { ResultPager, barLines, fullValueText, numericColumns, planLineText, planLines, sqlColumns, valueText, type ExecuteResponse, type ExplainResponse, type RowsResponse } from './results'
+import { CompletionPopup, PopupBox } from '../overlays/popup'
+import { ResultPager, allRows, barLines, exportChoices, formatCell, fullValueText, numericColumns, planLineText, planLines, rawText, sqlColumns, toDelimited, valueText, type ExecuteResponse, type ExplainResponse, type ExportTarget, type RowsResponse } from './results'
 
 /** GET /sql-workbench/capabilities. */
 export interface Capabilities {
@@ -60,6 +64,8 @@ interface CellState {
   ms?: number
   backend?: string
   cols?: { key: string; cols: GridColumn[] }
+  /** Shift+←→ moved the view: keep `left` instead of following the column cursor. */
+  scrolled?: boolean
 }
 
 interface Seg { text: string; fg?: string; bg?: string }
@@ -145,13 +151,14 @@ export class SqlRunnerScreen implements Screen {
   focus: 'editor' | 'results' | 'schema' = 'editor'
   showSchema = false
   readonly schemaPane = new SchemaPane()
-  completion?: { from: number; candidates: string[]; index: number; base: string }
+  /** The completion popup in the editor (Tab), with where the completed word starts. */
+  popup?: { model: CompletionPopup; from: number }
   running?: { uuid: string; cellKey: string; label: string; at: number }
   /** Parameter values by name (what was typed last; notebook defaults first). */
   values: Record<string, string> = {}
   history: SqlHistory
   private readonly abort = new AbortController()
-  private lastRender = { editorLines: 6, gridRows: 10, width: 80 }
+  private lastRender = { editorLines: 6, gridRows: 10, width: 80, visibleCols: 1 }
 
   constructor(private store: AppStore, options: { sql?: string; run?: boolean; notebookId?: number; history?: SqlHistory } = {}) {
     this.notebook = scratchNotebook(options.sql ?? '')
@@ -279,7 +286,7 @@ export class SqlRunnerScreen implements Screen {
 
   fkeys(): FKeyLabels {
     const wide = this.store.width >= 100
-    return { 2: wide ? 'Notebooks' : 'Books', 3: 'Schema', 4: 'Cells', 5: 'Run', 6: wide ? 'Explain' : 'Plan', 7: wide ? 'History' : 'Hist', 8: null }
+    return { 2: wide ? 'Notebooks' : 'Books', 3: 'Schema', 4: 'Cells', 5: 'Run', 6: wide ? 'Explain' : 'Plan', 7: wide ? 'History' : 'Hist', 8: 'Export' }
   }
 
   /** The keys of this screen, for F1. */
@@ -287,8 +294,9 @@ export class SqlRunnerScreen implements Screen {
     return [
       ['F5  Ctrl+Enter', 'run the statement under the cursor (Ctrl+J where Ctrl+Enter is Enter)'], ['F6', 'EXPLAIN: the plan as a tree'], ['F2', 'notebooks: open, save, save as, new'],
       ['F3', 'schema browser (Enter inserts the name)'], ['F4', 'cells: go to, add, move, delete, run all'], ['F7', 'history of runs (Enter opens, Ctrl+R re-runs)'],
-      ['Tab', 'complete table and column names; Shift+Tab to the results'], ['Ctrl+↑ Ctrl+↓', 'earlier and later SQL from the history'], ['Ctrl+PgUp/PgDn', 'previous and next cell'],
-      ['Esc', 'cancel a run · leave the results · leave the runner'], ['s  V  x', 'results: sort, whole value, export'], ['g  c  p', 'results: grid, chart, plan'],
+      ['F8  x', 'export the result: csv, tsv, xlsx, json (every row), or copy'], ['y  Y  Ctrl+Y', 'copy the cell, the row (TSV), the whole result (TSV)'],
+      ['Tab', 'what fits here: tables after FROM, columns after SELECT/WHERE, keywords and recent SQL at the start'], ['Shift+Tab', 'to the results'], ['Shift+← →', 'scroll the result columns'], ['Ctrl+↑ Ctrl+↓', 'earlier and later SQL from the history'], ['Ctrl+PgUp/PgDn', 'previous and next cell'],
+      ['Esc', 'cancel a run · leave the results · leave the runner'], ['s  V  x', 'results: sort, whole value, export'], ['g  c  p  a', 'results: grid, chart, plan, actions (export, copy…)'],
     ]
   }
 
@@ -313,7 +321,10 @@ export class SqlRunnerScreen implements Screen {
       { section: 'Context', label: this.showSchema ? 'Hide the schema browser' : 'Show the schema browser', key: 'F3', run: () => this.toggleSchema() },
       { section: 'Context', label: 'Refresh the schema', run: () => { const b = this.backendOf(); if (b) this.loadSchema(b, true) } },
       { section: 'Context', label: 'History', key: 'F7', run: () => this.openHistory() },
-      { section: 'Context', label: 'Export the result…', key: 'x', disabled: st.pager ? undefined : 'run a query first', run: () => this.exportResult() },
+      { section: 'Context', label: 'Export the result…', key: 'F8 x', detail: 'csv, tsv, xlsx, json or the clipboard', disabled: st.pager ? undefined : 'run a query first', run: () => this.exportResult() },
+      { section: 'Context', label: 'Copy the cell', key: 'y', disabled: st.pager?.total ? undefined : 'no rows', run: () => this.copyCell() },
+      { section: 'Context', label: 'Copy the row as TSV', key: 'Y', disabled: st.pager?.total ? undefined : 'no rows', run: () => this.copyRow() },
+      { section: 'Context', label: 'Copy the whole result as TSV', key: 'Ctrl+Y', disabled: st.pager?.total ? undefined : 'no rows', run: () => this.copyAll() },
       { section: 'Context', label: 'Whole value of the cell', key: 'V', disabled: st.pager?.total ? undefined : 'no rows', run: () => this.wholeValue() },
       { section: 'Context', label: 'Quick chart', key: 'c', disabled: st.pager && numericColumns(st.pager.columns).length ? undefined : 'needs a result with a number column', run: () => this.setView('chart') },
       { section: 'Context', label: 'Plan', key: 'p', disabled: st.explain?.plan ? undefined : 'explain first (F6)', run: () => this.setView('plan') },
@@ -339,6 +350,7 @@ export class SqlRunnerScreen implements Screen {
       case 'f5': this.run(); return true
       case 'f6': this.explain(false); return true
       case 'f7': this.openHistory(); return true
+      case 'f8': this.exportResult(); return true
       default: break
     }
     if ((key.name === 'return' && key.ctrl) || key.name === 'linefeed' || (key.ctrl && key.name === 'j')) {
@@ -346,8 +358,8 @@ export class SqlRunnerScreen implements Screen {
       return true
     }
     if (key.name === 'escape') {
-      if (this.completion) {
-        this.completion = undefined
+      if (this.popup) {
+        this.popup = undefined
         return true
       }
       if (this.running) {
@@ -388,11 +400,16 @@ export class SqlRunnerScreen implements Screen {
   }
 
   private editorKey(key: Key): boolean {
+    if (this.popup) {
+      const r = this.popup.model.handle(key)
+      if (r === 'insert') return this.insertCompletion(), true
+      if (r === 'close') return (this.popup = undefined), true
+      if (r) return true
+    }
     if (key.name === 'tab' && !key.shift) {
       this.tabComplete()
       return true
     }
-    if (key.name !== 'tab') this.completion = undefined
     if (key.name === 'tab' && key.shift) {
       this.focus = 'results'
       return true
@@ -414,48 +431,54 @@ export class SqlRunnerScreen implements Screen {
     const before = this.buffer.text
     if (this.buffer.handle(key, Math.max(1, this.lastRender.editorLines - 1))) {
       if (this.buffer.text !== before) this.changed()
+      this.refilterPopup()
       return true
     }
     return false
   }
 
-  /** Tab: completes the word at the cursor; repeated Tabs cycle the candidates. */
+  /** While the popup is open, what is typed filters it; leaving the word closes it. */
+  private refilterPopup(): void {
+    const p = this.popup
+    if (!p) return
+    const at = this.buffer.offset()
+    const typed = this.buffer.text.slice(p.from, at)
+    if (at < p.from || /[^\w$"]/.test(typed)) this.popup = undefined
+    else p.model.setFilter(typed)
+  }
+
+  /** Enter or Tab in the popup: the chosen item replaces the word being typed. */
+  private insertCompletion(): void {
+    const p = this.popup
+    const item = p?.model.selected()
+    this.popup = undefined
+    if (!p || !item) return
+    this.buffer.replaceBefore(Math.max(0, this.buffer.offset() - p.from), item.value)
+    this.changed()
+  }
+
+  /**
+   * Tab: what fits at the cursor, also with nothing typed (after FROM the tables, after SELECT or
+   * WHERE the statement's columns, at the start the statement keywords and recent statements). One
+   * match for a typed prefix is inserted at once; otherwise the popup opens, filtered as you type.
+   */
   tabComplete(): void {
     if (this.cell.cellType !== 'SQL') {
       this.buffer.insert('  ')
       this.changed()
       return
     }
-    const c = this.completion
-    if (c && c.candidates.length > 1) {
-      c.index = (c.index + 1) % c.candidates.length
-      const word = this.buffer.offset() - c.from
-      this.buffer.replaceBefore(word, c.candidates[c.index]!)
-      this.cell.content = this.buffer.text
-      return
-    }
-    const result = complete(this.buffer.text, this.buffer.offset(), this.schemaOf())
-    if (!result.candidates.length) {
-      if (!result.prefix && !/\.\s*$/.test(this.buffer.line.slice(0, this.buffer.col))) {
-        this.buffer.insert('  ')
-        this.changed()
-        return
-      }
-      this.store.flash(this.schemaOf() ? `nothing completes "${result.prefix}"` : 'no schema loaded yet: completion knows only keywords')
-      return
-    }
-    if (result.candidates.length === 1) {
-      this.buffer.replaceBefore(result.prefix.length, result.candidates[0]!)
+    const r = completionItems(this.buffer.text, this.buffer.offset(), this.schemaOf(), this.history.entries())
+    if (r.prefix && r.items.length === 1) {
+      this.buffer.replaceBefore(r.prefix.length, r.items[0]!.value)
       this.changed()
-      this.completion = undefined
       return
     }
-    const common = commonPrefix(result.candidates)
-    if (common.length > result.prefix.length) {
-      this.buffer.replaceBefore(result.prefix.length, common)
-      this.changed()
+    if (!r.items.length) {
+      this.store.flash(r.prefix ? `nothing completes "${r.prefix}"${this.schemaOf() ? '' : ' (no schema loaded yet)'}` : 'nothing to complete here')
+      return
     }
-    this.completion = { from: result.from, candidates: result.candidates, index: -1, base: common }
+    this.popup = { model: new CompletionPopup(r.items, r.prefix), from: r.from }
   }
 
   private schemaKey(key: Key): boolean {
@@ -525,6 +548,7 @@ export class SqlRunnerScreen implements Screen {
       this.focus = 'editor'
       return true
     }
+    if (ch === 'a') return actionsOverlay(this.store, this), true
     if (st.view === 'plan') return this.planKey(key, st)
     const pager = st.pager
     if (!pager) return false
@@ -549,15 +573,26 @@ export class SqlRunnerScreen implements Screen {
       case 'pagedown': st.row = Math.min(last, st.row + rows); st.top = Math.min(Math.max(0, pager.total - rows), st.top + rows); break
       case 'home': st.row = 0; break
       case 'end': st.row = last; break
-      case 'left': st.col = Math.max(0, st.col - 1); break
-      case 'right': st.col = Math.min(pager.columns.length - 1, st.col + 1); break
+      case 'left':
+        if (key.shift) st.left = Math.max(0, st.left - 1)
+        st.col = key.shift ? Math.max(st.left, Math.min(st.col, st.left + this.lastRender.visibleCols - 1)) : Math.max(0, st.col - 1)
+        st.scrolled = key.shift
+        break
+      case 'right':
+        if (key.shift) st.left = Math.min(pager.columns.length - 1, st.left + 1)
+        st.col = key.shift ? Math.max(st.left, st.col) : Math.min(pager.columns.length - 1, st.col + 1)
+        st.scrolled = key.shift
+        break
       case 'return': this.wholeValue(); return true
       default:
+        if (key.ctrl && key.name === 'y') return this.copyAll(), true
         if (ch === 's') {
           this.store.run(pager.sortBy(st.col).then(() => { st.row = 0; st.top = 0 }))
           return true
         }
         if (ch === 'V') return this.wholeValue(), true
+        if (ch === 'y') return this.copyCell(), true
+        if (ch === 'Y') return this.copyRow(), true
         if (ch === 'x') return this.exportResult(), true
         return false
     }
@@ -630,7 +665,7 @@ export class SqlRunnerScreen implements Screen {
     this.cellIndex = index
     this.buffer.set(this.cell.content)
     this.buffer.setOffset(0)
-    this.completion = undefined
+    this.popup = undefined
   }
 
   addCell(type: 'SQL' | 'MARKDOWN', content = ''): void {
@@ -727,7 +762,7 @@ export class SqlRunnerScreen implements Screen {
 
   /** F5: runs the statement under the cursor (the whole cell when it has one statement). */
   run(): void {
-    this.completion = undefined
+    this.popup = undefined
     if (this.cell.cellType !== 'SQL') return this.store.flash('a markdown cell has nothing to run: F4 lists the cells')
     if (this.running) return this.store.flash('a statement is running: Esc cancels it')
     const text = this.buffer.text
@@ -853,21 +888,66 @@ export class SqlRunnerScreen implements Screen {
     this.store.open(new MessageOverlay(this.store, `${label}${col?.typeName ? ` (${col.typeName})` : ''}, row ${num(st.row + 1)}:\n\n${fullValueText(row[st.col], col?.kind)}`, 'info', trunc(label, 30)))
   }
 
+  /** Copies text through the store's clipboard (system tool or OSC 52), saying how. */
+  private copy(text: string, what: string): void {
+    const how = this.store.copyText(text)
+    this.store.flash(how ? `copied ${what} (${how})` : 'no clipboard here: export to a file instead (x)', how ? 'info' : 'error')
+  }
+
+  /** y: the value under the cursor, raw (ISO dates, full numbers). */
+  copyCell(): void {
+    const st = this.state()
+    const row = st.pager?.get(st.row)
+    if (!st.pager || !row) return this.store.flash('no row under the cursor')
+    const col = st.pager.columns[st.col]
+    this.copy(rawText(row[st.col]), `${col?.label || col?.name || 'the value'} of row ${num(st.row + 1)}`)
+  }
+
+  /** Y: the row under the cursor as TSV (with the header). */
+  copyRow(): void {
+    const st = this.state()
+    const row = st.pager?.get(st.row)
+    if (!st.pager || !row) return this.store.flash('no row under the cursor')
+    this.copy(toDelimited(st.pager.columns, [row], 'tsv'), `row ${num(st.row + 1)} as TSV`)
+  }
+
+  /** Ctrl+Y: the whole result as TSV (every row, read page by page). */
+  copyAll(): void {
+    const pager = this.state().pager
+    if (!pager) return this.store.flash('run a query first')
+    this.store.run(allRows(pager), (rows) => this.copy(toDelimited(pager.columns, rows, 'tsv'), `${num(rows.length)} rows as TSV`))
+  }
+
+  /**
+   * x, F8: the export dialog of the main grid: csv, tsv, xlsx or json of every row of the result
+   * (csv, xlsx and json written by the server from its cached result; tsv read page by page), saved
+   * through the file navigator (or silently to the download folder), or copied for small results.
+   */
   exportResult(): void {
     const st = this.state()
+    const pager = st.pager
     const uuid = st.response?.executionUuid
-    if (!uuid) return this.store.flash('run a query first: export writes the last result')
-    this.store.open(new ChoiceOverlay(this.store, 'Export the result', [
-      { label: 'csv', value: 'csv' }, { label: 'xlsx', value: 'xlsx', detail: 'Excel' }, { label: 'json', value: 'json', detail: 'rows keyed by column label' },
-    ], (format) => {
-      saveFile(this.store, `Export the result as ${format}`, `sql-result-${uuid.slice(0, 8)}.${format}`, (path) => {
-        this.store.run(this.store.client!.call('sqlWorkbenchExportResult', { path: { uuid }, query: { format } }), (result) => {
-          const bytes = result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2))
-          writeFileSync(path, bytes)
-          this.store.message(`Wrote ${path} (${num(bytes.length)} bytes, up to ${num(this.caps?.limits?.maxRows)} rows).`)
-        })
+    if (!pager || !uuid) return this.store.flash('run a query first: export writes the last result')
+    this.store.open(new ChoiceOverlay<ExportTarget>(this.store, 'Export the result', exportChoices(pager.total, this.caps?.limits?.maxRows), (target) => this.exportTo(target), 'the file navigator uses your download folder'))
+  }
+
+  /** Writes the result to a target of the export dialog. */
+  exportTo(target: ExportTarget): void {
+    const st = this.state()
+    const pager = st.pager
+    const uuid = st.response?.executionUuid
+    if (!pager || !uuid) return
+    if (target === 'clipboard') return this.copyAll()
+    saveFile(this.store, `Export the result as ${target}`, `sql-result-${uuid.slice(0, 8)}.${target}`, (path) => {
+      const done = (bytes: Uint8Array) => {
+        writeFileSync(path, bytes)
+        this.store.message(`Wrote ${path} (${num(pager.total)} row${pager.total === 1 ? '' : 's'}, ${num(bytes.length)} bytes).`)
+      }
+      if (target === 'tsv') return this.store.run(allRows(pager), (rows) => done(new TextEncoder().encode(toDelimited(pager.columns, rows, 'tsv'))))
+      this.store.run(this.store.client!.call('sqlWorkbenchExportResult', { path: { uuid }, query: { format: target } }), (result) => {
+        done(result.bytes ?? new TextEncoder().encode(typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2)))
       })
-    }, 'the server writes the cached result'))
+    })
   }
 
   // ---- notebooks ----
@@ -979,14 +1059,19 @@ export class SqlRunnerScreen implements Screen {
     const st = this.state()
     const errLines = this.errorLines(st, mainW)
     const edInner = Math.max(3, Math.min(14, Math.floor((height - (strip ? 1 : 0)) * 0.3)))
-    const resultsH = Math.max(5, height - (strip ? 1 : 0) - (edInner + 2) - errLines.length)
-    this.lastRender = { editorLines: edInner, gridRows: Math.max(1, resultsH - 2 - 3), width: mainW }
+    // the results box, then its status line and the key line: never taller than the screen area
+    const resultsH = Math.max(4, height - (strip ? 1 : 0) - (edInner + 2) - errLines.length - 2)
+    this.lastRender = { ...this.lastRender, editorLines: edInner, gridRows: Math.max(1, resultsH - 2 - 2), width: mainW }
+    const popup = this.popup && focused && this.focus === 'editor' ? this.popupBox(mainW, height, strip) : null
     const main = (
       <box flexDirection="column" width={mainW} height={height} overflow="hidden">
         {strip && <SegLine segs={this.stripSegs()} width={mainW} bg={t.statusBg} fg={t.statusFg} />}
         {this.renderEditor(mainW, edInner, focused && this.focus === 'editor')}
         {errLines.map((l, i) => <PlainLine key={`err${i}`} text={l} width={mainW} fg={t.err} />)}
         {this.renderResults(mainW, resultsH, iw, focused && this.focus === 'results')}
+        <PlainLine text={this.statusLine(st, mainW)} width={mainW} fg={st.pager?.error ? t.err : t.fg} bg={t.statusBg} />
+        <PlainLine text={this.keyLine(mainW)} width={mainW} fg={t.dim} />
+        {popup}
       </box>
     )
     if (!schemaW) return main
@@ -1068,10 +1153,7 @@ export class SqlRunnerScreen implements Screen {
     const titleText = isSql
       ? ` SQL · cell ${this.cellIndex + 1}/${this.notebook.cells.length} · ${this.backendOf() ?? (this.capsError ? 'no backend' : '…')}${b?.dialect && b.dialect !== b.name ? ` (${b.dialect})` : ''}${ro ? ` · ${ro}` : ''} `
       : ` Notes (markdown) · cell ${this.cellIndex + 1}/${this.notebook.cells.length} `
-    const comp = this.completion
-    const bottom = comp
-      ? ` ${comp.candidates.map((c, i) => (i === comp.index ? `[${c}]` : c)).join(' ')} `
-      : focused ? (isSql ? ' F5 run · Tab complete · Ctrl+↑↓ history · Shift+Tab results ' : ' Tab indents · F4 cells ') : ''
+    const bottom = this.popup ? ' ↑↓ choose · Enter or Tab inserts · Esc closes ' : ''
     return (
       <box flexDirection="column" overflow="hidden" width={mainW} height={inner + 2} {...borderProps(focused)} title={trunc(titleText, Math.max(0, mainW - 4))} {...(bottom ? { bottomTitle: trunc(bottom, Math.max(0, mainW - 4)) } : {})}>
         {rows}
@@ -1136,60 +1218,110 @@ export class SqlRunnerScreen implements Screen {
     return text.map(([s, fg], i) => <PlainLine key={`e${i}`} text={s} width={iw} fg={fg} />)
   }
 
+  /** The completion popup under the cursor line (above it when there is no room below). */
+  private popupBox(mainW: number, height: number, strip: boolean): ReactNode {
+    const p = this.popup!
+    const buf = this.buffer
+    const width = Math.min(60, Math.max(24, mainW - 2))
+    const rows = Math.min(8, Math.max(1, p.model.matches().length))
+    const lineTop = (strip ? 1 : 0) + 1 + (buf.row - buf.top)
+    const below = lineTop + 1
+    const top = below + rows + 2 <= height ? below : Math.max(0, lineTop - rows - 2)
+    const caret = 1 + 4 + Math.max(0, buf.col - buf.left) - (buf.offset() - p.from)
+    const left = Math.max(0, Math.min(mainW - width, caret - 1))
+    return <PopupBox popup={p.model} left={left} top={top} width={width} rows={rows} />
+  }
+
+  /**
+   * The result grid as the main grid draws it: a row-number gutter, header with the sort mark and a
+   * rule, cells formatted by type (dates, grouped numbers right-aligned, NULL as a dim —), zebra rows
+   * per the view setting, the selection bar ending at the last column, `…` where a value is cut,
+   * horizontal scroll (← → follow the column, Shift+← → scroll) with ◂ ▸ when more columns are off screen.
+   */
   private gridBody(st: CellState, iw: number, inner: number, focused: boolean): ReactNode[] {
     const t = theme()
     const g = glyphs()
+    const ascii = Boolean(g.border)
     const pager = st.pager!
-    const rowsShown = Math.max(1, inner - 3)
-    const width = iw - 1
-    const key = `${width}`
-    if (!st.cols || st.cols.key !== key) st.cols = { key, cols: sqlColumns(pager.columns, pager.window(0, CHUNK).filter((r): r is unknown[] => Boolean(r)), width) }
+    const rowsShown = Math.max(1, inner - 2)
+    const gutterW = Math.max(2, String(Math.max(1, pager.total)).length) + 1
+    const width = iw - gutterW - 2
+    const dates = dateSettingsFor(this.store)
+    const key = `${width}|${dates.order}|${dates.clock}`
+    if (!st.cols || st.cols.key !== key) st.cols = { key, cols: sqlColumns(pager.columns, pager.window(0, CHUNK).filter((r): r is unknown[] => Boolean(r)), width, dates) }
     const cols = st.cols.cols
     st.col = Math.min(st.col, Math.max(0, cols.length - 1))
-    if (st.col < st.left) st.left = st.col
-    while (st.left < st.col && !visibleFrom(cols, st.left, width).some((c) => c.name === cols[st.col]!.name)) st.left++
+    if (!st.scrolled) {
+      if (st.col < st.left) st.left = st.col
+      while (st.left < st.col && !visibleFrom(cols, st.left, width).some((c) => c.name === cols[st.col]!.name)) st.left++
+    }
     if (st.row < st.top) st.top = st.row
     if (st.row >= st.top + rowsShown) st.top = st.row - rowsShown + 1
     if (!pager.has(st.top, rowsShown) && !pager.loading) queueMicrotask(() => this.store.run(pager.ensure(st.top, rowsShown + CHUNK / 2)))
     const shown = visibleFrom(cols, st.left, width)
+    this.lastRender.visibleCols = shown.length
+    if (st.scrolled && !shown.some((c) => Number(c.name) === st.col)) st.col = Number(shown[0]?.name ?? 0)
+    const used = gutterW + 1 + shown.reduce((a, c) => a + c.width + 1, 0)
+    const moreLeft = st.left > 0
+    const moreRight = st.left + shown.length < cols.length
+    const zebra = (readViewSettings('sql:results').zebra as boolean | undefined) ?? t.zebraByDefault
     const out: ReactNode[] = []
-    const header: Seg[] = [{ text: ' ' }]
-    shown.forEach((c, i) => {
+    const header: Seg[] = [{ text: `${moreLeft ? (ascii ? '<' : '◂') : ' '}${' '.repeat(gutterW)}`, fg: t.dim }]
+    shown.forEach((c) => {
       const index = Number(c.name)
       const mark = pager.sort?.column === index ? (pager.sort.dir === 'asc' ? g.up : g.down) : ''
       const label = trunc(c.label, c.width - mark.length) + mark
-      header.push({ text: (i ? ' ' : '') + (c.numeric ? padLeft(label, c.width) : pad(label, c.width)), fg: index === st.col && focused ? t.acc2 : t.acc })
+      header.push({ text: (c.numeric ? padLeft(label, c.width) : pad(label, c.width)) + ' ', fg: index === st.col && focused ? t.acc2 : t.acc })
     })
+    if (moreRight) header.push({ text: ascii ? '>' : '▸', fg: t.dim })
     out.push(<SegLine key="h" segs={header} width={iw} />)
-    out.push(<PlainLine key="r" text={g.rule.repeat(iw)} width={iw} fg={t.border} />)
+    out.push(<PlainLine key="r" text={g.rule.repeat(Math.min(iw, used + (moreRight ? 1 : 0)))} width={iw} fg={t.border} />)
     if (!pager.columns.length) {
       const r = st.response
       out.push(<PlainLine key="none" text={` ${r?.rowsAffected !== undefined && r?.rowsAffected !== null ? `${num(r.rowsAffected)} rows affected` : 'the statement returned no columns'}`} width={iw} fg={t.dim} />)
     }
-    const window = pager.window(st.top, rowsShown)
-    window.forEach((row, i) => {
+    pager.window(st.top, rowsShown).forEach((row, i) => {
       const index = st.top + i
       const sel = index === st.row
-      const bg = sel ? (focused ? t.selBg : t.selInactiveBg) : undefined
+      const bg = sel ? (focused ? t.selBg : t.selInactiveBg) : zebra && index % 2 === 1 ? t.zebraBg : undefined
       const fg = sel ? (focused ? t.selFg : t.fg) : t.fg
-      if (!row) {
-        out.push(<PlainLine key={`l${i}`} text=" loading…" width={iw} fg={t.dim} bg={bg} />)
-        return
-      }
-      const segs: Seg[] = [{ text: ' ' }]
-      shown.forEach((c, j) => {
+      const segs: Seg[] = [{ text: ` ${padLeft(String(index + 1), gutterW - 1)} `, fg: sel ? fg : t.dim, bg }]
+      if (!row) segs.push({ text: pad('loading…', used - gutterW - 1), fg: t.dim, bg })
+      else shown.forEach((c) => {
         const ci = Number(c.name)
-        const v = row[ci]
-        const text = valueText(v, pager.columns[ci]?.kind)
-        const cellText = (j ? ' ' : '') + (c.numeric ? padLeft(text, c.width) : pad(text, c.width))
-        segs.push({ text: cellText, fg: v === null || v === undefined ? (sel ? fg : t.dim) : sel && ci === st.col && focused ? fg : fg, bg: sel && ci === st.col && focused ? t.acc2 : undefined })
+        const f = formatCell(row[ci], pager.columns[ci]!, dates)
+        const hot = sel && ci === st.col && focused
+        segs.push({ text: f.right ? padLeft(f.text, c.width) : pad(f.text, c.width), fg: hot ? t.selFg : f.dim ? (sel ? fg : t.dim) : fg, bg: hot ? t.acc2 : bg })
+        segs.push({ text: ' ', bg })
       })
-      out.push(<SegLine key={`d${i}`} segs={segs} width={iw} bg={bg} fg={fg} />)
+      out.push(<SegLine key={`d${i}`} segs={segs} width={iw} />)
     })
     if (!pager.total && pager.columns.length) out.push(<PlainLine key="empty" text=" (no rows)" width={iw} fg={t.dim} />)
-    while (out.length < inner - 1) out.push(<PlainLine key={`p${out.length}`} text="" width={iw} />)
-    out.push(<PlainLine key="status" text={this.statusText(st, cols.length)} width={iw} fg={pager.error ? t.err : t.dim} />)
     return out
+  }
+
+  /** The status line under the results: rows, elapsed, backend, read-only, limit, sort, column. */
+  statusLine(st: CellState, width: number): string {
+    if (st.pager && st.view !== 'plan') return this.statusText(st, st.cols?.cols.length ?? st.pager.columns.length, width - 1)
+    if (st.view === 'plan' && st.explain) return ` EXPLAIN${st.explain.analyze ? ' ANALYZE' : ''} · ${st.explain.durationMs ?? '?'} ms · ${this.backendOf() ?? '?'} · read-only`
+    if (this.running) return ` running… · ${this.backendOf() ?? '?'} · Esc cancels`
+    return ` no result yet · ${this.backendOf() ?? '…'} · read-only · limit ${num(this.caps?.limits?.maxRows)} · sorted by —`
+  }
+
+  /** The key line for the focused pane: whole keys dropped from the end when they do not fit. */
+  keyLine(width: number): string {
+    const tokens = this.popup ? ['↑↓ choose', 'Enter/Tab insert', 'type to filter', 'Esc close']
+      : this.focus === 'results' ? ['↑↓ rows', '←→ column', 'Shift+←→ scroll', 's sort', 'V value', 'y copy', 'Y row', 'x export', 'Ctrl+Y all', 'c chart', 'a actions', 'Esc editor']
+      : this.focus === 'schema' ? ['type to filter', '→← fold', 'Enter insert', 'Tab editor', 'F3 close']
+      : this.cell.cellType === 'MARKDOWN' ? ['F4 cells', 'Ctrl+PgUp/PgDn cells', 'F2 notebooks', 'Esc back']
+      : ['F5 run', 'Tab complete', 'Shift+Tab results', 'F6 explain', 'F8 export', 'Ctrl+↑↓ history', 'F3 schema']
+    let line = ''
+    for (const k of tokens) {
+      const next = line ? `${line} · ${k}` : k
+      if (next.length + 2 > width) break
+      line = next
+    }
+    return ` ${line}`
   }
 
   /**
@@ -1206,9 +1338,9 @@ export class SqlRunnerScreen implements Screen {
       [`${backend}${dialect && dialect !== backend ? ` (${dialect})` : ''}`, 0],
       ['read-only', 1],
       [`limit ${num(this.caps?.limits?.maxRows)}`, 1],
-      [pager.sort ? `sort ${pager.columns[pager.sort.column]?.label ?? pager.sort.column} ${pager.sort.dir}` : '', 0],
+      [`sorted by ${pager.sort ? `${pager.columns[pager.sort.column]?.label ?? pager.sort.column} ${pager.sort.dir}` : '—'}`, 0],
       [pager.total ? `row ${num(st.row + 1)}` : '', 2],
-      [colCount ? `col ${st.col + 1}/${colCount}` : '', 3],
+      [colCount > 1 ? `col ${st.col + 1}/${colCount}` : '', 2],
       [pager.loading ? 'loading' : '', 2],
       [pager.error ? `error: ${pager.error}` : '', 0],
     ]
