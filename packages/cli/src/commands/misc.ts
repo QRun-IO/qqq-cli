@@ -5,7 +5,7 @@
 
 import type { Command } from 'commander'
 import { openRealtimeStream, unwrap } from '@qrun-io/qqq-ui-api-client'
-import { appHome, blocksToText, callOperation, findNavigationTargets, formatTable, homePage, loadDashboard, type NavigationTarget } from '@qrun-io/qqq-core'
+import { plainSearchText, QUICK_SEARCH_SYNTAX, groupSearchResults, unsupportedSyntax, appHome, blocksToText, callOperation, findNavigationTargets, formatTable, homePage, loadDashboard, type NavigationTarget } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { CLIENT_CHANNEL, authenticatedFetch, currentToken, sessionCookieHeaderFor } from '../session.js'
 import { countFooter, positiveInt, type Json } from './shared.js'
@@ -92,16 +92,22 @@ export function registerMisc(program: Command, ctx: () => Context): void {
       c.print({ data: found, rows: found.map((t) => ({ label: t.label, type: t.type.toLowerCase(), app: t.app, command: command(t) })), columns: ['label', 'type', 'app', 'command'], footer: countFooter(found.length, 'match', [], 'matches') })
     })
 
-  program.command('search <text>')
-    .description('Search records across tables (the global search of the web UI).')
-    .option('-t, --table <name>', 'only this table')
-    .option('-l, --limit <n>', 'most results', '20')
-    .action(async (text: string, options: { table?: string; limit: string }) => {
+  program.command('search <text...>')
+    .description('Search records across tables (the global search of the web UI; quick search when it is installed): each hit with its table, key, label and the matched field. --json prints the whole response.')
+    .option('-t, --table <name>', 'only this table (repeat, or comma-separate, for several)', (v: string, all: string[] = []) => [...all, v])
+    .option('-l, --limit <n>', 'most results per table', '20')
+    .addHelpText('after', `\nQuick search syntax:\n${QUICK_SEARCH_SYNTAX.map((l) => `  ${l}`).join('\n')}\n  For conditions on fields use qqq table query <table> -w ….\n`)
+    .action(async (words: string[], options: { table?: string[]; limit: string }) => {
       const c = ctx()
-      const result = await c.call('searchRecords', { json: { searchTerm: text, tableNames: options.table ? [options.table] : undefined, limitPerTable: positiveInt(options.limit, '--limit') } })
+      const text = words.join(' ')
+      const tables = (options.table ?? []).flatMap((t) => t.split(',')).map((t) => t.trim()).filter(Boolean)
+      const result = await c.call('searchRecords', { json: { searchTerm: plainSearchText(text) || text, tableNames: tables.length ? tables : undefined, limitPerTable: positiveInt(options.limit, '--limit') } })
       const data = result.data as Json
-      const results = ((data.results ?? []) as Json[]).map((r) => ({ table: r.tableName, key: r.recordId, label: r.recordLabel, details: Array.isArray(r.details) ? (r.details as unknown[]).map((d) => (typeof d === 'object' && d ? Object.values(d as Json).join(' ') : String(d))).join(' · ') : r.details ?? '' }))
-      c.print({ data, rows: results, columns: ['table', 'key', 'label', 'details'], footer: countFooter(results.length, 'result') })
+      const grouped = groupSearchResults(data)
+      const results = grouped.groups.flatMap((g) => g.hits.map((h) => ({ table: g.table, key: h.key, label: h.label, match: h.snippet ?? '' })))
+      const notes = unsupportedSyntax(text)
+      const extra = [grouped.groups.length > 1 && `${grouped.groups.length} tables`, grouped.total > results.length && `${grouped.total} matches in all, --limit shows more per table`, ...notes, grouped.provider === 'NONE' && 'this server has no search provider']
+      c.print({ data, rows: results, columns: ['table', 'key', 'label', 'match'], footer: countFooter(results.length, 'result', extra) })
     })
 
   program.command('tail')
