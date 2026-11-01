@@ -102,7 +102,7 @@ qqq whoami
 qqq apps
 qqq table list --app peopleApp
 qqq table describe person
-qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5
+qqq table query person -w "lastName STARTS_WITH S" --order -id -l 5
 qqq table query person -g "(firstName = Avery OR firstName = Blair) AND birthDate > now(-40y)"
 qqq table query person -w "annualSalary >= 300000" --count
 qqq table query person -w "createDate > thisPeriod(month)" --print-filter     # the QueryFilter JSON
@@ -114,7 +114,7 @@ qqq table create pet --set name=Pixel --set personId=2 --set speciesId=2
 qqq table update pet 7 --set name=Pixel2
 qqq table delete pet 7            # asks; --yes skips
 qqq table export person --format xlsx --out people.xlsx
-qqq table export person -w "id <= 5" -o -id --fields id,firstName,email --format tsv --out -   # stdout; format also from --out
+qqq table export person -w "id <= 5" --order -id --fields id,firstName,email --format tsv -o -   # -o/--out: stdout; format also from --out
 qqq table query person --search lair            # quick search: CONTAINS over the text fields, ANDed with -w/-g
 qqq table get country --key name=Canada         # Go To by a unique key (exit 5 none, exit 2 several)
 qqq table copy pet 1 --set name=Copycat         # copy a record (--dry-run shows the values first)
@@ -125,13 +125,13 @@ qqq apps show greetingsApp                      # an app's home: actions, report
 qqq report list                                 # the sample app has no reports
 qqq help show table person ; qqq help show table person firstName ; qqq help show process greet   # help content from the metadata (none in the sample)
 qqq table query person --join pet --select -l 4      # joins: exposed joins (none in the sample), else the table's associations
-qqq table query person --fields id,firstName,pet.name -w "pet.name STARTS_WITH C" -o pet.name
+qqq table query person --fields id,firstName,pet.name -w "pet.name STARTS_WITH C" --order pet.name
 qqq table count person --join pet                     # many-side join: count and distinctCount
 qqq table get person 1 --join pet
 qqq table variants person                             # none in the sample; --variant <id|name|type:id> on table commands and process run
 qqq table stats person annualSalary --local -l 3     # column statistics; the sample has no columnStats process, --local computes them
 qqq saved-view list person ; qqq saved-view open person <view> ; qqq table query person --view <view> -w …   # saved views (none in the sample)
-qqq saved-view save person --name Mine -w "lastName = Sample" -o -id --fields id,firstName -l 50   # -l is the view's page size
+qqq saved-view save person --name Mine -w "lastName = Sample" --order -id --fields id,firstName -l 50   # -l is the view's page size
 qqq saved-view rename person Mine Mine2 ; qqq saved-view delete person Mine2 --yes
 qqq audit list person 1                               # audit history (the sample audits nothing: exit 2 with the reason)
 qqq process list ; qqq process describe sleepInteractive
@@ -192,8 +192,10 @@ Global options go anywhere: `--server`, `--profile` (`-p`), `--output json|table
 `--query` (`-Q`), `--fields`, `--yes` (`-y`), `--utc`, `--trace`, `--version`. Table on a terminal, JSON in a pipe,
 `QQQ_OUTPUT` overrides. `--server` and `--path` have no short form (`-s` is `--set`, `-p` is `--profile`), and `-V`
 is `--view` on `table query` (the version is `--version`). The same option names mean the same thing on every noun:
-`--where/-w`, `--group/-g`, `--order/-o`, `--limit/-l`, `--skip`, `--fields/-f`, `--join/-j`, `--variant`,
-`--reveal`, `--yes`; numbers are checked before anything is sent (`-l many` exits 2). Every list ends with the same
+`--where/-w`, `--group/-g`, `--order` (sort; no short form), `--out/-o` (the output file, on every command that
+writes one), `--limit/-l`, `--skip`, `--fields/-f`, `--join/-j`, `--variant`, `--reveal`, `--yes`; `-o` as the sort
+still works on `table query`, `saved-view save` and `saved-report preview/set` until 1.1, with a deprecation note,
+and a sort field that looks like a file path (`out.csv`) is warned about; numbers are checked before anything is sent (`-l many` exits 2). Every list ends with the same
 footer, `(3 records; joined: pet; more may exist: --limit, --skip or --all)`. Exit codes: 0 ok (also "Not deleted."
 and "Not submitted." after a no), 1 error, 2 usage or bad filter (also Ctrl-D at a question), 3 auth, 4 server
 unreachable, rate limited or a 502/503/504, 5 not found, 6 validation, 70 server error, 130 Ctrl-C (a run cancelled,
@@ -361,7 +363,7 @@ qqq widget get <widget> --record <table>=<id>   # widgets on a record (cronUI, p
 qqq widget get <process widget> --run           # run a process widget's process here
 qqq report run <report> --format xlsx -v name=value --out-dir .   # through the report's process; no process: the report route (--out)
 qqq saved-report list ; qqq saved-report show <r> ; qqq saved-report preview <r> -l 10
-qqq saved-report set <r> -w "state = ${variable.state}" -o -total --columns id,total
+qqq saved-report set <r> -w "state = ${variable.state}" --order -total --columns id,total
 qqq saved-report pivot <r> --rows state --values SUM:total ; qqq saved-report pivot <r> --clear
 qqq saved-report run <r> --format csv ; qqq saved-report schedule <r> --cron "0 0 7 ? * MON-FRI" --time-zone America/Chicago --to me@example.com
 qqq share list savedReport <id> ; qqq share add savedReport <id> user:<id> --scope read-only ; qqq share scope savedReport <id> <share> read-write

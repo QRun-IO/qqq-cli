@@ -48,7 +48,8 @@ qqq home                                             # what you may open, with t
 qqq table get person 1                               # one record, by section
 qqq table query person -g "(firstName = Avery OR firstName = Blair) AND birthDate > now(-40y)"
 qqq table create pet --set name=Pixel --set personId=2 --set speciesId=Dog
-qqq table export person -w "id <= 5" --fields id,firstName,email --out people.xlsx
+qqq table export person -w "id <= 5" --order -id --fields id,firstName,email -o people.xlsx
+qqq alerts get-inbox --columns id,severity,title    # extension lists print as sub-tables
 qqq process run greetInteractive -r 1,2 -v greetingPrefix=Hi
 qqq api getTableMetaData --path tableName=person -Q 'fields.*.label'
 qqq doctor                                           # connection, sign-in and terminal checks
@@ -71,7 +72,13 @@ the options.
 
 Global options, anywhere on the line: `--server <url>`, `-p, --profile <name>`, `-O, --output
 json|table|text|csv|yaml`, `--json`, `-Q, --query <jmespath>`, `--fields <names>`, `-y, --yes`, `--utc`,
-`--trace`. Output is a table on a terminal and JSON in a pipe.
+`--trace`. Output is a table on a terminal and JSON in a pipe; extension results print their scalars as
+key/value rows and each list as a sub-table fitted to the terminal (`--columns` chooses, `--json` shows
+everything).
+
+Flag convention: `-o, --out <file>` is the output file on every command that writes one; the sort is
+`--order <field...>` (prefix `-` for descending; no short form). Until 1.1, `-o` still sorts on `table query`,
+`saved-view save` and `saved-report preview/set`, with a deprecation note.
 
 Exit codes: 0 ok, 1 error, 2 usage or bad filter, 3 auth, 4 server unreachable or rate limited,
 5 not found, 6 validation, 70 server error, 130 interrupted.

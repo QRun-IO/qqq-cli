@@ -135,15 +135,15 @@ Id  First Name  Greeting Message
 **Export** to CSV, XLSX, JSON or TSV:
 
 ```console
-$ qqq table export person -w "id <= 5" --fields id,firstName,email --out people.csv
+$ qqq table export person -w "id <= 5" --fields id,firstName,email -o people.csv
 wrote people.csv (206 bytes, text/csv;charset=utf-8)
 ```
 
-More of the grammar:
+More of the grammar (`-o`/`--out` is always the output file; the sort is `--order`, prefix `-` for descending):
 
 ```sh
 qqq table query person -g "(firstName = Avery OR firstName = Blair) AND birthDate > now(-40y)"
-qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5   # order by id descending, 5 rows
+qqq table query person -w "lastName STARTS_WITH S" --order -id -l 5   # order by id descending, 5 rows
 qqq table create pet --set name=Pixel --set personId=2 --set speciesId=Dog
 qqq table bulk-insert person --file people.csv --dry-run          # map, validate and review; --yes loads
 qqq home                                                          # what you may open, with the command for each

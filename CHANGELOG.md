@@ -13,6 +13,24 @@ candidate's, plus the changes since it listed first.
 
 ### Changed since 1.0.0-rc.1
 
+- **One meaning for `-o` across the CLI: `-o`/`--out` is always the output file; the sort is `--order`**
+  (no short form). `table export -o people.csv` used to sort by a field named `people.csv` (the server
+  answered 403); it now writes the file. Migration: write `--order` wherever `-o` meant the sort. On the
+  commands that write no file (`table query`, `saved-view save`, `saved-report preview` and `set`), `-o`
+  still sorts until 1.1, with a deprecation note on stderr; on `table export` it is the output file now. A
+  sort field that looks like a file path (`out.csv`, `./x`) is warned about. Completion offers fields after
+  `--order` only and no longer offers the hidden `-o`.
+- Extension (QBit) results in table output: the generated commands (`qqq alerts get-inbox`,
+  `qqq sql-workbench get-capabilities`, `qqq collab get-...`, and `qqq api`) print scalars as aligned
+  key/value rows (nested objects as dotted keys) and each list of objects as a sub-table under its key,
+  with columns from the union of the row keys in first-seen order, nested objects flattened one level
+  (`owner.name`), lists in a cell joined, and the table fitted to the terminal width (cells cut with `…`,
+  columns that do not fit named under the table). Before, lists were one line of JSON (`items [{"id":5,…`).
+  The inbox, notebooks, SQL history, comments, tasks, favorites and recents get default columns, and
+  `--columns a,b` (or the global `--fields`) chooses; the first-class `collab comments list`,
+  `favorites list`, `recents`, `tags list` and `people` take `--columns` too. `--json`, `--output json`,
+  yaml, csv and text are unchanged. The layout is the kernel's (`formatDocument` in `@qrun-io/qqq-core`).
+
 - The UI's filter dialog (F6) was reworked for clarity: every condition is a row of three cells (field,
   operator, value) edited the way its type asks (text and numbers in place, choices from a searchable
   list, Space cycles true/false, dates with presets or typed, operators from a list that fits the field),
@@ -37,6 +55,25 @@ candidate's, plus the changes since it listed first.
 - Documentation: npm READMEs for every package (new for `@qrun-io/qqq-ui-api-conformance`), a rewritten
   repository README, `docs/README.md`, CONTRIBUTING, SECURITY and CODE_OF_CONDUCT, issue and pull request
   templates, CODEOWNERS and Dependabot.
+
+### Fixed since 1.0.0-rc.1
+
+- `qqq esb messages <topic>` without `--trigger` names the topic's triggers in the error, and `--trigger`
+  takes the process name too (`--trigger syncOrder` reads `syncOrder.orderEvents`; a process with several
+  triggers on the topic lists them; an unknown name lists the valid ones). Before, the server's "name one
+  of the triggers" did not say which, and a process name answered 404.
+- `qqq login --server URL` with `QQQ_PROFILE` (or `--profile`) naming an existing profile of another
+  server silently pointed that profile at the new server. It now warns and needs `--yes` (or a yes at the
+  question on a terminal); `--profile <new-name>` adds a profile instead. A token refresh under a one-off
+  `--server` no longer moves the profile either.
+- `qqq health get-summary` on a server that serves `/health` without advertising the health extension in
+  GET /version (qqq-all) shows that endpoint's checks in the summary shape, with a note that the extension
+  is unadvertised, instead of "not installed".
+- The conformance suite authenticates every authenticated check the same way, as the CLI does: a JWT as a
+  bearer token, a session UUID also as the `sessionUUID` cookie, and on MOCK and FULLY_ANONYMOUS servers
+  without a token a server session from `manageSession`; `GET /jobs` and the realtime check used to differ
+  (a token alone could report "no jobs permission" where a session worked). The metaData check's detail
+  names the authentication used.
 
 ### Changed from 0.1
 
