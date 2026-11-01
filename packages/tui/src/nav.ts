@@ -13,6 +13,8 @@ import { ProcessScreen, type ProcessOptions } from './screens/process'
 import { RecordScreen } from './screens/record'
 import { TableScreen } from './screens/table'
 import type { AppStore } from './store'
+import { isRunnerApp } from './sql/apps'
+import { openSqlRunner } from './sql/entry'
 
 /**
  * Whether a table, process or app can be opened: unknown names (hidden from this user: not in
@@ -73,6 +75,7 @@ export function openProcess(store: AppStore, name: string, options: ProcessOptio
 
 export function openApp(store: AppStore, name: string): void {
   if (!known(store, 'apps', name)) return
+  if (isRunnerApp(store.meta, name)) return openSqlRunner(store)
   store.push(new AppHomeScreen(store, name))
 }
 

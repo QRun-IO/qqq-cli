@@ -211,6 +211,14 @@ candidate's, plus the changes since it listed first.
   the grid footer shows the column's help. Large tables stay quick: on a 10,000 x 40 table the first page
   draws in about 100 ms. A soak test (`packages/tui/scripts/soak.sh`) drives the real UI in tmux with
   random keys from the keymap and fails on any exit or error.
+- **SQL Runner** (with the sql-workbench extension): the Next UI Runner in the terminal, from the SQL
+  Workbench app, `/`, F9 › Work and `:sql`. A SQL editor with syntax tint, F5 / Ctrl+Enter running the
+  statement under the cursor, Tab completion of tables and columns from the schema endpoint, Ctrl+↑↓
+  history; a server-paged, server-sorted result grid with typed column widths, whole values and export;
+  errors inline with their SQL position; EXPLAIN as an indented plan tree (F6); a schema browser (F3);
+  notebooks with SQL and markdown cells, run all, save, save as, duplicate, delete and publish (F2, F4);
+  quick text bar charts; the audited run history with re-run (F7). Hidden, and `:sql` explains why, when
+  the server lacks the extension. Read-only runs only.
 - **Dashboards and widgets** in block characters: stats, bar charts, sparklines, percentage bars, tables
   and steppers.
 - **Terminal care**: `qqq ui --check` (and a quick check at startup) finds tmux key and colour problems and

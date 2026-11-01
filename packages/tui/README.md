@@ -228,13 +228,46 @@ and the result. Shareable records (saved reports, saved views) have Share (`Z`, 
 group Read-Only or Read and Edit, change, remove; only the owner may share. `:helpkeys` turns on
 help-authoring mode (F1 shows every help slot key).
 
+## SQL Runner
+
+With the `sql-workbench` UI API extension (qbit-sql-workbench), the SQL Runner is the terminal face of the
+Next UI's Runner page (a `SQL_WORKBENCH` widget). Open it from the SQL Workbench app's Runner in the Apps
+tree, `/` (type "sql"), F9 › Work › SQL Runner, or `:sql` (`:sql SELECT …` opens and runs a statement,
+`:sql open <id>` opens a notebook). Without the extension the Runner app and the entries are hidden and
+`:sql` says the extension is missing. The SQL Workbench app's home is the usual app dashboard (notebooks and
+the execution audit), and its tables open as tables.
+
+The layout is a classic database TUI: the SQL editor on top (line numbers, syntax tint, the server's
+keywords), the result grid below with a status line (rows, elapsed, backend, read-only, row limit, sort),
+an error under the editor with its SQL position marked in the text, and the schema browser on the right.
+
+| Key | Does |
+|---|---|
+| F5, Ctrl+Enter (Ctrl+J) | run the statement under the cursor (the whole cell when it has one); `:name` parameters are asked for, bound as values and remembered |
+| F6 | EXPLAIN: the plan as an indented tree with cost, rows and a relative cost bar; ←→ or Enter fold, `r` the raw text |
+| F3 | schema browser: backends › tables › columns, type to filter, → unfolds, Enter inserts the name (on a backend: run this cell there) |
+| Tab | complete table and column names from the schema endpoint (after `alias.` the columns of that table); Tabs again cycle |
+| Ctrl+↑ Ctrl+↓ | earlier and later SQL from your run history (kept on disk) |
+| F2 | notebooks, Mine and Shared: open, `s` save (a new version), `a` save as, `n` new, `u` duplicate, `d` delete, `p` publish |
+| F4 | cells: Enter edits one, `a` add SQL, `m` add notes, K J (Shift+↑↓) move, `t` title, `b` backend, `d` delete, `R` run all |
+| F7 | your audited runs (status, time, rows, SQL); type to filter, Enter opens the SQL in the editor, Ctrl+R re-runs it |
+| Shift+Tab, Esc | to the results and back; Esc also cancels a running statement and, from the editor, leaves (asking about unsaved changes) |
+| results: ↑↓ PgUp PgDn ←→ | move; rows load page by page from the server's cached result |
+| results: `s` `V` `x` | sort by the column (the server sorts: asc, desc, off), the whole value, export (csv, xlsx, json through the file flow) |
+| results: `g` `c` `p` | grid, quick chart (text bars of a number column; ←→ value column, `l` label column), plan |
+
+Markdown cells are edited as text and shown rendered below. Runs are read-only (one statement, the server's
+row limit and timeout; every run is audited). The capabilities decide the backends offered, the row limit
+shown and whether EXPLAIN ANALYZE is offered (it needs the write permission). `scripts/smoke-sql.sh [server]`
+drives it in tmux at 80x24 and 120x36 against a server with the extension (default `http://localhost:8078`).
+
 ## The `:` command line
 
 TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `menu`, `search <text>` (also `find`, `goto`, `palette`), `view`,
 `views`, `share`, `actions`, `audits`, `dev`, `tags`, `report run <name>`, `theme <name>`, `ascii on|off`,
 `linear on|off`, `shortcuts on|off`, `lock`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
 `export <format>`, `jobs`, `profile [name]`, `servers`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
-`app <name>`, `record <table> <key>`. `table query|get|create|update|delete` and `process run` open screens;
+`app <name>`, `record <table> <key>`, `sql [statement | open <id>]`. `table query|get|create|update|delete` and `process run` open screens;
 any other CLI command runs in-process (`runCli` from `@qrun-io/qqq-cli/program`) and shows its output;
 an extension operation (`:alerts get-inbox`, `:collab get-records-tasks customer 1`, `:api <operationId>`)
 shows its JSON as key/value rows and sub-tables, with `J` for the raw JSON.
@@ -307,6 +340,7 @@ before any program sees it. `qqq ui --check` (and the quick check at startup) fi
 cd packages/tui && bun test          # or npm run test:tui at the root: the whole TUI against a fake server in memory
 packages/tui/scripts/smoke.sh        # tmux against a running server (profile "sample"); captures kept
 packages/tui/scripts/smoke-widths.sh # fixed grid widths across pages (fake large-instance server)
+packages/tui/scripts/smoke-sql.sh [server]  # SQL Runner at 80x24 and 120x36 (default the enterprise server on 8078)
 packages/tui/scripts/perf-large-table.sh  # PRF-001: 10,000 rows x 40 columns, timings against a 2 s budget
 packages/tui/scripts/soak.sh [server] [minutes]  # random keys for 10 min; fails on an exit or an error boundary
 ```

@@ -26,6 +26,8 @@ import { SignInScreen } from './screens/signin'
 import { ServersOverlay } from './overlays/servers'
 import type { AppStore, CommandsLike } from './store'
 import type { MenuEntry } from './types'
+import { openSqlRunner, sqlCommand, sqlMenuEntries } from './sql/entry'
+import { isRunnerWidget } from './sql/apps'
 import { errorText, shellSplit } from './util/text'
 import { openPrintJobs } from './printing'
 
@@ -42,7 +44,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql']
 
 export class Commands implements CommandsLike {
   constructor(private store: AppStore) {}
@@ -129,6 +131,7 @@ export class Commands implements CommandsLike {
     else if (kind === 'process') openProcess(s, name)
     else if (kind === 'app') openApp(s, name)
     else if (kind === 'report') openReport(s, name)
+    else if (kind === 'widget' && isRunnerWidget(s.meta, name)) openSqlRunner(s)
     else if (kind === 'widget') void this.run(`widget get ${name}`)
   }
 
@@ -335,6 +338,7 @@ export class Commands implements CommandsLike {
         case 'connection': return this.connection()
         case 'open': return rest[0] ? openTable(s, rest[0]) : fail('open <table>')
         case 'app': return rest[0] ? openApp(s, rest[0]) : fail('app <name>')
+        case 'sql': return sqlCommand(s, line.replace(/^sql\b/, ''))
         case 'report':
           if (rest[0] === 'run' && rest[1] && !rest.includes('--format') && !rest.includes('--out')) return openReport(s, rest[1])
           break
@@ -631,6 +635,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Work', label: 'Print jobs', detail: s.status.print, command: 'printjobs', disabled: s.extensions.has('printing') ? undefined : 'needs the printing extension', run: () => openPrintJobs(s) })
     out.push({ section: 'Work', label: 'Notifications', disabled: s.extensions.has('alerts') ? undefined : 'needs the alerts extension' })
     out.push({ section: 'Work', label: 'My work', disabled: s.extensions.has('collaboration') ? undefined : 'needs the collaboration extension' })
+    out.push(...sqlMenuEntries(s))
     for (const e of s.extensions.all()) out.push({ section: 'Work', label: `Extension: ${e.name} ${e.version}`, detail: e.description, command: `api --list`, run: () => s.message(`${e.name} ${e.version}\n${e.description ?? ''}\nPath: ${e.pathPrefix ?? ''}\nIts panels are not drawn by this TUI yet; its operations are reachable with :api.`, 'info', 'Extension') })
     // Connection
     out.push({ section: 'Connection', label: `Server ${s.status.server}`, detail: `UI API ${s.status.apiVersion}`, command: 'connection', run: () => this.connection() })

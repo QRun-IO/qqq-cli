@@ -63,6 +63,8 @@ export interface Screen {
   cliEquivalent?(): string | undefined
   /** The view-settings dialog for this screen, when it has one. */
   viewSettings?(): Overlay | undefined
+  /** Keys this screen takes before the global ones (F2 on the SQL Runner). */
+  claimsKey?(key: Key): boolean
   /** Keys of this screen for the help overlay, listed before the global ones. */
   helpKeys?(): Array<[string, string]>
   /** The help topic: table, process or app name, for F1. */

@@ -21,6 +21,7 @@ import { collaborationPresence, presenceSource, setPresenceSource } from './pres
 import { setAscii, setTheme, theme } from './theme'
 import type { FKeyLabels, Overlay, Screen } from './types'
 import { errorText } from './util/text'
+import { SQL_EXTENSION, hideRunnerApps } from './sql/apps'
 
 export interface Settings {
   theme: string
@@ -174,7 +175,7 @@ export class AppStore {
 
   /** Replaces the metadata and rebuilds the search index (once per document). */
   setMeta(meta: MetaDataDocument): void {
-    this.meta = meta
+    this.meta = hideRunnerApps(meta, this.extensions.has(SQL_EXTENSION))
     this.index = new MetaDataIndex(meta)
   }
 
@@ -332,6 +333,7 @@ export class AppStore {
       return
     }
     const screen = this.screen
+    if (this.focus === 'content' && screen?.claimsKey?.(key) && screen.onKey(key)) return
     if (key.name === 'f1') return this.commands().help()
     if (this.backslash && charOf(key) === '?') {
       this.backslash = false
@@ -458,8 +460,8 @@ export class AppStore {
     this.refreshMetaOnConnect = false
     const [version, meta] = await Promise.all([client.version(), client.metaData(refresh)])
     this.version = version
-    this.setMeta(meta)
     this.extensions.load(version)
+    this.setMeta(meta)
     setPresenceSource(collaborationPresence(this.extensions.registry, client, this.status.user))
     this.status.apiVersion = version.apiVersion
     this.sidebar = this.sidebarFactory?.(this)
