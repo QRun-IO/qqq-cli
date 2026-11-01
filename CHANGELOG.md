@@ -234,8 +234,9 @@ in parentheses mark the changes made after the candidate.
   print, cancel, watch; `printTableList`, `printText`), `formatDocument` for extension output, and the
   date parser and formatter.
 - **`@qrun-io/qqq-ui-api-client`** is generated from UI API 1.8.0 merged with 14 extension documents (219
-  operations, each tagged with its extension, including the printing 2.0.0 operations under `qqq
-  printing ...`), and gains PKCE, revocation and end-session helpers (5cf6243).
+  operations, each tagged with its extension, including the 17 printing 2.0.0 operations, which are the generated `qqq
+  printing ...` subcommands for print agents; printing 2.1's table-list and text printing are processes the kernel
+  runs, reached as `qqq print list` and `qqq print text`, not as `qqq printing` subcommands), and gains PKCE, revocation and end-session helpers (5cf6243).
 - **Conformance**: the suite checks `GET /qbit/printing/session` and the printing tables when a server
   lists printing (05f467c); `qqq-dev-idp` gains the authorization code with PKCE (Approve/Deny page),
   revocation and end-session.
