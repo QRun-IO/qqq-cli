@@ -1,0 +1,50 @@
+# Dependabot version updates for qqq-cli. Security updates are enabled separately in the repository
+# settings and are not limited by these groups.
+version: 2
+updates:
+  # The npm workspaces (ui-api-client, core, conformance, cli) share the root package-lock.json.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      npm-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # The terminal UI (packages/tui) is not an npm workspace: it is installed with Bun from its own
+  # text lockfile (bun.lock), which Dependabot's "bun" ecosystem reads. OpenTUI pins are exact on
+  # purpose (the native library must match); review those bumps with npm run test:tui and the tmux smoke.
+  # packages/tui-spike is a throwaway spike and is deliberately not listed.
+  - package-ecosystem: "bun"
+    directory: "/packages/tui"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "tui"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      tui-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

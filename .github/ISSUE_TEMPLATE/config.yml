@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/QRun-IO/qqq-cli/blob/main/SECURITY.md
+    about: Do not open a public issue; report it privately as SECURITY.md describes.
+  - name: QQQ server or UI API problem
+    url: https://github.com/QRun-IO/qqq/issues
+    about: Problems in the QQQ server or the UI API itself belong in the qqq repository.
