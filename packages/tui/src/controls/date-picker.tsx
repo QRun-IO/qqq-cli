@@ -25,7 +25,7 @@ import { isAscii, theme } from '../theme'
 import type { Overlay } from '../types'
 import { overlayId } from '../overlays/basic'
 import { Frame, Line } from '../overlays/frame'
-import { center, pad, trunc } from '../util/text'
+import { KEY_SEP, center, fitKeyLine, pad, trunc } from '../util/text'
 import { DateEditor } from './date-editor'
 import { dateSettingsFor, serverZoneOf } from './date-settings'
 import { tokenAt } from '../mouse/hit'
@@ -435,7 +435,7 @@ export class DatePromptOverlay implements Overlay {
     const width = Math.min(sw - 4, 80)
     // the reason in full: words wrapped onto as many lines as it takes
     const message = wrapItems(this.error ? `! ${this.error}`.split(' ') : ['empty clears the field'], width - 4, ' ')
-    const keys = wrapItems(['Enter set', ...dateFieldHelp(this.editor).split(' · '), 'Esc cancel'], width - 4)
+    const keys = fitKeyLine(['Enter set', ...dateFieldHelp(this.editor).split(KEY_SEP), 'Esc cancel'], width - 4, 3)
     return (
       <Frame title={this.title} width={width} height={3 + message.length + keys.length} screenWidth={sw} screenHeight={sh}>
         <box paddingLeft={1}><DateFieldLine editor={this.editor} width={width - 4} /></box>

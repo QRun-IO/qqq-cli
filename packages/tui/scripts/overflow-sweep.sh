@@ -105,6 +105,7 @@ start; cmd 'table query person'; keys S:1 Down Enter S:1 F8; shot 16-delete-conf
 keys T:n; keys F4; shot 17-edit-form 'Ctrl+S save'
 keys C-u "T:$long"; shot 18-edit-form-long-value 'Long value Long value'
 keys Escape; shot 19-discard-confirm 'Confirm'
+start; cmd 'table create person'; keys S:1 Down Down Down Enter; shot 19b-date-picker 'Esc cancel'
 start; cmd 'table query person'; keys S:1 F6; shot 20-filter 'Filter Person'
 start; cmd 'table query person'; keys S:1 T:x; shot 21-export 'Export'
 start; cmd 'table query person'; keys S:1 Space Down Space T:b; shot 22-bulk-choose 'Run on'
