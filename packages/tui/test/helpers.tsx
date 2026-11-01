@@ -50,7 +50,8 @@ export interface Harness {
 /** Renders the whole TUI against the fake server and waits for the home screen. */
 export async function startTui(width = 120, height = 36, options: { metaData?: unknown; auth?: FakeAuth; secrets?: () => SecretStore; until?: 'home' | 'signin' } = {}): Promise<Harness> {
   const log: FakeLog = { requests: [] }
-  const store = boot({ args: parseArgs(['--profile', 'fake']), quit: () => undefined, build: 'test', secrets: options.secrets ?? sessionSecrets, fetch: fakeFetch(log, options.metaData, options.auth) })
+  // the sign-in tests drive the sign-in screen (--no-splash); the rest go through the splash
+  const store = boot({ args: parseArgs(['--profile', 'fake', ...(options.until === 'signin' ? ['--no-splash'] : [])]), quit: () => undefined, build: 'test', secrets: options.secrets ?? sessionSecrets, fetch: fakeFetch(log, options.metaData, options.auth) })
   const setup = await testRender(<App store={store} />, { width, height })
   const h: Harness = { setup, store, log, frame: () => setup.captureCharFrame() }
   store.captureScreen = () => setup.captureCharFrame()

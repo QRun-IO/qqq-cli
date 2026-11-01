@@ -15,15 +15,16 @@ says `binary with ui`. The npm package `@qrun-io/qqq-cli` does not carry it. Fro
 ```sh
 npm ci && npm run build                 # once, at the repo root (the kernel and CLI are used built)
 (cd packages/tui && bun install --frozen-lockfile)   # once
-qqq ui                                  # the default profile; or: qqq --profile sample ui
+qqq ui                                  # the splash, then the only profile (or a picker); or: qqq --profile sample ui
 qqq ui table query person -w "lastName STARTS_WITH S"     # open a screen directly (CLI grammar)
-qqq ui --theme light | --ascii | --linear | --no-mouse | --check | --no-check
+qqq ui --theme light | --ascii | --linear | --no-mouse | --no-splash | --check | --no-check
 bun run packages/tui/src/main.tsx --profile sample        # the same without the CLI
 ```
 
 Options: `--profile|-p <name>`, `--server|-s <url>` (a profile named after the host is made), `--theme
 <name>`, `--ascii` (ASCII glyphs), `--linear` (one region, no Apps pane), `--no-mouse` / `--mouse` (the
-mouse for this run; the saved Mouse setting is on by default, see [Mouse](#mouse)),
+mouse for this run; the saved Mouse setting is on by default, see [Mouse](#mouse)), `--no-splash` /
+`--splash` (the start-up splash for this run; see [Starting](#starting)),
 `--check` (the full terminal check, then exit), `--no-check` (skip the quick check at startup). Anything
 after the options is a route in the CLI grammar.
 
@@ -31,7 +32,36 @@ Environment: `QQQ_UI_LINEAR=1`, `QQQ_UI_ASCII=1` (as the options); `QQQ_UI_SIGN_
 OAUTH2 choice); `QQQ_UI_NO_BROWSER=1` (show the sign-in address without opening a browser);
 `QQQ_PROFILE`, `QQQ_SERVER`, `QQQ_TOKEN` (a bearer token instead of the stored sign-in), `QQQ_CONFIG_DIR`,
 `QQQ_STATE_DIR`, `QQQ_CACHE_DIR`, `QQQ_KEYRING=file` (keep sign-ins in a file instead of the OS keychain),
-shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
+shared with the CLI. `QQQ_UI_NO_SPLASH=1` (as `--no-splash`). `QQQ_UI_NO_QUIT=1` is for the soak test only.
+
+## Starting
+
+`qqq ui` opens on a **splash**: Query (the qrun.io mascot) blinking, his tail wagging while it works, the
+`qqq` wordmark, "Terminal client for QQQ", the version (`qqq 1.0.0 · UI API client 1.8.0`) and one status
+line that follows the boot: reading profiles, connecting to the server, signing in, loading metadata (with
+the table count). The large Query needs about 34 rows; smaller terminals (80×24) get the small Query beside
+the wordmark, very small ones the text alone; `--ascii` draws it all in plain characters. Any key stops the
+animation (not the boot). The splash stays at least 600 ms so it never just flashes, then Home opens as
+before. `--no-splash`, `QQQ_UI_NO_SPLASH=1`, or F9 › Settings › **Splash on start: off** (`:splash off`,
+saved as `ui.splash: off`) skip it.
+
+Which server:
+
+- `--profile`, `QQQ_PROFILE`, `--server` or `QQQ_SERVER` names one: it connects straight away. So does a
+  config with exactly one profile.
+- Several profiles and none named: the **Servers picker** opens over the splash (the rows of the Servers
+  dialog, [Servers](#servers): name, short name, server, status, last used; who is signed in, the sign-in,
+  the description), with the last used profile selected. Enter connects; `n` adds a profile, `e` edits, typing
+  filters; the status column fills in as the servers answer (the picker never waits for them). Esc quits and
+  prints how to skip the picker (`--profile NAME` or `QQQ_PROFILE`).
+- No profile at all (the first run): the add form opens directly; saving connects to the new profile. Esc
+  closes it; then `n` opens it again and Esc quits.
+
+The sign-in runs as before (a MOCK or anonymous session, the OAuth2 browser or device flow with the address
+or code on the splash, the username and password dialog). A failure stays on the splash with the reason:
+Enter (or `r`) retries, `c` opens the picker to choose another profile (Esc there returns), `n` adds one,
+Esc quits. Ctrl+O opens the picker too. With `--no-splash` the sign-in screen comes first, as in 1.0.0,
+and the picker or the add form opens over it in the same cases.
 
 ## Keys
 
@@ -581,7 +611,8 @@ Everything below is local to the machine and shared with the CLI; nothing is sen
     1.0.0-rc.1 `note`, `lastUsedAt` and `user` recorded by the UI, and `ui.theme` for that profile only)
     and `defaultProfile`. Fields are only ever added: a 1.0.0-rc.1 file loads unchanged.
     Sign-ins themselves are in the OS keychain (or the file keyring), one per profile.
-  - `ui.theme`: the theme for every profile without its own; `ui.mouse`: `false` when the mouse is off.
+  - `ui.theme`: the theme for every profile without its own; `ui.mouse`: `false` when the mouse is off;
+    `ui.splash`: `off` when `qqq ui` starts without the splash.
   - `ui.dates` (global, or in a profile's `ui`): date order (`YMD`, `MDY`, `DMY`), `clock` (`24h`, `12h`),
     `weekStart`, `weekNumbers`, `pickerOnEnter`, set with `:dates`. Without them the clock and the first day
     of the week follow the locale (`LC_ALL`, `LC_TIME`, `LANG`), else 24-hour and Monday; the order is ISO.
@@ -606,7 +637,7 @@ global choice. `--ascii` replaces box drawing and symbols. Colours come only fro
 
 The CLI equivalent dialog copies its command with `y` (or Enter); F9 › Settings can copy it automatically, and Shift+drag selects it with the terminal.
 
-F9 › Settings also holds the mouse on/off, single-key shortcuts on/off (default: the server preference
+F9 › Settings also holds the mouse on/off, the splash on start on/off, single-key shortcuts on/off (default: the server preference
 `keyboard.singleKeyShortcuts`), the download and upload folders, the PIN and idle lock, and the terminal check.
 
 ## Keys that your terminal may intercept
@@ -640,10 +671,11 @@ before any program sees it. `qqq ui --check` (and the quick check at startup) fi
 ```sh
 cd packages/tui && bun test          # or npm run test:tui at the root: the whole TUI against a fake server in memory
 packages/tui/scripts/smoke.sh        # tmux against a running server (profile "sample"); captures kept
+                                     # --server URL: an isolated config with two profiles, through the start-up picker
 packages/tui/scripts/mouse-smoke.sh  # the mouse in tmux: SGR 1006 clicks, drags and wheel written into the pane
 packages/tui/scripts/smoke-widths.sh # fixed grid widths across pages (fake large-instance server)
 packages/tui/scripts/smoke-sql.sh [server]  # SQL Runner at 80x24 and 120x36 (default the enterprise server on 8078)
-packages/tui/scripts/overflow-sweep.sh [server]  # every screen and dialog at 80/100/120/200 x 24/50: no text past a border
+packages/tui/scripts/overflow-sweep.sh [server]  # every screen and dialog (the splash, its picker, failure and add form too) at 80/100/120/200 x 24/50: no text past a border
 packages/tui/scripts/perf-large-table.sh  # PRF-001: 10,000 rows x 40 columns, timings against a 2 s budget
 packages/tui/scripts/soak.sh [server] [minutes]  # random keys for 10 min; fails on an exit or an error boundary
 ```

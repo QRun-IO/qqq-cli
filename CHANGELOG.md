@@ -48,6 +48,23 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
 - `scripts/print-agent.sh` prints to `~/Downloads` unless `QQQ_PRINT_OUT` says otherwise (`--dir` reports it).
 - The kernel adds `renderToPdf`, `renderValues`, `canSaveAsPdf`, `chromeValues` and content sections on text
   prints; the TUI's breadcrumbs moved to `breadcrumbs.ts`.
+- **`qqq ui` starts on a splash**: Query (the qrun.io mascot) blinking and wagging while it boots, the `qqq`
+  wordmark, the version and a status line that follows the boot (reading profiles, connecting, signing in,
+  loading metadata with the table count). Large Query from about 34 rows, the small one beside the
+  wordmark at 80×24, plain characters under `--ascii`; any key stops the animation, not the boot; shown at
+  least 600 ms. `--no-splash`, `QQQ_UI_NO_SPLASH=1` or F9 › Settings › Splash on start (`:splash on|off`,
+  saved as `ui.splash`) skip it.
+- **A profile picker on start**: with several profiles and none named (`--profile`, `QQQ_PROFILE`,
+  `--server`, `QQQ_SERVER`), the Servers picker opens over the splash with the last used profile selected;
+  Enter connects, `n` adds, the server status fills in as the probes answer, Esc quits with a one-line hint
+  about `--profile`. With no profile at all the add form opens directly; with exactly one, it connects.
+- **Connection failures stay on the splash** with the reason: Enter retries, `c` chooses another profile, `n`
+  adds one, Esc quits (instead of the bare error on the sign-in screen).
+
+### Changed
+
+- With several profiles and none named, `qqq ui` asks which to connect to instead of using the default
+  profile (`--profile` or `QQQ_PROFILE` keeps the old behaviour).
 
 ### Fixed
 

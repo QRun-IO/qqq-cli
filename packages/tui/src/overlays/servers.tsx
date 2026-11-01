@@ -33,6 +33,21 @@ function hint(tokens: KeyToken[], width: number): string {
 /** Command keys while the filter is empty; any other character starts the filter (/ starts it too). */
 const COMMAND_KEYS = new Set(['n', 'e', 'd', '*', 'r', '/'])
 
+/** The dialog as the start-up profile picker (over the splash): its title, Enter and Esc, the preselected row. */
+export interface ServersOverlayOptions {
+  title?: string
+  /** The Enter hint (`Enter connects`). */
+  enterLabel?: string
+  /** The Esc hint (`Esc quits`). */
+  escLabel?: string
+  /** Esc with an empty filter: instead of closing. */
+  onEscape?: () => void
+  /** The profile the cursor starts on (else the one in use). */
+  select?: string
+  /** The frame's first row for a screen height (below the splash's header), and only as tall as its rows need. */
+  top?: (screenHeight: number) => number
+}
+
 export class ServersOverlay implements Overlay {
   readonly id = overlayId('servers')
   readonly filter = new LineEditor('')
@@ -45,9 +60,9 @@ export class ServersOverlay implements Overlay {
   /** `/` was pressed: every character goes to the filter. */
   private filtering = false
 
-  constructor(private store: AppStore, private switchTo: (row: ServerRow) => void, model?: ServersModel) {
+  constructor(private store: AppStore, private switchTo: (row: ServerRow) => void, model?: ServersModel, readonly options: ServersOverlayOptions = {}) {
     this.model = model ?? new ServersModel({ current: store.target?.name, secrets: store.signInDeps?.secrets, probe: (server) => probeServer(server, { fetch: store.signInDeps?.fetch }), onChange: () => store.bump() })
-    const at = this.model.rows.findIndex((r) => r.isCurrent)
+    const at = options.select !== undefined && this.model.rows.some((r) => r.name === options.select) ? this.model.rows.findIndex((r) => r.name === options.select) : this.model.rows.findIndex((r) => r.isCurrent)
     this.index = Math.max(0, at)
     void this.model.probeAll()
     void this.model.readSignIns()
@@ -81,7 +96,8 @@ export class ServersOverlay implements Overlay {
         this.filter.set('')
         this.filtering = false
         this.index = 0
-      } else this.store.closeOverlay(this)
+      } else if (this.options.onEscape) this.options.onEscape()
+      else this.store.closeOverlay(this)
     } else if (key.name === 'down') this.index = Math.min(Math.max(0, list.length - 1), this.index + 1)
     else if (key.name === 'up') this.index = Math.max(0, this.index - 1)
     else if (key.name === 'pagedown') this.index = Math.min(Math.max(0, list.length - 1), this.index + 5)
@@ -152,7 +168,9 @@ export class ServersOverlay implements Overlay {
     const t = theme()
     const g = glyphs()
     const width = Math.max(30, Math.min(sw - 2, 120))
-    const height = Math.max(10, Math.min(sh - 2, 30))
+    const top = this.options.top ? this.options.top(sh) : 1
+    // under the splash header: as tall as the profiles need, else up to the screen's foot
+    const height = this.options.top ? Math.max(10, Math.min(sh - top - 1, 30, this.model.rows.length * 2 + 6)) : Math.max(10, Math.min(sh - 2, 30))
     const inner = width - 2
     const list = this.list()
     if (this.index >= list.length) this.index = Math.max(0, list.length - 1)
@@ -186,12 +204,13 @@ export class ServersOverlay implements Overlay {
     const more = list.length > visibleRows ? ` ${this.scroll > 0 ? g.up : ' '}${this.scroll + visibleRows < list.length ? g.down : ' '}` : ''
     const header = `    ${pad('Name', nameW)}${pad('Short', shortW)}${pad('Server', serverW)}${pad('Status', statusW)}${pad('Last used', lastW)}`
     const commands = !this.filter.value && !this.filtering
+    const enter = this.options.enterLabel ?? 'Enter switches'
     const keys = commands
-      ? [{ text: 'Enter switches' }, { text: 'n add' }, { text: 'e edit' }, { text: 'd remove', drop: 1 }, { text: '* default', drop: 1 }, { text: 'r probe', drop: 3 }, { text: 'type to filter', drop: 2 }, { text: 'Esc closes' }]
-      : [{ text: `${list.length} of ${this.model.rows.length}` }, { text: 'Enter switches' }, { text: 'F7 add', drop: 2 }, { text: 'F4 edit', drop: 2 }, { text: 'F8 remove', drop: 3 }, { text: 'Esc clears' }]
+      ? [{ text: enter }, { text: 'n add' }, { text: 'e edit' }, { text: 'd remove', drop: 1 }, { text: '* default', drop: 1 }, { text: 'r probe', drop: 3 }, { text: 'type to filter', drop: 2 }, { text: this.options.escLabel ?? 'Esc closes' }]
+      : [{ text: `${list.length} of ${this.model.rows.length}` }, { text: enter }, { text: 'F7 add', drop: 2 }, { text: 'F4 edit', drop: 2 }, { text: 'F8 remove', drop: 3 }, { text: 'Esc clears' }]
     const legend = `* default  ${g.mark} in use`
     return (
-      <Frame title="Servers  (Ctrl+O)" width={width} height={height} screenWidth={sw} screenHeight={sh} top={1}>
+      <Frame title={this.options.title ?? 'Servers  (Ctrl+O)'} width={width} height={height} screenWidth={sw} screenHeight={sh} top={top}>
         <box paddingLeft={1}><EditorLine editor={this.filter} width={inner - 2} focused={!commands || undefined} placeholder="type to filter by name, short name, description or server · / then any letter" /></box>
         <Line text={pad(header, inner - more.length) + more} width={inner} fg={t.acc} />
         {lines}

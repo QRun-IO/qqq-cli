@@ -77,8 +77,14 @@ renderer.on('destroy', () => {
   setTimeout(() => process.exit(0), 10)
 })
 
+// a line for the normal screen once the alternate screen is gone (the picker closed without a choice)
+let exitHint: string | undefined
+process.on('exit', () => {
+  if (exitHint) process.stderr.write(`${exitHint}\n`)
+})
+
 // QQQ_UI_NO_QUIT=1 (the soak test): quitting from a menu is ignored, so only a crash ends the program
-const store = boot({ args, quit: process.env.QQQ_UI_NO_QUIT === '1' ? () => store.flash('quit is off (QQQ_UI_NO_QUIT)') : restore, build: process.env.QQQ_UI_BUILD ?? 'dev', timers: true })
+const store = boot({ args, quit: process.env.QQQ_UI_NO_QUIT === '1' ? () => store.flash('quit is off (QQQ_UI_NO_QUIT)') : restore, build: process.env.QQQ_UI_BUILD ?? 'dev', timers: true, hint: (text) => { exitHint = text } })
 process.on('unhandledRejection', (reason) => {
   if (destroyed && isShutdownNoise([reason])) return
   store.error(reason)

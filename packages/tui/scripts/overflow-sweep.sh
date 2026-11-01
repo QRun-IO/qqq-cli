@@ -65,9 +65,22 @@ shot() {
   if [[ $bad == 0 ]]; then echo "ok   $name"; else fails=$((fails + 1)); fi
 }
 cmd() { keys T:: "T:$1" Enter; }
+# start_splash NAME CONFIG-JSON: a fresh TUI on its own config, no --server (the start-up splash, picker or add form)
+start_splash() {
+  tmux kill-session -t "$s" 2>/dev/null || true
+  mkdir -p "$cfg/$1/config"
+  printf '%s\n' "$2" > "$cfg/$1/config/config.json"
+  tmux new-session -d -s "$s" -x 120 -y 36 "cd '$pkg' && QQQ_CONFIG_DIR='$cfg/$1/config' QQQ_STATE_DIR='$cfg/$1/state' QQQ_KEYRING=file QQQ_CACHE_DIR='$cfg/$1/cache' bun run src/main.tsx --no-check; sleep 30"
+  tmux set-option -t "$s" window-size manual > /dev/null
+}
 long="$(printf 'Long value %.0s' $(seq 1 30))"
 shots=0
 
+# the start-up splash: the picker (two profiles), a failed connection (retry / choose another), the add form (no profile)
+start_splash picker "{\"profiles\":{\"sweep\":{\"server\":\"$server\",\"description\":\"the sweep server\"},\"other\":{\"server\":\"$server\"}}}"; shot 00a-splash-picker 'Connect to a server' 'Terminal client for QQQ'
+start_splash failed '{"profiles":{"down":{"server":"http://127.0.0.1:9"}}}'; shot 00b-splash-failed 'Enter retries' 'Terminal client for QQQ'
+start_splash add '{"profiles":{}}'; shot 00c-splash-add 'Add a server profile'
+keys Escape; shot 00d-splash-no-profile 'n adds a server profile'
 start; shot 01-home 'Quick actions' 'Recently viewed'
 keys T:?; shot 02-help 'Keys'
 start; keys T:/; shot 03-search 'Search'
