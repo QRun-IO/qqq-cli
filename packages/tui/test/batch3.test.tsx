@@ -170,3 +170,28 @@ test('create child through a composite association fills every join value', asyn
   const form = h.store.screen as unknown as { editor: { session: { values: Record<string, unknown> } } }
   expect(form.editor.session.values).toMatchObject({ accId: 1, accName: 'Alpha' })
 })
+
+
+
+test('reports: a streaming report asks the format and saves; a process report chooses the format then runs its process', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-report-'))
+  writeFilePreferences({ downloadDir: dir, downloadMode: 'silent' })
+  try {
+    h = await startTui(120, 30)
+    await command(h, 'report run streamReport')
+    await waitFor(h, (x) => x.includes('Stream report: format') && x.includes('CSV'))
+    await press(h, () => h!.setup.mockInput.pressArrow('down'))
+    await enter()
+    await waitFor(h, (x) => x.includes('Wrote'))
+    expect(readFileSync(join(dir, 'streamReport.csv'), 'utf8')).toBe('fmt,csv\n')
+    await esc()
+    await command(h, 'report run wizReport')
+    await waitFor(h, (x) => x.includes('Wizard report: format'))
+    await enter()
+    await waitFor(h, (x) => h!.log.requests.some((r) => r.path === '/processes/wizard/init'))
+    const init = h.log.requests.find((r) => r.path === '/processes/wizard/init')!
+    expect(JSON.stringify(init.body)).toContain('XLSX')
+  } finally {
+    writeFilePreferences({})
+  }
+})
