@@ -81,6 +81,12 @@ First release candidate of `qqq` 1.0: the command-line client and the full-scree
 - **Developer mode**: `table apis`, `table api-doc`, `table developer`, and `script list | show | store |
   logs` for associated scripts.
 - **Tags**: `collab tags list | add | remove | create`, by id or label.
+- **Bulk load and bulk changes**: `table bulk-insert` from a CSV or Excel file (the upload template,
+  the server's column suggestion, a mapping document, flags or `-i`, value mapping, the validation
+  review, `--dry-run`), `table bulk-edit` of chosen records or by key rows from a file (only the fields
+  you set change), `table bulk-delete` with review and confirmation, `table actions` (what you can do to
+  a table, with the command for each), and `bulk-profile list | save | rename | delete` for saved
+  mappings.
 - **Extensions**: a noun per extension the client document knows (13: esb, collab, health, alerts,
   assistant, sql-workbench, ...), gated on the server's installed extensions and documented minimum
   versions; first-class verbs for `esb` and `collab` (presence, comments, favorites, follow, my work).
@@ -117,8 +123,8 @@ First release candidate of `qqq` 1.0: the command-line client and the full-scree
 
 ### Known limitations
 
-- Bulk load is not in the CLI yet; jobs need a durable-jobs server; TABLE_BASED sign-in is refused (no
-  documented native recipe). See `docs/server-findings.md`.
+- Jobs need a durable-jobs server; TABLE_BASED sign-in is refused (no documented native recipe). See
+  `docs/server-findings.md`.
 - The binaries are not Developer ID signed or notarized (macOS: Gatekeeper prompt for browser downloads,
   `xattr -d com.apple.quarantine` clears it) nor Authenticode signed (Windows: SmartScreen warning). The
   Windows and macOS x64 binaries are cross-compiled and were not run before this candidate.

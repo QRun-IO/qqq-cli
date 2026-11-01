@@ -77,10 +77,10 @@ $ qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5
 
 | Noun | Verbs |
 |---|---|
-| `table` | `list`, `describe`, `query`, `count`, `stats`, `get`, `create`, `copy`, `update`, `delete`, `export`, `children`, `download`, `variants` |
+| `table` | `list`, `describe`, `query`, `count`, `stats`, `get`, `create`, `copy`, `update`, `delete`, `export`, `children`, `download`, `variants`, `actions`, `bulk-insert`, `bulk-edit`, `bulk-delete` |
 | `process` | `list`, `describe`, `run` (every step screen, async jobs with progress, Ctrl-C cancels on the server) |
 | `apps`, `search`, `tail`, `whoami` | app homes, global search, the live event stream |
-| `saved-view`, `audit`, `report`, `widget`, `job`, `prefs`, `help-search` | saved views, audit history, reports, dashboard widgets as text, jobs, preferences, help |
+| `saved-view`, `bulk-profile`, `audit`, `report`, `widget`, `job`, `prefs`, `help-search` | saved views, saved bulk-load mappings, audit history, reports, dashboard widgets as text, jobs, preferences, help |
 | `api <operationId>` | any of the 202 UI API operations by id: the escape hatch |
 | `extensions`, and one noun per extension | `esb`, `collab`, `health`, `alerts`, `assistant`, `sql-workbench`, … gated on what the server has installed |
 | `login`, `logout`, `config`, `cache`, `completion`, `doctor` | sign-in, profiles and settings, the metadata cache, shell completion (bash, zsh, fish, PowerShell) |
@@ -89,6 +89,7 @@ $ qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5
 qqq table query person -g "(firstName = Avery OR firstName = Blair) AND birthDate > now(-40y)"
 qqq table create pet --set name=Pixel --set personId=2 --set speciesId=Dog
 qqq table export person -w "id <= 5" --fields id,firstName,email --out people.xlsx
+qqq table bulk-insert person --file people.csv --dry-run          # map, validate and review; --yes loads
 qqq process run greetInteractive -r 1,2,3 -v greetingPrefix=Hi
 qqq api getTableMetaData --path tableName=person -Q 'fields.*.label'
 eval "$(qqq completion zsh)"
