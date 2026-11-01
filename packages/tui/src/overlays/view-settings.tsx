@@ -11,7 +11,7 @@ import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { Overlay } from '../types'
 import { pad } from '../util/text'
-import { PromptOverlay, overlayId } from './basic'
+import { ChoiceOverlay, PromptOverlay, overlayId } from './basic'
 import { Frame, Line } from './frame'
 
 /**
@@ -34,12 +34,25 @@ export class GridViewSettingsOverlay implements Overlay {
 
   options(): Array<{ label: string; value: string; toggle: () => void }> {
     const t = theme()
+    const sort = this.view.sort as { field: string; asc: boolean } | undefined
     return [
+      { label: 'Sort', value: sort ? `${this.meta.fields[sort.field]?.label ?? sort.field} ${sort.asc ? 'ascending' : 'descending'}` : 'default order', toggle: () => this.chooseSort() },
       { label: 'Width use', value: this.view.fit === 'fill' ? 'fill the terminal width' : 'fit to content', toggle: () => { this.view.fit = this.view.fit === 'fill' ? 'content' : 'fill' } },
       { label: 'Zebra stripes', value: (this.view.zebra ?? t.zebraByDefault) ? 'on' : 'off', toggle: () => { this.view.zebra = !(this.view.zebra ?? t.zebraByDefault) } },
       { label: 'Header rule', value: (this.view.headerRule ?? true) ? 'on' : 'off', toggle: () => { this.view.headerRule = !(this.view.headerRule ?? true) } },
       { label: 'Density', value: this.view.density === 'comfortable' ? 'comfortable (blank line between rows)' : 'compact', toggle: () => { this.view.density = this.view.density === 'comfortable' ? 'compact' : 'comfortable' } },
     ]
+  }
+
+  chooseSort(): void {
+    const fields = Object.values(this.meta.fields).filter((f) => !f.isHidden)
+    this.store.open(new ChoiceOverlay(this.store, 'Sort by', [{ label: '(default order)', value: '' }, ...fields.map((f) => ({ label: f.label, value: f.name, detail: f.name }))], (field) => {
+      if (!field) {
+        delete this.view.sort
+        return
+      }
+      this.store.open(new ChoiceOverlay(this.store, 'Direction', [{ label: 'Ascending', value: true }, { label: 'Descending', value: false }], (asc) => { this.view.sort = { field, asc } }))
+    }))
   }
 
   save(): void {
@@ -120,10 +133,10 @@ export class GridViewSettingsOverlay implements Overlay {
         {items.slice(top, top + rows).map((it) => {
           const sel = it.idx === this.row
           const isOpt = it.idx >= this.order.length
-          return <text key={it.idx} fg={sel ? t.selFg : isOpt ? t.acc : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${it.text}`, inner)}</text>
+          return <text flexShrink={0} wrapMode="none" key={it.idx} fg={sel ? t.selFg : isOpt ? t.acc : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${it.text}`, inner)}</text>
         })}
         <Line text="" width={inner} />
-        <Line text=" Space on/off · Shift+↑↓ or +/- move · ←→ width · w type width · a auto width" width={inner} fg={t.dim} />
+        <Line text=" Space on/off (on Sort: choose) · Shift+↑↓ or +/- move · ←→ width · w width · a auto" width={inner} fg={t.dim} />
         <Line text=" r reset to defaults · Enter saves (kept for this table) · Esc cancels" width={inner} fg={t.dim} />
       </Frame>
     )

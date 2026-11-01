@@ -103,7 +103,7 @@ export class TagOverlay implements Overlay {
     const inner = width - 2
     const choices = this.choices()
     const rows = Math.max(3, Math.min(8, Math.floor((sh - 14) / 2)))
-    const line = (text: string, sel: boolean, fg = t.fg) => <text fg={sel ? t.selFg : fg} bg={sel ? t.selBg : undefined}>{pad(` ${text}`, inner)}</text>
+    const line = (text: string, sel: boolean, fg = t.fg) => <text flexShrink={0} wrapMode="none" fg={sel ? t.selFg : fg} bg={sel ? t.selBg : undefined}>{pad(` ${text}`, inner)}</text>
     return (
       <Frame title={`Tags · ${this.store.meta?.tables?.[this.table]?.label ?? this.table} ${this.pk}`} width={width} height={rows * 2 + 9} screenWidth={sw} screenHeight={sh}>
         <Line text={` On this record${this.focus === 'applied' ? '  (Delete or Enter removes)' : ''}`} width={inner} fg={t.acc} />

@@ -139,7 +139,7 @@ export class MenuOverlay implements Overlay {
     const out: React.ReactNode[] = []
     for (let r = 0; r < rows; r++) {
       out.push(
-        <text key={r}>
+        <text flexShrink={0} wrapMode="none" key={r}>
           {lines.map((col, c) => {
             const cellLine = col[r]
             return <span key={c} fg={cellLine?.fg ?? t.fg} bg={cellLine?.bg}>{pad(cellLine?.text ?? '', colWidth)}</span>
@@ -236,7 +236,7 @@ export class PaletteOverlay implements Overlay {
         <box paddingLeft={1}><EditorLine editor={this.input} width={inner - 2} placeholder="a table, process, app, report, recent record, command, or text to find records" /></box>
         {items.slice(top, top + rows).map((it, i) => {
           const sel = top + i === this.index
-          return <text key={i} fg={sel ? t.selFg : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${pad(it.label, 38)} ${pad(it.kind, 10)} ${it.context ?? ''}`, inner)}</text>
+          return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? t.selFg : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${pad(it.label, 38)} ${pad(it.kind, 10)} ${it.context ?? ''}`, inner)}</text>
         })}
         {Array.from({ length: Math.max(0, rows - Math.min(rows, items.length - top)) }, (_, i) => <Line key={`e${i}`} text={i === 0 && !items.length ? (typed ? ' (nothing matches)' : ' (no recents yet; type to search)') : ''} width={inner} fg={t.dim} />)}
         <Line text="" width={inner} />
@@ -411,7 +411,7 @@ export class CommandLineOverlay implements Overlay {
       : this.candidates.length > 1 ? ` ${trunc(this.candidates.map((c, i) => (i === this.candidate ? `[${c}]` : c)).join('  '), inner - 2)}` : ' ↑↓ history · Ctrl+R search · Tab completes · Enter runs · Esc · e.g. table query person -w "lastName STARTS_WITH S" · theme light · lock · quit'
     return (
       <box position="absolute" left={Math.max(0, Math.floor((sw - width) / 2))} top={Math.max(0, sh - 6)} width={width} height={4} flexDirection="column" border borderStyle="single" borderColor={t.focusBorder} {...(glyphs().border ? { customBorderChars: glyphs().border } : {})} backgroundColor={t.overlayBg} title=" : command " zIndex={30}>
-        <text><span fg={t.acc2}>{':'}</span></text>
+        <text flexShrink={0} wrapMode="none"><span fg={t.acc2}>{':'}</span></text>
         <box position="absolute" left={2} top={0}><EditorLine editor={this.editor} width={inner - 3} /></box>
         <Line text={hint} width={inner} fg={this.search ? t.acc2 : t.dim} />
       </box>
@@ -475,17 +475,17 @@ export class LockOverlay implements Overlay {
     const x = bounce(elapsed * 3, maxX)
     const y = bounce(elapsed, maxY)
     const rows: React.ReactNode[] = []
-    for (let r = 0; r < sh; r++) rows.push(<text key={r} bg={t.overlayBg}>{' '.repeat(sw)}</text>)
+    for (let r = 0; r < sh; r++) rows.push(<text flexShrink={0} wrapMode="none" key={r} bg={t.overlayBg}>{' '.repeat(sw)}</text>)
     return (
       <box position="absolute" left={0} top={0} width={sw} height={sh} zIndex={100} backgroundColor={t.overlayBg}>
         {rows}
         <box position="absolute" left={x} top={y} width={boxW} flexDirection="column">
-          <text fg={t.acc}><strong>{center(lines[0]!, boxW)}</strong></text>
-          <text fg={t.acc2}><strong>{center(lines[1]!, boxW)}</strong></text>
-          <text fg={t.dim}>{center(lines[2]!, boxW)}</text>
-          <text fg={t.fg}>{center(lines[3]!, boxW)}</text>
+          <text flexShrink={0} wrapMode="none" fg={t.acc}><strong>{center(lines[0]!, boxW)}</strong></text>
+          <text flexShrink={0} wrapMode="none" fg={t.acc2}><strong>{center(lines[1]!, boxW)}</strong></text>
+          <text flexShrink={0} wrapMode="none" fg={t.dim}>{center(lines[2]!, boxW)}</text>
+          <text flexShrink={0} wrapMode="none" fg={t.fg}>{center(lines[3]!, boxW)}</text>
           {this.asking ? <box paddingLeft={12}><EditorLine editor={this.pin} width={20} /></box> : null}
-          {this.message ? <text fg={t.err}>{center(this.message, boxW)}</text> : null}
+          {this.message ? <text flexShrink={0} wrapMode="none" fg={t.err}>{center(this.message, boxW)}</text> : null}
         </box>
       </box>
     )

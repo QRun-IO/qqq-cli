@@ -159,8 +159,8 @@ export class HomeScreen implements Screen {
         const walk = (nodes: AppTreeNode[]) => {
           for (const n of nodes) {
             if (n.type === 'TABLE' && tables.length < 6 && (meta?.tables?.[n.name] as { insertPermission?: boolean } | undefined)?.insertPermission) tables.push(n)
-            else if (n.type === 'PROCESS' && procs.length < 6 && (meta?.processes?.[n.name] as { hasPermission?: boolean } | undefined)?.hasPermission !== false) procs.push(n)
-            if (n.children && (tables.length < 6 || procs.length < 6)) walk(n.children)
+            else if (n.type === 'PROCESS' && procs.length < 4 && (meta?.processes?.[n.name] as { hasPermission?: boolean } | undefined)?.hasPermission !== false) procs.push(n)
+            if (n.children && (tables.length < 6 || procs.length < 4)) walk(n.children)
           }
         }
         walk(tree)
@@ -368,11 +368,11 @@ export class HomeScreen implements Screen {
     const shown = lines.slice(this.scroll, this.scroll + view)
     while (shown.length < view) shown.push([{ text: '' }])
     return (
-      <box flexDirection="column" width={width} height={height} border borderColor={focused ? t.focusBorder : t.border} {...(g.border ? { customBorderChars: g.border } : {})} title={` ${brand} `}>
+      <box flexDirection="column" overflow="hidden" width={width} height={height} border borderColor={focused ? t.focusBorder : t.border} {...(g.border ? { customBorderChars: g.border } : {})} title={` ${brand} `}>
         {shown.map((segs, i) => {
           const used = segs.reduce((a, x) => a + x.text.length, 0)
           return (
-            <text key={i}>
+            <text flexShrink={0} wrapMode="none" key={i}>
               {segs.map((x, k) => <span key={k} fg={x.fg ?? t.fg} bg={x.bg}>{x.bold ? <strong>{x.text}</strong> : x.text}</span>)}
               <span>{' '.repeat(Math.max(0, inner - used))}</span>
             </text>

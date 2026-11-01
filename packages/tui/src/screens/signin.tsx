@@ -168,18 +168,18 @@ export class SignInScreen implements Screen {
     const extra: React.ReactNode[] = []
     if (this.device) {
       const left = Math.max(0, Math.round((this.device.expires - Date.now()) / 1000))
-      extra.push(<text key="d1" fg={t.acc}>{pad(' Open this address in a browser:', width - 2)}</text>)
-      extra.push(<text key="d2" fg={t.fg}><strong>{pad(`   ${this.device.url}`, width - 2)}</strong></text>)
-      extra.push(<text key="d3" fg={t.acc}>{pad(' and confirm the code:', width - 2)}</text>)
-      extra.push(<text key="d4" fg={t.acc2}><strong>{pad(`   ${this.device.code}`, width - 2)}</strong></text>)
-      extra.push(<text key="d5" fg={t.dim}>{pad(` the code expires in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`, width - 2)}</text>)
+      extra.push(<text flexShrink={0} wrapMode="none" key="d1" fg={t.acc}>{pad(' Open this address in a browser:', width - 2)}</text>)
+      extra.push(<text flexShrink={0} wrapMode="none" key="d2" fg={t.fg}><strong>{pad(`   ${this.device.url}`, width - 2)}</strong></text>)
+      extra.push(<text flexShrink={0} wrapMode="none" key="d3" fg={t.acc}>{pad(' and confirm the code:', width - 2)}</text>)
+      extra.push(<text flexShrink={0} wrapMode="none" key="d4" fg={t.acc2}><strong>{pad(`   ${this.device.code}`, width - 2)}</strong></text>)
+      extra.push(<text flexShrink={0} wrapMode="none" key="d5" fg={t.dim}>{pad(` the code expires in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`, width - 2)}</text>)
     }
     const listHeight = Math.max(3, height - 3 - extra.length - 1)
     return (
       <Panel title="Sign in" width={width} height={height} focused={focused}>
         {this.list.view(width - 2, listHeight, focused)}
         {extra}
-        <text fg={/fail|error|cannot|not /i.test(this.status) ? t.err : t.dim}>{pad(` ${this.status}`, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={/fail|error|cannot|not /i.test(this.status) ? t.err : t.dim}>{pad(` ${this.status}`, width - 2)}</text>
       </Panel>
     )
   }

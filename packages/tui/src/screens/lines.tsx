@@ -66,7 +66,7 @@ export abstract class LinesScreen implements Screen {
     return (
       <Panel title={this.heading} width={width} height={height} focused={focused}>
         {this.list.view(width - 2, height - 3, focused)}
-        <text fg={t.dim}>{pad(` ${this.hint()}`, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(` ${this.hint()}`, width - 2)}</text>
       </Panel>
     )
   }

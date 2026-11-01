@@ -86,13 +86,13 @@ export function EditorLine(props: { editor: LineEditor; width: number; focused?:
   const t = theme()
   const w = Math.max(1, props.width)
   if (!props.editor.value && props.placeholder && props.focused !== false) {
-    return <text bg={t.inputBg}><span fg={t.inputBg} bg={t.inputFg}>{' '}</span><span fg={t.dim} bg={t.inputBg}>{pad(props.placeholder, w - 1)}</span></text>
+    return <text flexShrink={0} wrapMode="none" bg={t.inputBg}><span fg={t.inputBg} bg={t.inputFg}>{' '}</span><span fg={t.dim} bg={t.inputBg}>{pad(props.placeholder, w - 1)}</span></text>
   }
   const v = props.editor.view(w - 1)
-  if (props.focused === false) return <text fg={t.inputFg} bg={t.inputBg}>{pad(props.editor.masked ? '•'.repeat(props.editor.value.length) : props.editor.value, w)}</text>
+  if (props.focused === false) return <text flexShrink={0} wrapMode="none" fg={t.inputFg} bg={t.inputBg}>{pad(props.editor.masked ? '•'.repeat(props.editor.value.length) : props.editor.value, w)}</text>
   const rest = w - v.before.length - 1 - v.after.length
   return (
-    <text bg={t.inputBg}>
+    <text flexShrink={0} wrapMode="none" bg={t.inputBg}>
       <span fg={t.inputFg} bg={t.inputBg}>{v.before}</span>
       <span fg={t.inputBg} bg={t.inputFg}>{v.at}</span>
       <span fg={t.inputFg} bg={t.inputBg}>{v.after + ' '.repeat(Math.max(0, rest))}</span>
@@ -176,7 +176,7 @@ export class ChoiceOverlay<T> implements Overlay {
           const sel = top + i === this.index
           const detail = c.disabled ?? c.detail ?? ''
           const labelWidth = width - 4 - (detail ? Math.min(detail.length, Math.floor(width / 2)) + 1 : 0)
-          return <text key={i} fg={sel ? t.selFg : c.disabled ? t.dim : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${pad(c.label, labelWidth)}${detail ? ' ' + trunc(detail, width - 5 - labelWidth) : ''}`, width - 2)}</text>
+          return <text flexShrink={0} wrapMode="none" key={i} fg={sel ? t.selFg : c.disabled ? t.dim : t.fg} bg={sel ? t.selBg : undefined}>{pad(` ${pad(c.label, labelWidth)}${detail ? ' ' + trunc(detail, width - 5 - labelWidth) : ''}`, width - 2)}</text>
         })}
         {Array.from({ length: rows - shown.length }, (_, i) => <Line key={`e${i}`} text={i === 0 && !shown.length ? ' (nothing matches)' : ''} width={width - 2} fg={t.dim} />)}
         <Line text={` ${list.length} of ${this.choices.length} · ↑↓ Enter · Esc${this.hint ? ' · ' + this.hint : ''}`} width={width - 2} fg={t.dim} />

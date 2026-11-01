@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { ResultCursor, associationGroups, childFilter, childListFields, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { ResultCursor, associationGroups, childFilter, childListFields, formatSize, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
@@ -30,6 +30,27 @@ export function linkTarget(store: AppStore, field: FieldMetaData, record?: Query
   if (record) return relatedRecordTarget(field as FieldMeta, record as never, tables)?.tableName
   const pvs = field.possibleValueSourceName
   return pvs && tables.includes(pvs) ? pvs : undefined
+}
+
+/** A BLOB value stored in the record itself (base64), not behind a FILE_DOWNLOAD route. */
+export function isBlob(record: QueryRecord | undefined, f: FieldMetaData): boolean {
+  const raw = record?.values?.[f.name]
+  return f.type === 'BLOB' && typeof raw === 'string' && raw !== '' && !f.adornments?.some((a) => a.type === 'FILE_DOWNLOAD')
+}
+
+export function blobText(record: QueryRecord, field: string): string {
+  const raw = record.values?.[field]
+  if (typeof raw !== 'string' || !raw) return ''
+  return `file, ${formatSize(Math.floor((raw.length * 3) / 4) - (raw.endsWith('==') ? 2 : raw.endsWith('=') ? 1 : 0))}`
+}
+
+/** Saves a BLOB value (base64 in the record) through the save dialog. */
+export function saveBlob(store: AppStore, record: QueryRecord, table: string, pk: string, f: FieldMetaData): void {
+  const bytes = new Uint8Array(Buffer.from(String(record.values?.[f.name] ?? ''), 'base64'))
+  saveFile(store, `Save ${f.label}`, `${table}-${pk}-${f.name}`, (path) => {
+    const out = saveDownload(path, bytes, { explicit: true })
+    store.message(`Saved ${out} (${bytes.length} bytes).`)
+  })
 }
 
 /** Sections in tier order (T1, then T2, then T3, then the rest), hidden ones left out. */
@@ -178,7 +199,7 @@ export class RecordScreen implements Screen {
       rows.push({ text: '' })
       rows.push({ text: `${s.label}${s.tier ? ` (${s.tier})` : ''} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 8)))}`, fg: t.acc, bold: true })
       const tableNames = Object.keys(this.store.meta?.tables ?? {})
-      const valueOf = (f: FieldMetaData) => valueText(f as FieldMeta, rec as never, { reveal: this.revealed.has(f.name), tableNames, tableName: this.tableName, primaryKey: this.primaryKey, widgets: this.store.meta?.widgets as never }).text
+      const valueOf = (f: FieldMetaData) => f.type === 'BLOB' && !f.adornments?.some((a) => a.type === 'FILE_DOWNLOAD') ? blobText(rec, f.name) : valueText(f as FieldMeta, rec as never, { reveal: this.revealed.has(f.name), tableNames, tableName: this.tableName, primaryKey: this.primaryKey, widgets: this.store.meta?.widgets as never }).text
       // the value column is sized once per section (first record shown) and kept while stepping records
       const frozenKey = `${s.name}|${inner}`
       if (!this.sectionWidths.has(frozenKey)) this.sectionWidths.set(frozenKey, Math.max(...fields.map((f) => valueOf(f).length + (linkTarget(this.store, f) ? 2 : 0)), 12))
@@ -187,12 +208,12 @@ export class RecordScreen implements Screen {
       const two = (view.recordColumns ?? (inner >= 2 * colWidth + 6 ? 2 : 1)) === 2 && inner >= 2 * Math.min(colWidth, 30) + 6
       const fieldText = (f: FieldMetaData) => {
         const v = valueText(f as FieldMeta, rec as never, { tableNames, widgets: this.store.meta?.widgets as never })
-        const link = v.link ? ` ${g.link}` : v.file ? ' [file: Enter saves]' : v.masked ? ' [Enter reveals]' : ''
+        const link = v.link ? ` ${g.link}` : v.file || isBlob(rec, f) ? ' [file: Enter saves]' : v.masked ? ' [Enter reveals]' : ''
         return `${pad(f.label, labelWidth)}  ${trunc(valueOf(f) + link, (two ? colWidth : Math.min(inner - 4, 100)) - labelWidth - 2)}`
       }
       for (let i = 0; i < fields.length; i += two ? 2 : 1) {
         const pair = two ? fields.slice(i, i + 2) : [fields[i]!]
-        const links = pair.filter((f) => { const v = valueText(f as FieldMeta, rec as never, { tableNames }); return Boolean(v.link || v.file || v.masked) })
+        const links = pair.filter((f) => { const v = valueText(f as FieldMeta, rec as never, { tableNames }); return Boolean(v.link || v.file || v.masked || isBlob(rec, f)) })
         const text = '  ' + (two ? pad(fieldText(pair[0]!), colWidth) + '    ' + (pair[1] ? fieldText(pair[1]) : '') : fieldText(pair[0]!))
         rows.push({ text, key: `f:${pair[0]!.name}`, action: () => this.follow(links) })
       }
@@ -284,6 +305,7 @@ export class RecordScreen implements Screen {
 
   follow(fields: FieldMetaData[]): void {
     const go = (f: FieldMetaData) => {
+      if (isBlob(this.record, f)) return saveBlob(this.store, this.record!, this.tableName, String(this.primaryKey), f)
       const v = valueText(f as FieldMeta, this.record as never, { tableNames: Object.keys(this.store.meta?.tables ?? {}) })
       if (v.file) return this.download(f)
       if (v.masked) {
@@ -405,6 +427,17 @@ export class RecordScreen implements Screen {
       { section: 'Context', label: 'Copy as a CLI command', detail: `qqq ${this.cliEquivalent()}`, run: () => this.store.message(`qqq ${this.cliEquivalent()}`, 'info', 'CLI equivalent') },
     ]
     for (const group of this.groups) {
+      const child = this.childMeta.get(group.table)
+      for (const r of (group.records as QueryRecord[]).slice(0, 30)) {
+        for (const f of Object.values(child?.fields ?? {})) {
+          const v = valueText(f as FieldMeta, r as never, {})
+          if (isBlob(r, f)) out.push({ section: 'Context', label: `Save ${f.label} of ${group.label} ${r.recordLabel ?? ''}`.trim(), run: () => saveBlob(this.store, r, group.table, String(r.values?.[child!.primaryKeyField] ?? ''), f) })
+          else if (v.file?.route) {
+            const route = v.file.route
+            out.push({ section: 'Context', label: `Save ${f.label} of ${group.label} ${r.recordLabel ?? ''}`.trim(), detail: v.file.fileName, run: () => saveFile(this.store, `Save ${v.file!.fileName}`, v.file!.fileName, (p) => this.store.run(this.store.client!.call('downloadRecordFieldFile', { path: route }), (res) => { const b = res.bytes ?? new TextEncoder().encode(String(res.data ?? '')); this.store.message(`Saved ${saveDownload(p, b, { explicit: true })} (${b.length} bytes).`) })) })
+          }
+        }
+      }
       out.push({ section: 'Context', label: `New ${group.label} for this record`, key: 'F7', run: () => this.newChild(group) })
       out.push({ section: 'Context', label: `Query all ${group.label} of this record`, run: () => import('../nav').then((n) => n.openTable(this.store, group.table, this.childFilterOf(group))) })
     }
@@ -414,6 +447,7 @@ export class RecordScreen implements Screen {
       const v = valueText(f as FieldMeta, this.record as never, { tableNames })
       if (v.link) out.push({ section: 'Context', label: `Follow ${f.label}`, detail: cell(this.record, f.name), run: () => this.follow([f]) })
       if (v.file) out.push({ section: 'Context', label: `Download ${f.label}`, detail: v.file.fileName, run: () => this.download(f) })
+      else if (isBlob(this.record, f)) out.push({ section: 'Context', label: `Save ${f.label}`, detail: blobText(this.record, f.name), run: () => saveBlob(this.store, this.record!, this.tableName, String(this.primaryKey), f) })
       if (v.masked) out.push({ section: 'Context', label: `Reveal ${f.label}`, run: () => this.follow([f]) })
     }
     for (const p of this.recordProcesses()) out.push({ section: 'Context', label: `Run ${p.label} on this record`, run: () => openProcess(this.store, p.name, { recordIds: [String(this.primaryKey)] }) })
@@ -454,7 +488,7 @@ export class RecordScreen implements Screen {
     return (
       <Panel title={`${this.meta?.label ?? this.tableName} › ${this.title()}`} width={width} height={height} focused={focused}>
         {this.list.view(width - 2, height - 3, focused)}
-        <text fg={t.dim}>{pad(` ${hint}`, width - 2)}</text>
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(` ${hint}`, width - 2)}</text>
       </Panel>
     )
   }

@@ -28,16 +28,16 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 |---|---|---|---|---|---|
 | HLP | 6 | 1 | 4 | 1 | 0 |
 | INT | 14 | 9 | 0 | 1 | 4 |
-| NAV | 40 | 15 | 1 | 7 | 17 |
-| PRC | 60 | 21 | 30 | 3 | 6 |
-| PRF | 5 | 3 | 2 | 0 | 0 |
-| QRY | 70 | 23 | 38 | 4 | 5 |
-| REC | 65 | 22 | 39 | 4 | 0 |
-| REL | 9 | 4 | 3 | 2 | 0 |
+| NAV | 40 | 17 | 0 | 6 | 17 |
+| PRC | 60 | 38 | 2 | 7 | 13 |
+| PRF | 5 | 4 | 0 | 1 | 0 |
+| QRY | 70 | 41 | 8 | 13 | 8 |
+| REC | 65 | 44 | 3 | 14 | 4 |
+| REL | 9 | 6 | 0 | 3 | 0 |
 | RPT | 20 | 0 | 20 | 0 | 0 |
 | SEC | 43 | 7 | 23 | 1 | 12 |
 | WID | 69 | 13 | 43 | 2 | 11 |
-| **all** | 401 | 118 | 203 | 25 | 55 |
+| **all** | 401 | 180 | 103 | 49 | 69 |
 
 ## Rows
 
@@ -54,12 +54,12 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | NAV-009 | App home table entries show the backend record count | pass | pass | qqq apps show counts each table with TABLE_COUNT (--no-counts skips); TUI: record counts beside tables |
 | NAV-010 | App homes of apps with child apps, only processes, or nothing render without errors | n/a | pass | app home rendering |
 | NAV-011 | A dashboard app (widgets only) opens from navigation and shows one labelled container per permitted declared w | todo | pass | widgets per app; TUI: dashboard apps draw their widgets |
-| NAV-012 | Branding: sidebar logo (Material parity), app name, favicon from the icon, accent color, and partial branding  | n/a | partial | browser shell; TUI: app name in the title bar |
+| NAV-012 | Branding: sidebar logo (Material parity), app name, favicon from the icon, accent color, and partial branding  | n/a | partial | browser shell; TUI: app name in the title bar and Home; no logo or banners in a terminal |
 | NAV-013 | Branding banners render in their slots (top of site, top of body, side nav under logo) with text or sanitized  | n/a | n/a | browser shell |
 | NAV-014 | Breadcrumbs show the full app hierarchy for tables, processes, records, create and edit pages, and each crumb  | n/a | pass | browser shell; TUI: title-bar path: apps, table, record or form |
 | NAV-015 | Document title names the page, its enclosing apps and the application (Material parity) | n/a | n/a | browser shell |
 | NAV-016 | The site root redirects to the dashboard | n/a | n/a | browser shell |
-| NAV-017 | Dashboard landing page: counts, quick actions and application cards derived from navigable, permitted metadata | todo | partial | whoami shows counts; dashboard landing is the TUI; TUI: home: counts and app list; no quick actions |
+| NAV-017 | Dashboard landing page: counts, quick actions and application cards derived from navigable, permitted metadata | todo | pass | whoami shows counts; dashboard landing is the TUI; TUI: Home: greeting, counts, recents, quick actions, app cards, work |
 | NAV-018 | Direct (hard-loaded) links open every route shape with the shell, sidebar state and breadcrumbs | n/a | pass | browser shell; TUI: qqq ui <route in the CLI grammar> |
 | NAV-019 | Browser refresh keeps the route, its query string and the rendered content | n/a | n/a | browser shell |
 | NAV-020 | Browser back and forward traverse navigation history with the right content | n/a | n/a | browser shell |
@@ -67,13 +67,13 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | NAV-022 | Unknown deeper or top-level paths return the 404 page with a working home link | n/a | n/a | browser shell |
 | NAV-023 | Record lookup by key: /app/{table}/key?{field}={value} opens the single matching record | pass | pass | qqq table get <t> --key field=value: one match shows the record, none exits 5, several exit 2; TUI: g: primary key or a configured unique key (kernel gotoKeys) |
 | NAV-024 | Command palette (Ctrl+K and '.') lists navigable apps, tables and processes by label with type and app context | todo | pass | shell completion covers names; a palette is the TUI; TUI: F2, /, ., Ctrl+K palette with type and app context |
-| NAV-025 | Header search, '/' search dialog and search page jump to navigation targets and recently viewed records by lab | pass | partial | qqq search; TUI: palette lists recents; no search page |
+| NAV-025 | Header search, '/' search dialog and search page jump to navigation targets and recently viewed records by lab | pass | partial | qqq search; TUI: palette: recents and navigation targets; no separate search page |
 | NAV-026 | Mobile navigation drawer opens from the header, navigates and closes | n/a | n/a | browser shell |
 | NAV-027 | Developer page reports the backend metadata counts and the running framework versions | pass | partial | qqq whoami: apiVersion, features, counts; TUI: F9 Connection: versions, features, extensions, metadata generation |
-| NAV-028 | Reports in the app tree are listed under their app (sidebar and app home Reports group) and open the report pa | partial | partial | qqq report list (reports with their app); the sample app has no reports to verify; TUI: reports listed; run through :report run |
+| NAV-028 | Reports in the app tree are listed under their app (sidebar and app home Reports group) and open the report pa | partial | partial | qqq report list (reports with their app); the sample app has no reports to verify; TUI: reports listed in the tree, Home and palette; run through :report run |
 | NAV-029 | A user who may access no apps sees the Dashboard entry and the no-apps message (Material NoApps parity) | n/a | n/a | browser shell |
-| NAV-030 | Global search (header box, '/' dialog, search page) lists the records a backend record search (POST /qqq/v1/se | pass | partial | qqq search over POST /search; TUI: palette calls POST /search; the sample has no provider |
-| NAV-031 | Record search respects table read permissions and record security locks, in the UI and the API | pass | todo | server-enforced; refusals shown |
+| NAV-030 | Global search (header box, '/' dialog, search page) lists the records a backend record search (POST /qqq/v1/se | pass | partial | qqq search over POST /search; TUI: palette calls POST /search when the server lists recordSearch; the sample answers provider NONE |
+| NAV-031 | Record search respects table read permissions and record security locks, in the UI and the API | pass | pass | server-enforced; refusals shown; TUI: server-enforced; the palette shows only what the server returns |
 | NAV-032 | Without searchable tables (the backend declares no searchFields) global search stays local and never calls a s | n/a | n/a | browser shell |
 | NAV-033 | Login branding before sign-in: logo, app name, accent color, favicon and title from GET /qqq/v1/metaData/authe | n/a | n/a | browser shell |
 | NAV-034 | Material table-scoped URLs: /app/{table}/{process} opens the table process (or an instance process); /app/{tab | n/a | n/a | browser shell |
@@ -83,78 +83,78 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | NAV-038 | Shell on phones and tablets: skip link, header controls, breadcrumbs, navigation entries, user menu, app homes | n/a | n/a | browser shell |
 | NAV-055 | Material Dashboard CSS and test hooks remain available on navigation, banners, app homes, forms, record views  | n/a | n/a | browser shell |
 | NAV-056 | The Material Dashboard theme from versioned QQQ metadata changes Next UI tokens, application CSS and the brand | n/a | n/a | browser shell |
-| PRF-001 | large table: a 10,000-row, 40-column table opens with every column and the exact first page within budget | pass | todo | 10,000 rows with --all and --page-size |
+| PRF-001 | large table: a 10,000-row, 40-column table opens with every column and the exact first page within budget | pass | partial | 10,000 rows with --all and --page-size; TUI: server paging opens the first page; the column layout scrolls horizontally rather than fitting 40 columns |
 | PRF-002 | large table: 250-row pages of 40 columns render, page and reach the last page within budget | pass | pass | --limit/--skip paging; TUI: server-paged grid, page = visible rows |
 | PRF-003 | large table: sorting and filtering 10,000 rows return exact results within budget | pass | pass | server sort and filter; TUI: server sort and filter |
-| PRF-004 | heavy dashboard: 24 widgets (statistics, bar, line and pie charts, 100-row tables) load once each within budge | todo | todo | one widget per call today |
+| PRF-004 | heavy dashboard: 24 widgets (statistics, bar, line and pie charts, 100-row tables) load once each within budge | todo | pass | one widget per call today; TUI: dashboards load widgets as they come into view, 4 at a time (fake 3000-widget instance) |
 | PRF-005 | long process: a 10-second job over 10,000 rows reports progress, polls at a bounded rate and shows its result  | pass | pass | process run polls every 500 ms and prints progress; TUI: progress N/M, elapsed, 250 ms polling |
 | PRC-001 | Selected-record run: record ids reach the backend, screen values are submitted, mixed view and record-list res | pass | pass | process run -r ids; TUI: grid selection or record, ids sent |
 | PRC-002 | All-records run from a filter selection with no criteria | pass | pass | --filter-json; TUI: without a selection: the grid filter |
-| PRC-003 | Zero-record runs from a filter that matches nothing | pass | todo |  |
+| PRC-003 | Zero-record runs from a filter that matches nothing | pass | pass | TUI: a filter that matches nothing runs as the server decides (zero records) |
 | PRC-004 | Processes launched from an app (no records) | pass | pass |  |
 | PRC-005 | Process launched from selected rows of a table query | n/a | pass | grid selection; use -r; TUI: Space selects, b runs a table process |
-| PRC-006 | Minimum and maximum input records | pass | todo | checked before init (filters counted); the sample declares no limits, verified by tests |
-| PRC-007 | Every declared component renders on one screen, in declared order, with one action bar | pass | partial | every component in order as text (kernel screen model); bulk load forms belong to qqq bulk; TUI: EDIT_FORM, BULK_EDIT_FORM, VIEW_FORM, HELP_TEXT, VALIDATION_REVIEW_SCREEN, PROCESS_SUMMARY_RESULTS |
-| PRC-008 | HELP_TEXT with line breaks and previewText toggle | pass | partial | text with line breaks; previewText printed above it; TUI: HELP_TEXT shown above the form |
+| PRC-006 | Minimum and maximum input records | pass | pass | checked before init (filters counted); the sample declares no limits, verified by tests; TUI: kernel checkInputRecords before init |
+| PRC-007 | Every declared component renders on one screen, in declared order, with one action bar | pass | pass | every component in order as text (kernel screen model); bulk load forms belong to qqq bulk; TUI: kernel screen blocks: forms, view, records, review, summary, help, HTML, widgets, downloads |
+| PRC-008 | HELP_TEXT with line breaks and previewText toggle | pass | pass | text with line breaks; previewText printed above it; TUI: HELP_TEXT and its preview from the kernel screen |
 | PRC-009 | EDIT_FORM field subsets (includeFieldNames), section labels and persisted input values | pass | pass | includeFieldNames and values kept across steps; TUI: includeFieldNames via the kernel runner |
 | PRC-010 | Required input validation on screens and in the backend | pass | pass | required checked locally and by the server; TUI: required checked by field before submit |
 | PRC-011 | Process possible-value fields | pass | pass | labels or ids, prompts list choices; TUI: picker |
 | PRC-012 | VIEW_FORM labels and backend values | pass | pass | label: value on every step; TUI: summary shows view fields |
-| PRC-013 | HTML component renders the step html value, sanitized | pass | todo | {step}.html as text (tags stripped) |
-| PRC-014 | DOWNLOAD_FORM delivers the generated file | pass | todo | GET /download/{file} saved to --out-dir, else the download directory; no sample process offers one, verified by tests |
-| PRC-015 | Step help content for process screens | pass | todo | step helpContents shown on the screen, process help at start and in describe; none in the sample |
-| PRC-016 | Back to the backend back step with entered values | partial | todo | b at the prompt when the step reports backStep (isStepBack=true); no sample process declares one, verified by tests |
+| PRC-013 | HTML component renders the step html value, sanitized | pass | pass | {step}.html as text (tags stripped); TUI: HTML component as text from the kernel screen |
+| PRC-014 | DOWNLOAD_FORM delivers the generated file | pass | partial | GET /download/{file} saved to --out-dir, else the download directory; no sample process offers one, verified by tests; TUI: w saves the DOWNLOAD_FORM file; no sample process offers one |
+| PRC-015 | Step help content for process screens | pass | pass | step helpContents shown on the screen, process help at start and in describe; none in the sample; TUI: step and process help in the screen |
+| PRC-016 | Back to the backend back step with entered values | partial | partial | b at the prompt when the step reports backStep (isStepBack=true); no sample process declares one, verified by tests; TUI: F4 Back resolves the runner BACK; no sample process declares a back step |
 | PRC-017 | Dynamic step list from processMetaDataAdjustment.updatedFrontendStepList | pass | pass | updatedFrontendStepList followed; TUI: kernel runner |
 | PRC-018 | Updated field metadata from processMetaDataAdjustment.updatedFields | pass | pass | updatedFields applied; TUI: kernel runner |
 | PRC-019 | Async job progress in the live job view (message, N / M, determinate progress bar, elapsed) then continue | pass | pass | message, N/M, elapsed on stderr; TUI: bar, N/M, message, elapsed |
 | PRC-020 | Cancel from a screen and mid-job runs the cancel step and leaves | pass | partial | Ctrl-C during a job or a prompt calls POST …/cancel, exit 130; TUI: Esc asks, then POST cancel; the sample keeps the run |
 | PRC-021 | Step errors: user-facing messages directly, internal errors behind a detail toggle, Close | pass | pass | userFacingError shown; TUI: failure message shown; F5 re-runs |
 | PRC-022 | Retry after an error restarts with the original record selection | n/a | pass | retry is re-running the command; TUI: F5 or r runs again with the same records |
-| PRC-023 | Completion: Next/Submit labels, Return on the last screen or when noMoreSteps | n/a | todo | screen labels |
+| PRC-023 | Completion: Next/Submit labels, Return on the last screen or when noMoreSteps | n/a | pass | screen labels; TUI: Ctrl+S continues; the last screen closes with Enter or Esc |
 | PRC-024 | Linear stepper and step position | n/a | pass | stepper; step names printed; TUI: step list with marks |
-| PRC-025 | RECORD_LIST paging and page size over process records | pass | todo | GET …/records paged into a table, --record-limit |
+| PRC-025 | RECORD_LIST paging and page size over process records | pass | partial | GET …/records paged into a table, --record-limit; TUI: RECORD_LIST shows the first page of records; no paging inside the step |
 | PRC-026 | Validation review: input count, validate-or-skip choice, Next/Submit label, record preview | pass | pass | count and preview; asks validate or skip on a terminal, --validate / --skip-validation; Submit? after validation; TUI: validate or skip, then run |
 | PRC-027 | Full validation summary lines (OK, WARNING, ERROR) with record links | pass | pass | status, count, message lines; TUI: summary lines colored by status |
 | PRC-028 | Process summary results after execution and persisted effects | pass | pass |  |
 | PRC-029 | Bulk edit: switched-on fields only, review and result | todo | pass | bulk edit; TUI: Ctrl+T marks fields; bulkEditEnabledFields |
-| PRC-030 | Bulk delete: review, validation and result | todo | todo | bulk delete |
-| PRC-031 | Bulk insert: upload, column mapping, value mapping, profile, review preview and result | todo | n/a | bulk insert; TUI: bulk load parked for the TUI |
-| PRC-032 | Bulk load mapping validation and Back through mapping and upload | todo | n/a | TUI: bulk load parked for the TUI |
-| PRC-033 | Bulk edit with a file matched by key fields | todo | n/a | TUI: bulk load parked for the TUI |
-| PRC-034 | Upload instructions HTML with downloadable template | todo | todo |  |
-| PRC-035 | Named WIDGET fetched with the process UUID and values | pass | todo | named widget with the process UUID and values, kernel render model; none in the sample, verified by tests |
-| PRC-036 | Named composite WIDGET seeded from process values | pass | todo | seeded from the process value of the widget name |
-| PRC-037 | Ad hoc composite WIDGET: interpolation, conditional blocks, action buttons, submit-on-enter inputs | partial | todo | ad hoc blocks rendered with interpolation; buttons and inputs not offered |
+| PRC-030 | Bulk delete: review, validation and result | todo | pass | bulk delete; TUI: Person Bulk Delete from the bulk bar runs through review and result |
+| PRC-031 | Bulk insert: upload, column mapping, value mapping, profile, review preview and result | todo | n/a | bulk insert; TUI: bulk load parked |
+| PRC-032 | Bulk load mapping validation and Back through mapping and upload | todo | n/a | TUI: bulk load parked |
+| PRC-033 | Bulk edit with a file matched by key fields | todo | n/a | TUI: bulk load parked |
+| PRC-034 | Upload instructions HTML with downloadable template | todo | n/a | TUI: bulk load parked for the TUI |
+| PRC-035 | Named WIDGET fetched with the process UUID and values | pass | partial | named widget with the process UUID and values, kernel render model; none in the sample, verified by tests; TUI: named WIDGET blocks drawn from the kernel screen; no sample step uses one |
+| PRC-036 | Named composite WIDGET seeded from process values | pass | partial | seeded from the process value of the widget name; TUI: composite widget blocks drawn as text |
+| PRC-037 | Ad hoc composite WIDGET: interpolation, conditional blocks, action buttons, submit-on-enter inputs | partial | partial | ad hoc blocks rendered with interpolation; buttons and inputs not offered; TUI: ad hoc widget blocks drawn; no action buttons |
 | PRC-038 | GOOGLE_DRIVE_SELECT_FOLDER screen keeps its other components working | n/a | n/a | Google Drive is web-only |
 | PRC-039 | Google Drive folder selection through the Google Picker | n/a | n/a | Google Drive is web-only |
-| PRC-040 | Reload mid-process starts a fresh run | n/a | todo | no reload |
-| PRC-041 | Expired session mid-process returns to sign-in | pass | todo | UNAUTHENTICATED exits 3 with the sign-in hint |
-| PRC-042 | Process permission enforcement | pass | todo | server-enforced |
-| PRC-043 | Default process values from the link (defaultProcessValues) | pass | todo | -v values seed every step |
-| PRC-044 | Scanner-format screens: no heading or action bar, input blocks submit | n/a | todo | scanner screens are interactive |
-| PRC-045 | State-machine step flow: repeated screens, no linear stepper | pass | todo | the runner follows nextStep whatever the flow |
-| PRC-046 | Saved bulk load profiles: save, choose for a later load, delete | todo | todo | saved bulk load profiles |
+| PRC-040 | Reload mid-process starts a fresh run | n/a | n/a | no reload; TUI: no reload in a terminal; F5 re-runs |
+| PRC-041 | Expired session mid-process returns to sign-in | pass | pass | UNAUTHENTICATED exits 3 with the sign-in hint; TUI: a 401 shows the error; :signout and F9 sign in again |
+| PRC-042 | Process permission enforcement | pass | pass | server-enforced; TUI: hidden processes are not offered; the server refuses the rest |
+| PRC-043 | Default process values from the link (defaultProcessValues) | pass | pass | -v values seed every step; TUI: :process run P -v name=value seeds the values |
+| PRC-044 | Scanner-format screens: no heading or action bar, input blocks submit | n/a | todo | scanner screens are interactive; TUI: scanner-format screens |
+| PRC-045 | State-machine step flow: repeated screens, no linear stepper | pass | pass | the runner follows nextStep whatever the flow; TUI: the runner follows nextStep whatever the flow |
+| PRC-046 | Saved bulk load profiles: save, choose for a later load, delete | todo | n/a | saved bulk load profiles; TUI: bulk load parked for the TUI |
 | PRC-047 | A run with no frontend screens completes with a completion screen | pass | pass | completes on init |
 | PRC-048 | Process-field possible values load and search through the v1 API | pass | pass | searchProcessPossibleValues |
-| PRC-049 | Processes run on the v1 process routes (upload, step, back step, records, metadata) | pass | todo | v1 routes only |
-| PRC-050 | Processes the instance adds to every query and record screen (Material processNamesToAddToAllQueryAndViewScree | n/a | todo | Material-specific |
+| PRC-049 | Processes run on the v1 process routes (upload, step, back step, records, metadata) | pass | pass | v1 routes only; TUI: v1 process routes through the kernel |
+| PRC-050 | Processes the instance adds to every query and record screen (Material processNamesToAddToAllQueryAndViewScree | n/a | pass | Material-specific; TUI: every process the metadata gives the table is in the bulk bar and F9 |
 | PRC-051 | Dependent possible values on a process screen: the choices follow the screen's other values | pass | pass | dependent choices narrow after each answer; TUI: contingent picker narrows |
-| PRC-058 | Saved bulk load profile menu (Material SavedBulkLoadProfiles): new profile, update after the confirm, rename,  | todo | todo |  |
-| PRC-059 | Saved bulk load profile ownership: yours vs shared with you, and only the owner may save, rename or delete a p | todo | todo |  |
-| PRC-060 | Bulk load file mapping form fidelity: field help, column tooltips, repeated-header warning, header-row toggle  | todo | todo |  |
-| PRC-061 | Typed bulk load default values, searchable value mapping and the grouped, searchable Add Fields menu (Material | todo | todo |  |
-| PRC-062 | Composite INPUT_FIELD metadata editors share process validation and multipart submission | n/a | todo | composite editors |
-| PRC-063 | INPUT_FIELD autofocus and trimmed Enter values on subsequent process screens | n/a | todo |  |
-| PRC-064 | DATE_TIME process inputs display local time and submit UTC instants | pass | todo | process values typed local, sent UTC; screens show the local zone |
+| PRC-058 | Saved bulk load profile menu (Material SavedBulkLoadProfiles): new profile, update after the confirm, rename,  | todo | n/a | TUI: bulk load parked |
+| PRC-059 | Saved bulk load profile ownership: yours vs shared with you, and only the owner may save, rename or delete a p | todo | n/a | TUI: bulk load parked |
+| PRC-060 | Bulk load file mapping form fidelity: field help, column tooltips, repeated-header warning, header-row toggle  | todo | n/a | TUI: bulk load parked |
+| PRC-061 | Typed bulk load default values, searchable value mapping and the grouped, searchable Add Fields menu (Material | todo | n/a | TUI: bulk load parked |
+| PRC-062 | Composite INPUT_FIELD metadata editors share process validation and multipart submission | n/a | todo | composite editors; TUI: composite INPUT_FIELD editors |
+| PRC-063 | INPUT_FIELD autofocus and trimmed Enter values on subsequent process screens | n/a | pass | TUI: the first field has focus; behaviors trim on set |
+| PRC-064 | DATE_TIME process inputs display local time and submit UTC instants | pass | pass | process values typed local, sent UTC; screens show the local zone; TUI: step DATE_TIME inputs edited in the local zone, sent as UTC (kernel datetime) |
 | PRC-065 | Configured Google Drive shared-folder selection and process submission | n/a | n/a | Google Drive |
-| PRC-066 | INPUT_FIELD case behaviors preserve caret and submitted process values | pass | todo | field behaviors applied before submit |
-| QRY-090 | Column menu sorts, pins, opens a field filter and hides a column | n/a | todo | saved views and column UI |
-| QRY-091 | Column menu copies page or full query values in backend sort order | n/a | todo | saved views and column UI |
-| QRY-092 | Column chooser searches, groups, counts and marks changed layouts | n/a | todo | saved views and column UI |
-| QRY-093 | Last saved view and unsaved edits survive reopening and reload | n/a | todo | no screen state to keep: views are opened by name |
-| QRY-094 | Counted quick views render and open their saved-view route | partial | todo | saved-view list counts quick views with doCount (--counts counts all) |
-| QRY-095 | A new query defaults to fifty rows per page | n/a | todo | saved views and column UI |
-| QRY-096 | A saved view reconciles removed fields and warns the user | partial | todo | opening a view drops removed fields with Material's warnings on stderr |
+| PRC-066 | INPUT_FIELD case behaviors preserve caret and submitted process values | pass | pass | field behaviors applied before submit; TUI: field behaviors via FormSession |
+| QRY-090 | Column menu sorts, pins, opens a field filter and hides a column | n/a | partial | saved views and column UI; TUI: s sorts, v hides and orders columns, F6 filters; no pinning |
+| QRY-091 | Column menu copies page or full query values in backend sort order | n/a | n/a | saved views and column UI; TUI: clipboard copy of column values |
+| QRY-092 | Column chooser searches, groups, counts and marks changed layouts | n/a | partial | saved views and column UI; TUI: v lists every column with on/off; no grouping or counts |
+| QRY-093 | Last saved view and unsaved edits survive reopening and reload | n/a | pass | no screen state to keep: views are opened by name; TUI: view settings (columns, widths, sort) persist per table |
+| QRY-094 | Counted quick views render and open their saved-view route | partial | todo | saved-view list counts quick views with doCount (--counts counts all); TUI: counted quick views |
+| QRY-095 | A new query defaults to fifty rows per page | n/a | n/a | saved views and column UI; TUI: page size follows the terminal height |
+| QRY-096 | A saved view reconciles removed fields and warns the user | partial | partial | opening a view drops removed fields with Material's warnings on stderr; TUI: viewToQuery warnings flashed |
 | QRY-001 | Record list renders metadata labels and all records in the default primary-key-descending order | pass | pass | default order by primary key |
 | QRY-002 | Pagination with Material page sizes and URL state | pass | pass | --limit, --skip, --all; TUI: PgUp/PgDn, Ctrl+F/B, Home/End across pages |
 | QRY-003 | Column header sort cycles ascending, descending and default; sort kept in the URL | pass | pass | --order, -field for descending; TUI: s cycles asc, desc, default |
@@ -165,133 +165,133 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | QRY-010 | Text operators match Material labels and backend semantics | pass | pass | all operators and shorthand; TUI: operators by field type in the filter dialog |
 | QRY-011 | Number operators including ranges and lists | pass | pass | BETWEEN, IN lists |
 | QRY-012 | Date operators and relative date expressions | pass | pass | now(), now(-7d), thisPeriod(), startOf(); TUI: date presets: now(-7d), thisPeriod(month) … |
-| QRY-013 | Date-time operators convert local input to UTC and support relative values | pass | todo | --where/--group DATE_TIME values local to UTC (a date is local midnight); expressions as before |
-| QRY-014 | Boolean, blob and long-text operators | pass | todo | IS_BLANK, TRUE, FALSE |
+| QRY-013 | Date-time operators convert local input to UTC and support relative values | pass | partial | --where/--group DATE_TIME values local to UTC (a date is local midnight); expressions as before; TUI: date-time criteria take expressions; typed local times are sent as typed |
+| QRY-014 | Boolean, blob and long-text operators | pass | pass | IS_BLANK, TRUE, FALSE; TUI: TRUE/FALSE/EQUALS on booleans, blank tests, text operators on long text |
 | QRY-015 | Possible-value selectors for table and enum sources show labels and send ids | todo | pass | filters take ids; labels in filters todo; TUI: labels in the picker, ids sent; typed labels resolved |
 | QRY-016 | AND/OR and nested groups combine as declared | pass | pass | --group with parentheses; TUI: AND/OR and groups, guided and advanced |
-| QRY-017 | Filters live in the URL: reload, back/forward and Material-style JSON links | pass | partial | --print-filter gives the JSON the web links accept; TUI: the grammar and the CLI command are shown; no URL |
-| QRY-018 | Backend-only operators from links render and filter correctly | pass | todo | any operator in --where |
-| QRY-019 | Quick search combines with the advanced filter | pass | todo | --search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter |
-| QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | partial | todo | --join and table.field in --fields/--where/--order, labelled "Join: Field"; the sample exposes no joins, verified through an association join (person to pet) |
-| QRY-021 | Many-side exposed join repeats rows and reports the distinct count | pass | todo | a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct) |
-| QRY-022 | Column statistics aggregate the filtered rows | partial | todo | qqq table stats <t> <field> [-w …] through the columnStats process; the sample has neither QUERY_STATS nor the process, so --local (same figures from the matching rows) is what was verified |
-| QRY-023 | Tables without QUERY_STATS offer no column statistics | pass | todo | without QUERY_STATS (or the process) table stats exits 2 with the reason; --local is an explicit opt-in |
-| QRY-030 | Selection menu: this page, full query result, first N, clear | pass | partial | -r ids, --filter-json, --limit; TUI: Space and Ctrl+A (page) |
+| QRY-017 | Filters live in the URL: reload, back/forward and Material-style JSON links | pass | partial | --print-filter gives the JSON the web links accept; TUI: the grammar and the CLI command are shown and copied; no URL |
+| QRY-018 | Backend-only operators from links render and filter correctly | pass | pass | any operator in --where; TUI: More operators… offers every operator |
+| QRY-019 | Quick search combines with the advanced filter | pass | pass | --search on query, count and export: CONTAINS over the shown text fields, ORed, ANDed with the filter; TUI: q quick search ANDed onto the filter (kernel) |
+| QRY-020 | One-side exposed join: labelled columns, filters and sorts match SQL | partial | todo | --join and table.field in --fields/--where/--order, labelled "Join: Field"; the sample exposes no joins, verified through an association join (person to pet); TUI: exposed joins in the grid |
+| QRY-021 | Many-side exposed join repeats rows and reports the distinct count | pass | todo | a many-side join repeats rows; count and --count add the distinct count (person --join pet: 21 rows, 16 distinct); TUI: exposed joins in the grid |
+| QRY-022 | Column statistics aggregate the filtered rows | partial | partial | qqq table stats <t> <field> [-w …] through the columnStats process; the sample has neither QUERY_STATS nor the process, so --local (same figures from the matching rows) is what was verified; TUI: S runs kernel column statistics; the sample has no QUERY_STATS table |
+| QRY-023 | Tables without QUERY_STATS offer no column statistics | pass | pass | without QUERY_STATS (or the process) table stats exits 2 with the reason; --local is an explicit opt-in; TUI: the refusal says why |
+| QRY-030 | Selection menu: this page, full query result, first N, clear | pass | partial | -r ids, --filter-json, --limit; TUI: Space, Ctrl+A for the page; no full-result or first-N selection |
 | QRY-031 | Bulk Edit launches with the checked record ids | todo | pass | bulk edit |
-| QRY-032 | Bulk Delete of the full query result sends the whole filter | todo | todo | bulk delete |
-| QRY-033 | First-N selection under a filter launches with that limit | pass | todo | process run --filter-json with limit |
-| QRY-034 | Actions menu offers bulk load, bulk processes and table processes | todo | partial | process list --table; TUI: F9 lists table processes; bulk load parked |
-| QRY-035 | Viewers get no create, bulk or process actions and the backend refuses them | pass | todo | server refuses; exit 3 |
+| QRY-032 | Bulk Delete of the full query result sends the whole filter | todo | partial | bulk delete; TUI: bulk delete on the selection; without a selection the process gets the filter |
+| QRY-033 | First-N selection under a filter launches with that limit | pass | todo | process run --filter-json with limit; TUI: first-N selection |
+| QRY-034 | Actions menu offers bulk load, bulk processes and table processes | todo | partial | process list --table; TUI: F9 and b list table processes; bulk load parked |
+| QRY-035 | Viewers get no create, bulk or process actions and the backend refuses them | pass | pass | server refuses; exit 3; TUI: F-keys and entries hidden without permission; the server refuses |
 | QRY-040 | CSV export has visible columns in order and exactly the filtered, sorted rows | pass | pass | table export: filtered (--where, --group, --search), sorted (--order), --fields in column order, --limit, --out -; TUI: x: visible columns, filter and sort, file dialog |
 | QRY-041 | XLSX and JSON exports carry the same rows | pass | pass | csv, xlsx, json, tsv; format from --out extension; --no-header; bad format or field exit 2 before the request |
-| QRY-042 | Nothing to export disables the formats | n/a | todo | nothing to disable |
-| QRY-043 | Backend refuses exports of unreadable tables | pass | todo | server refuses |
-| QRY-050 | Your saved views are listed and open on their own route | partial | partial | qqq saved-view list <t>, open <t> <view>, table query --view; the sample has no saved views; verified with node tests and a local stub server; TUI: F9 runs saved-view list in a pane |
-| QRY-051 | Saving a new view stores filter, sort, columns and page size | partial | todo | saved-view save --name: filter, sort, columns and page size as the Material RecordQueryView |
-| QRY-052 | Update, rename and delete your view | partial | todo | saved-view save --replace, rename, delete (asks; --yes) |
-| QRY-053 | Duplicate names and unknown views are reported without changes | partial | todo | a name in use is refused before any change; an unknown view exits 2 with the list |
-| QRY-054 | A view shared with you opens read-only and the backend refuses changes | partial | todo | views shared with you are listed as shared by their owner; changes to them are the server's to refuse, its message shown |
-| QRY-060 | Variant table asks for a variant, queries with it and remembers it | partial | todo | table variants; --variant on query, count, get, copy, export, writes and process run; a terminal asks; not remembered between commands; no variant table in the sample |
-| QRY-061 | Dismissing the variant prompt queries nothing; backend requires a variant | partial | todo | no --variant and no terminal (or no answer): exit 2, nothing queried; no variant table in the sample |
+| QRY-042 | Nothing to export disables the formats | n/a | pass | nothing to disable; TUI: an empty result exports an empty file; the server decides |
+| QRY-043 | Backend refuses exports of unreadable tables | pass | pass | server refuses; TUI: server refuses; the message is shown |
+| QRY-050 | Your saved views are listed and open on their own route | partial | partial | qqq saved-view list <t>, open <t> <view>, table query --view; the sample has no saved views; verified with node tests and a local stub server; TUI: F9 Saved views lists and opens (kernel); no sample table has saved views |
+| QRY-051 | Saving a new view stores filter, sort, columns and page size | partial | partial | saved-view save --name: filter, sort, columns and page size as the Material RecordQueryView; TUI: save the current query as a view; unverified live |
+| QRY-052 | Update, rename and delete your view | partial | partial | saved-view save --replace, rename, delete (asks; --yes); TUI: delete from F9; no rename |
+| QRY-053 | Duplicate names and unknown views are reported without changes | partial | pass | a name in use is refused before any change; an unknown view exits 2 with the list; TUI: server messages shown |
+| QRY-054 | A view shared with you opens read-only and the backend refuses changes | partial | pass | views shared with you are listed as shared by their owner; changes to them are the server's to refuse, its message shown; TUI: server refuses changes |
+| QRY-060 | Variant table asks for a variant, queries with it and remembers it | partial | pass | table variants; --variant on query, count, get, copy, export, writes and process run; a terminal asks; not remembered between commands; no variant table in the sample; TUI: the variant prompt before the first query; tableVariant on query and count (test) |
+| QRY-061 | Dismissing the variant prompt queries nothing; backend requires a variant | partial | pass | no --variant and no terminal (or no answer): exit 2, nothing queried; no variant table in the sample; TUI: dismissing queries nothing |
 | QRY-062 | A table without count, export or write capabilities offers none of them | pass | pass | describe shows capabilities; server refuses; TUI: F-keys hidden without permission |
-| QRY-063 | Enum-backed Pet Species table is read-only | pass | todo | server refuses writes |
-| QRY-064 | Backend refuses count and export for a table without those capabilities | pass | todo |  |
+| QRY-063 | Enum-backed Pet Species table is read-only | pass | pass | server refuses writes; TUI: no write F-keys without permission |
+| QRY-064 | Backend refuses count and export for a table without those capabilities | pass | pass | TUI: server refuses; shown |
 | QRY-065 | Export streams from the v1 export route | pass | pass | POST /table/{t}/export |
-| QRY-066 | Variant options come from the v1 variants route | partial | todo | GET /table/{t}/variants (called live; the sample lists none) |
+| QRY-066 | Variant options come from the v1 variants route | partial | pass | GET /table/{t}/variants (called live; the sample lists none); TUI: v1 variants route (kernel) |
 | QRY-067 | Go To opens a record by its primary key or a configured unique key (Material gotoFieldNames) | pass | pass | table get --key; the primary key and Material gotoFieldNames are the declared keys, other fields looked up with a note; TUI: g |
 | QRY-068 | Default grid columns follow the table sections (section order, each field once), not the metadata field order  | pass | pass | default columns follow sections by tier |
-| QRY-069 | Pagination numbers are locale formatted in the shown range and the total | n/a | todo | locale formatting |
+| QRY-069 | Pagination numbers are locale formatted in the shown range and the total | n/a | pass | locale formatting; TUI: counts with en-US separators |
 | QRY-070 | Query screen keyboard shortcuts n (new record), r (refresh the query), f (open the filter builder) | n/a | pass | shortcuts; TUI: n r f s and the F-keys; off with keyboard.singleKeyShortcuts |
-| QRY-071 | Processes launched from a variant table run with the chosen variant (tableVariant on init and every step) and  | partial | todo | process run --variant: tableVariant on init, every step and status; sent live, no variant table to observe |
-| QRY-080 | Basic mode displays default quick filters from table metadata and applies their criteria | n/a | todo | quick filters UI |
-| QRY-081 | Add quick filter accepts metadata fields and remembers a chosen field | n/a | todo |  |
-| QRY-082 | Basic mode cannot simplify repeated or nested advanced conditions and explains why | n/a | todo |  |
+| QRY-071 | Processes launched from a variant table run with the chosen variant (tableVariant on init and every step) and  | partial | partial | process run --variant: tableVariant on init, every step and status; sent live, no variant table to observe; TUI: processes from a variant grid get tableVariant through the runner; no sample variant table |
+| QRY-080 | Basic mode displays default quick filters from table metadata and applies their criteria | n/a | todo | quick filters UI; TUI: basic-mode quick filters |
+| QRY-081 | Add quick filter accepts metadata fields and remembers a chosen field | n/a | todo | TUI: quick filter fields |
+| QRY-082 | Basic mode cannot simplify repeated or nested advanced conditions and explains why | n/a | n/a | TUI: the guided builder shows every condition; no basic mode |
 | QRY-083 | Advanced query shows and removes individual conditions (Next inline editor) | n/a | pass | TUI: guided builder edits and removes conditions |
 | QRY-084 | Sort picker changes field and direction; clearing filters requires confirmation and keeps the sort | n/a | pass | TUI: sort in the builder; c clears |
-| QRY-085 | Weekday criteria use the metadata-enabled date function and ISO weekday values | todo | todo | weekday criteria |
+| QRY-085 | Weekday criteria use the metadata-enabled date function and ISO weekday values | todo | todo | weekday criteria; TUI: weekday criteria |
 | QRY-086 | Relative date presets expose their evaluated date and filter records | pass | pass | expressions |
-| QRY-087 | Bulk pasted values become a multi-value filter | pass | todo | IN lists; quoted values |
-| QRY-088 | Instance query help accompanies the bulk paste dialog | n/a | todo |  |
-| QRY-089 | String filter input honors field case behavior from v1 metadata | pass | todo | behaviors |
+| QRY-087 | Bulk pasted values become a multi-value filter | pass | pass | IN lists; quoted values; TUI: IN takes a pasted comma list |
+| QRY-088 | Instance query help accompanies the bulk paste dialog | n/a | todo | TUI: bulk paste help |
+| QRY-089 | String filter input honors field case behavior from v1 metadata | pass | pass | behaviors; TUI: behaviors applied to typed values |
 | QRY-008 | Phone card list: readable records, touch-sized selection, query selections and paging | n/a | n/a | phone layout |
 | QRY-009 | Phone filter sheet fits the viewport, scrolls inside and manages focus | n/a | n/a | phone layout |
 | QRY-024 | Column configuration is reachable and usable by touch on phones and tablets | n/a | n/a | phone layout |
 | QRY-036 | Bulk actions launch from a phone card selection | n/a | n/a | phone layout |
 | QRY-055 | Saved views and export menus fit the phone and are touch-sized | n/a | n/a | phone layout |
-| REL-001 | Possible-value cells show the related record label and link to it | pass | partial | display values; table get shows the target (Avery Sample → person 1), --links lists them, --follow opens one; TUI: labels with links in the record view |
+| REL-001 | Possible-value cells show the related record label and link to it | pass | partial | display values; table get shows the target (Avery Sample → person 1), --links lists them, --follow opens one; TUI: labels with links in the record view; grid cells show labels without links |
 | REL-002 | Parent lists exactly its own children; View All opens the filtered child list | pass | pass | table get --associations lists exactly the record's children; table children pages a list with its count (View All); TUI: child lists; F9 Query all opens the filtered list |
 | REL-003 | Adding a child from its parent links it and shows it immediately | pass | pass | table create <child> --parent table=pk; table get --associations shows it at once; TUI: F7 on a child list prefills the parent |
-| REL-004 | Three-level associations: each pet shows only its own notes | pass | partial | person > pets > notes: each pet lists only its own notes; TUI: one level shown; open a child for its own |
+| REL-004 | Three-level associations: each pet shows only its own notes | pass | partial | person > pets > notes: each pet lists only its own notes; TUI: one level shown; open a child for its own children |
 | REL-005 | Editing and deleting a child leaves no stale parent, list or unexpected rows | pass | pass | records are never cached: update or delete a child, the next get/children shows the current rows; TUI: the parent reloads on return |
 | REL-006 | Denied child reads show an unavailable panel without data or actions | partial | pass | unreadable child tables shown as unavailable without data; table children shows the server message; the sample has no denied child table (unit-tested); TUI: unavailable panel (kernel associationGroups) |
-| REL-007 | Aliased and composite associations bind to their widgets and list the right members | partial | todo | composite joins and widget-section labels in the kernel, unit-tested; the sample declares none |
-| REL-008 | Adding through a composite association stores every join value | partial | todo | --parent sets every join value of a composite association, unit-tested; the sample declares none |
-| REL-009 | Deleting a parent removes associated children and leaves other parents intact | pass | todo | table delete of a parent: its pets are gone, other parents keep theirs |
+| REL-007 | Aliased and composite associations bind to their widgets and list the right members | partial | pass | composite joins and widget-section labels in the kernel, unit-tested; the sample declares none; TUI: kernel associationGroups binds aliased associations to their widgets |
+| REL-008 | Adding through a composite association stores every join value | partial | partial | --parent sets every join value of a composite association, unit-tested; the sample declares none; TUI: create child prefills every join value; composite untested live |
+| REL-009 | Deleting a parent removes associated children and leaves other parents intact | pass | pass | table delete of a parent: its pets are gone, other parents keep theirs; TUI: server cascade; the list reloads |
 | REC-001 | Record view shows the record label, tiered sections and backend-formatted values | pass | pass | table get by section and tier; TUI: sections by tier, two columns when they fit |
-| REC-002 | Empty values render a placeholder; hidden fields and hidden sections are never shown | partial | todo | empty values show --; hidden sections and fields are dropped by the kernel record view (unit-tested; the sample has none) |
+| REC-002 | Empty values render a placeholder; hidden fields and hidden sections are never shown | partial | pass | empty values show --; hidden sections and fields are dropped by the kernel record view (unit-tested; the sample has none); TUI: hidden fields and sections are left out; empty values blank |
 | REC-003 | Record view of a missing record shows Record Not Found and a way back | pass | pass | exit 5; TUI: error shown in the record pane |
-| REC-004 | Record view tabs and list view expose every visible section | n/a | todo | tabs |
+| REC-004 | Record view tabs and list view expose every visible section | n/a | n/a | tabs; TUI: one scrolling view, no tabs |
 | REC-005 | Create form validates required fields in the browser before any request | pass | pass | validated locally before any request; TUI: local validation by field |
 | REC-006 | Create persists the entered values and opens the new record | pass | pass | TUI: new record replaces the form |
-| REC-007 | Backend enforces required fields when the UI is bypassed | pass | todo |  |
+| REC-007 | Backend enforces required fields when the UI is bypassed | pass | pass | TUI: server message by field |
 | REC-008 | Cancel from create and edit, with the unsaved-changes guard | n/a | pass | guard; TUI: Esc asks when there are unsaved changes; F10 warns too |
 | REC-009 | Edit loads stored values, saves only what changed, and shows the updated record | pass | pass | update sends only changed fields; TUI: only changed fields sent |
 | REC-010 | Edit shows non-editable fields read-only and never submits them | pass | pass | non-editable fields excluded; TUI: non-editable fields read-only |
-| REC-011 | Edit of a missing record shows the load failure instead of a form | pass | todo |  |
+| REC-011 | Edit of a missing record shows the load failure instead of a form | pass | pass | TUI: the load failure shows instead of the form |
 | REC-012 | Delete asks for confirmation, removes the record and returns to the list without errors | pass | pass | confirm unless --yes; TUI: F8 asks; the grid moves on to the next record |
 | REC-013 | Copy prefills a new record from the source and saves it as a separate record | pass | pass | qqq table copy <t> <pk> [--set f=v] [-i] [--dry-run]: primary key, non-editable and file fields dropped; TUI: c: copyRecordValues |
-| REC-014 | STRING and TEXT editors round-trip single and multi-line text | pass | partial | TUI: TEXT single line with $EDITOR on Ctrl+E |
+| REC-014 | STRING and TEXT editors round-trip single and multi-line text | pass | partial | TUI: TEXT single line, $EDITOR on Ctrl+E |
 | REC-015 | INTEGER, LONG and DECIMAL editors keep exact values | pass | pass |  |
 | REC-016 | BOOLEAN editor applies the metadata default and saves true/false | pass | pass | defaults applied; TUI: Space toggles |
 | REC-017 | DATE and TIME editors round-trip values and clearing | pass | pass |  |
 | REC-018 | DATE_TIME is entered and shown in the viewer's time zone and stored in UTC | pass | pass | typed and shown in TZ, stored UTC, --utc for raw; DST edges tested; TUI: local zone in and out (kernel datetime) |
-| REC-019 | Zoned DATE_TIME display behaviors (fixed zone and per-record zone) | n/a | todo | display zones |
-| REC-020 | HTML field edits in the rich-text editor and renders sanitized | todo | todo | raw HTML; $EDITOR todo |
+| REC-019 | Zoned DATE_TIME display behaviors (fixed zone and per-record zone) | n/a | partial | display zones; TUI: kernel displayDateTime; fixed and per-record zones as the server formats them |
+| REC-020 | HTML field edits in the rich-text editor and renders sanitized | todo | partial | raw HTML; $EDITOR todo; TUI: HTML edited as text or in $EDITOR |
 | REC-021 | PASSWORD is masked on read and never overwritten by the mask | pass | pass | server masks; TUI: masked |
-| REC-022 | BLOB upload and download without a download adornment | pass | todo | table create/update --upload and table download (base64 BLOB value) verified on fieldLab; default name into the download directory |
-| REC-023 | Dynamic default values (user id, create day, modify day, explicit NONE) | pass | todo | server |
-| REC-024 | Max-length policies: truncate, ellipsis, pass-through and reject | pass | todo | maxLength checked locally |
-| REC-025 | Case and whitespace normalization on save | pass | todo | behaviors |
-| REC-026 | Numeric range policies: reject, exclusive reject, inclusive clip and exclusive clip | pass | todo | ranges checked locally |
-| REC-027 | Unique keys are enforced with the backend message on create and edit | pass | todo | server message |
+| REC-022 | BLOB upload and download without a download adornment | pass | pass | table create/update --upload and table download (base64 BLOB value) verified on fieldLab; default name into the download directory; TUI: BLOB upload through the file dialog and save from the record (Field Lab, live) |
+| REC-023 | Dynamic default values (user id, create day, modify day, explicit NONE) | pass | pass | server; TUI: defaults applied by FormSession and the server |
+| REC-024 | Max-length policies: truncate, ellipsis, pass-through and reject | pass | pass | maxLength checked locally; TUI: local check and server policy |
+| REC-025 | Case and whitespace normalization on save | pass | pass | behaviors; TUI: behaviors on save |
+| REC-026 | Numeric range policies: reject, exclusive reject, inclusive clip and exclusive clip | pass | pass | ranges checked locally; TUI: local range check and server policy |
+| REC-027 | Unique keys are enforced with the backend message on create and edit | pass | pass | server message; TUI: server message shown |
 | REC-028 | LINK adornment: record links and URL links | pass | pass | record links name table and key, --follow opens them; URL links show the URL; TUI: links marked, Enter follows (kernel record-view) |
-| REC-029 | CHIP adornment colors and icons by value | partial | todo | chip as [value]; colors and icons not shown (unit-tested; none in the sample) |
-| REC-030 | SIZE adornment sets the query grid column width | n/a | todo |  |
-| REC-031 | CODE_EDITOR adornment: code view with formatting and a code editor on forms | partial | todo | raw code on view; no code editor (unit-tested) |
-| REC-032 | RENDER_HTML adornment renders sanitized HTML | partial | todo | HTML shown as text (unit-tested) |
-| REC-033 | REVEAL adornment masks, reveals and copies the value | partial | partial | masked until --reveal in the record view and in query and child-list cells; no copy (unit-tested; none in the sample); TUI: masked; Enter reveals |
-| REC-034 | FILE_DOWNLOAD adornment links to the stored file with its name | partial | partial | name plus qqq table download via the field route (unit-tested); live only for BLOB values, server finding 16; TUI: Enter saves through the file dialog; no sample field |
-| REC-035 | FILE_UPLOAD adornment formats, replacing and removing a stored file | partial | todo | create/update --upload field=path as multipart, replace and remove verified on a BLOB; FILE_UPLOAD formats not in the sample |
-| REC-036 | TOOLTIP adornment shows its text on the value | partial | todo | tooltip text in parentheses after the value (unit-tested) |
-| REC-037 | WIDGET adornment renders the field value as the named widget | partial | todo | value rendered through the widget render model as text (unit-tested) |
-| REC-038 | ERROR adornment highlights the value | partial | todo | value marked with ! (unit-tested) |
-| REC-039 | Field help content follows screen roles and formats | partial | todo | table get --help-content: view-screen roles, HTML/MARKDOWN as text (unit-tested; the sample has no help); qqq help show lists help alone |
-| REC-040 | Section help content on the record view | partial | todo | section help with --help-content (unit-tested) |
-| REC-041 | Table help content slots are delivered in table metadata | partial | todo | table helpContent and helpContents slots with --help-content (unit-tested) |
-| REC-042 | Audit history lists who changed what, newest first | partial | partial | qqq audit list <t> <pk> [--asc]: entries newest first with field changes; the sample audits no table, verified with node tests and a local stub server; TUI: F9 runs audit list in a pane |
-| REC-043 | Audit history without process permission reads the audit table | partial | todo | without the audit process the audit table is queried with its auditTable and auditDetail joins (node tests) |
+| REC-029 | CHIP adornment colors and icons by value | partial | partial | chip as [value]; colors and icons not shown (unit-tested; none in the sample); TUI: kernel valueText renders CHIP as text |
+| REC-030 | SIZE adornment sets the query grid column width | n/a | pass | TUI: saved widths per column; SIZE as text width |
+| REC-031 | CODE_EDITOR adornment: code view with formatting and a code editor on forms | partial | partial | raw code on view; no code editor (unit-tested); TUI: code shown as text; $EDITOR to edit |
+| REC-032 | RENDER_HTML adornment renders sanitized HTML | partial | partial | HTML shown as text (unit-tested); TUI: HTML shown as text |
+| REC-033 | REVEAL adornment masks, reveals and copies the value | partial | pass | masked until --reveal in the record view and in query and child-list cells; no copy (unit-tested; none in the sample); TUI: masked; Enter reveals |
+| REC-034 | FILE_DOWNLOAD adornment links to the stored file with its name | partial | pass | name plus qqq table download via the field route (unit-tested); live only for BLOB values, server finding 16; TUI: Enter saves through the save dialog |
+| REC-035 | FILE_UPLOAD adornment formats, replacing and removing a stored file | partial | pass | create/update --upload field=path as multipart, replace and remove verified on a BLOB; FILE_UPLOAD formats not in the sample; TUI: FILE_UPLOAD fields choose a file; Backspace clears |
+| REC-036 | TOOLTIP adornment shows its text on the value | partial | pass | tooltip text in parentheses after the value (unit-tested); TUI: tooltip text appended by valueText |
+| REC-037 | WIDGET adornment renders the field value as the named widget | partial | partial | value rendered through the widget render model as text (unit-tested); TUI: WIDGET adornment as text |
+| REC-038 | ERROR adornment highlights the value | partial | pass | value marked with ! (unit-tested); TUI: marked by valueText |
+| REC-039 | Field help content follows screen roles and formats | partial | partial | table get --help-content: view-screen roles, HTML/MARKDOWN as text (unit-tested; the sample has no help); qqq help show lists help alone; TUI: F1 shows field help; no sample content |
+| REC-040 | Section help content on the record view | partial | partial | section help with --help-content (unit-tested); TUI: section help via F1; no sample content |
+| REC-041 | Table help content slots are delivered in table metadata | partial | pass | table helpContent and helpContents slots with --help-content (unit-tested); TUI: table help in F1 |
+| REC-042 | Audit history lists who changed what, newest first | partial | partial | qqq audit list <t> <pk> [--asc]: entries newest first with field changes; the sample audits no table, verified with node tests and a local stub server; TUI: A opens the audit history (kernel); the sample has no audit source |
+| REC-043 | Audit history without process permission reads the audit table | partial | partial | without the audit process the audit table is queried with its auditTable and auditDetail joins (node tests); TUI: kernel reads the audit table when there is no process; unverified live |
 | REC-044 | Record label format is used for the record's title and dialogs | pass | pass | recordLabel |
 | REC-045 | Possible-value editor shows stored labels, looks up defaults and selects by keyboard | pass | pass | labels resolved, defaults looked up; TUI: picker by keyboard |
-| REC-046 | Read-only persona sees no write actions and the backend refuses writes | pass | todo | server |
-| REC-047 | Forms are labelled and keyboard operable | n/a | todo |  |
+| REC-046 | Read-only persona sees no write actions and the backend refuses writes | pass | pass | server; TUI: write keys hidden without permission; server refuses |
+| REC-047 | Forms are labelled and keyboard operable | n/a | pass | TUI: keyboard only, labels on every field |
 | REC-048 | Server validation errors show the backend message once and keep the form | pass | pass | fieldErrors by field; TUI: fieldErrors by field |
-| REC-049 | pages of a table outside the app tree use the table label in the document title and breadcrumbs | n/a | todo |  |
+| REC-049 | pages of a table outside the app tree use the table label in the document title and breadcrumbs | n/a | pass | TUI: breadcrumb uses the table label |
 | REC-051 | Table-field possible values search and resolve through the v1 API | pass | pass |  |
 | REC-050 | Record create, view, edit and delete run on the v1 record routes | pass | pass |  |
-| REC-056 | Record view hash links: #audit, #/launchProcess={process} and #{section} anchors | n/a | todo |  |
-| REC-057 | Create presets from links: #/createChild= opens a child create dialog over the record; /create#/defaultValues= | n/a | todo |  |
+| REC-056 | Record view hash links: #audit, #/launchProcess={process} and #{section} anchors | n/a | n/a | TUI: hash links |
+| REC-057 | Create presets from links: #/createChild= opens a child create dialog over the record; /create#/defaultValues= | n/a | pass | TUI: :table create T --set parent=… and F7 on a child list |
 | REC-052 | Dependent possible values: a field whose filter uses ${input.otherField} offers only the choices matching the  | pass | pass | contingent fields; TUI: contingent fields wait and narrow |
-| REC-053 | Table developer view shows the API Docs & Playground section for the table's application APIs | partial | todo | qqq table apis <t> and table api-doc <t> <api> <version> (saved as JSON); no playground; the sample exposes no application APIs (verified: none listed, an unknown API exits 5) |
-| REC-054 | Record developer view manages associated scripts: versions, new versions, test runs, logs, docs and script cre | partial | todo | qqq script list/show [--revision]/store --file/--editor/logs, and table developer <t> <pk> with the developer panels (verified live on person 1); no test runs; the sample has no associated scripts, so scripts are covered by node tests |
+| REC-053 | Table developer view shows the API Docs & Playground section for the table's application APIs | partial | partial | qqq table apis <t> and table api-doc <t> <api> <version> (saved as JSON); no playground; the sample exposes no application APIs (verified: none listed, an unknown API exits 5); TUI: D on a grid lists the table APIs and their OpenAPI documents; the sample has none |
+| REC-054 | Record developer view manages associated scripts: versions, new versions, test runs, logs, docs and script cre | partial | partial | qqq script list/show [--revision]/store --file/--editor/logs, and table developer <t> <pk> with the developer panels (verified live on person 1); no test runs; the sample has no associated scripts, so scripts are covered by node tests; TUI: D on a record: panels live; scripts, versions, logs (kernel-tested) |
 | REC-055 | Record view keyboard shortcuts n, e, c, d, a (Material) and their help text | n/a | pass | TUI: n e c d; F-keys |
-| REC-058 | Record view on phones and tablets: the title stays readable, the header controls wrap onto their own row, and  | n/a | todo |  |
-| REC-059 | Record forms on phones and tablets: every editor type fits without sideways scrolling, controls are touch-size | n/a | todo |  |
-| REC-061 | An editable dynamicForm widget on a record form validates its fields and persists them in the declared JSON re | todo | todo |  |
-| REC-062 | Inline enum possible values filter by label prefix without a lookup request; CHIP adornments style options and | pass | todo | inline enums |
-| REC-060 | Material table and field form adjusters and field rules operate against the real QQQ sample server | todo | todo | adjusters wired, no sample to test |
-| REC-064 | Record sections render qualified fields from readable exposed joins | partial | todo | table get --join adds joined fields (queryJoins); verified with an association join |
-| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | todo | get, copy and update -i read with --variant; v1 writes ignore it (server finding #19) |
-| REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | pass | todo | an unchanged wall-clock time keeps the original instant and its precision |
+| REC-058 | Record view on phones and tablets: the title stays readable, the header controls wrap onto their own row, and  | n/a | n/a | TUI: phone layout |
+| REC-059 | Record forms on phones and tablets: every editor type fits without sideways scrolling, controls are touch-size | n/a | n/a | TUI: phone layout |
+| REC-061 | An editable dynamicForm widget on a record form validates its fields and persists them in the declared JSON re | todo | todo | TUI: dynamicForm widget editing |
+| REC-062 | Inline enum possible values filter by label prefix without a lookup request; CHIP adornments style options and | pass | pass | inline enums; TUI: inline enums filter locally |
+| REC-060 | Material table and field form adjusters and field rules operate against the real QQQ sample server | todo | partial | adjusters wired, no sample to test; TUI: adjusters wired through FormSession; no sample adjuster |
+| REC-064 | Record sections render qualified fields from readable exposed joins | partial | todo | table get --join adds joined fields (queryJoins); verified with an association join; TUI: exposed-join fields in sections |
+| REC-063 | Record view, edit and copy load from the table variant selected on the query screen | partial | todo | get, copy and update -i read with --variant; v1 writes ignore it (server finding #19); TUI: record view and forms with the grid variant |
+| REC-065 | Unchanged DATE_TIME instants and precision survive edit and copy | pass | pass | an unchanged wall-clock time keeps the original instant and its precision; TUI: DATE_TIME edited in local zone, unchanged instants kept |
 | SEC-001 | Table hidden from a user (DenyBehavior.HIDDEN): absent from navigation, direct link loads nothing, backend ref | pass | todo |  |
 | SEC-002 | Table disabled for a user (DenyBehavior.DISABLED): listed, but list/record/create/edit links explain the denia | todo | todo | disabled tables listed with a reason |
 | SEC-003 | Insert permission denied: create not offered, create link refused, backend writes nothing | pass | pass | TUI: F7 hidden without insert permission |

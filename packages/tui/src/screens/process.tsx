@@ -3,7 +3,9 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { FormSession, ProcessError, runProcess, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter } from '@qrun-io/qqq-core'
+import { BACK, FormSession, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
+import { saveFile } from '../overlays/files-helpers'
+import { blockLines, tableLines } from '../widgets'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
 import type { AppStore } from '../store'
@@ -21,6 +23,8 @@ class Cancelled extends Error {
 }
 
 export interface ProcessOptions {
+  /** The table variant the records come from (sent on init, every step and status). */
+  tableVariant?: string
   recordIds?: string[]
   filter?: QueryFilter
   values?: FieldValues
@@ -51,6 +55,12 @@ export class ProcessScreen implements Screen {
   log: string[] = []
   processUUID?: string
   private cancelled = false
+  /** The current step's screen (help, HTML, view values, records, widgets, downloads) as text lines, from the kernel. */
+  screenLines: string[] = []
+  backStep?: string
+  downloads: Array<{ fileName: string; query: Record<string, string> }> = []
+  /** Files chosen in a step's form, handed to the kernel runner (sent with that step). */
+  private stepFiles: Record<string, { name: string; bytes: Uint8Array }> = {}
   private pending?: { resolve: (v: FieldValues) => void; reject: (e: Error) => void }
 
   constructor(private store: AppStore, readonly processName: string, readonly options: ProcessOptions = {}) {
@@ -112,6 +122,7 @@ export class ProcessScreen implements Screen {
     const client = this.store.client!
     const work = async () => {
       this.meta = await client.processMeta(this.processName)
+      await checkInputRecords(this.meta, this.options.recordIds?.length ? { ids: this.options.recordIds } : this.options.filter ? { filter: this.options.filter } : undefined, (f) => client.count(this.meta!.tableName ?? '', f as QueryFilter))
       this.store.remember({ kind: 'process', name: this.processName, label: this.meta.label ?? this.processName })
       return runProcess({
         baseUrl: client.server,
@@ -119,6 +130,8 @@ export class ProcessScreen implements Screen {
         meta: this.meta,
         values: this.options.values,
         records: this.options.recordIds?.length ? { ids: this.options.recordIds } : this.options.filter ? { filter: this.options.filter } : undefined,
+        stepFiles: this.stepFiles,
+        tableVariant: this.options.tableVariant,
         stepTimeoutMillis: 0,
         pollMillis: 250,
         always: true,
@@ -135,10 +148,19 @@ export class ProcessScreen implements Screen {
           }
           this.store.bump()
         },
-        provide: (context) => this.provide(context.step, context.fields, context.values, context.response.values ?? {}),
+        provide: (context) => {
+          this.showScreen(context.screen)
+          this.backStep = context.backStep
+          return this.provide(context.step, context.fields, context.values, context.response.values ?? {})
+        },
+        present: (context) => {
+          this.showScreen(context.screen)
+          this.note(`${context.step.label ?? context.step.name}${context.isLast ? '' : ' (shown)'}`)
+        },
       })
     }
     work().then((outcome) => {
+      if (outcome.lastScreen) this.showScreen(outcome.lastScreen)
       this.result = { values: outcome.values, lastStep: outcome.lastStep }
       this.phase = 'done'
       this.finished = Date.now()
@@ -156,6 +178,27 @@ export class ProcessScreen implements Screen {
     })
   }
 
+  /** Turns the kernel's screen blocks into lines (tables aligned, widgets drawn) and notes downloads. */
+  showScreen(blocks: ScreenBlock[]): void {
+    const width = 100
+    this.downloads = blocks.filter((b): b is Extract<ScreenBlock, { kind: 'download' }> => b.kind === 'download').map((b) => ({ fileName: b.fileName, query: b.query }))
+    const visible = blocks.filter((b) => b.kind !== 'form' && b.kind !== 'review' && b.kind !== 'summary')
+    const text = screenToText(visible, {
+      table: (rows, columns, headers) => tableLines(headers, rows.map((r) => columns.map((c) => String(r[c] ?? ''))), width).map((l) => l.text).join('\n'),
+      widget: (w) => blockLines(w, width).map((l) => l.text).join('\n'),
+    })
+    this.screenLines = text ? text.split('\n') : []
+    this.store.bump()
+  }
+
+  /** Saves a DOWNLOAD_FORM file through the save dialog. */
+  saveDownloadFile(): void {
+    const d = this.downloads[0]
+    if (!d) return this.store.flash('this step offers no file')
+    const c = this.store.client!
+    this.store.run(downloadProcessFile(c.server, c.fetch, d), ({ bytes }) => saveFile(this.store, `Save ${d.fileName}`, safeFileName(d.fileName), (path) => this.store.message(`Saved ${saveDownload(path, bytes, { explicit: true })} (${bytes.length} bytes).`)))
+  }
+
   note(text: string): void {
     this.log.push(`${new Date().toLocaleTimeString('en-GB')} ${text}`)
     if (this.log.length > 50) this.log.shift()
@@ -171,7 +214,9 @@ export class ProcessScreen implements Screen {
       this.reviewChoice = this.stepValues.validationSummary ? 1 : 0
     } else if (fields.length) {
       const client = this.store.client!
-      const session = new FormSession({ baseUrl: client.server, fetch: this.fetchFor(), scope: { process: this.processName }, fields, initialValues: values })
+      const local = { ...values }
+      for (const f of fields) if (f.type === 'DATE_TIME' && isInstant(local[f.name])) local[f.name] = utcToLocalInput(String(local[f.name]), defaultTimeZone())
+      const session = new FormSession({ baseUrl: client.server, fetch: this.fetchFor(), scope: { process: this.processName }, fields, initialValues: local })
       this.editor = new FormEditor(this.store, session, session.promptOrder(fields.map((f) => f.name)), { bulkEdit: types.includes('BULK_EDIT_FORM') })
       this.phase = 'form'
     } else {
@@ -203,10 +248,16 @@ export class ProcessScreen implements Screen {
         editor.index = Math.max(0, editor.names.findIndex((n) => problems[n]))
         return
       }
-      const out: FieldValues = {}
+      let out: FieldValues = {}
       const enabled = editor.options.bulkEdit ? editor.enabled : undefined
       for (const n of editor.names) if (editor.session.values[n] !== undefined && (!enabled || enabled.has(n))) out[n] = editor.session.values[n]
       if (enabled) out.bulkEditEnabledFields = [...enabled].join(',')
+      for (const [name, file] of editor.files) {
+        this.stepFiles[name] = { name: file.name, bytes: file.bytes }
+        out[name] = file.name
+      }
+      // DATE_TIME inputs are typed in the local zone and sent as UTC instants
+      out = dateTimesToUtc(Object.values(editor.session.fields), out)
       this.pending = undefined
       this.phase = 'running'
       this.stepStarted = Date.now()
@@ -227,12 +278,23 @@ export class ProcessScreen implements Screen {
   }
 
   fkeys(): FKeyLabels {
-    return { 3: null, 4: null, 6: null, 7: null, 8: null, 5: this.phase === 'done' || this.phase === 'error' || this.phase === 'cancelled' ? 'Re-run' : null }
+    return { 3: null, 4: this.pending && this.backStep ? 'Back' : null, 6: null, 7: null, 8: null, 5: this.phase === 'done' || this.phase === 'error' || this.phase === 'cancelled' ? 'Re-run' : null }
   }
 
   onKey(key: Key): boolean {
     if (key.name === 'escape') {
       this.cancel()
+      return true
+    }
+    if (key.name === 'f4' && this.pending && this.backStep) {
+      const pending = this.pending
+      this.pending = undefined
+      this.phase = 'running'
+      pending.resolve(BACK as unknown as FieldValues)
+      return true
+    }
+    if (charOf(key) === 'w' && this.downloads.length && this.phase !== 'form') {
+      this.saveDownloadFile()
       return true
     }
     if (this.phase === 'form') {
@@ -328,7 +390,8 @@ export class ProcessScreen implements Screen {
     }
     if (this.phase === 'done') {
       lines.push({ text: `Finished in ${this.elapsed(this.started)}`, fg: t.ok, bold: true })
-      lines.push(...this.summaryLines(inner))
+      if (!this.screenLines.length) lines.push(...this.summaryLines(inner))
+      else lines.push(...this.summaryLines(inner).filter((l) => /^(OK|ERROR|WARNING|INFO)/.test(l.text)))
       lines.push({ text: '' })
       lines.push({ text: 'Enter or Esc closes · F5 or r runs it again', fg: t.dim })
     }
@@ -342,22 +405,27 @@ export class ProcessScreen implements Screen {
       lines.push({ text: 'Cancelled', fg: t.warn, bold: true })
       lines.push({ text: 'Esc closes · F5 or r runs it again', fg: t.dim })
     }
-    body.push(<text key="stepper" fg={t.dim}>{pad(` ${trunc(stepper, inner - 1)}`, inner)}</text>)
-    body.push(<text key="sp">{pad('', inner)}</text>)
-    for (const h of help) for (const l of wrap(h, inner - 2)) body.push(<text key={`h${body.length}`} fg={t.dim}>{pad(` ${l}`, inner)}</text>)
+    body.push(<text flexShrink={0} wrapMode="none" key="stepper" fg={t.dim}>{pad(` ${trunc(stepper, inner - 1)}`, inner)}</text>)
+    body.push(<text flexShrink={0} wrapMode="none" key="sp">{pad('', inner)}</text>)
+    // the step's screen from the kernel (help, HTML, view values, records, widgets, downloads), else the step's help text
+    const screen = this.screenLines.length ? this.screenLines : help.flatMap((h) => wrap(h, inner - 2))
+    const maxScreen = this.phase === 'form' ? Math.max(0, Math.min(screen.length, Math.floor(height / 3))) : Math.max(0, Math.min(screen.length, height - 12))
+    for (const l of screen.slice(0, maxScreen)) body.push(<text flexShrink={0} wrapMode="none" key={`h${body.length}`} fg={t.fg}>{pad(` ${l}`, inner)}</text>)
+    if (screen.length > maxScreen) body.push(<text flexShrink={0} wrapMode="none" key="hmore" fg={t.dim}>{pad(` … ${screen.length - maxScreen} more lines`, inner)}</text>)
+    if (this.downloads.length && this.phase !== 'form') body.push(<text flexShrink={0} wrapMode="none" key="dl" fg={t.acc2}>{pad(` w saves ${this.downloads[0]!.fileName}`, inner)}</text>)
     let used = body.length
     if (this.phase === 'form' && this.editor) {
-      body.push(<text key="title" fg={t.acc}><strong>{pad(` ${this.step?.label ?? this.step?.name ?? ''}${this.editor.options.bulkEdit ? '  (Ctrl+T marks a field to apply)' : ''}`, inner)}</strong></text>)
+      body.push(<text flexShrink={0} wrapMode="none" key="title" fg={t.acc}><strong>{pad(` ${this.step?.label ?? this.step?.name ?? ''}${this.editor.options.bulkEdit ? '  (Ctrl+T marks a field to apply)' : ''}`, inner)}</strong></text>)
       used++
       const formHeight = Math.max(3, height - 2 - used - 1)
       body.push(<box key="form" flexDirection="column" height={formHeight}>{this.editor.render(inner, formHeight, focused)}</box>)
-      body.push(<text key="ft" fg={t.dim}>{pad(this.editor.saving ? ' sending…' : ' Ctrl+S continues · Esc cancels · Tab ↓ next · Enter or typing opens a picker', inner)}</text>)
+      body.push(<text flexShrink={0} wrapMode="none" key="ft" fg={t.dim}>{pad(this.editor.saving ? ' sending…' : ' Ctrl+S continues · Esc cancels · Tab ↓ next · Enter or typing opens a picker', inner)}</text>)
     } else {
-      for (const l of lines.slice(0, Math.max(0, height - 2 - used - 4))) body.push(<text key={`l${body.length}`} fg={l.fg ?? t.fg}>{l.bold ? <strong>{pad(` ${l.text}`, inner)}</strong> : pad(` ${l.text}`, inner)}</text>)
+      for (const l of lines.slice(0, Math.max(0, height - 2 - used - 4))) body.push(<text flexShrink={0} wrapMode="none" key={`l${body.length}`} fg={l.fg ?? t.fg}>{l.bold ? <strong>{pad(` ${l.text}`, inner)}</strong> : pad(` ${l.text}`, inner)}</text>)
       const logRows = Math.max(0, Math.min(this.log.length, height - 2 - body.length - 1))
       const pad2 = height - 2 - body.length - logRows
-      for (let i = 0; i < pad2; i++) body.push(<text key={`p${i}`}>{pad('', inner)}</text>)
-      for (const l of this.log.slice(-logRows)) body.push(<text key={`g${body.length}`} fg={t.dim}>{pad(` ${l}`, inner)}</text>)
+      for (let i = 0; i < pad2; i++) body.push(<text flexShrink={0} wrapMode="none" key={`p${i}`}>{pad('', inner)}</text>)
+      for (const l of this.log.slice(-logRows)) body.push(<text flexShrink={0} wrapMode="none" key={`g${body.length}`} fg={t.dim}>{pad(` ${l}`, inner)}</text>)
     }
     return <Panel title={this.title()} width={width} height={height} focused={focused}>{body}</Panel>
   }

@@ -3,8 +3,11 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { FormInputError, FormSession, ResultCursor, copyRecordValues, dateTimesToUtc, defaultTimeZone, isInstant, isMissingValue, utcToLocalInput, validateValue, type FieldMeta, type FieldValues } from '@qrun-io/qqq-core'
+import { FormInputError, FormSession, ResultCursor, copyRecordValues, dateTimesToUtc, formatSize, defaultTimeZone, isInstant, isMissingValue, utcToLocalInput, validateValue, type FieldMeta, type FieldValues } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
+import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
+import { openFile } from '../overlays/files-helpers'
 import type { TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf, isPrintable } from '../keys'
@@ -35,6 +38,22 @@ function hintFor(f: FieldMeta): string {
   }
 }
 
+/** A field that takes a file: BLOB, or a FILE_UPLOAD adornment. */
+export function isFileField(f: FieldMeta): boolean {
+  return f.type === 'BLOB' || Boolean(f.adornments?.some((a) => a.type === 'FILE_UPLOAD'))
+}
+
+/** The multipart record body (as the web UI's recordFormData): text values as strings, null as empty, files as parts. */
+export function multipartRecord(values: FieldValues, files: Map<string, { name: string; bytes: Uint8Array }>): Record<string, string | Blob> {
+  const form: Record<string, string | Blob> = {}
+  for (const [k, v] of Object.entries(values)) {
+    if (v === undefined || files.has(k)) continue
+    form[k] = v === null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)
+  }
+  for (const [k, f] of files) form[k] = new File([f.bytes as BlobPart], f.name)
+  return form
+}
+
 function textOf(value: unknown): string {
   return value === null || value === undefined ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
@@ -54,12 +73,14 @@ export class FormEditor {
   formError?: string
   saving = false
   readonly initial: FieldValues
+  /** Files chosen for BLOB and FILE_UPLOAD fields (sent as multipart parts). */
+  files = new Map<string, { name: string; bytes: Uint8Array; path: string }>()
 
   constructor(private store: AppStore, readonly session: FormSession, readonly order: string[], readonly options: { bulkEdit?: boolean; readOnly?: string[] } = {}) {
     this.initial = { ...session.values }
     for (const name of order) {
       const f = session.fields[name]
-      if (f && TEXT_TYPES.has(f.type) && !session.hasChoices(name)) this.editors.set(name, new LineEditor(textOf(session.values[name]), { masked: f.type === 'PASSWORD' }))
+      if (f && TEXT_TYPES.has(f.type) && !session.hasChoices(name) && !isFileField(f)) this.editors.set(name, new LineEditor(textOf(session.values[name]), { masked: f.type === 'PASSWORD' }))
     }
   }
 
@@ -72,7 +93,25 @@ export class FormEditor {
   }
 
   dirty(): boolean {
-    return this.names.some((n) => textOf(this.valueFor(n)) !== textOf(this.initial[n]))
+    return this.files.size > 0 || this.names.some((n) => textOf(this.valueFor(n)) !== textOf(this.initial[n]))
+  }
+
+  /** Chooses a file for a file field through the file navigator. */
+  chooseFile(name: string): void {
+    const f = this.session.fields[name]!
+    openFile(this.store, `File for ${f.label}`, (path) => {
+      try {
+        const bytes = new Uint8Array(readFileSync(path))
+        const fileName = basename(path)
+        this.files.set(name, { name: fileName, bytes, path })
+        this.session.values[name] = fileName
+        delete this.session.errors[name]
+        if (this.options.bulkEdit) this.enabled.add(name)
+        this.store.bump()
+      } catch (e) {
+        this.session.errors[name] = errorText(e)
+      }
+    })
   }
 
   /** The value a field has now (the editor text for text fields not yet committed). */
@@ -166,6 +205,18 @@ export class FormEditor {
       return true
     }
     if (readOnly) return key.name === 'return' ? (this.move(1), true) : false
+    if (isFileField(f)) {
+      if (key.name === 'return' || key.name === 'space') {
+        this.chooseFile(name)
+        return true
+      }
+      if (key.name === 'backspace' || key.name === 'delete') {
+        this.files.delete(name)
+        this.session.values[name] = null
+        return true
+      }
+      return false
+    }
     if (this.session.hasChoices(name)) {
       if (key.name === 'return' || key.name === 'space') {
         this.openPicker(name)
@@ -232,26 +283,27 @@ export class FormEditor {
       if (ed && !disabled) editor = <EditorLine editor={ed} width={editorWidth} focused={sel} />
       else {
         let shown: string
-        if (f.type === 'BOOLEAN') shown = this.session.values[name] === true ? `${g.check} yes` : this.session.values[name] === false ? `${g.uncheck} no` : `${g.uncheck} (not set)`
+        if (isFileField(f)) shown = this.files.get(name) ? `${this.files.get(name)!.name} (${formatSize(this.files.get(name)!.bytes.length)})` : isMissingValue(this.session.values[name]) ? '(choose a file…)' : '(stored file; Enter replaces)'
+        else if (f.type === 'BOOLEAN') shown = this.session.values[name] === true ? `${g.check} yes` : this.session.values[name] === false ? `${g.uncheck} no` : `${g.uncheck} (not set)`
         else if (this.session.hasChoices(name)) shown = isMissingValue(this.session.values[name]) ? (state.disabledBecause ? '' : '(choose…)') : `${this.session.displayValues[name] ?? textOf(this.session.values[name])}`
         else shown = ed ? ed.value : textOf(this.session.values[name])
-        const pickGlyph = this.session.hasChoices(name) && !disabled ? ' ▾' : ''
-        editor = <text fg={disabled ? t.dim : sel ? t.selFg : t.inputFg} bg={disabled ? undefined : sel ? t.selBg : t.inputBg}>{pad(trunc(shown, editorWidth - pickGlyph.length) + pickGlyph, editorWidth)}</text>
+        const pickGlyph = (this.session.hasChoices(name) || isFileField(f)) && !disabled ? ' ▾' : ''
+        editor = <text flexShrink={0} wrapMode="none" fg={disabled ? t.dim : sel ? t.selFg : t.inputFg} bg={disabled ? undefined : sel ? t.selBg : t.inputBg}>{pad(trunc(shown, editorWidth - pickGlyph.length) + pickGlyph, editorWidth)}</text>
       }
-      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : idx === this.index ? (this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : hintFor(f)) : ''
+      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : idx === this.index ? (isFileField(f) ? 'Enter chooses a file · Backspace clears' : this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : hintFor(f)) : ''
       return (
         <box key={name} flexDirection="row" height={1}>
-          <text fg={sel ? t.acc2 : disabled ? t.dim : t.fg}>{`${sel ? g.pointer : ' '}${bulk}${pad(f.label, labelWidth - 1)}${required} `}</text>
+          <text flexShrink={0} wrapMode="none" fg={sel ? t.acc2 : disabled ? t.dim : t.fg}>{`${sel ? g.pointer : ' '}${bulk}${pad(f.label, labelWidth - 1)}${required} `}</text>
           {editor}
-          <text fg={error ? t.err : t.dim}>{pad(msgWidth > 2 ? ' ' + trunc(msg, msgWidth - 1) : '', msgWidth + 1)}</text>
+          <text flexShrink={0} wrapMode="none" fg={error ? t.err : t.dim}>{pad(msgWidth > 2 ? ' ' + trunc(msg, msgWidth - 1) : '', msgWidth + 1)}</text>
         </box>
       )
     })
     return (
       <>
         {lines}
-        {Array.from({ length: Math.max(0, rows - lines.length) }, (_, i) => <text key={`e${i}`}>{pad('', width)}</text>)}
-        {this.formError ? <text fg={t.err}>{pad(` ${this.formError}`, width)}</text> : null}
+        {Array.from({ length: Math.max(0, rows - lines.length) }, (_, i) => <text flexShrink={0} wrapMode="none" key={`e${i}`}>{pad('', width)}</text>)}
+        {this.formError ? <text flexShrink={0} wrapMode="none" fg={t.err}>{pad(` ${this.formError}`, width)}</text> : null}
       </>
     )
   }
@@ -360,18 +412,22 @@ export class FormScreen implements Screen {
       }
       try {
         if (this.options.mode === 'edit') {
-          const changed = editor.names.filter((n) => textOf(editor.session.values[n]) !== textOf(editor.initial[n]))
+          const changed = editor.names.filter((n) => editor.files.has(n) || textOf(editor.session.values[n]) !== textOf(editor.initial[n]))
           if (!changed.length) {
             this.store.flash('nothing changed')
             this.store.back()
             return
           }
           const values = dateTimesToUtc(Object.values(editor.session.fields), Object.fromEntries(changed.map((n) => [n, editor.session.values[n] ?? null])), { originals: this.originals })
-          await client.update(this.tableName, this.options.primaryKey, values)
+          if (editor.files.size) await client.call('updateRecord', { path: { tableName: this.tableName, primaryKey: String(this.options.primaryKey) }, form: multipartRecord(values, editor.files) })
+          else await client.update(this.tableName, this.options.primaryKey, values)
           this.store.flash(`saved ${meta.label} ${this.options.primaryKey}`)
           this.store.back()
         } else {
-          const record = await client.insert(this.tableName, dateTimesToUtc(Object.values(editor.session.fields), editor.session.submission()))
+          const values = dateTimesToUtc(Object.values(editor.session.fields), editor.session.submission())
+          const record = editor.files.size
+            ? ((await client.data<Record<string, unknown>>('insertRecord', { path: { tableName: this.tableName }, form: multipartRecord(values, editor.files) })).record ?? {}) as { values?: Record<string, unknown> }
+            : await client.insert(this.tableName, values)
           const pk = record.values?.[meta.primaryKeyField]
           this.store.flash(`created ${meta.label} ${String(pk ?? '')}`)
           replaceWithRecord(this.store, this.tableName, String(pk))
@@ -404,9 +460,9 @@ export class FormScreen implements Screen {
     const footer = this.editor?.saving ? ' saving…' : ' Ctrl+S save · Esc cancel · Tab ↓ next · ↑ previous · Enter or typing opens a picker · * required'
     return (
       <Panel title={this.title()} width={width} height={height} focused={focused}>
-        {this.error ? <text fg={t.err}>{pad(` ${this.error}`, width - 2)}</text> : this.editor ? this.editor.render(width - 2, height - 3, focused) : <text fg={t.dim}>{pad(' loading…', width - 2)}</text>}
-        {this.error || !this.editor ? Array.from({ length: Math.max(0, height - 4) }, (_, i) => <text key={i}>{''}</text>) : null}
-        <text fg={t.dim}>{pad(footer, width - 2)}</text>
+        {this.error ? <text flexShrink={0} wrapMode="none" fg={t.err}>{pad(` ${this.error}`, width - 2)}</text> : this.editor ? this.editor.render(width - 2, height - 3, focused) : <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(' loading…', width - 2)}</text>}
+        {this.error || !this.editor ? Array.from({ length: Math.max(0, height - 4) }, (_, i) => <text flexShrink={0} wrapMode="none" key={i}>{''}</text>) : null}
+        <text flexShrink={0} wrapMode="none" fg={t.dim}>{pad(footer, width - 2)}</text>
       </Panel>
     )
   }

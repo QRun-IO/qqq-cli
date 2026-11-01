@@ -4,7 +4,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { ResultCursor, findRecordByKey, gotoKeys, printFilter, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
+import { ResultCursor, buildViewJson, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
@@ -64,6 +64,18 @@ export function layoutColumns(fields: FieldMetaData[], rows: QueryRecord[], avai
       c.width += add
       spare -= add
     }
+    // room for longer values on later pages: text columns grow toward 40 cells from what is left
+    // (the layout is frozen for the life of the grid, so this is decided once)
+    const growable = cols.filter((c) => !view.widths?.[c.name] && !c.numeric && ['STRING', 'TEXT', 'HTML'].includes(c.type) && c.width < 40)
+    while (spare > 0 && view.fit !== 'fill' && growable.some((c) => c.width < 40)) {
+      for (const c of growable) {
+        if (spare <= 0) break
+        if (c.width < 40) {
+          c.width++
+          spare--
+        }
+      }
+    }
     if (spare > 0 && view.fit === 'fill' && cols.length) {
       const each = Math.floor(spare / cols.length)
       cols.forEach((c, i) => { c.width += each + (i < spare - each * cols.length ? 1 : 0) })
@@ -103,6 +115,10 @@ export class TableScreen implements Screen {
   pageSize = 20
   view: ViewSettings = {}
   private generation = 0
+  /** Quick search text (CONTAINS on the visible string columns, ANDed onto the filter). */
+  quick = ''
+  /** The table variant, for tables that need one. */
+  variant?: TableVariant
   /** The column layout, frozen while paging, sorting, filtering and stepping. */
   private frozen?: { key: string; fromEmpty: boolean; cols: GridColumn[] }
 
@@ -112,8 +128,11 @@ export class TableScreen implements Screen {
     if (this.filter.orderBys?.[0]) this.sort = { field: this.filter.orderBys[0].fieldName, asc: this.filter.orderBys[0].isAscending }
     delete this.filter.orderBys
     this.view = readViewSettings(`table:${tableName}`)
+    const savedSort = this.view.sort as { field: string; asc: boolean } | undefined
+    if (!this.sort && savedSort) this.sort = savedSort
     store.run(store.client!.tableMeta(tableName), (meta) => {
       this.meta = meta
+      if (usesVariants(meta as never)) return this.chooseVariant(options.index ?? 0)
       this.newCursor(options.index ?? 0)
       this.store.remember({ kind: 'table', table: tableName, label: meta.label })
     })
@@ -141,12 +160,78 @@ export class TableScreen implements Screen {
   }
 
   fullFilter(): QueryFilter {
-    return { ...this.filter, ...(this.sort ? { orderBys: [{ fieldName: this.sort.field, isAscending: this.sort.asc }] } : {}) }
+    const quick = this.meta && this.quick.trim() ? quickSearchFilter(this.quick, quickSearchFields(this.meta as never, this.fields().map((f) => f.name))) : undefined
+    const base = combineWithQuickSearch({ ...this.filter }, quick)
+    return { ...base, ...(this.sort ? { orderBys: [{ fieldName: this.sort.field, isAscending: this.sort.asc }] } : {}) }
+  }
+
+  quickSearch(): void {
+    this.store.open(new PromptOverlay(this.store, `Quick search ${this.title()}`, 'Text matched (contains) in the visible text columns, together with the filter; empty clears.', (text) => {
+      this.quick = text.trim()
+      this.newCursor(0)
+    }, this.quick))
+  }
+
+  columnStats(): void {
+    const meta = this.meta
+    const field = this.fields()[this.colCursor]
+    if (!meta || !field) return
+    const avail = columnStatsAvailability(meta as never, this.store.meta as never)
+    if (!avail.available) return this.store.message(avail.reason ?? 'Column statistics are not available for this table.', 'info', 'Column statistics')
+    const c = this.store.client!
+    this.store.run(runColumnStats(c.server, c.fetch, { table: this.tableName, field: field.name, filter: this.fullFilter(), tableVariant: this.variant }), (stats) => {
+      const lines = [...stats.fields.map((f) => `${f.label}: ${String(stats.stats.displayValues[f.name] ?? stats.stats.values[f.name] ?? '')}`), '', 'Most common values:', ...stats.valueCounts.slice(0, 15).map((v) => `  ${String(v.displayValues[field.name] ?? v.values[field.name] ?? '(empty)')}  ×${String(v.values.count ?? '')}`)]
+      this.store.message(lines.join('\n'), 'info', `Column statistics · ${field.label}`)
+    })
+  }
+
+  savedViews(): void {
+    const meta = this.meta
+    if (!meta) return
+    const c = this.store.client!
+    const procs = savedViewProcesses(meta as never, this.store.meta as never)
+    if (!procs.query) return this.store.message('Saved views are not available for this table.', 'info', 'Saved views')
+    this.store.run(listSavedViews(c.server, c.fetch, procs, this.tableName), (views) => {
+      type Pick = { kind: 'open' | 'delete'; v: (typeof views)[number] } | { kind: 'save' }
+      const choices: Array<{ label: string; value: Pick; detail?: string }> = [
+        ...views.map((v) => ({ label: v.label, value: { kind: 'open' as const, v }, detail: v.type ?? '' })),
+        ...(procs.store ? [{ label: '+ Save the current query as a view…', value: { kind: 'save' as const } }] : []),
+        ...(procs.delete ? views.map((v) => ({ label: `Delete "${v.label}"`, value: { kind: 'delete' as const, v } })) : []),
+      ]
+      this.store.open(new ChoiceOverlay<Pick>(this.store, `Saved views · ${this.title()}`, choices, (choice) => {
+        if (choice.kind === 'open') {
+          const q = viewToQuery(meta as never, exposedJoins(meta as never), choice.v.view)
+          this.view = { ...this.view, columns: q.columns.filter((n) => meta.fields[n]) }
+          this.setFilter(q.filter)
+          this.store.flash(`view ${choice.v.label}${q.warnings.length ? ` (${q.warnings.join('; ')})` : ''}`)
+        } else if (choice.kind === 'save') {
+          this.store.open(new PromptOverlay(this.store, 'Save view as', 'A name for this filter, sort and these columns.', (label) => {
+            if (!label.trim()) return
+            this.store.run(storeSavedView(c.server, c.fetch, procs, { table: this.tableName, label: label.trim(), view: buildViewJson({ filter: this.fullFilter(), columns: this.fields().map((f) => f.name), allColumns: Object.keys(meta.fields), rowsPerPage: this.pageSize }) }), (v) => this.store.flash(`saved view ${v.label}`))
+          }))
+        } else if (choice.kind === 'delete') {
+          const v = choice.v
+          this.store.confirm(`Delete the saved view "${v.label}"?`, () => this.store.run(deleteSavedView(c.server, c.fetch, procs, v.id), () => this.store.flash(`deleted view ${v.label}`)))
+        }
+      }))
+    })
+  }
+
+  /** Tables with variants ask for one first; dismissing the prompt queries nothing. */
+  chooseVariant(index = 0): void {
+    const c = this.store.client!
+    this.store.run(listTableVariants(c.server, c.fetch, this.tableName), (variants) => {
+      this.store.open(new ChoiceOverlay(this.store, `${variantLabel(this.meta as never)} for ${this.title()}`, variants.map((v) => ({ label: v.name ?? v.id, value: v, detail: `${v.type} ${v.id}` })), (v) => {
+        this.variant = v
+        this.newCursor(index)
+      }, 'required before querying', 0, () => { this.error = `choose a ${variantLabel(this.meta as never)} to query (F5)` }))
+    })
   }
 
   newCursor(index = 0): void {
     if (!this.meta) return
-    this.cursor = new ResultCursor({ baseUrl: this.store.client!.server, fetch: this.store.client!.fetch, table: this.tableName, filter: this.fullFilter(), pageSize: this.pageSize, primaryKeyField: this.meta.primaryKeyField, index })
+    if (usesVariants(this.meta as never) && !this.variant) return
+    this.cursor = new ResultCursor({ baseUrl: this.store.client!.server, fetch: this.store.client!.fetch, table: this.tableName, filter: this.fullFilter(), pageSize: this.pageSize, primaryKeyField: this.meta.primaryKeyField, index, query: this.variant ? { tableVariant: variantParam(this.variant) } : undefined })
     this.rowsPage = -1
     this.load()
   }
@@ -211,6 +296,7 @@ export class TableScreen implements Screen {
   }
 
   refresh(): void {
+    if (this.meta && usesVariants(this.meta as never) && !this.variant) return this.chooseVariant(0)
     this.cursor?.invalidate()
     this.load(true)
   }
@@ -254,10 +340,11 @@ export class TableScreen implements Screen {
 
   runProcess(name: string): void {
     const ids = [...this.selection]
-    if (ids.length) openProcess(this.store, name, { recordIds: ids })
+    const tableVariant = variantParam(this.variant)
+    if (ids.length) openProcess(this.store, name, { recordIds: ids, tableVariant })
     else {
       const key = this.keyOf(this.currentRecord)
-      openProcess(this.store, name, key !== undefined ? { recordIds: [key] } : { filter: this.fullFilter() })
+      openProcess(this.store, name, key !== undefined ? { recordIds: [key], tableVariant } : { filter: this.fullFilter(), tableVariant })
     }
   }
 
@@ -304,6 +391,11 @@ export class TableScreen implements Screen {
     if (!this.meta) return undefined
     return new GridViewSettingsOverlay(this.store, this.meta, `table:${this.tableName}`, this.fields().map((f) => f.name), () => {
       this.view = readViewSettings(`table:${this.tableName}`)
+      const sort = this.view.sort as { field: string; asc: boolean } | undefined
+      if (JSON.stringify(sort) !== JSON.stringify(this.sort)) {
+        this.sort = sort
+        this.newCursor(0)
+      }
       this.store.bump()
     })
   }
@@ -350,6 +442,11 @@ export class TableScreen implements Screen {
           this.selection.clear()
           return true
         }
+        if (this.quick) {
+          this.quick = ''
+          this.newCursor(0)
+          return true
+        }
         return false
       default: break
     }
@@ -373,6 +470,8 @@ export class TableScreen implements Screen {
       case 'x': this.exportDialog(); return true
       case 'b': this.bulkActions(); return true
       case 'a': actionsOverlay(this.store, this); return true
+      case 'q': this.quickSearch(); return true
+      case 'S': this.columnStats(); return true
       case 'D': this.store.push(new TableApisScreen(this.store, this.tableName)); return true
       default: return false
     }
@@ -394,8 +493,10 @@ export class TableScreen implements Screen {
     for (const f of ['csv', 'xlsx', 'json', 'tsv']) out.push({ section: 'Context', label: `Export as ${f}`, key: f === 'csv' ? 'x' : undefined, command: `export ${f}`, run: () => this.exportAs(f) })
     for (const p of this.tableProcesses()) out.push({ section: 'Context', label: `Run ${p.label}`, detail: this.selection.size ? `${this.selection.size} selected` : 'cursor record', disabled: p.parked, run: () => this.runProcess(p.name) })
     out.push({ section: 'Context', label: 'Developer: application APIs of this table', key: 'D', command: 'dev', run: () => this.store.push(new TableApisScreen(this.store, this.tableName)) })
-    out.push({ section: 'Context', label: 'Saved views of this table', command: `saved-view list ${this.tableName}`, run: () => void this.store.commands().run(`saved-view list ${this.tableName}`) })
-    out.push({ section: 'Context', label: `Column statistics: ${this.fields()[this.colCursor]?.label ?? ''}`, command: `table stats ${this.tableName} ${this.fields()[this.colCursor]?.name ?? ''}`, run: () => void this.store.commands().run(`table stats ${this.tableName} ${this.fields()[this.colCursor]?.name ?? ''}`) })
+    out.push({ section: 'Context', label: 'Saved views: open, save, delete', command: 'views', run: () => this.savedViews() })
+    out.push({ section: 'Context', label: `Column statistics: ${this.fields()[this.colCursor]?.label ?? ''}`, key: 'S', run: () => this.columnStats() })
+    out.push({ section: 'Context', label: 'Quick search', key: 'q', detail: this.quick || undefined, run: () => this.quickSearch() })
+    if (this.meta && usesVariants(this.meta as never)) out.push({ section: 'Context', label: `Change ${variantLabel(this.meta as never)}`, detail: this.variant?.name ?? this.variant?.id, run: () => this.chooseVariant(0) })
     return out
   }
 
@@ -453,7 +554,7 @@ export class TableScreen implements Screen {
     }).join(' ')
     const lines: React.ReactNode[] = []
     lines.push(
-      <text key="h">
+      <text flexShrink={0} wrapMode="none" key="h">
         {shown.map((c, i) => {
           const hot = cols.findIndex((x) => x.name === c.name) === this.colCursor
           const mark = this.sort?.field === c.name ? (this.sort.asc ? g.up : g.down) : ''
@@ -463,7 +564,7 @@ export class TableScreen implements Screen {
         <span>{' '.repeat(Math.max(0, inner - header.length))}</span>
       </text>,
     )
-    if (headerRule) lines.push(<text key="r" fg={t.border}>{pad(g.rule.repeat(Math.min(inner, header.length)), inner)}</text>)
+    if (headerRule) lines.push(<text flexShrink={0} wrapMode="none" key="r" fg={t.border}>{pad(g.rule.repeat(Math.min(inner, header.length)), inner)}</text>)
     const pk = this.meta?.primaryKeyField ?? 'id'
     this.rows.forEach((r, i) => {
       const sel = i === this.rowIndex
@@ -471,22 +572,22 @@ export class TableScreen implements Screen {
       const marked = this.selection.has(key)
       const text = (marked ? g.mark + ' ' : '  ') + shown.map((c) => (c.numeric ? padLeft(fieldCell(r, c), c.width) : pad(fieldCell(r, c), c.width))).join(' ')
       const bg = sel ? (focused ? t.selBg : t.selInactiveBg) : zebra && i % 2 === 1 ? t.zebraBg : undefined
-      lines.push(<text key={`r${i}`} fg={sel ? (focused ? t.selFg : t.fg) : marked ? t.markFg : t.fg} bg={bg}>{pad(text, inner)}</text>)
-      if (comfortable) lines.push(<text key={`s${i}`}>{pad('', inner)}</text>)
+      lines.push(<text flexShrink={0} wrapMode="none" key={`r${i}`} fg={sel ? (focused ? t.selFg : t.fg) : marked ? t.markFg : t.fg} bg={bg}>{pad(text, inner)}</text>)
+      if (comfortable) lines.push(<text flexShrink={0} wrapMode="none" key={`s${i}`}>{pad('', inner)}</text>)
     })
     const used = lines.length - 1 - (headerRule ? 1 : 0)
     for (let i = used; i < bodyLines; i++) {
-      lines.push(<text key={`e${i}`} fg={this.error ? t.err : t.dim}>{pad(i === 0 && !this.rows.length ? (this.error ? ` ${this.error}` : this.loading || !this.meta ? ' loading…' : ' (no records match)') : '', inner)}</text>)
+      lines.push(<text flexShrink={0} wrapMode="none" key={`e${i}`} fg={this.error ? t.err : t.dim}>{pad(i === 0 && !this.rows.length ? (this.error ? ` ${this.error}` : this.loading || !this.meta ? ' loading…' : ' (no records match)') : '', inner)}</text>)
     }
     if (this.selection.size) {
-      lines.push(<text key="bulk" fg={t.selFg} bg={t.acc}>{pad(` ${this.selection.size} selected · b run a process on them · Ctrl+A select page · Space toggle · Esc clear`, inner)}</text>)
+      lines.push(<text flexShrink={0} wrapMode="none" key="bulk" fg={t.selFg} bg={t.acc}>{pad(` ${this.selection.size} selected · b run a process on them · Ctrl+A select page · Space toggle · Esc clear`, inner)}</text>)
     }
     const c = this.cursor
-    const filterText = printFilter(this.filter) || 'no filter'
-    lines.push(<text key="f" fg={t.dim}>{pad(` ${filterText}`, inner)}</text>)
+    const filterText = `${printFilter(this.filter) || 'no filter'}${this.quick ? ` · quick "${this.quick}"` : ''}${this.variant ? ` · ${variantLabel(this.meta as never)} ${this.variant.name ?? this.variant.id}` : ''}`
+    lines.push(<text flexShrink={0} wrapMode="none" key="f" fg={t.dim}>{pad(` ${filterText}`, inner)}</text>)
     const status = c ? `${c.total === undefined ? '…' : num(c.total)} records · row ${num(c.index + 1)} · page ${this.rowsPage + 1}/${c.pageCount}${this.sort ? ` · sort ${this.sort.field} ${this.sort.asc ? 'asc' : 'desc'}` : ''} · col ${this.colCursor + 1}/${cols.length}${this.fetchMs !== undefined ? ` · ${this.fetchMs.toFixed(0)} ms` : ''}${this.loading ? ' · loading' : ''}` : 'loading…'
-    const hint = this.store.singleKeys ? ' · a actions · s sort · f filter · v view · x export · Space select' : ''
-    lines.push(<text key="s" fg={t.dim}>{pad(` ${status}${hint}`, inner)}</text>)
+    const hint = this.store.singleKeys ? ' · a actions · s sort · f filter · q search · S stats · v view · x export · Space select' : ''
+    lines.push(<text flexShrink={0} wrapMode="none" key="s" fg={t.dim}>{pad(` ${status}${hint}`, inner)}</text>)
     return <Panel title={this.title()} width={width} height={height} focused={focused}>{lines}</Panel>
   }
 }
