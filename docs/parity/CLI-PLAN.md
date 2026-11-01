@@ -5,7 +5,8 @@ browser-only reason) or **blocked** (citing a server finding in `docs/server-fin
 `todo` at the end. The status source is `STATUS` in `scripts/parity-matrix.py`; regenerate with
 `python3 scripts/parity-matrix.py docs/parity/next-feature-matrix.md`.
 
-Start: 173 pass / 42 partial / 80 todo / 106 n/a of 401 (branch `feat/m1-cli-parity` from `feat/m1-kernel-cli` 6c56b89).
+Start: 173 pass / 42 partial / 80 todo / 106 n/a of 401.
+Checkpoint 1 (bulk load): 188 pass / 41 partial / 66 todo / 106 n/a (branch `feat/m1-cli-parity` from `feat/m1-kernel-cli` 6c56b89).
 
 "unit-tested" in a row note means the sample at :8077 cannot exercise the row (no fixture); the kernel and the
 command are covered by node tests (and a local stub server where a command is involved). Everything else is
@@ -17,20 +18,21 @@ Status column: **plan** = what the row becomes; **done** once the STATUS source 
 
 | Row | Plan | Status |
 |---|---|---|
-| PRC-029 Bulk edit, switched-on fields | `qqq table bulk-edit <t> -r ids\|-w … --set f=v --clear f`; kernel `bulkEditValues` sends `bulkEditEnabledFields`; review shown, `--yes` | plan |
-| PRC-030 Bulk delete | `qqq table bulk-delete <t> -r ids\|-w …`: review, validation, result; asks unless `--yes` | plan |
-| PRC-031 Bulk insert | `qqq table bulk-insert <t> --file x.csv [--mapping m.yaml] [-i]`: upload, mapping (server suggestion cleaned, finding 11), value mapping, review preview, result | plan |
-| PRC-032 Mapping validation, Back | local mapping checks before submit (unmapped column, required without value, layout, key fields); `b` at a mapping or review prompt goes back (isStepBack) | plan |
-| PRC-033 Bulk edit with a file by key fields | `qqq table bulk-edit <t> --file x.csv --key f[,g]` runs `bulkEditWithFile` | plan |
-| PRC-034 Upload instructions and template | instructions printed as text; `--template flat\|tall\|wide [--out]` saves the data: URI template | plan |
-| PRC-046 Saved profiles | `qqq bulk-profile list\|show\|save\|rename\|delete <t>`, `--saved <name>` on bulk-insert/bulk-edit; sample has no saved-profile processes: unit-tested with a stub | plan |
-| PRC-058 Saved profile menu | new, update after confirm (diff of changes printed), rename, delete | plan |
-| PRC-059 Ownership | yours vs shared; only the owner may save, rename, delete (checked before the call) | plan |
-| PRC-060 File mapping fidelity | field help, column preview values, repeated-header warning, `--no-header` | plan |
-| PRC-061 Typed defaults, searchable value mapping, add fields | defaults typed per field (`--default f=v`, labels resolved), value mapping by label search, `-i` add-fields list grouped by table | plan |
-| QRY-031 Bulk edit with checked ids | `-r ids` | plan |
-| QRY-032 Bulk delete of the whole query result | `-w`/`--filter-json` sends the filter | plan |
-| QRY-034 Actions menu | `qqq table actions <t>`: bulk load, bulk edit/delete, table processes, with the command for each | plan |
+| PRC-029 Bulk edit, switched-on fields | `qqq table bulk-edit <t> -r ids\|-w … --set f=v --clear f`; kernel `bulkEditValues` sends `bulkEditEnabledFields`; review shown, `--yes` | done (pass) |
+| PRC-030 Bulk delete | `qqq table bulk-delete <t> -r ids\|-w …`: review, validation, result; asks unless `--yes` | done (pass) |
+| PRC-031 Bulk insert | `qqq table bulk-insert <t> --file x.csv [--mapping m.yaml] [-i]`: upload, mapping (server suggestion cleaned, finding 11), value mapping, review preview, result | done (pass) |
+| PRC-032 Mapping validation, Back | local mapping checks before submit (unmapped column, required without value, layout, key fields); `b` at a mapping or review prompt goes back (isStepBack) | done (pass) |
+| PRC-016 Back (moved here) | verified on bulk insert -i | done (pass) |
+| PRC-033 Bulk edit with a file by key fields | `qqq table bulk-edit <t> --file x.csv --key f[,g]` runs `bulkEditWithFile` | done (pass) |
+| PRC-034 Upload instructions and template | instructions printed as text; `--template flat\|tall\|wide [--out]` saves the data: URI template | done (pass) |
+| PRC-046 Saved profiles | `qqq bulk-profile list\|show\|save\|rename\|delete <t>`, `--saved <name>` on bulk-insert/bulk-edit; sample has no saved-profile processes: unit-tested with a stub | done (pass) |
+| PRC-058 Saved profile menu | new, update after confirm (diff of changes printed), rename, delete | done (pass) |
+| PRC-059 Ownership | yours vs shared; only the owner may save, rename, delete (checked before the call) | done (pass) |
+| PRC-060 File mapping fidelity | field help, column preview values, repeated-header warning, `--no-header` | done (pass) |
+| PRC-061 Typed defaults, searchable value mapping, add fields | defaults typed per field (`--default f=v`, labels resolved), value mapping by label search, `-i` add-fields list grouped by table | done (pass) |
+| QRY-031 Bulk edit with checked ids | `-r ids` | done (pass) |
+| QRY-032 Bulk delete of the whole query result | `-w`/`--filter-json` sends the filter | done (pass) |
+| QRY-034 Actions menu | `qqq table actions <t>`: bulk load, bulk edit/delete, table processes, with the command for each | done (pass) |
 
 ## Records, forms, adornments
 
@@ -70,7 +72,6 @@ Status column: **plan** = what the row becomes; **done** once the STATUS source 
 
 | Row | Plan | Status |
 |---|---|---|
-| PRC-016 back | verified on bulk load (backStep) | plan |
 | PRC-037 ad hoc composite actions and inputs | buttons offered as a choice, inputs prompted, submit-on-enter | plan |
 
 ## Navigation, widgets, dashboards
