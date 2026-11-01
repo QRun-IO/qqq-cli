@@ -190,10 +190,14 @@ returns at once; `qqq print job status <id> --watch` follows later; `qqq print j
 job still queued). The printer given with `--printer` (or `qqq printer use`) is remembered per profile.
 `qqq print list person -w "lastName = Odd" --order -id --columns id,firstName,lastName` prints a table list
 of the whole result (up to 10,000 rows; `--page 2` for one page), and `some-command | qqq print text --title Log`
-prints text. In `qqq ui`, **Ctrl+P prints what you see** on every screen: a record sheet, a table list of
-the grid (all rows or this page), or the screen as text. Tables print only where the server enabled Print
+prints text. Add `--to-file [folder|file]` to any of them to save the PDF instead of printing (no path: the
+download folder, with the stamped name exports use). In `qqq ui`, **Ctrl+P prints what you see** on every
+screen: a record sheet, a table list of the grid (all rows or this page), or a screen's content (or the
+screen as drawn), each page with the app's header and footer; **Save as PDF…** in the printer picker saves
+it like a download. Tables print only where the server enabled Print
 for them (qbit-printing 2.1 `registerAll` enables every table). For local testing without hardware,
-`scripts/print-agent.sh` runs qqq-print-agent's virtual file printer, which writes each job to a directory.
+`scripts/print-agent.sh` runs qqq-print-agent's virtual file printer, which writes each job to `~/Downloads`
+(or `QQQ_PRINT_OUT`; `--dir` shows the folder).
 
 [TRY-IT.md](TRY-IT.md) walks through every command against the sample server.
 

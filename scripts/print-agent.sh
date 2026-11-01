@@ -14,7 +14,8 @@
 #   QQQ_PRINT_AGENT_DIR  qqq-print-agent checkout with tools/virtual-agent
 #                        (default <QRun-IO>/qqq-print-agent next to this repo)
 #   QQQ_PRINT_STATE      pid, log and device identity (default ${TMPDIR:-/tmp}/qqq-print-agent-<port>)
-#   QQQ_PRINT_OUT        where printed documents go (default <state>/printed)
+#   QQQ_PRINT_OUT        where printed documents go (default ~/Downloads, as downloads and exports;
+#                        the agent's own default too); --dir prints the folder in use
 #   QQQ_PRINT_PRINTER_NAME, QQQ_PRINT_DEVICE_NAME   names shown in QQQ
 #
 # Then, from the CLI:   qqq printer list; qqq print person 1 --printer "Virtual PDF printer"
@@ -31,7 +32,7 @@ agent="$agent_dir/tools/virtual-agent/virtual-agent.mjs"
 port="$(node -e 'const u=new URL(process.argv[1]); console.log(u.port || (u.protocol === "https:" ? 443 : 80))' "$server")"
 tmp_root="${TMPDIR:-/tmp}"; state_dir="${QQQ_PRINT_STATE:-${tmp_root%/}/qqq-print-agent-$port}"
 state_dir="${state_dir%/}"
-out_dir="${QQQ_PRINT_OUT:-$state_dir/printed}"
+out_dir="${QQQ_PRINT_OUT:-$HOME/Downloads}"
 pid_file="$state_dir/agent.pid"
 log_file="$state_dir/agent.log"
 identity="$state_dir/device.json"
