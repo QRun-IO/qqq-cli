@@ -66,3 +66,30 @@ Other calls (all throw `ExtensionNotInstalledError` before any request when it i
 { parentCommentId, fieldName })`, `followState`, `follow(table, pk, prefs)`, `unfollow`,
 `myWork()`, `people(q, limit)`, `presenceSnapshot(scope)` (empty when absent). Everything else the
 qbit offers is reachable by operation id through `callOperation`.
+
+## Printing (`printing.ts`)
+
+The printing extension's own operations are the print agent's (enrollment, claims, events, the device
+WebSocket). What a person does goes through the qbit's tables and processes, which `Printing` wraps:
+
+```ts
+const printing = new Printing(registry, {
+  call: (id, input) => callOperation(server, id, input, authenticatedFetch),
+  runProcess: async (name, { values, recordIds }) => (await runProcess({ ..., values, records: { ids: recordIds } })).values,
+})
+await printing.printers({ printableOnly: true })   // approved, exposed by their agent, PDF
+await printing.devices()                            // agents: ONLINE, OFFLINE, PAUSED, DISCONNECTED, REVOKED
+const ids = await printing.print({ table: 'person', ids: ['1', '2'], printer: printerRowId, copies: 1 })
+await printing.watch(ids, { onChange: (jobs) => draw(jobs) })   // until every job is final
+await printing.cancel(ids)                          // jobs still queued in QQQ
+```
+
+- Print exists per table (`printingPrintRecords_{table}`, `tableHasPrint(meta, table)`); it renders each
+  record as a record sheet and returns the queued job ids (`printingJobIds`).
+- `resolvePrinter(printers, text)` takes an id, the agent's printer id, a name or a unique name prefix;
+  `whyNotPrintable(printer)` says why a printer cannot take a record print.
+- Final job states: SPOOLED, SPOOLER_COMPLETED, FAILED (also "Canceled by operator before dispatch"),
+  OUTCOME_UNKNOWN. SPOOLED means the agent's spooler accepted it, not that paper came out.
+- `readRememberedPrinter(profile)` / `writeRememberedPrinter(profile, printer)` keep the printer chosen
+  last per profile (`printing.printers` in config.json), shared by the CLI and the TUI.
+- Without the extension every call throws `ExtensionNotInstalledError` before any request.
