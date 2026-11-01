@@ -9,7 +9,7 @@ import { destinationChoices, esbOverviewBlocks } from '../src/esb'
 import { isShutdownNoise, quietShutdownNoise } from '../src/exit'
 import { htmlBlocks, htmlRowBlocks } from '../src/html-rows'
 import { iconGlyph } from '../src/icons'
-import { parseLink } from '../src/links'
+import { TRUSTED_LINK, mutatingCommand, parseLink, runTrustedCommand } from '../src/links'
 import { NO_QUICK_SEARCH, paletteGroups, paletteRows, recordItem, type PaletteItem } from '../src/palette'
 import { HELP_POINTER, helpKeyGroups } from '../src/help-keys'
 import { structuredLines } from '../src/structured'
@@ -17,21 +17,56 @@ import { structuredOutput } from '../src/commands'
 import { summaryText, viewingText, commentLines } from '../src/collab'
 import { blockLines } from '../src/widgets'
 
-const known = { tables: { jobs_job: {}, alerts_channel: {}, person: {} }, processes: { syncOrder: {} }, apps: { jobs: {}, alerts: {} } }
+const known = { tables: { jobs_job: {}, alerts_channel: {}, person: {} }, processes: { syncOrder: {} }, apps: { jobs: {}, alerts: {}, esb: {} } }
 
-test('links: a jobs statistic link opens the filtered grid; records, processes, apps, commands and ESB destinations', () => {
+test('links: a jobs statistic link opens the filtered grid; records, processes and apps are checked against the metadata', () => {
   const href = '/jobs/jobs_job?filter=%7B%22criteria%22%3A%5B%7B%22fieldName%22%3A%22status%22%2C%22operator%22%3A%22IN%22%2C%22values%22%3A%5B%22RUNNING%22%5D%7D%5D%2C%22booleanOperator%22%3A%22AND%22%7D'
   expect(parseLink(href, known)).toEqual({ kind: 'table', table: 'jobs_job', filter: { criteria: [{ fieldName: 'status', operator: 'IN', values: ['RUNNING'] }], booleanOperator: 'AND' } })
   expect(parseLink('/app/alerts_channel', known)).toEqual({ kind: 'table', table: 'alerts_channel' })
-  expect(parseLink('/people/person/42', known)).toEqual({ kind: 'record', table: 'person', primaryKey: '42' })
-  expect(parseLink('/people/person/42/edit', known)).toEqual({ kind: 'record', table: 'person', primaryKey: '42' })
-  expect(parseLink('/esb/syncOrder', known)).toEqual({ kind: 'process', process: 'syncOrder' })
+  expect(parseLink('/app/person/42', known)).toEqual({ kind: 'record', table: 'person', primaryKey: '42' })
+  expect(parseLink('/jobs/person/42/edit', known)).toEqual({ kind: 'record', table: 'person', primaryKey: '42' })
+  expect(parseLink('/app/syncOrder', known)).toEqual({ kind: 'process', process: 'syncOrder' })
   expect(parseLink('/jobs', known)).toEqual({ kind: 'app', app: 'jobs' })
-  expect(parseLink(':esb table order', known)).toEqual({ kind: 'command', line: 'esb table order' })
-  expect(parseLink('esb:orderEvents', known)).toEqual({ kind: 'esb', destination: 'orderEvents' })
-  expect(parseLink('https://example.com/x', known)).toEqual({ kind: 'external', url: 'https://example.com/x' })
-  expect(parseLink('/x/y?filter=not-json')).toEqual({ kind: 'table', table: 'y' })
-  expect(parseLink('/nothing/known', known)).toBeUndefined()
+  // a filter that is not a QueryFilter is dropped, the grid still opens
+  expect(parseLink('/jobs/jobs_job?filter=%7B%22x%22%3A1%7D', known)).toEqual({ kind: 'table', table: 'jobs_job' })
+})
+
+test('links from server content never run commands: `:` text, unknown tables, odd keys and other sites are inert notices', () => {
+  expect(parseLink(':process run deleteEverything', known)).toEqual({ kind: 'notice', text: ':process run deleteEverything' })
+  expect(parseLink(':table delete person 1', known).kind).toBe('notice')
+  expect(parseLink('/app/no_such_table', known).kind).toBe('notice')
+  expect(parseLink('/jobs/no_such_table/1', known).kind).toBe('notice')
+  expect(parseLink('/nothing/known', known).kind).toBe('notice')
+  expect(parseLink('/app/person/1%20--yes', known).kind).toBe('notice')
+  expect(parseLink('/app/person/-rf', known).kind).toBe('notice')
+  expect(parseLink('https://evil.example/x', known, 'http://srv')).toEqual({ kind: 'notice', text: 'https://evil.example/x' })
+  expect(parseLink('javascript:alert(1)', known).kind).toBe('notice')
+  expect(parseLink('esb:orderEvents', known).kind).toBe('notice')
+  expect(parseLink('/app/esb', known, 'http://srv')).toEqual({ kind: 'notice', text: 'http://srv/app/esb' })
+})
+
+test('trusted links: only TUI-built (symbol-keyed) rows carry them; a server row with __href is a plain link; mutating commands confirm', () => {
+  const serverRow = { kind: 'table' as const, columns: ['a'], headers: ['A'], rows: [{ a: 'x', __href: ':table delete person 1' }] }
+  const line = blockLines([serverRow], 40).find((l) => l.text.startsWith('x'))!
+  expect(line.trusted).toBeUndefined()
+  expect(parseLink(line.href!, known).kind).toBe('notice')
+  // JSON cannot carry the symbol key
+  expect(JSON.parse(JSON.stringify({ [TRUSTED_LINK]: { kind: 'command', line: 'x' } }))).toEqual({})
+  expect(mutatingCommand('esb table order')).toBe(false)
+  expect(mutatingCommand('esb dead-letters syncOrder.orderEvents')).toBe(false)
+  expect(mutatingCommand('process run x')).toBe(true)
+  expect(mutatingCommand('table delete person 1')).toBe(true)
+  expect(mutatingCommand('collab post-records-comments t 1')).toBe(true)
+  const ran: string[] = []
+  const confirms: string[] = []
+  const flashes: string[] = []
+  const store = { flash: (t: string) => flashes.push(t), confirm: (t: string, yes: () => void) => { confirms.push(t); yes() }, commands: () => ({ run: async (l: string) => { ran.push(l) } }) }
+  runTrustedCommand(store as never, 'esb table order')
+  expect(confirms).toEqual([])
+  expect(flashes).toEqual(['running :esb table order'])
+  runTrustedCommand(store as never, 'process run x')
+  expect(confirms).toEqual(['Run :process run x?'])
+  expect(ran).toEqual(['esb table order', 'process run x'])
 })
 
 test('jobs widget: statistics with a url show label and count only, and carry the link for Enter', () => {
@@ -60,10 +95,14 @@ test('ESB widget: the overview as a table of destinations (like :esb overview) w
   expect(lines[0]!.text).toContain('Triggers')
   const row = lines.find((l) => l.text.startsWith('orderEvents'))!
   expect(row.text).toMatch(/orderEvents\s+TOPIC\s+artemis\s+order\s+Sync Order\s+4\s+3\s+1\s+0/)
-  expect(row.href).toBe('esb:orderEvents')
+  expect(row.trusted).toEqual({ kind: 'esb', destination: 'orderEvents' })
+  expect(row.href).toBeUndefined()
   expect(lines.at(-1)!.text).toContain('1 destination · artemis connected')
   expect(esbOverviewBlocks({ destinations: [], providers: [] })).toEqual([{ kind: 'text', text: 'No ESB destinations.' }])
   expect(destinationChoices(overview, 'orderEvents').map((c) => c.line)).toEqual(['esb table order', 'esb process syncOrder', 'esb messages orderEvents --trigger syncOrder.orderEvents', 'esb dead-letters syncOrder.orderEvents'])
+  // names from the server are quoted into the command (one argument each)
+  const odd = { destinations: [{ ...overview.destinations[0], name: 'a b', triggers: [{ name: 'x --yes', processName: 'p' }] }] }
+  expect(destinationChoices(odd, 'a b').map((c) => c.line)).toContain('esb messages "a b" --trigger "x --yes"')
 })
 
 const ALERTS_SETUP = '<div style="opacity:.75">Everything Alerts needs is set up.</div>'
@@ -89,18 +128,19 @@ test('alerts setup widget: label, status and detail in aligned columns, the deta
   expect(htmlRowBlocks('<p>Just a paragraph</p><p>and another</p>')).toBeUndefined()
 })
 
-test('structured output: scalars as key/value rows, arrays of objects as clipped sub-tables, nested objects indented', () => {
-  const value = { items: Array.from({ length: 20 }, (_, i) => ({ id: i + 1, title: `Alert ${i + 1}`, meta: { a: 1 } })), total: 20, limits: { maxRows: 10000, pageSize: 500 }, tags: ['a', 'b'] }
-  const lines = structuredLines(value, 80, { maxRows: 5 }).map((l) => l.text)
-  expect(lines[0]).toBe('items (20)')
-  expect(lines[1]).toMatch(/^ {2}id\s+title\s+meta/)
-  expect(lines.some((l) => /^ {2}1\s+Alert 1\s+\{"a":1\}/.test(l))).toBe(true)
-  expect(lines.some((l) => l.includes('… 15 more rows'))).toBe(true)
-  expect(lines).toContain('total  20')
-  expect(lines).toContain('limits')
-  expect(lines.some((l) => /^ {2}maxRows\s+10000$/.test(l))).toBe(true)
-  expect(lines).toContain('tags   a, b')
-  expect(lines.some((l) => l.includes('[{"id"'))).toBe(false)
+test('structured output: the kernel layout (key/value rows, sub-tables fitted to the width), list headings coloured', () => {
+  const value = { items: Array.from({ length: 3 }, (_, i) => ({ id: i + 1, title: `Alert ${i + 1}`, owner: { name: 'Pat' } })), total: 3, limits: { maxRows: 10000, pageSize: 500 }, tags: ['a', 'b'] }
+  const lines = structuredLines(value, 80)
+  const text = lines.map((l) => l.text)
+  expect(text).toContain('total            3')
+  expect(text).toContain('limits.maxRows   10000')
+  expect(text.some((l) => /^tags\s+a, b$/.test(l))).toBe(true)
+  const heading = lines.find((l) => l.text === 'items (3)')!
+  expect(heading.bold).toBe(true)
+  expect(text.some((l) => /^id\s+title\s+owner\.name/.test(l))).toBe(true)
+  expect(text.some((l) => /^1\s+Alert 1\s+Pat/.test(l))).toBe(true)
+  expect(text.some((l) => l.includes('[{"id"'))).toBe(false)
+  expect(lines.every((l) => l.text.length <= 80)).toBe(true)
 })
 
 test('structured output is used for extension operations and api, not for first-class commands or explicit formats', () => {
@@ -117,7 +157,7 @@ test('structured output is used for extension operations and api, not for first-
 test('widget payloads without a block draw as rows (not "no terminal rendering yet")', () => {
   const lines = blockLines([{ kind: 'raw', type: 'NEW_THING', data: { type: 'NEW_THING', count: 3, rows: [{ a: 1, b: 'x' }] } }], 60).map((l) => l.text)
   expect(lines).toContain('count  3')
-  expect(lines.some((l) => /^ {2}a\s+b/.test(l))).toBe(true)
+  expect(lines.some((l) => /^a\s+b/.test(l))).toBe(true)
   expect(lines.join('\n')).not.toContain('no terminal rendering')
 })
 

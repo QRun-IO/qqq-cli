@@ -287,6 +287,13 @@ candidate's, plus the changes since it listed first.
 
 ### Security
 
+- Links in the UI's widgets and server HTML are content: Enter opens a table (with a filter that has
+  the shape of a query filter), a record (a plain key), a process or an app only when the metadata knows
+  it, and shows the address of anything else (another site included) without opening a browser. Text
+  starting with `:` in a server link is shown, never run. Only links the TUI builds itself (ESB destination
+  rows, keyed so that server JSON cannot forge them) run commands; the command is shown in the status line
+  first, server names in it are quoted as single arguments, and a command that changes data asks first.
+
 Fixes for the 19 CodeQL alerts raised on the release pull request:
 
 - `qqq table edit` and `qqq developer` no longer build the editor's shell command from the file

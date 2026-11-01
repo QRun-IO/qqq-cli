@@ -12,6 +12,7 @@
 import type { RenderBlock } from '@qrun-io/qqq-core'
 import { wrap } from './overlays/basic'
 import { structuredLines } from './structured'
+import { TRUSTED_LINK, type TrustedLink } from './links'
 import { glyphs, theme } from './theme'
 import { pad, padLeft, trunc } from './util/text'
 
@@ -20,8 +21,10 @@ export interface StyledLine {
   fg?: string
   bg?: string
   bold?: boolean
-  /** A link the line opens on Enter (a web path, `esb:destination`, `:command`), read by links.ts. */
+  /** A server link the line opens on Enter (content: links.ts reads it against the metadata, never runs it). */
   href?: string
+  /** A link the TUI built itself (an ESB destination row). */
+  trusted?: TrustedLink
 }
 
 function fmt(n: number): string {
@@ -30,10 +33,11 @@ function fmt(n: number): string {
 
 /**
  * Aligned table lines that fit a width (columns shrink from the widest). `hrefs` gives a row its
- * link. A table whose headers are all empty is a layout of aligned columns (no header, no rule):
+ * link (a server href or a TUI-built link). A table whose headers are all empty is a layout of aligned columns (no header, no rule):
  * the last column takes the remaining width and wraps under itself.
  */
-export function tableLines(headers: string[], rows: string[][], width: number, hrefs: Array<string | undefined> = []): StyledLine[] {
+export function tableLines(headers: string[], rows: string[][], width: number, links: Array<{ href?: string; trusted?: TrustedLink } | undefined> = []): StyledLine[] {
+  const linkOf = (k: number) => (links[k]?.trusted ? { trusted: links[k]!.trusted } : links[k]?.href ? { href: links[k]!.href } : {})
   const t = theme()
   if (!headers.length) return []
   const headerless = headers.every((h) => !h)
@@ -50,7 +54,7 @@ export function tableLines(headers: string[], rows: string[][], width: number, h
       const wrapped = wrap(r[last] ?? '', widths[last]!)
       wrapped.forEach((part, j) => {
         const leading = j === 0 ? r.slice(0, last).map((c, i) => pad(c, widths[i]!)).join('  ') + '  ' : ' '.repeat(lead)
-        out.push({ text: leading + part, ...(hrefs[k] ? { href: hrefs[k] } : {}) })
+        out.push({ text: leading + part, ...linkOf(k) })
       })
     })
     return out
@@ -60,7 +64,7 @@ export function tableLines(headers: string[], rows: string[][], width: number, h
   return [
     { text: line(headers), fg: t.acc, bold: true },
     { text: widths.map((w) => glyphs().rule.repeat(w)).join('  '), fg: t.dim },
-    ...rows.map((r, k) => ({ text: line(r), ...(hrefs[k] ? { href: hrefs[k] } : {}) })),
+    ...rows.map((r, k) => ({ text: line(r), ...linkOf(k) })),
   ]
 }
 
@@ -88,7 +92,7 @@ export function blockLines(blocks: RenderBlock[], width: number): StyledLine[] {
         break
       }
       case 'table':
-        out.push(...tableLines(b.headers, b.rows.map((r) => b.columns.map((c) => String(r[c] ?? ''))), width, b.rows.map((r) => (typeof r.__href === 'string' ? r.__href : undefined))))
+        out.push(...tableLines(b.headers, b.rows.map((r) => b.columns.map((c) => String(r[c] ?? ''))), width, b.rows.map((r) => ({ href: typeof r.__href === 'string' ? r.__href : undefined, trusted: (r as { [TRUSTED_LINK]?: TrustedLink })[TRUSTED_LINK] }))))
         if (!b.rows.length) out.push({ text: '(no rows)', fg: t.dim })
         break
       case 'series': {
