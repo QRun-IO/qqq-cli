@@ -254,7 +254,7 @@ export function profileSubmitValues(mapping: BulkMapping): Record<string, string
 }
 
 /**
- * The server's suggestion made safe to submit (server finding 11): a child-table field that
+ * The server's suggestion made safe to submit (server finding 26): a child-table field that
  * reuses a column a main-table field already reads is dropped, and with no child field left the
  * layout is FLAT. Header names are pointed at this file's columns.
  */

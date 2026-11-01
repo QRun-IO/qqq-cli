@@ -7,7 +7,8 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chipAnsi, displayDateTime, readFilePreferences, safeFileName, saveDownload, valueText as recordValueText, type DisplayOptions, type FieldMeta, type RecordLike } from '@qrun-io/qqq-core'
+import { chipAnsi, deniedTableReason, displayDateTime, type TableAction, readFilePreferences, safeFileName, saveDownload, valueText as recordValueText, type DisplayOptions, type FieldMeta, type RecordLike } from '@qrun-io/qqq-core'
+import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { UsageError } from '../context.js'
 
 export type Json = Record<string, unknown>
@@ -174,4 +175,13 @@ export function copyToClipboard(text: string): string {
   if (!process.stderr.isTTY) throw new UsageError('No clipboard tool (pbcopy, clip, wl-copy, xclip, xsel) and no terminal for OSC 52.')
   process.stderr.write(`\x1b]52;c;${Buffer.from(text, 'utf8').toString('base64')}\x07`)
   return 'through the terminal (OSC 52)'
+}
+
+/**
+ * Refuses an action the table's metadata denies (a DISABLED table is listed with its permissions
+ * false), exit 3 with the reason, before any request; the server would refuse it too.
+ */
+export function requireTable(meta: Json, action: TableAction): void {
+  const reason = deniedTableReason(meta, action)
+  if (reason) throw new UiApiError(403, { code: 'PERMISSION_DENIED', message: reason })
 }

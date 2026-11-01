@@ -28,6 +28,8 @@ export interface NativeSignInConfig {
   issuer: string
   clientId: string
   scope: string
+  /** The API audience the access token is for (Auth0 issues a JWT for the API only when it is asked for one). */
+  audience?: string
 }
 
 /** The parts of an OIDC discovery document a native client uses. */
@@ -60,13 +62,28 @@ export async function getNativeSignInConfig(baseUrl: string, fetchImpl: typeof f
   if (!response.ok) throw new Error(`GET /qqq/v1/metaData/authentication answered ${response.status}`)
   const body = await response.json() as { type?: string; values?: Record<string, unknown> }
   const values = body.values ?? {}
-  if (body.type !== 'OAUTH2') throw new Error(`The server uses ${body.type ?? 'unknown'} authentication; this client supports OAUTH2.`)
+  if (body.type === 'AUTH_0') return auth0SignInConfig(values)
+  if (body.type !== 'OAUTH2') throw new Error(`The server uses ${body.type ?? 'unknown'} authentication; this client supports OAUTH2 and AUTH_0.`)
   const clientId = typeof values.nativeClientId === 'string' ? values.nativeClientId : undefined
   if (!clientId) throw new Error('The server publishes no native client (values.nativeClientId); it cannot be used from a CLI yet.')
   const issuer = typeof values.nativeClientBaseUrl === 'string' ? values.nativeClientBaseUrl : String(values.baseUrl)
   const scopes = new Set(String(values.scopes ?? 'openid profile email').split(/\s+/).filter(Boolean))
   scopes.add('offline_access')
   return { issuer, clientId, scope: [...scopes].join(' ') }
+}
+
+/**
+ * The native sign-in of an AUTH_0 server (`values`: `baseUrl`, `clientId`, `audience`, and the
+ * optional `nativeClientId` of an Auth0 Native application with the device code grant): the tenant
+ * is the issuer, the audience is sent so the access token is a JWT the server can verify.
+ */
+export function auth0SignInConfig(values: Record<string, unknown>): NativeSignInConfig {
+  const clientId = typeof values.nativeClientId === 'string' && values.nativeClientId ? values.nativeClientId : typeof values.clientId === 'string' ? values.clientId : undefined
+  if (!clientId) throw new Error('The AUTH_0 server publishes no client id (values.clientId or values.nativeClientId).')
+  if (typeof values.baseUrl !== 'string' || !values.baseUrl) throw new Error('The AUTH_0 server publishes no tenant (values.baseUrl).')
+  const scopes = new Set(String(values.scopes ?? 'openid profile email').split(/\s+/).filter(Boolean))
+  scopes.add('offline_access')
+  return { issuer: values.baseUrl, clientId, scope: [...scopes].join(' '), ...(typeof values.audience === 'string' && values.audience ? { audience: values.audience } : {}) }
 }
 
 /**
@@ -110,7 +127,7 @@ export async function deviceSignIn(
   const endpoints = await discoverProvider(config.issuer, fetchImpl)
   if (!endpoints.deviceAuthorizationEndpoint) throw new Error('The provider does not offer the device-authorization grant')
 
-  const start = await postForm(fetchImpl, endpoints.deviceAuthorizationEndpoint, { client_id: config.clientId, scope: config.scope }, options.signal)
+  const start = await postForm(fetchImpl, endpoints.deviceAuthorizationEndpoint, { client_id: config.clientId, scope: config.scope, ...(config.audience ? { audience: config.audience } : {}) }, options.signal)
   if (!start.ok) throw new Error(`Device authorization failed: ${start.body.error_description ?? start.body.error ?? start.status}`)
   const deviceCode = String(start.body.device_code)
   let interval = Number(start.body.interval ?? 5)
@@ -177,6 +194,7 @@ export function authorizationUrl(endpoints: ProviderEndpoints, config: NativeSig
   url.searchParams.set('client_id', config.clientId)
   url.searchParams.set('redirect_uri', request.redirectUri)
   url.searchParams.set('scope', config.scope)
+  if (config.audience) url.searchParams.set('audience', config.audience)
   url.searchParams.set('state', request.state)
   url.searchParams.set('code_challenge', request.challenge)
   url.searchParams.set('code_challenge_method', 'S256')

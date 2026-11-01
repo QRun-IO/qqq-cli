@@ -22,7 +22,43 @@ import type { SecretStore } from './keyring.js'
 /** What is stored per profile: OAuth2 tokens from the device flow, or a server session from manageSession. */
 export type StoredLogin =
   | { kind?: 'oauth'; config: NativeSignInConfig; tokens: TokenSet }
-  | { kind: 'session'; authType: string; sessionUUID: string; user?: Record<string, unknown>; createdAt: string }
+  | { kind: 'session'; authType: string; sessionUUID: string; user?: Record<string, unknown>; createdAt: string; cookieName?: SessionCookieName }
+
+/** The cookie a server session travels in: `sessionUUID` (manageSession: MOCK, FULLY_ANONYMOUS) or `sessionId` (TABLE_BASED). */
+export type SessionCookieName = 'sessionUUID' | 'sessionId'
+
+/** The Cookie header value for a stored server session. */
+export function sessionCookieHeader(login: { sessionUUID: string; cookieName?: SessionCookieName }): string {
+  return `${login.cookieName ?? 'sessionUUID'}=${login.sessionUUID}`
+}
+
+/** A TABLE_BASED sign-in was refused (wrong password, unknown user): one message, nothing stored. */
+export class PasswordSignInError extends Error {}
+
+/**
+ * Signs in to a TABLE_BASED server with a username and password (the CLI's way; the TUI uses
+ * {@link signInWithPassword} over manageSession): one request with HTTP Basic
+ * credentials (the server's TableBasedAuthenticationModule checks the password hash, inserts a
+ * session and answers with a `sessionId` cookie), then the session is sent as that cookie. No
+ * password is kept. A refused sign-in throws {@link PasswordSignInError} with the server's message.
+ */
+export async function signInWithPasswordCookie(baseUrl: string, username: string, password: string, clientChannel: string, fetchImpl: typeof fetch = fetch): Promise<{ sessionId: string }> {
+  const basic = Buffer.from(`${username}:${password}`, 'utf8').toString('base64')
+  const response = await fetchImpl(new URL('/qqq/v1/metaData', baseUrl), { headers: { Authorization: `Basic ${basic}`, 'X-QQQ-Client': clientChannel, accept: 'application/json' } })
+  if (response.status === 401 || response.status === 403) {
+    const body = await response.json().catch(() => ({})) as { message?: string; error?: string }
+    throw new PasswordSignInError(body.message ?? body.error ?? 'Incorrect username or password.')
+  }
+  if (!response.ok) throw new Error(`The server answered HTTP ${response.status} to the sign-in`)
+  const cookies = typeof (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie === 'function'
+    ? (response.headers as Headers & { getSetCookie: () => string[] }).getSetCookie()
+    : (response.headers.get('set-cookie') ?? '').split(/,(?=\s*\w+=)/)
+  for (const cookie of cookies) {
+    const m = /^\s*sessionId=([^;]+)/.exec(cookie)
+    if (m && m[1]) return { sessionId: decodeURIComponent(m[1]) }
+  }
+  throw new Error('The server accepted the password but set no sessionId cookie (is it a TABLE_BASED server?)')
+}
 
 /** The keyring account of a profile's sign-in. */
 export function loginAccount(target: Pick<ResolvedProfile, 'name' | 'server'>): string {
@@ -94,7 +130,7 @@ export async function currentCredential(options: LoginFetchOptions, force = fals
   if (env.QQQ_TOKEN) return { bearer: env.QQQ_TOKEN }
   const login = await readLogin(options.store, options.target)
   if (!login) return {}
-  if (login.kind === 'session') return { cookie: `sessionUUID=${login.sessionUUID}` }
+  if (login.kind === 'session') return { cookie: sessionCookieHeader(login) }
   if ((force || isExpiring(login.tokens)) && login.tokens.refreshToken) {
     const tokens = await refreshTokens(login.config, login.tokens.refreshToken, options.fetch ?? fetch)
     await writeLogin(options.store, options.target, { kind: 'oauth', config: login.config, tokens }, env)

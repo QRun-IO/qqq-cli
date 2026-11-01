@@ -17,7 +17,7 @@ import {
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch } from '../session.js'
-import { countFooter, intOption, useColor, valueText, writeDownload, type Json } from './shared.js'
+import { countFooter, intOption, useColor, valueText, writeDownload, requireTable, type Json } from './shared.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
 /** Reads one record (`{ record }` or a bare record). */
@@ -135,6 +135,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
     .action(async (name: string, primaryKey: string, associationName: string | undefined, options: { limit: string; skip: string; all?: boolean; reveal?: boolean; variant?: string }) => {
       const c = ctx()
       const meta = await c.tableMeta<TableMetaLike>(name)
+      requireTable(meta as unknown as Json, 'read')
       const all = associationsOf(meta)
       if (!all.length) throw new UsageError(`${meta.label ?? name} has no associations (child lists).`)
       const limit = intOption(options.limit, '--limit', 1)!
@@ -197,6 +198,7 @@ export function registerRelated(program: Command, ctx: () => Context): void {
     .action(async (name: string, primaryKey: string, fieldName: string, options: { out?: string; variant?: string }) => {
       const c = ctx()
       const meta = await c.tableMeta<TableMetaLike>(name)
+      requireTable(meta as unknown as Json, 'read')
       const field = meta.fields[fieldName]
       if (!field) throw new UsageError(`No field "${fieldName}" in ${name}`)
       const variant = await chooseVariant(c, meta as unknown as Json, options.variant)

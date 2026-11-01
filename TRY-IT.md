@@ -348,8 +348,26 @@ qqq script test <t> <pk> <field> -v input=value     # run a script against test 
 qqq table widget-form <t> <pk> <widget> --set f=v   # edit a dynamicForm widget on a record form (none in the sample)
 ```
 
-Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet in
-the CLI: jobs on a durable-jobs server, TABLE_BASED sign-in. Built but not verifiable against this sample, which has none of them:
+Dashboards, navigation, reports, sharing and sign-in added for parity:
+
+```sh
+qqq home                                        # counts, quick actions, one card per app
+qqq find person                                 # the palette: apps, tables, processes, reports by label, with the command
+qqq apps show SampleWidgetsDashboard --widgets  # every widget once, in declared order, sized in twelfths
+qqq widget get SampleMultiStatisticsWidget      # groups with icon, header and values
+qqq widget get <widget> --record <table>=<id>   # widgets on a record (cronUI, pivot and filter setups read it)
+qqq widget get <process widget> --run           # run a process widget's process here
+qqq report run <report> --format xlsx -v name=value --out-dir .   # through the report's process; no process: the report route (--out)
+qqq saved-report list ; qqq saved-report show <r> ; qqq saved-report preview <r> -l 10
+qqq saved-report set <r> -w "state = ${variable.state}" -o -total --columns id,total
+qqq saved-report pivot <r> --rows state --values SUM:total ; qqq saved-report pivot <r> --clear
+qqq saved-report run <r> --format csv ; qqq saved-report schedule <r> --cron "0 0 7 ? * MON-FRI" --time-zone America/Chicago --to me@example.com
+qqq share list savedReport <id> ; qqq share add savedReport <id> user:<id> --scope read-only ; qqq share scope savedReport <id> <share> read-write
+qqq login --username <name>                     # TABLE_BASED servers (password asked, or QQQ_PASSWORD); the sample uses MOCK
+qqq table query person -w "lastName ~ sample"   # text matches send CASE_INSENSITIVE (the server drops it until qqq#1358); ~= matches case
+```
+
+Where M1 stands: `docs/parity/feature-matrix.md` has the CLI status of every Next UI acceptance row. Not yet verifiable here: jobs on a durable-jobs server, TABLE_BASED and AUTH_0 sign-in (stub-tested). Built but not verifiable against this sample, which has none of them:
 saved views, server-side column statistics (columnStats), audits, a variant-backed table, exposed joins (joins were
 checked through an association join instead); node tests and a local stub server cover those.
 

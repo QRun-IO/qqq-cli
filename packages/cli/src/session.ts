@@ -19,17 +19,15 @@ import {
   UiApiError, createUiApiClient, getNativeSignInConfig, isExpiring, keepIdToken, refreshTokens,
   type NativeSignInConfig, type TokenSet, type UiApiClient,
 } from '@qrun-io/qqq-ui-api-client'
-import { defaultSecretStore, readConfig, resolveProfile, upsertProfile, type ResolvedProfile, type SecretStore } from '@qrun-io/qqq-core'
+import { defaultSecretStore, readConfig, resolveProfile, sessionCookieHeader, type StoredLogin as CoreStoredLogin, upsertProfile, type ResolvedProfile, type SecretStore } from '@qrun-io/qqq-core'
 
 import { CLI_VERSION } from './version.js'
 
 export { CLI_VERSION }
 export const CLIENT_CHANNEL = `cli/qqq-cli ${CLI_VERSION}`
 
-/** What is stored per profile: OAuth2 tokens from the device flow, or a server session from manageSession. */
-export type StoredLogin =
-  | { kind?: 'oauth'; config: NativeSignInConfig; tokens: TokenSet }
-  | { kind: 'session'; authType: string; sessionUUID: string; user?: Record<string, unknown>; createdAt: string }
+/** What is stored per profile: OAuth2 tokens, or a server session (manageSession, or a TABLE_BASED sessionId cookie). */
+export type StoredLogin = CoreStoredLogin
 
 let store: SecretStore | undefined
 function secrets(): SecretStore {
@@ -98,7 +96,7 @@ export async function currentToken(t: Target, force = false): Promise<string | u
   if (process.env.QQQ_TOKEN) return process.env.QQQ_TOKEN
   const login = await getLogin(t)
   if (!login) return undefined
-  if (login.kind === 'session') return login.sessionUUID
+  if (login.kind === 'session') return login.cookieName === 'sessionId' ? undefined : login.sessionUUID
   if ((force || isExpiring(login.tokens)) && login.tokens.refreshToken) {
     let refreshed: TokenSet
     try {
@@ -118,7 +116,24 @@ export async function currentToken(t: Target, force = false): Promise<string | u
 export async function sessionCookieFor(t: Target): Promise<string | undefined> {
   if (process.env.QQQ_TOKEN) return undefined
   const login = await getLogin(t)
-  return login?.kind === 'session' ? login.sessionUUID : undefined
+  return login?.kind === 'session' && login.cookieName !== 'sessionId' ? login.sessionUUID : undefined
+}
+
+/** The whole Cookie header of the target's server session (sessionUUID=… or, TABLE_BASED, sessionId=…). */
+export async function sessionCookieHeaderFor(t: Target): Promise<string | undefined> {
+  if (process.env.QQQ_TOKEN) return undefined
+  const login = await getLogin(t)
+  return login?.kind === 'session' ? sessionCookieHeader(login) : undefined
+}
+
+/** A fetch that adds a TABLE_BASED session's sessionId cookie (the typed client sends only sessionUUID). */
+function sessionIdFetch(t: Target): typeof fetch {
+  return async (input, init) => {
+    const request = new Request(input as RequestInfo, init)
+    const login = process.env.QQQ_TOKEN ? undefined : await getLogin(t)
+    if (login?.kind === 'session' && login.cookieName === 'sessionId') request.headers.set('Cookie', sessionCookieHeader(login))
+    return fetch(request)
+  }
 }
 
 /** An authenticated UI API client for the target (refreshes once on 401). */
@@ -128,6 +143,7 @@ export function clientFor(t: Target): UiApiClient {
     clientChannel: CLIENT_CHANNEL,
     token: () => currentToken(t),
     sessionCookie: () => sessionCookieFor(t),
+    fetch: sessionIdFetch(t),
     onUnauthorized: async () => {
       const login = await getLogin(t)
       if (process.env.QQQ_TOKEN || !login || login.kind === 'session' || !login.tokens.refreshToken) return false
@@ -146,9 +162,9 @@ export function authenticatedFetch(t: Target): typeof fetch {
   return async (input, init) => {
     const request = new Request(input as RequestInfo, init)
     request.headers.set('X-QQQ-Client', CLIENT_CHANNEL)
-    const session = await sessionCookieFor(t)
-    if (session) {
-      request.headers.set('Cookie', `sessionUUID=${session}`)
+    const cookie = await sessionCookieHeaderFor(t)
+    if (cookie) {
+      request.headers.set('Cookie', cookie)
     } else {
       const token = await currentToken(t)
       if (token) request.headers.set('Authorization', `Bearer ${token}`)
