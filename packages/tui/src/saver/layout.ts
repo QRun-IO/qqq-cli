@@ -24,7 +24,7 @@ import { pad, trunc } from '../util/text'
 import { Canvas, type Style } from './canvas'
 import { FONT_HEIGHT, blockText, blockWidth, canDraw } from './font'
 import { sparkline, type TileState } from './model'
-import { queryFrame, queryPoseAt, querySize, type QueryPose } from './query-art'
+import { QUERY_COLOR, queryFrame, queryPoseAt, querySize, type QueryPose, type QuerySize } from './query-art'
 import { SAVER_STYLES, type SaverStyle, type SaverStyleSetting } from './settings'
 
 export interface SaverTile {
@@ -226,7 +226,7 @@ function drawPin(c: Canvas, input: SaverInput): void {
 }
 
 function palette(t: ThemeTokens): string[] {
-  return [t.acc, t.acc2, t.ok, t.warn, t.markFg, t.err]
+  return [QUERY_COLOR, t.acc2, t.ok, t.warn, t.markFg, t.err]
 }
 
 /** The block-letter logo under Query: the profile's name, with the server host beneath. */
@@ -262,16 +262,18 @@ export interface Box {
 interface BounceSprite {
   w: number
   h: number
-  size: 'large' | 'small'
+  size: QuerySize
   logo: boolean
 }
 
 /** Query with the name logo under him when there is room (large Query only when it all fits). */
 function bounceSprite(bodyH: number, width: number, logo: NameLogo): BounceSprite {
   const large = querySize('large')
+  const medium = querySize('medium')
   const small = querySize('small')
   const extra = 2 + logo.rows.length
   if (bodyH >= large.height + extra && width >= Math.max(large.width, logo.w) + 4) return { w: Math.max(large.width, logo.w), h: large.height + extra, size: 'large', logo: true }
+  if (bodyH >= medium.height + extra && width >= Math.max(medium.width, logo.w) + 4) return { w: Math.max(medium.width, logo.w), h: medium.height + extra, size: 'medium', logo: true }
   if (bodyH >= small.height + extra) return { w: Math.min(width, Math.max(small.width, logo.w)), h: small.height + extra, size: 'small', logo: true }
   return { w: small.width, h: small.height, size: 'small', logo: false }
 }
@@ -301,7 +303,7 @@ export interface BounceLayout {
   /** The sprite is drawn (false in the panel half of the alternation). */
   showSprite: boolean
   panel?: Box
-  size: 'large' | 'small'
+  size: QuerySize
   showLogo: boolean
   dx: 1 | -1
   dy: 1 | -1
@@ -354,7 +356,7 @@ export function bounceLayout(input: SaverInput): BounceLayout {
   return { ...base, sprite: box, showSprite: true }
 }
 
-function drawQuery(c: Canvas, x: number, y: number, size: 'large' | 'small', pose: QueryPose, input: SaverInput, color: string): void {
+function drawQuery(c: Canvas, x: number, y: number, size: QuerySize, pose: QueryPose, input: SaverInput, color: string): void {
   c.block(x, y, queryFrame(size, pose, input.ascii), { fg: color, bold: true })
 }
 
@@ -420,13 +422,14 @@ function paintStarfield(c: Canvas, input: SaverInput): Box {
     c.put(sx, sy, chars[level]!, { fg: level >= 3 ? t.acc2 : level >= 2 ? t.fg : t.dim })
   }
   // Query drifts through left to right, bobbing
-  const q = querySize('small')
+  const gsize = guestSize(input.width, bodyH)
+  const q = querySize(gsize)
   const step = Math.floor(input.now / FRAME_MILLIS)
   const span = input.width + q.width * 2
   const qx = (step % span) - q.width
   const qy = Math.round(1 + bodyH * 0.25 + Math.sin(input.now / 1500) * 2)
   const pose = queryPoseAt(input.now, { dx: 1, dy: Math.cos(input.now / 1500) > 0 ? 1 : -1 })
-  drawQuery(c, qx, Math.max(1, qy + pose.dy), 'small', pose, input, t.acc2)
+  drawQuery(c, qx, Math.max(1, qy + pose.dy), gsize, pose, input, QUERY_COLOR)
   // the tiles float in the middle
   const hud = hudSize(input, input.width - 4, bodyH - 2)
   const ox = Math.round(Math.sin(input.now / 4000) * 2)
@@ -435,6 +438,11 @@ function paintStarfield(c: Canvas, input: SaverInput): Box {
   const hy = Math.max(1, Math.min(bodyH - hud.h + 1, Math.floor(1 + bodyH * 0.55 - hud.h / 2) + oy + 2))
   drawHud(c, hx, hy, hud.w, hud.h, input)
   return { x: hx, y: hy, w: hud.w, h: hud.h }
+}
+
+/** Query's size where he is a guest (not the sprite): medium when the screen is wide and tall enough for him, else small. */
+function guestSize(width: number, bodyH: number): QuerySize {
+  return width >= 100 && bodyH >= 34 ? 'medium' : 'small'
 }
 
 /** Whether the flip clock is mid-flip (the first 500 ms of a minute). */
@@ -471,7 +479,8 @@ function paintFlip(c: Canvas, input: SaverInput): Box {
   const now = hhmm(input.now)
   const before = hhmm(input.now - (input.now % 60_000) - 1)
   const half = flipping(input.now) && input.now % 60_000 < 250
-  const q = querySize('small')
+  const qsize = guestSize(input.width, bodyH)
+  const q = querySize(qsize)
   const columns = input.tiles.length > 1 && input.width >= 100 ? 2 : 1
   const wantRows = Math.ceil(input.tiles.length / columns)
   // double-size digits when the screen has room for them and the tiles
@@ -488,7 +497,7 @@ function paintFlip(c: Canvas, input: SaverInput): Box {
   const date = trunc(new Date(input.now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), input.width - 4)
   const host = trunc(`${input.server} · ${input.profile}`, input.width - 4)
   // the tiles with Query beside them, bottom-aligned
-  const colW = Math.max(0, Math.min(columns === 2 ? 43 : 56, Math.floor((input.width - 6 - q.width - 3 - (columns - 1) * 3) / columns)))
+  const colW = Math.max(0, Math.min(columns === 2 ? 43 : 56, Math.floor((input.width - 6 - (queryBeside ? q.width + 3 : 0) - (columns - 1) * 3) / columns)))
   const tilesW = input.tiles.length ? columns * colW + (columns - 1) * 3 : 0
   const blockW = input.tiles.length ? (queryBeside ? tilesW + 3 + q.width : Math.max(tilesW, q.width)) : q.width
   const rowsCap = Math.max(1, bodyH - (cardH + 4) - (queryBeside ? 0 : q.height + 1))
@@ -537,12 +546,12 @@ function paintFlip(c: Canvas, input: SaverInput): Box {
   if (input.tiles.length) tileBlock(c, bx, y, input.tiles, columns, colW, tileRows, input)
   // Query peeks up beside the tiles: ears and eyes, all of him when he hops
   const pose = queryPoseAt(input.now, { dx: -1 })
-  const shown = Math.min(blockH, pose.action ? q.height : 3)
-  const frame = queryFrame('small', pose, input.ascii).slice(0, shown)
+  const shown = Math.min(blockH, pose.action ? q.height : qsize === 'medium' ? 5 : 3)
+  const frame = queryFrame(qsize, pose, input.ascii).slice(0, shown)
   const qx = input.tiles.length && queryBeside ? bx + tilesW + 3 : bx + Math.floor((blockW - q.width) / 2)
   const qy = y + blockH - shown
   c.fill(qx, qy, q.width, shown, {})
-  c.block(qx, qy, frame, { fg: t.acc2, bold: true })
+  c.block(qx, qy, frame, { fg: QUERY_COLOR, bold: true })
   return { x: gx, y: gy, w: groupW, h: groupH }
 }
 
@@ -562,7 +571,8 @@ function paintBig(c: Canvas, input: SaverInput): Box {
     .map((x, i) => ({ x, i }))
     .sort((a, b) => (b.x.state.value!.interest ?? 0) - (a.x.state.value!.interest ?? 0) || a.i - b.i)
     .map((e) => e.x)
-  const q = querySize('small')
+  const qsize = guestSize(input.width, bodyH)
+  const q = querySize(qsize)
   const rotation = Math.floor(input.now / 8000)
   // compact: the stack is at most about 90 columns wide, however wide the screen
   const avail = Math.min(input.width - 4, 90)
@@ -614,7 +624,7 @@ function paintBig(c: Canvas, input: SaverInput): Box {
   const color = tile ? (levelColor(t, tile) === t.fg ? t.acc2 : levelColor(t, tile)) : t.acc2
   const heroX = centred(heroW)
   if (!tile) {
-    drawQuery(c, heroX, y, 'small', queryPoseAt(input.now), input, t.acc2)
+    drawQuery(c, heroX, y, qsize, queryPoseAt(input.now), input, QUERY_COLOR)
   } else {
     const pose: QueryPose = { ...pose0, ...(asleep ? { blink: true, wag: false } : {}) }
     const numberAt = (x: number, ny: number) => {
@@ -622,12 +632,12 @@ function paintBig(c: Canvas, input: SaverInput): Box {
       else c.put(x, ny, big, { fg: color, bold: true })
     }
     if (beside) {
-      drawQuery(c, heroX, y, 'small', pose, input, t.acc2)
+      drawQuery(c, heroX, y, qsize, pose, input, QUERY_COLOR)
       if (asleep) c.put(heroX + q.width - 1, y - 1, input.now % 2000 < 1000 ? 'z' : 'zZ', { fg: t.dim })
       numberAt(heroX + q.width + 3, y + Math.floor((heroH - numH) / 2))
     } else {
       numberAt(heroX + Math.floor((heroW - numW) / 2), y)
-      drawQuery(c, heroX + Math.floor((heroW - q.width) / 2), y + numH + 1, 'small', pose, input, t.acc2)
+      drawQuery(c, heroX + Math.floor((heroW - q.width) / 2), y + numH + 1, qsize, pose, input, QUERY_COLOR)
       if (asleep) c.put(heroX + Math.floor((heroW + q.width) / 2) - 1, y + numH, input.now % 2000 < 1000 ? 'z' : 'zZ', { fg: t.dim })
     }
   }

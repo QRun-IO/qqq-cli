@@ -72,6 +72,11 @@ export class SaverOverlay implements Overlay {
       features: s.version?.features ?? [],
       status: () => s.status,
       events: realtimeEvents,
+      sessionTable: () => {
+        // the session store qbit's table (storedSession)
+        const t = Object.values(tables).find((x) => /^(stored_?)?sessions?$/i.test(x.name))
+        return t && t.readPermission !== false ? t.name : undefined
+      },
       favouriteTables: favourites,
       tableLabel: (name) => tables[name]?.label ?? name,
       intervalMs: () => this.model.intervalMs,

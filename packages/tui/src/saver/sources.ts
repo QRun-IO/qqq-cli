@@ -8,7 +8,7 @@
  *
  * | tile    | needs                | reads                                                    |
  * |---------|----------------------|----------------------------------------------------------|
- * | people  | collaboration        | GET presence per table, a few tables per refresh          |
+ * | people  | session store, or collaboration | the session table (sessions active in the last 10 minutes), else GET presence per table, a few tables per refresh |
  * | jobs    | durableJobs feature  | GET /jobs?state=recent (scope all, else mine)            |
  * | health  | health               | GET /health/summary                                       |
  * | db      | db-performance       | GET overview + activity                                   |
@@ -34,6 +34,8 @@ export interface SaverContext {
   events: EventRate
   /** Tables to sample for presence, most likely first (favourites, recents, then the rest). */
   presenceTables(): string[]
+  /** The server's session table (the session store qbit's), when it has one the user can read. */
+  sessionTable?(): string | undefined
   /** The profile's favourite tables (count tiles). */
   favouriteTables: string[]
   tableLabel(name: string): string
@@ -51,22 +53,75 @@ interface Viewer {
   mode?: string
 }
 
-/** Everyone seen in presence lately across the sampled tables (this terminal is not: it left). */
+/** Sessions that count as online: active in the last 10 minutes. */
+export const SESSION_ACTIVE_MILLIS = 10 * 60_000
+
+function userLabel(userId: string): string {
+  return userId.includes(':') ? userId.slice(userId.indexOf(':') + 1) : userId
+}
+
+/**
+ * Who is online: signed-in sessions from the session store's table when the server has one and it
+ * holds sessions active in the last 10 minutes (own sessions count: "2 sessions · 1 user (you ×2)"),
+ * else this terminal plus everyone seen in collaboration presence across a few tables per refresh
+ * (the saver keeps its lease, so the signed-in viewer is always one of them). Never "nobody around"
+ * while the viewer is signed in.
+ */
 export function presenceSource(ctx: SaverContext): TileSource {
   const seen = new Map<string, { name: string; table: string; mode?: string; at: number }>()
   const skip = new Set<string>()
   let cursor = 0
+  let sessionsGone = false
   const now = ctx.now ?? Date.now
+  const names = new Map<string, string>()
+
+  async function sessions(): Promise<TileValue | undefined> {
+    const table = ctx.sessionTable?.()
+    if (!table || sessionsGone) return undefined
+    const cutoff = new Date(now() - SESSION_ACTIVE_MILLIS).toISOString()
+    let rows: Array<{ values: Record<string, unknown> }>
+    try {
+      rows = await ctx.client.query(table, {
+        criteria: [{ fieldName: 'modifyDate', operator: 'GREATER_THAN', values: [cutoff] }, { fieldName: 'expiresAt', operator: 'GREATER_THAN', values: [new Date(now()).toISOString()] }],
+        booleanOperator: 'AND', limit: 500,
+      })
+    } catch (error) {
+      const status = (error as { status?: number }).status
+      if (status === 403 || status === 404) sessionsGone = true
+      return undefined
+    }
+    if (!rows.length) return undefined
+    const self = ctx.status()
+    const perUser = new Map<string, number>()
+    for (const r of rows) {
+      const id = String(r.values.userId ?? '')
+      if (id) perUser.set(id, (perUser.get(id) ?? 0) + 1)
+    }
+    const isSelf = (id: string) => id === self.userId || (Boolean(self.user) && (names.get(id) === self.user || userLabel(id).toLowerCase() === self.user.toLowerCase()))
+    const list = [...perUser.entries()].sort((a, b) => Number(isSelf(b[0])) - Number(isSelf(a[0])) || a[0].localeCompare(b[0]))
+    const who = list.map(([id, n]) => `${isSelf(id) ? 'you' : names.get(id) ?? userLabel(id)}${n > 1 ? ` ×${n}` : ''}`)
+    const total = rows.length
+    const users = perUser.size
+    return {
+      value: `${total} online`,
+      detail: `${total} session${total === 1 ? '' : 's'} · ${users} user${users === 1 ? '' : 's'} (${who.join(', ')})`,
+      big: String(total), interest: 50 + total, level: 'ok',
+    }
+  }
+
   return {
-    id: 'people', label: 'Online', needs: 'collaboration',
-    present: () => ctx.has('collaboration'),
+    id: 'people', label: 'Online', needs: 'collaboration or the session store',
+    present: () => ctx.has('collaboration') || Boolean(ctx.sessionTable?.()),
     async load(): Promise<TileValue> {
-      const all = ctx.presenceTables().filter((t) => !skip.has(t))
-      if (!all.length) throw new SourceAbsent('no tables to watch')
+      const bySession = await sessions()
+      if (bySession) return bySession
+      const self = ctx.status()
+      const signedIn = Boolean(self.userId || self.user)
+      const all = ctx.has('collaboration') ? ctx.presenceTables().filter((t) => !skip.has(t)) : []
+      if (!all.length && !signedIn) throw new SourceAbsent('no tables to watch')
       const batch: string[] = []
       for (let i = 0; i < Math.min(PRESENCE_TABLES_PER_REFRESH, all.length); i++) batch.push(all[(cursor + i) % all.length]!)
       cursor = (cursor + batch.length) % Math.max(1, all.length)
-      const self = ctx.status()
       let failures = 0
       await Promise.all(batch.map(async (table) => {
         try {
@@ -74,10 +129,11 @@ export function presenceSource(ctx: SaverContext): TileSource {
           const t = now()
           for (const [id, v] of seen) if (v.table === table) seen.delete(id)
           for (const v of snap.viewers ?? []) {
-            // this terminal left presence when the saver came up: the signed-in user seen here is
-            // another session of theirs (a browser tab, another terminal)
             const you = v.userId === self.userId || (Boolean(self.user) && v.displayName === self.user)
-            seen.set(v.userId, { name: you ? 'you elsewhere' : v.displayName || v.userId, table, mode: v.mode, at: t })
+            // this terminal is you (it keeps its lease while the saver shows): not a second person
+            if (you) continue
+            names.set(v.userId, v.displayName || v.userId)
+            seen.set(v.userId, { name: v.displayName || v.userId, table, mode: v.mode, at: t })
           }
         } catch (error) {
           const status = (error as { status?: number }).status
@@ -85,16 +141,16 @@ export function presenceSource(ctx: SaverContext): TileSource {
           else failures++
         }
       }))
-      if (failures === batch.length) throw new Error('presence did not answer')
+      if (batch.length && failures === batch.length && !signedIn) throw new Error('presence did not answer')
       // a person not seen again within one sweep of the list (plus a lease) has left
-      const ttl = Math.ceil(all.length / PRESENCE_TABLES_PER_REFRESH) * ctx.intervalMs() + 45_000
+      const ttl = Math.ceil(Math.max(1, all.length) / PRESENCE_TABLES_PER_REFRESH) * ctx.intervalMs() + 45_000
       const t = now()
       for (const [id, v] of seen) if (t - v.at > ttl) seen.delete(id)
-      const people = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
-      const detail = people.length
-        ? people.sort((a, b) => Number(a.name === 'you elsewhere') - Number(b.name === 'you elsewhere')).map((p) => `${p.name}${p.mode === 'EDITING' ? ' editing' : ''} · ${ctx.tableLabel(p.table)}`).join(', ')
-        : 'nobody around'
-      return { value: String(people.length), detail, big: String(people.length), interest: people.length ? 50 + people.length : 5 }
+      const others = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+      const total = others.length + (signedIn ? 1 : 0)
+      const parts = [...(signedIn ? ['you'] : []), ...others.map((p) => `${p.name}${p.mode === 'EDITING' ? ' editing' : ''} · ${ctx.tableLabel(p.table)}`)]
+      const detail = parts.length ? `${total} online · ${parts.join(', ')}` : 'nobody around'
+      return { value: String(total), detail, big: String(total), interest: total ? 50 + total : 5 }
     },
   }
 }
