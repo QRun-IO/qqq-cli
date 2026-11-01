@@ -59,21 +59,22 @@ qqq ui --check                 # terminal and tmux check with fixes (also runs q
 npm run test:tui               # in-memory renderer tests; packages/tui/scripts/smoke.sh drives it in tmux
 ```
 
-Keys (the function-key bar is the truth; F1 or `?` lists them; every action is also in F9 and on `:`):
+Keys (the function-key bar is the truth; F1 or `?` lists the keys of the screen; `/` finds anything, every action is in F9 and on `:`):
 
 | Key | Does | Key | Does |
 |---|---|---|---|
-| F1 `?` | help, what you can do here, help search | Esc | back; the grid keeps its row, filter and page |
-| F2 `/` `.` Ctrl+K | go to anything (apps, tables, processes, recents, commands) | Tab | Apps pane / content |
+| F1 `?` | keyboard reference for the screen (keys only) | Esc | back; the grid keeps its row, filter and page |
+| F2 `/` `.` Ctrl+K | search: apps, tables, processes, widgets, records (quick search), commands, help; `:search ada` | Tab | Apps pane / content |
 | F3 Enter | view / open | PgUp PgDn, Ctrl+F Ctrl+B | page (Ctrl+F/B work even when tmux takes PgUp) |
 | F4 `e` | edit | `]` `[` (PgDn PgUp in a record) | next / previous record of the list |
 | F5 `r` | refresh | `s` | sort by the column under the cursor |
 | F6 `f` | filter: guided builder or the grammar with completion | Space / `b` | select rows / run a process on them |
 | F7 `n` | new (a child on a child list) | `x` `g` `v` | export, go to by key, view settings |
 | F8 `d` | delete, asks | Ctrl+S | save a form or continue a process step |
-| F9 | menu: every command, searchable | `:` | command line, history and completion |
+| F9 | menu: every action by section | `:` | command line, history and completion |
 | F10 | Quit, Reset to home, or Cancel (`:reset`) | Ctrl+C | quit now |
 | `a` | actions: bulk insert/edit/delete, processes, saved views | `A` `D` `t` `Z` | audits, developer, tags, share (record) |
+| `C` `P` `K` `T` `W` | comments, attachments, tasks, timeline, follow (record, collaboration extension) | `J` | raw JSON of an extension operation's output |
 | `q` `S` `l` | quick search, column statistics, follow a link (grid) | Esc 1..0, Ctrl+1..0 | F1..F10 when the terminal takes them |
 
 Things to try: `:table query person`, Enter on a row, PgDn through records, Esc (same row); F6, add a

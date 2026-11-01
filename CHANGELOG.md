@@ -30,7 +30,14 @@ candidate's, plus the changes since it listed first.
   `--columns a,b` (or the global `--fields`) chooses; the first-class `collab comments list`,
   `favorites list`, `recents`, `tags list` and `people` take `--columns` too. `--json`, `--output json`,
   yaml, csv and text are unchanged. The layout is the kernel's (`formatDocument` in `@qrun-io/qqq-core`).
-
+- The UI's search and help are separate: `/` (F2, `.`, Ctrl+K, and `:search <text>`) is the one search
+  over apps, tables, processes, widgets, reports, records (quick search, debounced as you type),
+  commands and help, grouped under headers with the best match first; its placeholder says when quick
+  search is there, the Records group reads "quick search: N matches" with the table and record label of
+  each hit (the highlighted name when the label is only the key), and without record search it says once,
+  dimmed, "records: install the quick search extension". F1/`?` is only the keyboard reference of the
+  screen (keys grouped by what they do, the screen's help text and a pointer to `/`, F9 and `:`); F9 no
+  longer lists every app, recent record and metadata match (they are found with `/`).
 - The UI's filter dialog (F6) was reworked for clarity: every condition is a row of three cells (field,
   operator, value) edited the way its type asks (text and numbers in place, choices from a searchable
   list, Space cycles true/false, dates with presets or typed, operators from a list that fits the field),
@@ -74,6 +81,36 @@ candidate's, plus the changes since it listed first.
   without a token a server session from `manageSession`; `GET /jobs` and the realtime check used to differ
   (a token alone could report "no jobs permission" where a session worked). The metaData check's detail
   names the authentication used.
+- The UI's jobs widgets showed each statistic's web address (`Running: 0 </jobs/jobs_job?filter=…>`):
+  they show the label and count, and Enter opens the filtered grid in the TUI (links in widgets are read
+  for their table, filter, record, process or app).
+- The UI's alerts setup widget ran its columns together ("Channels Set up1 channel…"): row-shaped HTML is
+  drawn in aligned columns with the last one wrapping under itself. HTML entities such as `&middot;` and
+  numeric ones are decoded (the kernel knew only six).
+- The UI's ESB app showed "(ESB_OVERVIEW: no terminal rendering yet)".
+- Quitting the UI after the terminal was gone printed "setRawMode failed with errno: 2" and a native
+  shutdown error with stack traces; those messages are dropped.
+- A record found by the UI's search opened with an empty key (the server's field is `recordId`) and was
+  listed last, below every metadata match.
+
+### Added since 1.0.0-rc.1
+
+- The UI's record view has the collaboration extension's features: a line with the record's comments,
+  attachments and open tasks and whether you follow it, the people viewing it now, and in `a`/F9 (keys
+  `C` `P` `K` `T` `W`): comments (list, add, reply), follow and stop following, attachments (list,
+  download through the file navigator, upload, delete), the timeline, tasks (list, add, done) and the
+  share preview (who could read the record, then send). Without the extension F9 says "needs the
+  collaboration extension".
+- The UI draws the ESB overview widget as `:esb overview` does (destinations, publishers, triggers,
+  counters); Enter on a destination offers the ESB of its table and processes, its messages and dead
+  letters.
+- Extension operations run on the UI's `:` line (`:alerts get-inbox`, `:api <operationId>`) and widget
+  payloads without a terminal block show their JSON as key/value rows and sub-tables instead of one-line
+  JSON; `J` shows the raw JSON.
+- App cards show the app's Material icon as a glyph (bell, chart, database, people, settings, …), with an
+  ASCII stand-in under the ASCII-glyphs setting; unknown icons are left out.
+- `packages/tui/scripts/smoke.sh --server URL [--profile NAME]` runs the tmux smoke test against any
+  server in an isolated config (it landed on the profile picker before).
 
 ### Changed from 0.1
 

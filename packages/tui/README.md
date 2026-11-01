@@ -36,15 +36,15 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 
 | Key | Does | Key | Does |
 |---|---|---|---|
-| F1, `?` | help: keys, what you can do here, help search | Esc | back (the screen below keeps its cursor and filter) |
-| F2, `/`, `.`, Ctrl+K | go to anything; record search when the server has a provider | Tab | Apps pane / content |
+| F1, `?` | keyboard reference for this screen: keys grouped by what they do, the screen's help text, and a pointer to `/`, F9 and `:` (no commands or places) | Esc | back (the screen below keeps its cursor and filter) |
+| F2, `/`, `.`, Ctrl+K | search everything: apps, tables, processes, widgets, reports, records (quick search, as you type), commands and help, grouped under headers, best match first; Enter opens or runs; `:search <text>` opens it with text | Tab | Apps pane / content |
 | F3, Enter | view, open | ↑ ↓ PgUp PgDn Home End | move and page |
 | F4, `e` | edit | Ctrl+F, Ctrl+B | page forward and back (always works) |
 | F5, `r` | refresh | Space, Shift+Space | page lists (on a grid Space selects) |
 | F6, `f` | filter: condition rows (field, operator, value) with a live match count; F2 types the grammar | ← → | columns, tree |
 | F7, `n` | new record (on a child list: a child of this record) | `s` | sort by the column under the cursor |
 | F8, `d` | delete, after a question | `]` `[`, Ctrl+N Ctrl+P, PgDn PgUp in a record | next and previous record of the list it came from |
-| F9 | the command center: every action, searchable | `b` | run a table process on the selection |
+| F9 | the menu: every action by section (Context, Go to, Work, Connection, Settings, Help); places and records are found with `/` | `b` | run a table process on the selection |
 | F10, `:quit` | Quit, Reset (home screen, metadata refreshed, session kept) or Cancel; `:reset` and `:home` reset | `x`, `g`, `v` | export, go to by key, view settings |
 | `:` | command line (history ↑↓, Ctrl+R, Tab completes) | Ctrl+S | save a form, continue a process step |
 | Ctrl+C | quit at once (the terminal is restored) | `c` | copy a record |
@@ -56,7 +56,9 @@ Keys on one screen:
 | Screen | Keys |
 |---|---|
 | Grid | `q` quick search, `S` column statistics, `l` follow the link in the cell, Ctrl+A select (page, whole result, first N), Space select row, `b` run on the selection, `a` bulk actions and processes |
-| Record | `l` open the row under the cursor, `Z` share (shareable tables), `t` tags, `A` audits, `D` developer, `c` copy |
+| Record | `l` open the row under the cursor, `Z` share (shareable tables), `t` tags, `A` audits, `D` developer, `c` copy; with the collaboration extension `C` comments, `P` attachments, `K` tasks, `T` timeline, `W` follow / stop following |
+| Comments, attachments, tasks | `n` adds (a comment, an upload from the file navigator, a task); Enter replies, downloads (file navigator) or deletes, marks a task done or open |
+| `:` output | `J` switches an extension operation's JSON between rows and sub-tables and the raw JSON |
 | Form | Tab and ↑↓ move, Enter or typing opens a picker, Ctrl+S save, Esc asks before dropping changes |
 | Process | Ctrl+S continue, F4 back (when the step allows), Esc cancel, `w` save the step's file, `n` `p` page the records |
 | Bulk wizard | Space switch a field on (bulk edit), Enter choose, `h` header row, `l` layout, `k` key fields, `P` saved profiles, `v` validate, Ctrl+S next, F4 back |
@@ -130,6 +132,21 @@ versions, script revisions, and on a saved report the filter/columns and pivot s
 setups go through the application API). Denied widgets are not requested; a parent widget loads its
 children in a grid or one tab at a time. A dynamicForm section has "Edit these fields".
 
+**Collaboration** (collaboration extension): under a record's tags a line shows its comments,
+attachments and open tasks with their keys, whether you follow it, and below it who is viewing the record
+now (everyone the server reports, you marked "(you)"; the title bar counts the others). `a` and F9 list
+comments (list, add, reply), follow or stop following, attachments (list, download, upload, delete), the
+timeline, tasks (list, add, done) and the share preview (find people or type user ids, see who could read
+the record, then send). Without the extension the line is not drawn and F9 shows "Collaboration: needs the
+collaboration extension".
+
+**Widgets** the kernel has no block for are drawn by the TUI: the ESB overview (destinations with their
+publishers, triggers and counters, as `:esb overview`; Enter on a destination offers the ESB of its table
+and processes, its messages and dead letters), statistics that link to a filtered grid (the label and
+count; Enter opens the grid), row-shaped HTML (the alerts setup checklist) in aligned columns, and any
+other payload as key/value rows and sub-tables. App cards show the app's Material icon as a glyph (an
+ASCII stand-in under the ASCII setting; unknown icons get the app mark).
+
 The bulk wizard (`a` on a grid: bulk insert, bulk edit with a file, bulk edit, bulk delete, the upload
 template) runs on the kernel's `runBulkProcess`: the file from the file navigator, the column mapping as a
 grid (Enter chooses a column, a typed default or value mapping; `h` header row, `l` layout, `k` key fields,
@@ -140,12 +157,14 @@ help-authoring mode (F1 shows every help slot key).
 
 ## The `:` command line
 
-TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `menu`, `palette`, `goto`, `view`,
+TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `menu`, `search <text>` (also `find`, `goto`, `palette`), `view`,
 `views`, `share`, `actions`, `audits`, `dev`, `tags`, `report run <name>`, `theme <name>`, `ascii on|off`,
 `linear on|off`, `shortcuts on|off`, `lock`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
 `export <format>`, `jobs`, `profile [name]`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
 `app <name>`, `record <table> <key>`. `table query|get|create|update|delete` and `process run` open screens;
-any other CLI command runs in-process (`runCli` from `@qrun-io/qqq-cli/program`) and shows its output.
+any other CLI command runs in-process (`runCli` from `@qrun-io/qqq-cli/program`) and shows its output;
+an extension operation (`:alerts get-inbox`, `:collab get-records-tasks customer 1`, `:api <operationId>`)
+shows its JSON as key/value rows and sub-tables, with `J` for the raw JSON.
 
 ## Large instances
 
