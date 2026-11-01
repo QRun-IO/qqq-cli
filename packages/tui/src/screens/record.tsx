@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { ResultCursor, associationGroups, childFilter, childListFields, formatSize, readViewSettings, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { ResultCursor, associationGroups, childFilter, childListFields, exposedJoins, formatSize, planJoins, readViewSettings, withJoinFields, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
@@ -76,7 +76,7 @@ export class RecordScreen implements Screen {
   width = 100
   private generation = 0
 
-  constructor(private store: AppStore, readonly tableName: string, public primaryKey: string | undefined, readonly cursor?: ResultCursor, private label?: string) {
+  constructor(private store: AppStore, readonly tableName: string, public primaryKey: string | undefined, readonly cursor?: ResultCursor, private label?: string, readonly tableVariant?: string) {
     this.id = `record:${tableName}:${Date.now()}`
     this.load()
   }
@@ -104,7 +104,8 @@ export class RecordScreen implements Screen {
       this.meta ??= await client.tableMeta(this.tableName)
       if (this.cursor && this.primaryKey === undefined) this.primaryKey = String(this.cursor.keyOf(await this.cursor.current()) ?? '')
       if (this.primaryKey === undefined || this.primaryKey === '') throw new Error('no record')
-      const record = await client.record(this.tableName, this.primaryKey, Boolean(this.meta.associations?.length))
+      const record = await client.record(this.tableName, this.primaryKey, Boolean(this.meta.associations?.length), this.tableVariant)
+      await this.loadJoinedFields(record)
       for (const a of this.meta.associations ?? []) if (!this.childMeta.has(a.associatedTableName)) this.childMeta.set(a.associatedTableName, await client.tableMeta(a.associatedTableName))
       return record
     }
@@ -124,6 +125,30 @@ export class RecordScreen implements Screen {
       this.build()
       this.store.bump()
     })
+  }
+
+  /** Metadata with exposed-join fields under qualified names (sections may list `joinTable.field`). */
+  fullMeta?: TableMetaData
+
+  /** Section fields from readable exposed joins: read through a query with those joins for this record. */
+  async loadJoinedFields(record: QueryRecord): Promise<void> {
+    const meta = this.meta!
+    const qualified = [...new Set((meta.sections ?? []).flatMap((x) => x.fieldNames ?? []).filter((n) => n.includes('.') && !meta.fields[n]))]
+    const joins = exposedJoins(meta as never, this.store.meta?.tables as never)
+    const full = withJoinFields(meta as never, joins) as unknown as TableMetaData
+    for (const j of joins) for (const [n, f] of Object.entries(j.tableMeta.fields as Record<string, FieldMetaData>)) if (full.fields[`${j.table}.${n}`]) full.fields[`${j.table}.${n}`]!.label = `${j.label}: ${f.label}`
+    this.fullMeta = full
+    const wanted = qualified.filter((n) => full.fields[n])
+    if (!wanted.length) return
+    const plan = planJoins(joins, { columns: wanted })
+    const filter = { criteria: [{ fieldName: meta.primaryKeyField, operator: 'EQUALS', values: [String(this.primaryKey)] }], booleanOperator: 'AND', limit: 1 }
+    const rows = ((await this.store.client!.data<{ records?: QueryRecord[] }>('queryTable', { path: { tableName: this.tableName }, query: this.tableVariant ? { tableVariant: this.tableVariant } : undefined, json: { filter, joins: plan.joins } })).records ?? [])
+    const row = rows[0]
+    if (!row) return
+    for (const n of wanted) {
+      record.values[n] = row.values?.[n]
+      if (row.displayValues?.[n] !== undefined) (record.displayValues ??= {})[n] = row.displayValues[n]!
+    }
   }
 
   loadWidgets(): void {
@@ -181,7 +206,7 @@ export class RecordScreen implements Screen {
     }
     const inner = this.width - 2
     const view = this.view()
-    const labelWidth = view.labelWidth ?? Math.min(28, Math.max(8, ...Object.values(meta.fields).map((f) => f.label.length + 1)))
+    const labelWidth = view.labelWidth ?? Math.min(28, Math.max(8, ...Object.values({ ...meta.fields, ...Object.fromEntries((meta.sections ?? []).flatMap((x) => x.fieldNames ?? []).filter((n) => this.fullMeta?.fields[n]).map((n) => [n, this.fullMeta!.fields[n]!])) }).map((f) => f.label.length + 1)))
     rows.push({ text: `${rec.recordLabel ?? this.primaryKey}${this.cursor ? `   (${this.cursor.describe()})` : ''}`, fg: t.fg, bold: true })
     if (this.tags) rows.push({ text: `Tags: ${this.tags.length ? this.tags.map((x) => x.label ?? x.name).join(' · ') : '(none)'}   t edits`, fg: t.acc2, key: 'tags', action: () => this.openTags() })
     for (const s of orderedSections(meta)) {
@@ -194,7 +219,7 @@ export class RecordScreen implements Screen {
         else rows.push(...blockLines(w.filter((b) => b.kind !== 'heading'), inner - 2).map((l) => ({ ...l, text: '  ' + l.text })))
         continue
       }
-      const fields = (s.fieldNames ?? []).map((n) => meta.fields[n]).filter((f): f is FieldMetaData => Boolean(f) && !f!.isHidden)
+      const fields = (s.fieldNames ?? []).map((n) => meta.fields[n] ?? this.fullMeta?.fields[n]).filter((f): f is FieldMetaData => Boolean(f) && !f!.isHidden)
       if (!fields.length) continue
       rows.push({ text: '' })
       rows.push({ text: `${s.label}${s.tier ? ` (${s.tier})` : ''} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 8)))}`, fg: t.acc, bold: true })
@@ -387,7 +412,7 @@ export class RecordScreen implements Screen {
       return true
     }
     switch (key.name) {
-      case 'f4': if (this.primaryKey !== undefined) openForm(this.store, this.tableName, { mode: 'edit', primaryKey: this.primaryKey }); return true
+      case 'f4': if (this.primaryKey !== undefined) openForm(this.store, this.tableName, { mode: 'edit', primaryKey: this.primaryKey, tableVariant: this.tableVariant }); return true
       case 'f7': {
         const a = this.currentAssociation()
         if (a) this.newChild(a)
@@ -401,7 +426,7 @@ export class RecordScreen implements Screen {
     if (!this.store.singleKeys) return false
     switch (ch) {
       case 'e': return this.onKey({ name: 'f4', sequence: '' })
-      case 'c': if (this.primaryKey !== undefined) openForm(this.store, this.tableName, { mode: 'copy', primaryKey: this.primaryKey }); return true
+      case 'c': if (this.primaryKey !== undefined) openForm(this.store, this.tableName, { mode: 'copy', primaryKey: this.primaryKey, tableVariant: this.tableVariant }); return true
       case 'd': this.deleteRecord(); return true
       case 'n': openForm(this.store, this.tableName, { mode: 'create' }); return true
       case 'r': this.refresh(); return true

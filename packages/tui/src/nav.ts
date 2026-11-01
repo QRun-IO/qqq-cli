@@ -26,9 +26,9 @@ export function openTable(store: AppStore, table: string, filter?: QueryFilter):
   store.push(new TableScreen(store, table, filter))
 }
 
-export function openRecord(store: AppStore, table: string, primaryKey: string | undefined, options: { cursor?: ResultCursor; label?: string } = {}): void {
+export function openRecord(store: AppStore, table: string, primaryKey: string | undefined, options: { cursor?: ResultCursor; label?: string; tableVariant?: string } = {}): void {
   if (!known(store, 'tables', table)) return
-  store.push(new RecordScreen(store, table, primaryKey, options.cursor, options.label))
+  store.push(new RecordScreen(store, table, primaryKey, options.cursor, options.label, options.tableVariant))
 }
 
 /** After a create: the new record replaces the form. */

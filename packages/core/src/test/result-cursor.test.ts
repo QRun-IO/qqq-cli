@@ -49,3 +49,20 @@ test('after a delete the cursor shows the next record and reloads pages', async 
   assert.equal(cursor.total, 4)
   assert.equal(cursor.index, 3)
 })
+
+test('joins go with query and count; a many-side join asks for the distinct count', async () => {
+  const seen: Array<{ path: string; query: string; body: { joins?: unknown } }> = []
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const request = new Request(input as RequestInfo, init)
+    const url = new URL(request.url)
+    seen.push({ path: url.pathname, query: url.search, body: await request.json() as { joins?: unknown } })
+    const json = (d: unknown) => new Response(JSON.stringify(d), { status: 200, headers: { 'content-type': 'application/json' } })
+    return url.pathname.endsWith('/count') ? json({ count: 21, distinctCount: 16 }) : json({ records: [] })
+  }
+  const cursor = new ResultCursor({ baseUrl: 'http://h', fetch: fetchImpl, table: 'person', filter: { criteria: [], booleanOperator: 'AND' }, pageSize: 10, joins: [{ joinTable: 'pet', select: true, type: 'LEFT' }], includeDistinct: true })
+  await cursor.page(0)
+  assert.equal(cursor.total, 21)
+  assert.equal(cursor.distinct, 16)
+  assert.ok(seen.every((s) => JSON.stringify(s.body.joins) === '[{"joinTable":"pet","select":true,"type":"LEFT"}]'))
+  assert.equal(seen.find((s) => s.path.endsWith('/count'))!.query, '?includeDistinct=true')
+})

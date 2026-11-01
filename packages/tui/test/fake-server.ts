@@ -49,6 +49,16 @@ const docMeta = {
   sections: [{ name: 's', label: 'Doc', tier: 'T1', fieldNames: ['id', 'title', 'content'] }],
 }
 
+/** An order table with an exposed many-side join to its lines, saved views, T1 quick filters and a joined section field. */
+const orderMeta = {
+  name: 'order', label: 'Order', primaryKeyField: 'id', insertPermission: true, editPermission: true, deletePermission: true,
+  fields: { id: { name: 'id', label: 'Id', type: 'INTEGER' }, number: { name: 'number', label: 'Number', type: 'STRING' }, placed: { name: 'placed', label: 'Placed', type: 'DATE' } },
+  sections: [{ name: 's', label: 'Order', tier: 'T1', fieldNames: ['id', 'number', 'placed'] }, { name: 'l', label: 'First line', tier: 'T2', fieldNames: ['line.sku'] }],
+  exposedJoins: [{ label: 'Line', isMany: true, joinTable: { name: 'line', label: 'Order Line', primaryKeyField: 'id', fields: { id: { name: 'id', label: 'Id', type: 'INTEGER' }, sku: { name: 'sku', label: 'SKU', type: 'STRING' } } }, joinPath: [{ name: 'orderJoinLine', leftTable: 'order', rightTable: 'line' }] }],
+  clientCapabilities: { savedViews: { available: true, queryProcessName: 'querySavedView', storeProcessName: 'storeSavedView', deleteProcessName: 'deleteSavedView' } },
+}
+const ORDERS = [{ id: 1, number: 'SO-1', placed: '2026-10-31' }, { id: 2, number: 'SO-2', placed: '2026-11-01' }]
+
 const wideMeta = {
   name: 'wide', label: 'Wide', primaryKeyField: 'id', insertPermission: true, editPermission: true, deletePermission: true,
   fields: { id: { name: 'id', label: 'Id', type: 'INTEGER' }, name: { name: 'name', label: 'Name', type: 'STRING' }, note: { name: 'note', label: 'Note', type: 'STRING' } },
@@ -79,14 +89,36 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): t
       return json({
         apps: { people: { name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] } },
         appTree: [{ type: 'APP', name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] }],
-        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true } },
-        processes: { sleeper: { name: 'sleeper', label: 'Sleeper' } },
+        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, order: { name: 'order', label: 'Order' }, line: { name: 'line', label: 'Order Line' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true } },
+        processes: { sleeper: { name: 'sleeper', label: 'Sleeper', tableName: 'person' }, scanner: { name: 'scanner', label: 'Scanner' }, querySavedView: { name: 'querySavedView', label: 'q', isHidden: true } },
         widgets: {}, branding: { appName: 'Fake' },
       })
     }
     if (path === '/metaData/table/person') return json(personMeta)
     if (path === '/metaData/table/wide') return json(wideMeta)
     if (path === '/metaData/table/doc') return json(docMeta)
+    if (path === '/metaData/table/order') return json(orderMeta)
+    if (path === '/table/order/count') {
+      const crit = (((body as J).filter ?? {}) as { criteria?: Array<{ fieldName: string; values: string[] }> }).criteria ?? []
+      const n = ORDERS.filter((o) => crit.every((c) => String((o as J)[c.fieldName]) === String(c.values[0]))).length
+      return json(JSON.stringify((body as J).joins ?? null).includes('line') ? { count: 3, distinctCount: 2 } : { count: n })
+    }
+    if (path === '/table/order/query') {
+      const joined = JSON.stringify((body as J).joins ?? null).includes('line')
+      const f = ((body as J).filter ?? {}) as { criteria?: Array<{ fieldName: string; values: string[] }> }
+      let rows = joined ? [{ ...ORDERS[0], 'line.sku': 'A-1' }, { ...ORDERS[0], 'line.sku': 'A-2' }, { ...ORDERS[1], 'line.sku': 'B-1' }] : ORDERS.map((o) => ({ ...o }))
+      for (const c of f.criteria ?? []) rows = rows.filter((r) => String((r as J)[c.fieldName]) === String(c.values[0]))
+      return json({ records: rows.map((r) => ({ values: r, displayValues: {}, recordLabel: String(r.number) })) })
+    }
+    if (path === '/table/order/1' && request.method === 'GET') return json({ record: { values: ORDERS[0], displayValues: {}, recordLabel: 'SO-1' } })
+    if (path === '/processes/querySavedView/init') return json({ type: 'COMPLETE', processUUID: 'sv', values: { savedViewList: [{ values: { id: 7, label: 'Recent orders', tableName: 'order', doCount: true, viewJson: JSON.stringify({ queryFilter: { criteria: [{ fieldName: 'number', operator: 'EQUALS', values: ['SO-2'] }], booleanOperator: 'AND' } }) } }] } })
+    if (path === '/processes/scanner/init') return json({ type: 'COMPLETE', processUUID: 'sc', nextStep: 'scan', values: {} })
+    if (path === '/processes/scanner/sc/step/scan') return json({ type: 'COMPLETE', processUUID: 'sc', nextStep: 'done', values: { message: `scanned ${JSON.parse(String((body as J).values ?? '{}')).barcode}` } })
+    if (path === '/metaData/process/scanner') return json({ name: 'scanner', label: 'Scanner', frontendSteps: [{ name: 'scan', label: 'Scan', format: 'scanner', components: [{ type: 'EDIT_FORM' }], formFields: [{ name: 'barcode', label: 'Barcode', type: 'STRING', isRequired: true }] }, { name: 'done', label: 'Done', components: [{ type: 'VIEW_FORM' }], viewFields: [{ name: 'message', label: 'Message', type: 'STRING' }] }] })
+    if (path === '/processes/sleeper/init' && (body as J)?.filterJSON) {
+      log.requests.at(-1)!.body = { filterJSON: JSON.parse(String((body as J).filterJSON)) }
+      return json({ type: 'COMPLETE', processUUID: 'p1', nextStep: 'input', values: {} })
+    }
     if (path === '/metaData/table/vt') return json({ ...wideMeta, name: 'vt', label: 'Variant Table', usesVariants: true, variantTableLabel: 'Client' })
     if (path === '/table/vt/variants') return json({ variants: [{ id: '1', type: 'client', name: 'Acme' }, { id: '2', type: 'client', name: 'Globex' }] })
     if (path === '/table/vt/count') return json({ count: url.searchParams.get('tableVariant') ? 3 : 0 })
