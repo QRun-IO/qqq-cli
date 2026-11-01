@@ -8,9 +8,13 @@ model, the record-view and association helpers, the result cursor, file and term
 
 ## Run it
 
+`qqq ui` is bundled into every `qqq` release binary (curl installer, Homebrew, Scoop); `qqq --version`
+says `binary with ui`. The npm package `@qrun-io/qqq-cli` does not carry it. From a source checkout,
+`node packages/cli/dist/main.js ui` starts this package with Bun (`QQQ_BUN` names another `bun`):
+
 ```sh
-npm install && npm run build            # once, at the repo root (the kernel and CLI are used built)
-(cd packages/tui && bun install)        # once
+npm ci && npm run build                 # once, at the repo root (the kernel and CLI are used built)
+(cd packages/tui && bun install --frozen-lockfile)   # once
 qqq ui                                  # the default profile; or: qqq --profile sample ui
 qqq ui table query person -w "lastName STARTS_WITH S"     # open a screen directly (CLI grammar)
 qqq ui --theme light | --ascii | --linear | --mouse | --check | --no-check
