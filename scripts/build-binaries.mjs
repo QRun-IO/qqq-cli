@@ -9,8 +9,9 @@
  * to dist/qqq-<os>-<arch>[.exe] with a SHA256SUMS file beside them (source maps go to dist/sourcemaps/,
  * so the release glob dist/qqq-* does not upload them).
  *
- * The bundle is packages/cli/src/main.ts with the workspace packages (@qrun-io/qqq-ui-api-client and
- * @qrun-io/qqq-core, from their built dist) and every npm dependency inlined. The operations index
+ * The bundle is the built CLI (packages/cli/dist/main.js) with the workspace packages
+ * (@qrun-io/qqq-ui-api-client, @qrun-io/qqq-core and @qrun-io/qqq-ui-api-conformance, from their built
+ * dist) and every npm dependency inlined. The terminal UI is bundled too unless --cli-only. The operations index
  * generated from the OpenAPI document (packages/core/src/api/operations.ts) is compiled in; this
  * script first checks that it lists exactly the operations of packages/ui-api-client/openapi/qqq-v1.json,
  * so a binary can never ship a stale index. The CLI version comes from packages/cli/package.json
@@ -20,17 +21,17 @@
  * x64 targets use Bun's baseline (pre-AVX2) runtime so the binaries also run on older CPUs and
  * under Rosetta 2 or QEMU emulation.
  *
- * With --with-tui the binary also carries the terminal UI (packages/tui: OpenTUI's native library and
+ * By default the binary also carries the terminal UI (packages/tui: OpenTUI's native library and
  * the React renderer): the entry is scripts/binary-with-tui.ts, `qqq ui` runs in the same process,
  * and `qqq --version` says "with ui". OpenTUI's native package for every target is installed first
  * (bun install --os='*' --cpu='*' in packages/tui); Linux targets pin OPENTUI_LIBC to their libc.
  *
  * Usage: node scripts/build-binaries.mjs [--targets darwin-arm64,linux-x64,...] [--host] [--musl]
- *                                       [--with-tui] [--no-build] [--out dist]
+ *                                       [--cli-only] [--no-build] [--out dist]
  *   --targets   comma-separated subset of the default targets (and the musl ones)
  *   --host      only the target of this machine
  *   --musl      also build linux-x64-musl and linux-arm64-musl (best effort)
- *   --with-tui  bundle the terminal UI too
+ *   --cli-only  leave the terminal UI out (the default bundles it; --with-tui is accepted for scripts)
  *   --no-build  skip `npm run build` (the workspace packages must already be built)
  * Needs Bun 1.4 or later on the PATH; cross-compiling downloads each target's Bun runtime once.
  */
@@ -48,7 +49,7 @@ const TARGETS = {
   'linux-arm64': 'bun-linux-arm64',
   'windows-x64': 'bun-windows-x64-baseline',
 }
-/** OpenTUI's native package per target (only needed with --with-tui). */
+/** OpenTUI's native package per target (not needed with --cli-only). */
 const OPENTUI_NATIVE = {
   'darwin-arm64': 'core-darwin-arm64', 'darwin-x64': 'core-darwin-x64', 'linux-x64': 'core-linux-x64',
   'linux-arm64': 'core-linux-arm64', 'windows-x64': 'core-win32-x64', 'linux-x64-musl': 'core-linux-x64-musl',
@@ -60,17 +61,18 @@ const MUSL_TARGETS = {
 }
 
 function parseArgs(argv) {
-  const args = { targets: undefined, host: false, musl: false, tui: false, build: true, out: 'dist' }
+  const args = { targets: undefined, host: false, musl: false, tui: true, build: true, out: 'dist' }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--targets') args.targets = argv[++i].split(',').map((t) => t.trim()).filter(Boolean)
     else if (a === '--host') args.host = true
     else if (a === '--musl') args.musl = true
     else if (a === '--with-tui') args.tui = true
+    else if (a === '--cli-only') args.tui = false
     else if (a === '--no-build') args.build = false
     else if (a === '--out') args.out = argv[++i]
     else if (a === '-h' || a === '--help') {
-      console.log('Usage: node scripts/build-binaries.mjs [--targets a,b] [--host] [--musl] [--with-tui] [--no-build] [--out dist]')
+      console.log('Usage: node scripts/build-binaries.mjs [--targets a,b] [--host] [--musl] [--cli-only] [--no-build] [--out dist]')
       process.exit(0)
     } else fail(`unknown option ${a}`)
   }
@@ -150,7 +152,7 @@ const spec = checkOperationsIndex()
 console.log(`qqq ${version} (${sha}), bun ${bun.stdout.trim()}, UI API document ${spec.apiVersion} with ${spec.operations} operations`)
 
 if (args.build) run('npm', ['run', 'build', '--silent'], { shell: process.platform === 'win32' })
-for (const entry of ['packages/ui-api-client/dist/index.js', 'packages/core/dist/index.js']) {
+for (const entry of ['packages/ui-api-client/dist/index.js', 'packages/core/dist/index.js', 'packages/cli/dist/main.js']) {
   if (!existsSync(join(root, entry))) fail(`${entry} is missing; run npm run build`)
 }
 
@@ -175,7 +177,7 @@ for (const name of names) {
     ...(name.startsWith('linux') ? [`--define=process.env.OPENTUI_LIBC=${JSON.stringify(name.endsWith('-musl') ? 'musl' : 'glibc')}`] : []),
   ]
   run('bun', [
-    'build', args.tui ? 'scripts/binary-with-tui.ts' : 'packages/cli/src/main.ts',
+    'build', args.tui ? 'scripts/binary-with-tui.ts' : 'packages/cli/dist/main.js',
     '--compile', `--target=${all[name]}`, `--outfile=${outfile}`,
     '--minify-syntax', '--minify-whitespace', '--sourcemap',
     `--define=QQQ_BUILD_SHA=${JSON.stringify(sha)}`,

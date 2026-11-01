@@ -55,9 +55,13 @@ First release candidate of `qqq` 1.0 (M1: the kernel and the CLI). Packages: `@q
   6 validation, 70 server error).
 - `qqq --version` prints the build (`node` or the binary's target and commit) and the supported UI API
   range.
-- **Distribution**: single-file binaries for macOS arm64 and x64, Linux x64 and arm64 (glibc and musl)
-  and Windows x64 (`npm run binaries`); a curl installer that verifies `SHA256SUMS`; Homebrew and Scoop
-  drafts; `npm run release`.
+- **Distribution**: one single-file `qqq` binary per platform with the terminal UI (`qqq ui`) bundled,
+  for macOS arm64 and x64, Linux x64 and arm64 (glibc and musl) and Windows x64 (`npm run binaries`,
+  `--cli-only` without the UI); a curl installer that verifies `SHA256SUMS`; a ready-to-copy Homebrew tap
+  and a Scoop manifest; `npm run release`, `scripts/verify-binary.sh`/`.ps1` and
+  `docs/release-runbook.md`.
+- `qqq doctor` and `qqq ui --check` start with a build line (version, binary with or without the UI,
+  commit, runtime, platform); `qqq ui` in an installation without the UI says how to get it.
 
 ### Client and conformance
 
@@ -69,6 +73,7 @@ First release candidate of `qqq` 1.0 (M1: the kernel and the CLI). Packages: `@q
 
 - `npm test` runs on Node 20 (the test glob is expanded by the shell; `node --test` only expands globs
   from Node 21).
+- A question closed with Ctrl-D no longer hangs on Node 22.12 (readline left the question pending).
 - The hardening review (`docs/review-2026-10-31.md`): option collisions, `table update` on contingent
   fields, corrupt config and secrets files no longer overwritten, awaited 0.1 imports, Ctrl-C and Ctrl-D at
   prompts, REVEAL values masked in query cells, one DATE_TIME, help and download path, checked numeric
@@ -78,9 +83,10 @@ First release candidate of `qqq` 1.0 (M1: the kernel and the CLI). Packages: `@q
 
 - Bulk load is not in the CLI yet; jobs need a durable-jobs server; TABLE_BASED sign-in is refused (no
   documented native recipe). See `docs/server-findings.md`.
-- The binaries are not Developer ID signed or notarized (macOS) nor Authenticode signed (Windows). The
+- The binaries are not Developer ID signed or notarized (macOS: Gatekeeper prompt for browser downloads,
+  `xattr -d com.apple.quarantine` clears it) nor Authenticode signed (Windows: SmartScreen warning). The
   Windows and macOS x64 binaries are cross-compiled and were not run before this candidate.
-- The TUI (`qqq ui`) is not part of this release; the binaries say so when asked.
+- The npm package is the CLI only; `qqq ui` comes with the binaries.
 
 ## [0.1.0]
 

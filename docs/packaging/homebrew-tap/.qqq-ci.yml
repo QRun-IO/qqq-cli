@@ -1,0 +1,5 @@
+profile: homebrew-tap
+orb_version: '0.8'
+default_branch: main
+tap: qrun-io/tap
+formula: qqq

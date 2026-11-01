@@ -5,7 +5,7 @@
  */
 
 /**
- * Fills the version and sha256 values of the packaging drafts (docs/packaging/qqq.rb for Homebrew,
+ * Fills the version and sha256 values of the packaging files (docs/packaging/homebrew-tap/Formula/qqq.rb for Homebrew,
  * docs/packaging/qqq.json for Scoop) from packages/cli/package.json and a release's SHA256SUMS.
  * Run it on the binaries that were uploaded to the GitHub release, not on a local rebuild: the
  * commit is stamped into each binary, so every build has different checksums.
@@ -30,7 +30,7 @@ function sum(file) {
   return hash
 }
 
-const formulaPath = join(root, 'docs/packaging/qqq.rb')
+const formulaPath = join(root, 'docs/packaging/homebrew-tap/Formula/qqq.rb')
 let formula = readFileSync(formulaPath, 'utf8').replace(/^(\s*version ")[^"]+"/m, `$1${version}"`)
 formula = formula.replace(/(url "[^"]*\/(qqq-[a-z0-9-]+)"\n\s*sha256 ")[0-9a-f]{64}"/g, (_, head, file) => `${head}${sum(file)}"`)
 writeFileSync(formulaPath, formula)
@@ -42,4 +42,4 @@ manifest.architecture['64bit'].url = `https://github.com/QRun-IO/qqq-cli/release
 manifest.architecture['64bit'].hash = sum('qqq-windows-x64.exe')
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 4) + '\n')
 
-console.log(`docs/packaging/qqq.rb and qqq.json now name ${version} with the sums from ${sumsPath}`)
+console.log(`docs/packaging/homebrew-tap/Formula/qqq.rb and docs/packaging/qqq.json now name ${version} with the sums from ${sumsPath}`)
