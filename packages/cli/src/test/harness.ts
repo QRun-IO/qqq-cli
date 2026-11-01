@@ -194,11 +194,14 @@ export interface CliResult {
   stderr: string
 }
 
-/** A throwaway home for config, cache and the file keyring. */
+/**
+ * A throwaway home for config, cache, state and the file keyring. HOME and USERPROFILE both point at
+ * it, because os.homedir() reads USERPROFILE on Windows, so nothing falls back to the real home.
+ */
 export function sandbox(): { env: Record<string, string>; dispose(): void } {
   const dir = mkdtempSync(join(tmpdir(), 'qqq-cli-test-'))
   return {
-    env: { QQQ_CONFIG_DIR: join(dir, 'config'), QQQ_CACHE_DIR: join(dir, 'cache'), QQQ_CLI_HOME: join(dir, 'legacy'), QQQ_KEYRING: 'file', HOME: dir },
+    env: { QQQ_CONFIG_DIR: join(dir, 'config'), QQQ_CACHE_DIR: join(dir, 'cache'), QQQ_STATE_DIR: join(dir, 'state'), QQQ_CLI_HOME: join(dir, 'legacy'), QQQ_KEYRING: 'file', HOME: dir, USERPROFILE: dir },
     dispose: () => rmSync(dir, { recursive: true, force: true }),
   }
 }

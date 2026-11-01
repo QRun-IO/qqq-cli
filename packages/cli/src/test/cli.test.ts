@@ -37,7 +37,8 @@ function qqq(args: string[], env: Record<string, string> = {}, input?: string): 
 }
 
 function normalize(text: string): string {
-  return text.split(server.url).join('http://fake').split(box.env.HOME!).join('<home>').replace(/\r\n/g, '\n')
+  // paths under the sandbox home are compared with / separators, so the golden files hold on Windows too
+  return text.split(server.url).join('http://fake').split(box.env.HOME!).join('<home>').replace(/<home>[^\s"']*/g, (path) => path.replace(/\\/g, '/')).replace(/\r\n/g, '\n')
 }
 
 /** Compares a run with its golden file (or writes it with UPDATE_GOLDEN=1). */
