@@ -125,6 +125,24 @@ export function plainSearchText(text: string): string {
   return text.replace(/(^|\s)[A-Za-z_][\w.]*:(?=\S)/g, '$1').trim()
 }
 
+/**
+ * The empty state when quick search finds nothing: what it covers (N of all tables, the first five
+ * names and "and N more", records, last reindex), that other tables cannot be found here, and where
+ * to add them; `fallback` is the last clause (what to press instead).
+ */
+export function searchCoverageText(text: string, status: QuickSearchStatusSummary | undefined, options: { totalTables?: number; label?: (table: string) => string; clock?: (iso: string) => string; fallback?: string } = {}): string {
+  const head = `No records match "${text.trim()}".`
+  if (!status) return head
+  const label = options.label ?? ((t: string) => t)
+  const names = status.tables.map(label)
+  const shown = names.length > 5 ? `${names.slice(0, 5).join(', ')} and ${names.length - 5} more` : names.join(', ')
+  const of = options.totalTables ? ` of ${options.totalTables.toLocaleString('en-US')}` : ''
+  const parts = [`Quick search indexes ${status.tables.length}${of} table${status.tables.length === 1 && !of ? '' : 's'}${shown ? ` (${shown})` : ''}`, `${status.documents.toLocaleString('en-US')} record${status.documents === 1 ? '' : 's'}`]
+  if (status.lastSync) parts.push(`last reindex ${(options.clock ?? ((iso: string) => new Date(iso).toTimeString().slice(0, 5)))(status.lastSync)}`)
+  const fallback = options.fallback ?? 'press / to find a table by name'
+  return `${head} ${parts.join(' · ')}. Tables not indexed cannot be found here; add them in Quick Search Admin › Quick Search Index, or ${fallback}.`
+}
+
 export interface QuickSearchStatusSummary {
   /** Enabled, searchable tables. */
   tables: string[]
@@ -147,13 +165,13 @@ export function quickSearchStatus(data: J): QuickSearchStatusSummary {
   }
 }
 
-/** "N matches in M tables · 42 ms · index 1,234 records · last reindex 10:12". */
+/** "N matches in M tables · 42 ms · index 1,234 records in 2 tables · last reindex 10:12". */
 export function searchStatusLine(result: { total: number; groups: unknown[] } | undefined, ms: number | undefined, status: QuickSearchStatusSummary | undefined, clock: (iso: string) => string = (iso) => new Date(iso).toTimeString().slice(0, 5)): string {
   const parts: string[] = []
   if (result) parts.push(`${result.total.toLocaleString('en-US')} match${result.total === 1 ? '' : 'es'} in ${result.groups.length} table${result.groups.length === 1 ? '' : 's'}`)
   if (ms !== undefined) parts.push(`${Math.round(ms)} ms`)
   if (status) {
-    parts.push(`index ${status.documents.toLocaleString('en-US')} record${status.documents === 1 ? '' : 's'}`)
+    parts.push(`index ${status.documents.toLocaleString('en-US')} record${status.documents === 1 ? '' : 's'} in ${status.tables.length} table${status.tables.length === 1 ? '' : 's'}`)
     if (status.lastSync) parts.push(`last reindex ${clock(status.lastSync)}`)
     if (status.state && status.state !== 'OK') parts.push(`state ${status.state}`)
   }

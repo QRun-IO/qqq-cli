@@ -10,7 +10,7 @@
  * table the screen was opened from. Pure: the server calls come in as functions, so tests drive it.
  */
 
-import { plainSearchText, groupSearchResults, quickSearchStatus, searchStatusLine, unsupportedSyntax, type QuickSearchStatusSummary, type SearchGroup, type SearchHit } from '@qrun-io/qqq-core'
+import { searchCoverageText, plainSearchText, groupSearchResults, quickSearchStatus, searchStatusLine, unsupportedSyntax, type QuickSearchStatusSummary, type SearchGroup, type SearchHit } from '@qrun-io/qqq-core'
 
 type J = Record<string, unknown>
 
@@ -35,6 +35,12 @@ export interface SearchDeps {
   names(text: string): Hit[]
   /** Records of the context table whose label fields contain the text, for the fallback. */
   contextRecords?(text: string): Promise<HitGroup | undefined>
+  /** The table Search was opened from (`o` searches it by name when quick search finds nothing). */
+  contextTable?: string
+  /** Every table the user may see, for "N of M tables". */
+  totalTables?: number
+  /** A table's label. */
+  tableLabel?(table: string): string
   /** Recent searches of this profile, newest first, and adding one. */
   history: { entries(): string[]; add(text: string): void }
   now?(): number
@@ -85,6 +91,16 @@ export class SearchModel {
     }
     if (this.provider === 'NONE') return 'this server has no search provider: nothing searches records'
     return searchStatusLine(this.text.trim() ? { total: this.total, groups: this.groups } : undefined, this.text.trim() ? this.ms : undefined, this.status, clock) || 'type to search'
+  }
+
+  /** Nothing found: what quick search covers and what to do instead; undefined while there are hits or no search. */
+  emptyText(clock?: (iso: string) => string): string | undefined {
+    const text = this.text.trim()
+    if (!text || this.searching || this.error || this.flat().length) return undefined
+    if (!this.deps.quick) return `No tables, apps, processes${this.deps.contextTable ? ' or records of this table' : ''} match "${text}".`
+    if (this.table) return `No records of ${this.deps.tableLabel?.(this.table) ?? this.table} match "${text}" (f: every table).`
+    const fallback = this.deps.contextTable ? `press \`o\` to search ${this.deps.tableLabel?.(this.deps.contextTable) ?? this.deps.contextTable} by name` : 'press / to find a table by name'
+    return searchCoverageText(text, this.status, { totalTables: this.deps.totalTables, label: this.deps.tableLabel, clock, fallback })
   }
 
   async loadStatus(): Promise<void> {

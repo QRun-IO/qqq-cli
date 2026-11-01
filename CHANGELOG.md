@@ -292,6 +292,12 @@ in parentheses mark the changes made after the candidate.
 
 ### Fixed
 
+- The UI's Search (F2) said only "no records match" when quick search found nothing. It now explains
+  the coverage: "No records match "Gondor". Quick search indexes 17 of 189 tables (Customer, Order, …
+  and 12 more) · 57 records · last reindex 10:38. Tables not indexed cannot be found here; add them in
+  Quick Search Admin › Quick Search Index, or press `o` to search Person by name." (`o` then opens the
+  table Search came from, its text fields searched for the text). The status line names the indexed
+  tables too: "index 57 records in 17 tables".
 - The screen saver moves every element so an OLED or CRT does not burn in: Bounce's tile panel rides beside the logo (the clock, server and lock lines used to sit still), the header and the lock line change place every 30 s, the flip clock drifts, Big numbers changes corners, and it dims after 10 minutes (`:saver burnin on|off`, `:saver dim <minutes|off>`); the block-letter logo now says the connected profile's name (short name up to 6 characters) with the server host beneath, instead of `qqq`.
 - The UI's text and HTML widgets (Quick Search Admin's Search Diagnostics, the SQL Workbench summary, the
   alerts cards) were one undifferentiated block. They are drawn as a document with the web's hierarchy:

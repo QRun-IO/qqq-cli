@@ -46,7 +46,7 @@ test('search model: groups by table with counts, cursor moves, ←→ cycle the 
   await m.run()
   expect(d.calls).toEqual([{ text: 'ada', tables: undefined, limit: 10 }])
   expect(m.groups.map((g) => `${g.label}:${g.total}:${g.hits.length}`)).toEqual(['Customer:2:2', 'Order:5:1'])
-  expect(m.statusLine(() => '10:12')).toBe('7 matches in 2 tables · 21 ms · index 1,234 records · last reindex 10:12')
+  expect(m.statusLine(() => '10:12')).toBe('7 matches in 2 tables · 21 ms · index 1,234 records in 2 tables · last reindex 10:12')
   expect(m.current()!.hit.label).toBe('Ada Lovelace')
   m.cycleGroup(1)
   expect(m.current()!.hit.key).toBe('9')
@@ -165,4 +165,37 @@ test('search model: an older, slower search does not overwrite the newer one (re
   await first
   expect(m.provider).toBe('OK')
   expect(m.total).toBe(7)
+})
+
+test('search model: no matches explains what quick search covers and what to press instead', async () => {
+  const d = deps({ searchRecords: async () => ({ results: [], tables: [], provider: { status: 'OK' } }), contextTable: 'person', totalTables: 183, tableLabel: (t) => ({ customer: 'Customer', order: 'Order', person: 'Person' } as Record<string, string>)[t] ?? t })
+  const m = new SearchModel(d)
+  await m.loadStatus()
+  m.text = 'Illinois'
+  await m.run()
+  expect(m.emptyText(() => '05:23')).toBe('No records match "Illinois". Quick search indexes 2 of 183 tables (Customer, Order) · 1,234 records · last reindex 05:23. Tables not indexed cannot be found here; add them in Quick Search Admin › Quick Search Index, or press `o` to search Person by name.')
+  m.table = 'order'
+  expect(m.emptyText()).toBe('No records of Order match "Illinois" (f: every table).')
+  m.table = undefined
+  const noContext = new SearchModel(deps({ searchRecords: async () => ({ results: [] }) }))
+  await noContext.loadStatus()
+  noContext.text = 'x'
+  await noContext.run()
+  expect(noContext.emptyText()).toMatch(/or press \/ to find a table by name\.$/)
+})
+
+test('no matches on the Search screen: the coverage text, and o searches the table it came from', async () => {
+  fakeExtensions.push(QUICK_SEARCH)
+  h = await startTui(120, 36)
+  await command(h, 'table query person')
+  await waitFor(h, (x) => x.includes('First Name'))
+  await key(KeyCodes.F2)
+  await type('first1')
+  let f = await waitFor(h, (x) => x.includes('No records match "first1"'))
+  expect(f).toContain('Quick search indexes 2 of')
+  expect(f).toContain('(Person, Order) · 32')
+  expect(f).toContain('index 32 records in 2 tables')
+  await press(h, () => h!.setup.mockInput.pressEnter())
+  await type('o')
+  f = await waitFor(h, (x) => h!.store.screen?.kind === 'table' && x.includes('First1 '))
 })

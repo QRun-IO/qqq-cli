@@ -39,6 +39,9 @@ export function searchDeps(store: AppStore, contextTable?: string): SearchDeps {
   const history = searchHistory(store)
   return {
     quick,
+    contextTable,
+    totalTables: Object.keys(store.meta?.tables ?? {}).length,
+    tableLabel: (t) => store.meta?.tables?.[t]?.label ?? t,
     searchRecords: (text, tables, limitPerTable) => client.data<J>('searchRecords', { json: { searchTerm: text, ...(tables ? { tableNames: tables } : {}), limitPerTable } }),
     status: () => client.data<J>('getQuickSearchStatus'),
     names: (text) => (store.index?.search(text, { limit: 30, kinds: ['table', 'app', 'process'] }).entries ?? []).map((e) => ({
@@ -61,6 +64,20 @@ export function searchDeps(store: AppStore, contextTable?: string): SearchDeps {
     } : undefined,
     history: { entries: () => history.entries(), add: (t) => history.add(t) },
   }
+}
+
+/** Wraps text at a width (words kept whole where they fit). */
+function wrapLines(text: string, width: number): string[] {
+  const out: string[] = []
+  let line = ''
+  for (const word of text.split(/\s+/)) {
+    if (line && line.length + 1 + word.length > width) {
+      out.push(line)
+      line = word
+    } else line = line ? `${line} ${word}` : word
+  }
+  if (line) out.push(line)
+  return out
 }
 
 export class SearchScreen implements Screen {
@@ -131,7 +148,7 @@ export class SearchScreen implements Screen {
       if (key.name === 'return') {
         m.remember()
         this.schedule(0)
-        if (m.flat().length || m.text.trim()) this.focus = 'results'
+        if (m.text.trim()) this.focus = 'results'
         return true
       }
       if (key.name === 'down' || (key.name === 'tab' && !key.shift)) {
@@ -201,6 +218,15 @@ export class SearchScreen implements Screen {
   /** o: the current table's grid, filtered to the marked hits there (else every hit shown). */
   openGrid(): void {
     const c = this.model.current()
+    const context = this.model.deps.contextTable
+    // nothing found: the table Search came from, its text fields searched for what was typed
+    if (!c && context && this.model.text.trim()) {
+      const s = this.store
+      return s.run(s.client!.tableMeta(context), (meta) => {
+        const filter = quickSearchFilter(this.model.text.trim(), quickSearchFields(meta as never))
+        openTable(s, context, filter ?? undefined)
+      })
+    }
     if (!c || c.hit.target) return this.store.flash('o opens a table of record hits')
     const group = this.model.groups[c.group]!
     this.gridOf(group.table, this.model.keysForGrid(c.group))
@@ -281,7 +307,7 @@ export class SearchScreen implements Screen {
     const inner = width - 2
     const lines: Array<{ text: string; fg?: string; bg?: string; bold?: boolean }> = []
     const scope = m.table ? ` in ${m.groups.find((x) => x.table === m.table)?.label ?? this.store.meta?.tables?.[m.table]?.label ?? m.table} (f: every table)` : ''
-    const info = m.error ? { text: ` ${m.error}`, fg: t.err } : m.notes.length ? { text: ` ${m.notes.join(' · ')}`, fg: t.warn } : { text: ` ${m.searching ? 'searching…' : scope ? scope.trim() : m.text.trim() && !m.flat().length ? 'no records match' : ''}`, fg: t.dim }
+    const info = m.error ? { text: ` ${m.error}`, fg: t.err } : m.notes.length ? { text: ` ${m.notes.join(' · ')}`, fg: t.warn } : { text: ` ${m.searching ? 'searching…' : scope ? scope.trim() : ''}`, fg: t.dim }
     const flat = m.flat()
     let selRow = -1
     let index = 0
@@ -300,6 +326,9 @@ export class SearchScreen implements Screen {
         index++
       }
     })
+    const clock = (iso: string) => displayDateTime(iso).replace(/^.* (\d\d:\d\d).*$/, '$1')
+    const empty = m.emptyText(clock)
+    if (empty) for (const l of wrapLines(empty, Math.min(inner - 2, 100))) lines.push({ text: ` ${l}`, fg: t.fg })
     if (!flat.length && !m.text.trim()) {
       lines.push({ text: ' Type to search. Enter or ↓ goes to the results; ? syntax · h recent searches · f one table', fg: t.dim })
       const recent = m.recent(8)
