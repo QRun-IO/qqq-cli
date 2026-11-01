@@ -19,7 +19,7 @@ import { LineEditor } from '../line-editor'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { MenuEntry, Overlay } from '../types'
-import { pad, padLeft, trunc } from '../util/text'
+import { fitKeyLine, pad, padLeft, trunc, type KeyToken } from '../util/text'
 import { EditorLine, overlayId } from './basic'
 import { Frame, Line } from './frame'
 import { pickRow } from '../mouse/keys'
@@ -105,15 +105,9 @@ export function searchRows(all: MenuEntry[], text: string): MenuRow[] {
   return rows
 }
 
-/** Lays out key hints in one line of `width` cells, dropping the tokens with the highest `drop` first. */
-function hint(tokens: Array<{ text: string; drop?: number }>, width: number): string {
-  let kept = tokens.filter((t) => t.text)
-  const join = (list: typeof kept) => list.map((t) => t.text).join(' · ')
-  while (kept.length > 1 && join(kept).length > width) {
-    const victim = kept.reduce((worst, t) => ((t.drop ?? 0) >= (worst.drop ?? 0) ? t : worst))
-    kept = kept.filter((t) => t !== victim)
-  }
-  return trunc(join(kept), width)
+/** Key hints in one line of `width` cells, dropping whole tokens with the highest `drop` first (util/text fitKeyLine). */
+function hint(tokens: KeyToken[], width: number): string {
+  return fitKeyLine(tokens, width, 1)[0] ?? ''
 }
 
 const CONTEXT_WORD: Record<string, string> = { record: 'this record', table: 'this grid', process: 'this process', form: 'this form', app: 'this app', home: 'the home screen' }

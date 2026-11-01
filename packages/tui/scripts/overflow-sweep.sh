@@ -74,6 +74,10 @@ start; keys T:/; shot 03-palette 'Go to'
 start; keys T:: 'T:table q'; shot 04-command-line ': table q'
 start; keys F9; shot 05-command-center 'Menu' 'Go to'
 keys T:job; shot 05b-command-center-search 'Menu'
+start; keys F9 Enter; shot 05c-command-center-context 'Menu'
+keys Escape Down Down Enter; shot 05d-command-center-area 'Menu'
+start; keys C-o; shot 05e-servers 'Servers'
+keys T:n; shot 05f-servers-add 'Add a server profile'
 start; cmd 'app peopleApp'; shot 06-app-home 'People App'
 start; cmd 'table query person'; keys S:1 Tab Down Right Down Down Right; shot 07-app-tree '▾'
 start; cmd 'table query person'; shot 08-grid 'First Name' 'records'
@@ -118,6 +122,17 @@ start; cmd 'table create person'; keys S:1 C-s; shot 33-form-errors 'is required
 start; cmd 'app SampleWidgetsDashboard'; shot 34-dashboard 'Sample Widgets Dashboard'
 keys F10; shot 35-quit-confirm 'Quit qqq?'
 start; cmd 'table query person'; keys S:1 F9; keys T:'CLI' Enter; shot 36-message 'CLI equivalent'
+
+# the SQL Runner, where the server has the sql-workbench extension (the enterprise server)
+if curl -sf "$server/qqq/v1/metaData" | grep -q 'sql-workbench\|sqlWorkbench'; then
+  table="${SQL_TABLE:-CUSTOMER}"
+  start; cmd 'sql SELECT 1'; shot 40-sql-select-1 'SQL · cell'
+  keys Escape End C-u "T:SELECT * FROM $table" F5; shot 41-sql-table 'col 1/'
+  keys Escape End C-u 'T:SELECT * FRM X' F5; shot 42-sql-error 'FAILED'
+  keys End C-u "T:SELECT * FROM $table WHERE 1 = 1" F6; shot 43-sql-explain 'Plan'
+  keys Escape F3; shot 44-sql-schema 'Schema'
+  keys F3 F7; shot 45-sql-history 'History'
+fi
 
 echo "captures in $out"
 if [[ $fails == 0 ]]; then echo "overflow-sweep: ok ($shots states x $(wc -w <<< "$sizes" | tr -d ' ') sizes)"; else echo "overflow-sweep: $fails failed"; exit 1; fi

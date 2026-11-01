@@ -18,22 +18,16 @@ import { ServersModel, ago, statusText, type ProfileInput, type ServerRow } from
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { Overlay } from '../types'
-import { errorText, pad, trunc } from '../util/text'
+import { errorText, fitKeyLine, pad, type KeyToken } from '../util/text'
 import { ConfirmOverlay, EditorLine, overlayId } from './basic'
 import { Frame, Line } from './frame'
 import { tokenAt } from '../mouse/hit'
 import { pickRow } from '../mouse/keys'
 import { Zone } from '../mouse/zone'
 
-/** Lays out key hints in one line of `width` cells, dropping the tokens with the highest `drop` first. */
-function hint(tokens: Array<{ text: string; drop?: number }>, width: number): string {
-  let kept = tokens.filter((t) => t.text)
-  const join = (list: typeof kept) => list.map((t) => t.text).join(' · ')
-  while (kept.length > 1 && join(kept).length > width) {
-    const victim = kept.reduce((worst, t) => ((t.drop ?? 0) >= (worst.drop ?? 0) ? t : worst))
-    kept = kept.filter((t) => t !== victim)
-  }
-  return trunc(join(kept), width)
+/** Key hints in one line of `width` cells, dropping whole tokens with the highest `drop` first (util/text fitKeyLine). */
+function hint(tokens: KeyToken[], width: number): string {
+  return fitKeyLine(tokens, width, 1)[0] ?? ''
 }
 
 /** Command keys while the filter is empty; any other character starts the filter (/ starts it too). */

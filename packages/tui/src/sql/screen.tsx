@@ -24,7 +24,7 @@ import type { AppStore } from '../store'
 import { borderProps, glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Screen } from '../types'
 import { readViewSettings } from '@qrun-io/qqq-core'
-import { errorText, num, pad, padLeft, shellQuote, trunc } from '../util/text'
+import { cellWidth, errorText, fitSegments, num, pad, padLeft, shellQuote, trunc } from '../util/text'
 import { runnerApps } from './apps'
 import {
   SqlBuffer, SqlHistory, cellSummary, coerceParameter, completionItems, errorPosition, extractParameters, keywordSet, markdownLines,
@@ -73,16 +73,10 @@ interface CellState {
 
 interface Seg { text: string; fg?: string; bg?: string }
 
-/** Cuts styled segments to exactly `width` cells (padding the rest). */
+/** Cuts styled segments to exactly `width` cells (padding the rest), measured in terminal cells. */
 function fitSegs(segs: Seg[], width: number): Seg[] {
-  const out: Seg[] = []
-  let used = 0
-  for (const s of segs) {
-    if (used >= width) break
-    const text = used + s.text.length > width ? trunc(s.text, width - used) : s.text
-    out.push({ ...s, text })
-    used += text.length
-  }
+  const out = fitSegments(segs.filter((s) => s.text), width)
+  const used = out.reduce((a, s) => a + cellWidth(s.text), 0)
   if (used < width) out.push({ text: ' '.repeat(width - used) })
   return out
 }

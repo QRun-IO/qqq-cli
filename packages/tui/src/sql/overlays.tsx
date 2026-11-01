@@ -12,21 +12,15 @@ import { Frame, Line } from '../overlays/frame'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { Overlay } from '../types'
-import { errorText, pad, trunc } from '../util/text'
+import { errorText, fitKeyLine, pad, trunc } from '../util/text'
 import { cellSummary, type Notebook } from './model'
 import type { SqlRunnerScreen } from './screen'
 import { pickRow } from '../mouse/keys'
 import { Zone } from '../mouse/zone'
 
-/** One line of key help that drops whole tokens from the end when it does not fit. */
+/** One line of key help that drops whole tokens (Esc and Enter last) when it does not fit (util/text fitKeyLine). */
 function hint(tokens: string[], width: number): string {
-  let out = ''
-  for (const t of tokens) {
-    const next = out ? `${out} · ${t}` : t
-    if (next.length + 1 > width) break
-    out = next
-  }
-  return ` ${out}`
+  return ` ${fitKeyLine(tokens, Math.max(1, width - 1), 1)[0] ?? ''}`
 }
 
 /** A list row; with the mouse a click calls `select`, a double-click `select` then `activate` (Enter). */
