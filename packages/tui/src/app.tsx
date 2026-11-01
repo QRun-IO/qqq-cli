@@ -73,7 +73,7 @@ function TitleBar({ store, width }: { store: AppStore; width: number }) {
   const left = ` ${brand} ${ascii ? '-' : '─'} ${shown.join(ascii ? ' > ' : ' › ')}`
   // collaboration presence slot: "N others viewing" (empty without the collaboration extension)
   const others = presenceText(presence)
-  const right = [others, store.status.user, store.status.alerts ? `alerts ${store.status.alerts}` : '', store.status.jobs !== 'n/a' && store.status.jobs !== '0' ? `jobs ${store.status.jobs}` : ''].filter(Boolean).join('  ') + ' '
+  const right = [others, store.status.user, store.status.alerts ? `alerts ${store.status.alerts}` : '', store.status.jobs !== 'n/a' && store.status.jobs !== '0' ? `jobs ${store.status.jobs}` : '', store.status.print ?? ''].filter(Boolean).join('  ') + ' '
   const room = Math.max(0, width - right.length)
   return <text flexShrink={0} wrapMode="none" fg={t.titleFg} bg={t.titleBg}>{pad(trunc(left, room), room) + trunc(right, width - room)}</text>
 }
@@ -89,9 +89,9 @@ function StatusLine({ store, width }: { store: AppStore; width: number }) {
   const streamColor = s.stream === 'connected' ? t.ok : s.stream === 'reconnecting' ? t.warn : t.statusFg
   const left = ` ${s.server.replace(/^https?:\/\//, '')} · ${s.profile}${s.auth ? ` · ${s.auth}` : ''} · UI API ${s.apiVersion} · ${ping} · `
   const stream = `stream ${s.stream}`
-  const right = ` · jobs ${s.jobs}${presence.count ? ` · ${presence.count} viewing` : ''} · ${s.lastEvent} · ${s.build} · ${s.clock} `
+  const right = ` · jobs ${s.jobs}${s.print ? ` · ${s.print}` : ''}${presence.count ? ` · ${presence.count} viewing` : ''} · ${s.lastEvent} · ${s.build} · ${s.clock} `
   if (left.length + stream.length + right.length > width) {
-    const short = ` ${s.profile} · ${ping} · ${stream} · jobs ${s.jobs} · ${s.clock} `
+    const short = ` ${s.profile} · ${ping} · ${stream} · jobs ${s.jobs}${s.print ? ` · ${s.print}` : ''} · ${s.clock} `
     return <text flexShrink={0} wrapMode="none" fg={t.statusFg} bg={t.statusBg}>{pad(short, width)}</text>
   }
   return (

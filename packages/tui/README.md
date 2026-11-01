@@ -50,6 +50,7 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 | Ctrl+C | quit at once (the terminal is restored) | `c` | copy a record |
 | `a` | actions here (the F9 Context entries) | `A`, `D` | audits, developer view (record or grid) |
 | `t` | tags of a record (collaboration extension) | Esc then 1..0, Ctrl+1..0 | F1..F10 when the terminal takes the F-keys |
+| `p` | Print… a record, or the grid's selection (printing extension) | | |
 
 Keys on one screen:
 
@@ -66,6 +67,16 @@ Keys on one screen:
 | Developer (`D`) | ←→ or 1-9 sections, ↑↓ PgUp PgDn scroll, Enter follow the line, `v` view the value in full, `y` copy it, F3 the record (or the grid), Esc back; see [Developer view](#developer-view) |
 | Command line | ↑↓ history, Ctrl+R search the history, Tab complete, Enter run, Esc close |
 | Filter (F6) | ↑↓ rows, ←→ Tab cells, Enter or typing edits the focused cell (text and numbers in place, choices from a list, Space cycles true/false), Backspace clears it to `(any)`, Ctrl+N add, Ctrl+D remove, Ctrl+O AND/OR, Ctrl+G group, F2 Advanced (grammar, cheat sheet, caret under errors), F10 apply, Esc cancel; see [docs/filter-dialog.md](docs/filter-dialog.md) |
+
+Printing (printing extension, qbit-printing 2.x): on a table the server enabled Print for, `p` (or
+Print… in `a` and F9) on a record, or on a grid with records selected with Space (else the record under
+the cursor), opens the printer picker. Printers that can take a record print now (approved, exposed by a
+connected print agent, PDF) come first; the others are listed with the reason and cannot be picked. The
+printer chosen is remembered per profile and preselected next time, marked "(last used)". The records are
+queued as one job each; the title bar and status line show `print 1/3 RECEIVED` while they run, and a
+flash says when they have printed (or which state stopped them). `:printjobs` (F9 › Work › Print jobs)
+lists the recent print jobs; Enter shows one. Without the extension there is no Print action and
+`:printjobs` says what is missing. The qbit's own Print process is not listed again under Run.
 
 Single-key shortcuts follow the server preference `keyboard.singleKeyShortcuts` and can be switched in F9
 Settings; every F-key action is also in the F9 menu and on the `:` line.

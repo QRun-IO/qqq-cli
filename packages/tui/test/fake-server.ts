@@ -11,6 +11,7 @@ import { bulkProcessesMeta, bulkRoute } from './fake-bulk'
 import { savedReportWidgets, shareRoute } from './fake-share'
 import { dashApp, dashWidgets, widgetRoute } from './fake-widgets'
 import { secApps, secProcesses, secRoute, secTables } from './fake-sec'
+import { printProcessesMeta, printRoute } from './fake-print'
 
 type J = Record<string, unknown>
 
@@ -133,6 +134,8 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown, au
         return json({ message: 'Session expired' }, 401)
       }
     }
+    const print = await printRoute(path, request.method, body)
+    if (print) return print
     const acc = await accRoute(path, request.method, body, url)
     if (acc) return acc
     const bulk = await bulkRoute(path, request.method, body)
@@ -152,7 +155,7 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown, au
         apps: { ...secApps, dash: dashApp, people: { name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] } },
         appTree: [{ type: 'APP', name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] }],
         tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, order: { name: 'order', label: 'Order' }, acc: { name: 'acc', label: 'Acc', insertPermission: true }, part: { name: 'part', label: 'Part', insertPermission: true }, scriptRevisionFile: { name: 'scriptRevisionFile', label: 'Files' }, line: { name: 'line', label: 'Order Line' }, vt: { name: 'vt', label: 'Variant Table' }, doc: { name: 'doc', label: 'Doc', insertPermission: true }, blk: { name: 'blk', label: 'Blk', insertPermission: true }, savedReport: { name: 'savedReport', label: 'Saved Report' }, savedView: { name: 'savedView', label: 'Saved View', isHidden: true }, ...secTables },
-        processes: { ...bulkProcessesMeta, ...secProcesses, adhoc: { name: 'adhoc', label: 'Ad hoc' }, adhocfile: { name: 'adhocfile', label: 'Ad hoc file' }, setupProc: { name: 'setupProc', label: 'Report setup' }, sleeper: { name: 'sleeper', label: 'Sleeper', tableName: 'person' }, scanner: { name: 'scanner', label: 'Scanner' }, wizard: { name: 'wizard', label: 'Wizard' }, GetAuditsForRecord: { name: 'GetAuditsForRecord', label: 'Audits', isHidden: true }, columnStats: { name: 'columnStats', label: 'Stats', isHidden: true }, querySavedView: { name: 'querySavedView', label: 'q', isHidden: true } },
+        processes: { ...bulkProcessesMeta, ...secProcesses, ...printProcessesMeta(), adhoc: { name: 'adhoc', label: 'Ad hoc' }, adhocfile: { name: 'adhocfile', label: 'Ad hoc file' }, setupProc: { name: 'setupProc', label: 'Report setup' }, sleeper: { name: 'sleeper', label: 'Sleeper', tableName: 'person' }, scanner: { name: 'scanner', label: 'Scanner' }, wizard: { name: 'wizard', label: 'Wizard' }, GetAuditsForRecord: { name: 'GetAuditsForRecord', label: 'Audits', isHidden: true }, columnStats: { name: 'columnStats', label: 'Stats', isHidden: true }, querySavedView: { name: 'querySavedView', label: 'q', isHidden: true } },
         reports: { deniedReport: { name: 'deniedReport', label: 'Denied report', hasPermission: false }, streamReport: { name: 'streamReport', label: 'Stream report' }, wizReport: { name: 'wizReport', label: 'Wizard report', processName: 'wizard' } },
         widgets: { ...dashWidgets, ...savedReportWidgets, ctxWidget: { name: 'ctxWidget', label: 'Context' }, stepWidget: { name: 'stepWidget', label: 'Step widget' }, payloadWidget: { name: 'payloadWidget', label: 'Payload' } }, branding: { appName: 'Fake' },
       })

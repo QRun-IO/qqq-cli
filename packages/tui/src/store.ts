@@ -16,6 +16,7 @@ import { TUI_CHANNEL, TuiClient, type VersionInfo } from './client'
 import { charOf, isPrintable, type Key } from './keys'
 import { ChoiceOverlay, ConfirmOverlay, CliCommandOverlay, MessageOverlay } from './overlays/basic'
 import { Extensions } from './extensions'
+import { PrintTracker } from './printing'
 import { collaborationPresence, presenceSource, setPresenceSource } from './presence'
 import { setAscii, setTheme, theme } from './theme'
 import type { FKeyLabels, Overlay, Screen } from './types'
@@ -44,6 +45,8 @@ export interface Status {
   stream: 'off' | 'connecting' | 'connected' | 'reconnecting' | 'n/a'
   lastEvent: string
   jobs: string
+  /** Print jobs being followed (`print 1/2 RECEIVED`), when any. */
+  print?: string
   build: string
   clock: string
   alerts?: number
@@ -83,6 +86,8 @@ export class AppStore {
   target?: Target
   settings: Settings
   status: Status
+  /** Print jobs queued from this session, followed until they end. */
+  readonly printTracker: PrintTracker
   flashText?: { text: string; kind: 'info' | 'error'; at: number }
   /** The screen saver or lock, when shown. */
   lock?: Overlay
@@ -114,6 +119,7 @@ export class AppStore {
       server: options.target?.server ?? '', profile: options.target?.name ?? '', user: '', auth: '', apiVersion: '…', pingMs: null,
       stream: 'off', lastEvent: 'no events yet', jobs: 'n/a', build: options.build ?? 'dev', clock: clock(),
     }
+    this.printTracker = new PrintTracker(this, 1000, Boolean(options.timers))
     if (options.timers) {
       this.timers.push(setInterval(() => {
         this.status.clock = clock()
@@ -425,6 +431,7 @@ export class AppStore {
     for (const t of this.timers) clearInterval(t)
     this.timers = []
     this.streamAbort?.abort()
+    this.printTracker.dispose()
     for (const s of this.routes) s.dispose?.()
   }
 

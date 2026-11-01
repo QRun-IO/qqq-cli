@@ -13,6 +13,7 @@ import { TagOverlay, collaborationOf } from '../overlays/tags'
 import { RecordCollaboration, summaryText, viewingText, type CollabSummary } from '../collab'
 import { CollabScreen, sharePreview, toggleFollow, uploadAttachment, type CollabView } from './collab'
 import { presenceSource } from '../presence'
+import { canPrintTable, openPrintDialog, printUnavailable } from '../printing'
 import { AuditScreen } from './audits'
 import { DeveloperScreen } from './developer'
 import type { FieldMetaData, SectionMetaData, TableMetaData } from '../client'
@@ -657,7 +658,8 @@ export class RecordScreen implements Screen {
   }
 
   recordProcesses() {
-    return Object.values(this.store.meta?.processes ?? {}).filter((p) => p.tableName === this.tableName && !/bulkInsert|bulkEditWithFile|bulkLoad/i.test(p.name))
+    // the qbit's Print process is offered as Print… (printer picker, job tracking) instead
+    return Object.values(this.store.meta?.processes ?? {}).filter((p) => p.tableName === this.tableName && !/bulkInsert|bulkEditWithFile|bulkLoad/i.test(p.name) && !(p.name.startsWith('printingPrintRecords_') && canPrintTable(this.store, this.tableName)))
   }
 
   fkeys(): FKeyLabels {
@@ -713,8 +715,15 @@ export class RecordScreen implements Screen {
         return true
       }
       case 'a': actionsOverlay(this.store, this); return true
+      case 'p': if (canPrintTable(this.store, this.tableName)) { this.print(); return true } return false
       default: return false
     }
+  }
+
+  /** Print… this record: the printer picker, then the job is followed in the status line. */
+  print(): void {
+    if (this.primaryKey === undefined) return
+    openPrintDialog(this.store, this.tableName, [String(this.primaryKey)], `${this.meta?.label ?? this.tableName} ${this.title()}`)
   }
 
   /** Share (shareable tables): only the owner may share; others see why. */
@@ -762,6 +771,7 @@ export class RecordScreen implements Screen {
       if (v.masked) out.push({ section: 'Context', label: `Reveal ${f.label}`, run: () => this.follow([f]) })
     }
     for (const p of this.recordProcesses()) out.push({ section: 'Context', label: `Run ${p.label} on this record`, run: () => openProcess(this.store, p.name, { recordIds: [String(this.primaryKey)] }) })
+    if (this.store.extensions.has('printing')) out.push({ section: 'Context', label: 'Print…', key: 'p', command: this.primaryKey !== undefined ? `print ${this.tableName} ${this.primaryKey}` : undefined, disabled: printUnavailable(this.store, this.tableName), run: () => this.print() })
     if (this.store.extensions.has('collaboration')) out.push({ section: 'Context', label: 'Tags…', key: 't', command: 'tags', detail: this.tags?.map((x) => x.label).join(', '), run: () => this.openTags() })
     out.push(...this.collabEntries())
     out.push({ section: 'Context', label: 'Audit history', key: 'A', command: 'audits', run: () => this.openAudits() })

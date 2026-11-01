@@ -26,6 +26,7 @@ import { SignInScreen } from './screens/signin'
 import type { AppStore, CommandsLike } from './store'
 import type { MenuEntry } from './types'
 import { errorText, shellSplit } from './util/text'
+import { openPrintJobs } from './printing'
 
 const NOUNS: Record<string, string[]> = {
   table: ['list', 'describe', 'query', 'count', 'get', 'create', 'update', 'delete', 'export'],
@@ -40,7 +41,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'server', 'signout', 'connection', 'open', 'record', 'app']
 
 export class Commands implements CommandsLike {
   constructor(private store: AppStore) {}
@@ -279,6 +280,7 @@ export class Commands implements CommandsLike {
           return screen.exportAs?.(rest[0] ?? 'csv')
         }
         case 'jobs': return this.jobs()
+        case 'printjobs': return openPrintJobs(s)
         case 'audits': case 'audit': {
           const screen = s.screen as { kind?: string; openAudits?: () => void; tableName?: string } | undefined
           if (screen?.kind === 'record') return screen.openAudits?.()
@@ -601,6 +603,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Go to', label: 'Favorites', disabled: s.extensions.has('collaboration') ? undefined : 'needs the collaboration extension' })
     // Work
     out.push({ section: 'Work', label: 'Jobs', detail: `active ${s.status.jobs}`, command: 'jobs', disabled: (s.version?.features ?? []).includes('durableJobs') ? undefined : 'n/a: the server lists no jobs', run: () => this.jobs() })
+    out.push({ section: 'Work', label: 'Print jobs', detail: s.status.print, command: 'printjobs', disabled: s.extensions.has('printing') ? undefined : 'needs the printing extension', run: () => openPrintJobs(s) })
     out.push({ section: 'Work', label: 'Notifications', disabled: s.extensions.has('alerts') ? undefined : 'needs the alerts extension' })
     out.push({ section: 'Work', label: 'My work', disabled: s.extensions.has('collaboration') ? undefined : 'needs the collaboration extension' })
     for (const e of s.extensions.all()) out.push({ section: 'Work', label: `Extension: ${e.name} ${e.version}`, detail: e.description, command: `api --list`, run: () => s.message(`${e.name} ${e.version}\n${e.description ?? ''}\nPath: ${e.pathPrefix ?? ''}\nIts panels are not drawn by this TUI yet; its operations are reachable with :api.`, 'info', 'Extension') })

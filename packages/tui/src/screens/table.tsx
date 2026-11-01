@@ -15,6 +15,7 @@ import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { openShareDialog, shareState } from '../overlays/share'
 import { TableDeveloperScreen } from './developer'
+import { canPrintTable, openPrintDialog, printUnavailable } from '../printing'
 import { GridViewSettingsOverlay } from '../overlays/view-settings'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
@@ -409,7 +410,8 @@ export class TableScreen implements Screen {
   /** Table processes for the bulk bar and the menu (the bulk processes run in the bulk wizard). */
   tableProcesses(): Array<{ name: string; label: string; parked?: string }> {
     const bulkNames = new Set(Object.values(this.bulk()).filter(Boolean))
-    const procs = Object.values(this.store.meta?.processes ?? {}).filter((p) => p.tableName === this.tableName && !bulkNames.has(p.name) && !(p as { isHidden?: boolean }).isHidden)
+    // the qbit's Print process is offered as Print… (printer picker, job tracking) instead
+    const procs = Object.values(this.store.meta?.processes ?? {}).filter((p) => p.tableName === this.tableName && !bulkNames.has(p.name) && !(p as { isHidden?: boolean }).isHidden && !(p.name.startsWith('printingPrintRecords_') && canPrintTable(this.store, this.tableName)))
     return procs.map((p) => ({ name: p.name, label: p.label, parked: (p as { hasPermission?: boolean }).hasPermission === false ? 'you may not run it' : undefined }))
       .sort((a, b) => Number(Boolean(a.parked)) - Number(Boolean(b.parked)) || a.label.localeCompare(b.label))
   }
@@ -657,9 +659,19 @@ export class TableScreen implements Screen {
       case 'q': this.quickSearch(); return true
       case 'l': this.followCell(); return true
       case 'S': this.columnStats(); return true
+      case 'p': if (canPrintTable(this.store, this.tableName)) { this.print(); return true } return false
       case 'D': this.store.push(new TableDeveloperScreen(this.store, this.tableName)); return true
       default: return false
     }
+  }
+
+  /** Print… the selection (Space), else the record under the cursor. */
+  print(): void {
+    if (this.selectAll) return this.store.flash('Print works on records selected with Space (or the record under the cursor), not on a whole result.', 'error')
+    const ids = this.selection.size ? [...this.selection] : [this.keyOf(this.currentRecord)].filter((k): k is string => k !== undefined)
+    const label = this.meta?.label ?? this.tableName
+    const what = ids.length === 1 ? `${label} ${this.selection.size ? ids[0] : this.currentRecord?.recordLabel ?? ids[0]}` : `${ids.length} ${label} records`
+    openPrintDialog(this.store, this.tableName, ids, what)
   }
 
   menu(): MenuEntry[] {
@@ -678,6 +690,7 @@ export class TableScreen implements Screen {
     for (const f of ['csv', 'xlsx', 'json', 'tsv']) out.push({ section: 'Context', label: `Export as ${f}`, key: f === 'csv' ? 'x' : undefined, command: `export ${f}`, run: () => this.exportAs(f) })
     out.push(...this.bulkEntries())
     for (const p of this.tableProcesses()) out.push({ section: 'Context', label: `Run ${p.label}`, detail: this.selection.size ? `${this.selection.size} selected` : 'cursor record', disabled: p.parked, run: () => this.runProcess(p.name) })
+    if (this.store.extensions.has('printing')) out.push({ section: 'Context', label: this.selection.size ? `Print ${this.selection.size} selected…` : 'Print the record under the cursor…', key: 'p', disabled: printUnavailable(this.store, this.tableName), run: () => this.print() })
     out.push({ section: 'Context', label: 'Developer: ESB events, metadata, JSON and APIs of this table', key: 'D', command: 'dev', run: () => this.store.push(new TableDeveloperScreen(this.store, this.tableName)) })
     out.push({ section: 'Context', label: 'Saved views: open, save, delete', command: 'views', run: () => this.savedViews() })
     out.push({ section: 'Context', label: `Column statistics: ${this.fields()[this.colCursor]?.label ?? ''}`, key: 'S', run: () => this.columnStats() })
