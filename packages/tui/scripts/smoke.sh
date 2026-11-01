@@ -4,12 +4,36 @@
 #
 # tmux smoke test of qqq ui against a running server (default: the sample server, profile "sample").
 # Drives the real TUI with per-key pauses and checks each screen's text; captures go to $OUT.
-#   packages/tui/scripts/smoke.sh [profile]      OUT=dir WIDTH=160 HEIGHT=45
+#   packages/tui/scripts/smoke.sh [profile]                    a profile of your own config
+#   packages/tui/scripts/smoke.sh --server URL [--profile NAME]  any server, in an isolated config
+#                                                              (MOCK or anonymous sign-in; your
+#                                                              config, keyring and cache untouched)
+#   OUT=dir WIDTH=160 HEIGHT=45
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 pkg="$(cd "$here/.." && pwd)"
-profile="${1:-sample}"
+profile=""; server=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --server|-s) server="$2"; shift 2 ;;
+    --server=*) server="${1#*=}"; shift ;;
+    --profile|-p) profile="$2"; shift 2 ;;
+    --profile=*) profile="${1#*=}"; shift ;;
+    -h|--help) sed -n '4,10p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    *) profile="$1"; shift ;;
+  esac
+done
 out="${OUT:-$(mktemp -d)}"
+env_prefix=""
+if [[ -n "$server" ]]; then
+  # an isolated config with one profile for the server, so the TUI signs in there instead of showing the picker
+  profile="${profile:-smoke}"
+  cfg="$(mktemp -d)"
+  mkdir -p "$cfg/config"
+  printf '{"profiles":{"%s":{"server":"%s"}},"defaultProfile":"%s"}\n' "$profile" "${server%/}" "$profile" > "$cfg/config/config.json"
+  env_prefix="QQQ_CONFIG_DIR='$cfg/config' QQQ_CACHE_DIR='$cfg/cache' QQQ_STATE_DIR='$cfg/state' QQQ_KEYRING=file"
+fi
+profile="${profile:-sample}"
 w="${WIDTH:-160}"; h="${HEIGHT:-45}"
 s="qqq-smoke-$$"
 fails=0
@@ -29,7 +53,8 @@ expect() { # name text...
   done
   echo "FAIL $name (wanted: $*)"; fails=$((fails + 1))
 }
-tmux new-session -d -s "$s" -x "$w" -y "$h" "cd '$pkg' && bun run src/main.tsx --no-check --profile '$profile'; sleep 5"
+echo "smoke: profile $profile${server:+ at $server (isolated config)}; captures in $out"
+tmux new-session -d -s "$s" -x "$w" -y "$h" "cd '$pkg' && $env_prefix bun run src/main.tsx --no-check --profile '$profile'; sleep 5"
 expect 01-home 'Apps' 'UI API' 'Recently viewed' 'Quick actions'
 keys T:: 'T:table query person' Enter
 expect 02-grid 'records ·' 'First Name'
@@ -57,7 +82,7 @@ expect 10-process-done 'Finished in' 'Slept for 500'
 keys Escape F9
 expect 11-menu 'Menu  (F9)' 'Context' 'Go to'
 keys Escape 'T:?'
-expect 12-help 'Help  (F1' 'Keys'
+expect 12-help 'Keys  (F1' 'Anywhere' '/ search anything'
 keys Escape T:: 'T:app SampleWidgetsDashboard' Enter
 expect 13-dashboard 'Sample Widgets Dashboard'
 keys Escape T:: 'T:table get person 12' Enter
