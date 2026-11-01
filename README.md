@@ -62,7 +62,8 @@ $ qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5
 
 - **OAuth2 and Auth0** servers use the device flow; `--browser` uses the authorization code with PKCE on
   a loopback redirect. Tokens are refreshed before they expire; `qqq logout --provider-logout` also
-  revokes them at the provider. **MOCK** and fully anonymous servers get a server session.
+  revokes them at the provider. **TABLE_BASED** servers: `qqq login --username <user>` (password asked, or
+  `QQQ_PASSWORD`). **MOCK** and fully anonymous servers get a server session.
 - **Profiles** name servers, as `aws --profile`: `qqq --profile prod …`, `QQQ_PROFILE`, `qqq config profile
   list|use|remove`. The first sign-in becomes the default.
 - **Sign-ins** live in the OS keyring: macOS Keychain, Secret Service on Linux, DPAPI on Windows, or a
@@ -77,10 +78,10 @@ $ qqq table query person -w "lastName STARTS_WITH S" -o -id -l 5
 
 | Noun | Verbs |
 |---|---|
-| `table` | `list`, `describe`, `query`, `count`, `stats`, `get`, `create`, `copy`, `update`, `delete`, `export`, `children`, `download`, `variants`, `actions`, `bulk-insert`, `bulk-edit`, `bulk-delete` |
+| `table` | `list`, `describe`, `query`, `count`, `stats`, `get`, `create`, `copy`, `update`, `delete`, `export`, `children`, `download`, `variants`, `columns`, `actions`, `bulk-insert`, `bulk-edit`, `bulk-delete`, `apis`, `api-doc`, `api-call`, `developer`, `widget-form` |
 | `process` | `list`, `describe`, `run` (every step screen, async jobs with progress, Ctrl-C cancels on the server) |
-| `apps`, `search`, `tail`, `whoami` | app homes, global search, the live event stream |
-| `saved-view`, `bulk-profile`, `audit`, `report`, `widget`, `job`, `prefs`, `help-search` | saved views, saved bulk-load mappings, audit history, reports, dashboard widgets as text, jobs, preferences, help |
+| `home`, `find`, `apps`, `search`, `tail`, `whoami` | the landing page, the command palette, app homes (`--widgets`), global search, the live event stream |
+| `report`, `saved-report`, `saved-view`, `share`, `bulk-profile`, `audit`, `widget`, `script`, `job`, `prefs`, `help-search` | reports and saved reports (pivots, schedules), saved views, sharing, saved bulk-load mappings, audit history, dashboard widgets as text, associated scripts, jobs, preferences, help |
 | `api <operationId>` | any of the 202 UI API operations by id: the escape hatch |
 | `extensions`, and one noun per extension | `esb`, `collab`, `health`, `alerts`, `assistant`, `sql-workbench`, … gated on what the server has installed |
 | `login`, `logout`, `config`, `cache`, `completion`, `doctor` | sign-in, profiles and settings, the metadata cache, shell completion (bash, zsh, fish, PowerShell) |
@@ -94,6 +95,9 @@ qqq process run greetInteractive -r 1,2,3 -v greetingPrefix=Hi
 qqq api getTableMetaData --path tableName=person -Q 'fields.*.label'
 eval "$(qqq completion zsh)"
 ```
+
+Text filters (`~`, `STARTS_WITH`, `ENDS_WITH`, quick search) ask the server for case-insensitive matching;
+`~=` or `--case-sensitive` for an exact-case match. Possible-value fields take labels in filters too.
 
 Output is a table on a terminal and JSON in a pipe; `-O json|table|text|csv|yaml` (or `QQQ_OUTPUT`)
 chooses, and `-Q` reshapes it with JMESPath. Values are labels and display values from the server;

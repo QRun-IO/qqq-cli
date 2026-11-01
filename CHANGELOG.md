@@ -46,6 +46,24 @@ First release candidate of `qqq` 1.0: the command-line client and the full-scree
   validation review, widgets, downloads), with back steps, record limits, progress with elapsed time and
   cancel.
 - **Developer mode** (`D`): a record's associated scripts, revisions and logs; a table's APIs.
+- **Bulk load and bulk changes**: a wizard for bulk insert and bulk edit from a file (upload through the
+  file navigator, a column mapping grid with typed defaults and field help, value mapping, review with
+  optional validation, result), bulk edit of switched-on fields, bulk delete, saved bulk-load profiles and
+  the upload template.
+- **Reports and saved reports**: run reports (process reports and streaming ones), and edit a saved
+  report's filter, columns and pivot, including through an application API.
+- **Sharing** (`Z`, `:share`): share records of shareable tables (saved reports, saved views) with users
+  or groups.
+- **Sign-in in the UI**: TABLE_BASED username and password, OAuth2 in the browser (authorization code with
+  PKCE, the device flow as the alternative) and Auth0; sign-out ends the server or provider session; a
+  session that expires mid-use opens sign-in on top and returns to the screen.
+- **Widgets that act**: dropdowns and date pickers, parent widgets with children in a grid or tabs,
+  process widgets, data bag versions, script revisions, export, ad hoc buttons and inputs, dynamicForm
+  editing and composite widgets; disabled tables, processes and apps explain the denial, and
+  capabilities gate new, edit, delete and copy.
+- **Help**: F1 shows the application's help for the app, widget, table, process or step you are on, and
+  the grid footer shows the column's help. Large tables stay quick: on a 10,000 x 40 table the first page
+  draws in about 100 ms.
 - **Dashboards and widgets** in block characters: stats, bar charts, sparklines, percentage bars, tables
   and steppers.
 - **Terminal care**: `qqq ui --check` (and a quick check at startup) finds tmux key and colour problems and
@@ -81,6 +99,26 @@ First release candidate of `qqq` 1.0: the command-line client and the full-scree
 - **Developer mode**: `table apis`, `table api-doc`, `table developer`, and `script list | show | store |
   logs` for associated scripts.
 - **Tags**: `collab tags list | add | remove | create`, by id or label.
+- **Home, find and dashboards**: `qqq home` (the landing page: counts, quick actions, recent records),
+  `qqq find` (the command palette: an app, table, process or report by label), `apps show --widgets`, and
+  `widget get --record` / `--run`, with widgets rendered as the web renders them (statistics, maps,
+  pivots, forms, composite blocks, empty states).
+- **Reports**: `report run` (through the report's process or the report route, with its input fields),
+  and `saved-report list | show | preview | run | set | pivot | schedules | schedule` (filter, sort and
+  columns, pivots, schedules).
+- **Sharing**: `qqq share` for any record of a shareable table (saved reports, saved views).
+- **TABLE_BASED sign-in**: `qqq login --username` (password asked, or `QQQ_PASSWORD`) keeps only the
+  server session; a refused password stores nothing.
+- **Record, query and process details**: `table columns` (the query columns per table, shared with the
+  UI), `table api-call` (the API playground), `script test`, `table widget-form` (a dynamicForm on a record
+  form), `table get --copy`, `table update -e` (edit HTML and code fields in `$EDITOR`), labels accepted
+  for possible-value fields in `--where`, the chosen table variant remembered per server, and CHIP values
+  in their colours.
+- **Text filters ask for case-insensitive matching** (`CONTAINS`, `STARTS_WITH`, `ENDS_WITH` and the quick
+  search); `~=`, `OPERATOR:CS` or `--case-sensitive` ask for a case-sensitive match. The server does not
+  read the option over the UI API yet (finding 27), so matching stays case-sensitive until it does.
+- **Disabled tables and processes** are listed with the reason, and queries, writes, copies, bulk commands
+  and runs on them are refused before any request, as the web explains the denial.
 - **Bulk load and bulk changes**: `table bulk-insert` from a CSV or Excel file (the upload template,
   the server's column suggestion, a mapping document, flags or `-i`, value mapping, the validation
   review, `--dry-run`), `table bulk-edit` of chosen records or by key rows from a file (only the fields
@@ -123,14 +161,15 @@ First release candidate of `qqq` 1.0: the command-line client and the full-scree
 
 ### Known limitations
 
-- Jobs need a durable-jobs server; TABLE_BASED sign-in is refused (no documented native recipe). See
-  `docs/server-findings.md`.
+- Jobs need a durable-jobs server. Auth0 sign-in (CLI and UI) is built but has not met a real Auth0
+  tenant (finding 28). See `docs/server-findings.md` for the server-side issues the clients work around.
 - The binaries are not Developer ID signed or notarized (macOS: Gatekeeper prompt for browser downloads,
   `xattr -d com.apple.quarantine` clears it) nor Authenticode signed (Windows: SmartScreen warning). The
   Windows and macOS x64 binaries are cross-compiled and were not run before this candidate.
 - The npm package is the CLI only; `qqq ui` comes with the binaries.
-- Parity with the web UI is not complete in either the CLI or the TUI (`docs/parity/feature-matrix.md`;
-  `npm run release -- --check` lists what is open). 1.0.0 final waits for it.
+- Parity with the web UI (`docs/parity/feature-matrix.md`): the CLI has no open row (290 pass, 107 n/a,
+  4 blocked on cited server findings); the UI has one (SEC-030, Auth0 against a real tenant).
+  `npm run release -- --check` lists what is open; 1.0.0 final waits for none.
 
 ## [0.1.0]
 
