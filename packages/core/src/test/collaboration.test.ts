@@ -15,6 +15,18 @@ const without = ExtensionRegistry.fromVersion({ extensions: [{ name: 'esb', vers
 const result = (data: unknown): CallResult => ({ status: 200, headers: new Headers(), data, contentType: 'application/json' })
 const tick = (ms = 5) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/**
+ * Waits for a condition instead of a fixed delay: Windows timers fire in ~15 ms steps, so a few
+ * `tick(2)` pauses take several times longer there than on macOS or Linux.
+ */
+async function until(what: string, condition: () => boolean, timeoutMs = 10000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!condition()) {
+    if (Date.now() > deadline) assert.fail(`timed out waiting for ${what}`)
+    await tick(2)
+  }
+}
+
 /** A fake server: records calls, answers from a handler. */
 function fake(handler: (id: string, input: CallInput) => unknown, stream?: (signal: AbortSignal) => AsyncIterable<RealtimeMessage>) {
   const calls: { id: string; input: CallInput }[] = []
@@ -73,19 +85,22 @@ test('joinPresence holds a lease, polls on each heartbeat without a stream, trac
   const { calls, transport } = fake((id) => (id === 'deleteQbitCollaborationPresence' ? { success: true } : { table: 'person', pk: '1', viewers }))
   const states: PresenceState[] = []
   const handle = await new Collaboration(withCollab, transport).joinPresence({ table: 'person', pk: '1' }, { heartbeatMs: 20, connectionId: 'cli-test', onChange: (s) => states.push(s) })
-  assert.equal(handle.count, 1)
-  const bobSince = handle.people[0]!.since
-  viewers = [...viewers, { userId: 'carol', displayName: 'Carol', mode: 'EDITING' }]
-  await tick(35)
-  assert.deepEqual(handle.people.map((p) => [p.name, p.mode]), [['Bob Chen', 'VIEWING'], ['Carol', 'EDITING']])
-  assert.equal(handle.people[0]!.since, bobSince)
-  await handle.stop()
+  try {
+    assert.equal(handle.count, 1)
+    const bobSince = handle.people[0]!.since
+    viewers = [...viewers, { userId: 'carol', displayName: 'Carol', mode: 'EDITING' }]
+    await until('the heartbeat to pick up carol', () => handle.count === 2)
+    assert.deepEqual(handle.people.map((p) => [p.name, p.mode]), [['Bob Chen', 'VIEWING'], ['Carol', 'EDITING']])
+    assert.equal(handle.people[0]!.since, bobSince)
+  } finally {
+    await handle.stop()
+  }
   const posts = calls.filter((c) => c.id === 'postQbitCollaborationPresence')
   assert.ok(posts.length >= 2)
   assert.deepEqual(posts[0]!.input.json, { connectionId: 'cli-test', table: 'person', pk: '1', mode: 'VIEWING', fieldName: undefined })
   assert.deepEqual(calls.at(-1), { id: 'deleteQbitCollaborationPresence', input: { json: { connectionId: 'cli-test', table: 'person', pk: '1' } } })
   const after = calls.length
-  await tick(30)
+  await tick(60)
   assert.equal(calls.length, after, 'no heartbeat after stop')
   assert.ok(states.length >= 2)
 })
@@ -110,14 +125,15 @@ test('joinPresence subscribes the scope channel on hello and applies presence.ch
     return { table: 'person', pk: '1', viewers: [] }
   }, stream)
   const handle = await new Collaboration(withCollab, transport).joinPresence({ table: 'person', pk: '1' }, { announce: false, heartbeatMs: 10000 })
-  await tick(30)
-  assert.deepEqual(calls.find((c) => c.id === 'updateRealtimeSubscriptions')?.input.json, { connectionId: 'sse-1', add: ['record:person:1'] })
-  assert.equal(handle.state.live, true)
-  assert.deepEqual(handle.people.map((p) => [p.userId, p.mode, p.fieldName]), [['bob', 'EDITING', 'email']])
-  events.push(emptied)
-  await tick(10)
-  assert.equal(handle.count, 0, 'a snapshot without viewers empties the scope (the qbit omits the empty list)')
-  await handle.stop()
+  try {
+    await until('the channel subscription and the scoped presence.changed', () => handle.state.live && handle.count === 1)
+    assert.deepEqual(calls.find((c) => c.id === 'updateRealtimeSubscriptions')?.input.json, { connectionId: 'sse-1', add: ['record:person:1'] })
+    assert.deepEqual(handle.people.map((p) => [p.userId, p.mode, p.fieldName]), [['bob', 'EDITING', 'email']])
+    events.push(emptied)
+    await until('the emptied scope', () => handle.count === 0)
+  } finally {
+    await handle.stop()
+  }
   assert.equal(calls.some((c) => c.id === 'postQbitCollaborationPresence' || c.id === 'deleteQbitCollaborationPresence'), false, 'watch-only never takes a lease')
   assert.equal(presenceChannel({ table: 'person' }), 'table:person')
 })
@@ -125,8 +141,11 @@ test('joinPresence subscribes the scope channel on hello and applies presence.ch
 test('a refused heartbeat is reported as the state error', async () => {
   const transport: CollaborationTransport = { call: async (id) => { if (id === 'postQbitCollaborationPresence') throw new Error('Not found'); return result({ success: true }) } }
   const handle = await new Collaboration(withCollab, transport).joinPresence({ table: 'secret' }, { heartbeatMs: 10000 })
-  assert.equal(handle.state.error, 'Not found')
-  await handle.stop()
+  try {
+    assert.equal(handle.state.error, 'Not found')
+  } finally {
+    await handle.stop()
+  }
 })
 
 test('tags: vocabulary search, create, record tags and apply call the qbit operations', async () => {
