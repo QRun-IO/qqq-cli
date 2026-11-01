@@ -43,6 +43,12 @@ const processMeta = {
   ],
 }
 
+const docMeta = {
+  name: 'doc', label: 'Doc', primaryKeyField: 'id', insertPermission: true, editPermission: true, deletePermission: true,
+  fields: { id: { name: 'id', label: 'Id', type: 'INTEGER', isEditable: false }, title: { name: 'title', label: 'Title', type: 'STRING' }, content: { name: 'content', label: 'Content', type: 'BLOB' } },
+  sections: [{ name: 's', label: 'Doc', tier: 'T1', fieldNames: ['id', 'title', 'content'] }],
+}
+
 const wideMeta = {
   name: 'wide', label: 'Wide', primaryKeyField: 'id', insertPermission: true, editPermission: true, deletePermission: true,
   fields: { id: { name: 'id', label: 'Id', type: 'INTEGER' }, name: { name: 'name', label: 'Name', type: 'STRING' }, note: { name: 'note', label: 'Note', type: 'STRING' } },
@@ -73,13 +79,29 @@ export function fakeFetch(log: FakeLog = { requests: [] }, bigMeta?: unknown): t
       return json({
         apps: { people: { name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] } },
         appTree: [{ type: 'APP', name: 'people', label: 'People', children: [{ type: 'TABLE', name: 'person', label: 'Person' }, { type: 'TABLE', name: 'address', label: 'Address' }, { type: 'PROCESS', name: 'sleeper', label: 'Sleeper' }] }],
-        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' } },
+        tables: { person: { name: 'person', label: 'Person', insertPermission: true }, address: { name: 'address', label: 'Address', insertPermission: true }, wide: { name: 'wide', label: 'Wide' }, doc: { name: 'doc', label: 'Doc', insertPermission: true } },
         processes: { sleeper: { name: 'sleeper', label: 'Sleeper' } },
         widgets: {}, branding: { appName: 'Fake' },
       })
     }
     if (path === '/metaData/table/person') return json(personMeta)
     if (path === '/metaData/table/wide') return json(wideMeta)
+    if (path === '/metaData/table/doc') return json(docMeta)
+    if (path === '/table/doc' && request.method === 'POST') {
+      const b = body as Record<string, unknown>
+      const file = b.content as File | undefined
+      const text = file && typeof file === 'object' ? await file.text() : ''
+      log.requests.at(-1)!.body = { title: b.title, content: file && typeof file === 'object' ? `${file.name}:${text}` : b.content }
+      return json({ record: { values: { id: 5, title: b.title, content: Buffer.from(text).toString('base64') }, recordLabel: String(b.title) } })
+    }
+    if (path === '/table/doc/5' && request.method === 'GET') return json({ record: { values: { id: 5, title: 'Report', content: Buffer.from('file body').toString('base64') }, displayValues: {}, recordLabel: 'Report' } })
+    if (path === '/table/person/export') {
+      const b = body as { filter: { criteria?: Array<{ fieldName: string; values: string[] }> }; fieldNames: string[]; format: string }
+      let rows = [...PEOPLE]
+      for (const c of b.filter.criteria ?? []) rows = rows.filter((p) => String((p as J)[c.fieldName]) === String(c.values[0]))
+      const csv = [b.fieldNames.join(','), ...rows.map((r) => b.fieldNames.map((f) => String((r as J)[f] ?? '')).join(','))].join('\n')
+      return new Response(csv, { status: 200, headers: { 'content-type': 'text/csv' } })
+    }
     if (path === '/table/wide/count') return json({ count: WIDE.length })
     if (path === '/table/wide/query') {
       const f = ((body as J).filter ?? {}) as { skip?: number; limit?: number }

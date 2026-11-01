@@ -14,7 +14,7 @@
  */
 
 import {
-  FilterSyntaxError, LIST_OPERATORS, UNARY_OPERATORS, applyCompletion, completeFilter, describeFilter, expressionCandidates, locateFilterError,
+  FilterSyntaxError, LIST_OPERATORS, OPERATORS, UNARY_OPERATORS, applyCompletion, completeFilter, describeFilter, expressionCandidates, locateFilterError,
   operatorsForField, parseFilter, parseValue, printCriterion, printFilter, printValue, resolvePossibleValue, searchPossibleValues,
   type Completion, type CompletionResult, type Criterion, type FilterValue, type Operator, type QueryFilter,
 } from '@qrun-io/qqq-core'
@@ -128,7 +128,10 @@ export class FilterOverlay implements Overlay {
     pickField((f) => {
       const pickOp = (next: (op: Operator) => void) => {
         if (start.operator && operatorsForField(f).includes(start.operator)) return next(start.operator)
-        this.store.open(new ChoiceOverlay(this.store, `${f.label}: which comparison?`, operatorsForField(f).map((o) => ({ label: o.toLowerCase().replace(/_/g, ' '), value: o, detail: o })), next))
+        const ops = operatorsForField(f)
+        const more = OPERATORS.filter((o) => !ops.includes(o))
+        const all = (pickAll: boolean) => this.store.open(new ChoiceOverlay<Operator | ''>(this.store, `${f.label}: which comparison?`, [...(pickAll ? OPERATORS : ops).map((o) => ({ label: o.toLowerCase().replace(/_/g, ' '), value: o as Operator | '', detail: o })), ...(!pickAll && more.length ? [{ label: 'More operators…', value: '' as const, detail: `${more.length} for other field types` }] : [])], (o) => (o ? next(o) : all(true))))
+        all(false)
       }
       pickOp((op) => {
         if (UNARY_OPERATORS.has(op)) return done({ fieldName: f.name, operator: op, values: [] })

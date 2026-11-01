@@ -6,6 +6,10 @@
 import { afterEach, beforeAll, expect, test } from 'bun:test'
 import { KeyCodes } from '@opentui/core/testing'
 import type { TableScreen } from '../src/screens/table'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { writeFilePreferences } from '@qrun-io/qqq-core'
 import { command, isolate, press, startTui, waitFor, type Harness } from './helpers'
 
 let h: Harness | undefined
@@ -162,4 +166,56 @@ test('Home: panels, Tab between them, Enter on an application card opens its app
   await waitFor(h, (x) => x.includes('People') && h!.store.screen?.kind === 'app')
   await press(h, () => h!.setup.mockInput.pressEscape())
   expect(h.store.screen?.kind).toBe('home')
+})
+
+test('export from a filtered grid: the filter and the visible columns go to the server; the file is written', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-export-'))
+  writeFilePreferences({ downloadDir: dir, downloadMode: 'silent' })
+  try {
+    h = await startTui(120, 30)
+    await command(h, 'table query person -w "lastName = Odd"')
+    await waitFor(h, (x) => x.includes('15 records'))
+    await command(h, 'export csv')
+    await waitFor(h, (x) => x.includes('Wrote'))
+    const req = h.log.requests.find((r) => r.path === '/table/person/export')!
+    const b = req.body as { filter: { criteria: unknown[] }; fieldNames: string[]; format: string }
+    expect(b.format).toBe('csv')
+    expect(b.filter.criteria).toEqual([{ fieldName: 'lastName', operator: 'EQUALS', values: ['Odd'] }])
+    expect(b.fieldNames).toEqual(['id', 'firstName', 'lastName', 'birthDate'])
+    const text = readFileSync(join(dir, 'person.csv'), 'utf8')
+    expect(text.split('\n').length).toBe(16)
+  } finally {
+    writeFilePreferences({ downloadDir: undefined, downloadMode: undefined })
+  }
+})
+
+test('a file field: chosen in the file dialog, sent as a multipart part; a stored BLOB saves from the record view', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-upload-'))
+  writeFileSync(join(dir, 'notes.txt'), 'hello upload')
+  h = await startTui(120, 34)
+  await command(h, 'table create doc --set title=Report')
+  await waitFor(h, (x) => x.includes('(choose a file…)'))
+  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  await press(h, () => h!.setup.mockInput.pressEnter())
+  await waitFor(h, (x) => x.includes('File for Content'))
+  await press(h, () => h!.setup.mockInput.pressTab())
+  await press(h, () => h!.setup.mockInput.pressKey('u', { ctrl: true }))
+  await press(h, () => h!.setup.mockInput.typeText(join(dir, 'notes.txt')))
+  await press(h, () => h!.setup.mockInput.pressEnter())
+  await waitFor(h, (x) => x.includes('notes.txt (12 B)'))
+  await press(h, () => h!.setup.mockInput.pressKey('s', { ctrl: true }))
+  await waitFor(h, (x) => x.includes('created Doc 5'))
+  expect(h.log.requests.find((r) => r.path === '/table/doc' && r.method === 'POST')!.body).toEqual({ title: 'Report', content: 'notes.txt:hello upload' })
+  writeFilePreferences({ downloadDir: dir, downloadMode: 'silent' })
+  try {
+    await command(h, 'table get doc 5')
+    await waitFor(h, (x) => x.includes('file, 9 B'))
+    await press(h, () => h!.setup.mockInput.pressKey('a'))
+    await press(h, () => h!.setup.mockInput.typeText('save content'))
+    await press(h, () => h!.setup.mockInput.pressEnter())
+    await waitFor(h, (x) => x.includes('Saved'))
+    expect(readFileSync(join(dir, 'doc-5-content'), 'utf8')).toBe('file body')
+  } finally {
+    writeFilePreferences({ downloadDir: undefined, downloadMode: undefined })
+  }
 })

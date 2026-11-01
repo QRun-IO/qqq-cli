@@ -51,6 +51,8 @@ export class ProcessScreen implements Screen {
   log: string[] = []
   processUUID?: string
   private cancelled = false
+  /** Files chosen in a step's form, handed to the kernel runner (sent with that step). */
+  private stepFiles: Record<string, { name: string; bytes: Uint8Array }> = {}
   private pending?: { resolve: (v: FieldValues) => void; reject: (e: Error) => void }
 
   constructor(private store: AppStore, readonly processName: string, readonly options: ProcessOptions = {}) {
@@ -119,6 +121,7 @@ export class ProcessScreen implements Screen {
         meta: this.meta,
         values: this.options.values,
         records: this.options.recordIds?.length ? { ids: this.options.recordIds } : this.options.filter ? { filter: this.options.filter } : undefined,
+        stepFiles: this.stepFiles,
         stepTimeoutMillis: 0,
         pollMillis: 250,
         always: true,
@@ -207,6 +210,10 @@ export class ProcessScreen implements Screen {
       const enabled = editor.options.bulkEdit ? editor.enabled : undefined
       for (const n of editor.names) if (editor.session.values[n] !== undefined && (!enabled || enabled.has(n))) out[n] = editor.session.values[n]
       if (enabled) out.bulkEditEnabledFields = [...enabled].join(',')
+      for (const [name, file] of editor.files) {
+        this.stepFiles[name] = { name: file.name, bytes: file.bytes }
+        out[name] = file.name
+      }
       this.pending = undefined
       this.phase = 'running'
       this.stepStarted = Date.now()

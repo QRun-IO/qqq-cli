@@ -20,7 +20,8 @@ const fields = [
 test('operators follow the field type and allowedFilterOperators', () => {
   assert.ok(operatorsForField(fields[1]).includes('STARTS_WITH'))
   assert.ok(!operatorsForField(fields[3]).includes('STARTS_WITH'))
-  assert.deepEqual(operatorsForField(fields[4]), ['TRUE', 'FALSE', 'IS_BLANK', 'IS_NOT_BLANK'])
+  assert.deepEqual(operatorsForField(fields[4]), ['TRUE', 'FALSE', 'EQUALS', 'NOT_EQUALS', 'IS_BLANK', 'IS_NOT_BLANK'])
+  assert.ok(operatorsForField(fields[1]).includes('NOT_EQUALS_OR_IS_NULL') && operatorsForField(fields[3]).includes('IN'))
   assert.ok(operatorsForField(fields[5]).includes('IN') && !operatorsForField(fields[5]).includes('GREATER_THAN'))
   assert.deepEqual(operatorsForField({ type: 'STRING', allowedFilterOperators: ['EQUALS', 'IN'] }), ['EQUALS', 'IN'])
 })

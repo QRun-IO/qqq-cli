@@ -6,7 +6,7 @@
 /**
  * A fake UI API server with a generated large instance (default 1000 tables, 500 processes, 3000
  * widgets, 300 reports) for trying qqq ui at scale. MOCK sign-in; every table has id and name with
- * 40 rows; every widget is a statistics widget answered after 150 ms.
+ * 40 rows (rows after 20 have much longer names, for the fixed-width check); every widget is a statistics widget answered after 150 ms.
  *   bun run packages/tui/scripts/fake-big-server.ts [port] [tables] [processes]
  *   qqq ui --server http://localhost:8099
  */
@@ -36,7 +36,7 @@ Bun.serve({
       const filter = ((await req.json()) as { filter?: { skip?: number; limit?: number } }).filter ?? {}
       if (m[2] === 'count') return json({ count: 40 })
       const skip = filter.skip ?? 0
-      return json({ records: Array.from({ length: Math.max(0, Math.min(filter.limit ?? 50, 40 - skip)) }, (_, i) => ({ values: { id: skip + i + 1, name: `${m![1]} ${skip + i + 1}` }, recordLabel: `${m![1]} ${skip + i + 1}` })) })
+      return json({ records: Array.from({ length: Math.max(0, Math.min(filter.limit ?? 50, 40 - skip)) }, (_, i) => ({ values: { id: skip + i + 1, name: skip + i + 1 > 20 ? `${m![1]} ${skip + i + 1}, a much longer value than on the first page` : `${m![1]} ${skip + i + 1}` }, recordLabel: `${m![1]} ${skip + i + 1}` })) })
     }
     m = /^\/widget\/([^/]+)$/.exec(path)
     if (m) {

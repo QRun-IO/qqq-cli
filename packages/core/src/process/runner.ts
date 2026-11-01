@@ -48,6 +48,11 @@ export interface RunnerOptions {
   records?: { ids: string[] } | { filter: unknown }
   /** Files for BLOB fields, by field name: sent as multipart parts with the first step that asks for the field. */
   files?: Record<string, { name: string; bytes: Uint8Array; type?: string }>
+  /**
+   * Files a step's provider chooses while the process runs (a TUI file dialog): the provider adds
+   * entries here by field name and they are sent with that step, like `files`.
+   */
+  stepFiles?: Record<string, { name: string; bytes: Uint8Array; type?: string }>
   tableVariant?: string
   /** How long the server may run a step before backgrounding it (0: always background). */
   stepTimeoutMillis?: number
@@ -143,6 +148,12 @@ export async function runProcess(options: RunnerOptions): Promise<RunOutcome> {
   const timeout = String(options.stepTimeoutMillis ?? 0)
 
   const pendingFiles = { ...(options.files ?? {}) }
+  const takeStepFiles = () => {
+    for (const [k, v] of Object.entries(options.stepFiles ?? {})) {
+      pendingFiles[k] = v
+      delete options.stepFiles![k]
+    }
+  }
   const form = (values: FieldValues, extra: Record<string, string> = {}, fileFields: string[] = []): Record<string, string | Blob> => {
     const out: Record<string, string | Blob> = { values: JSON.stringify(values), stepTimeoutMillis: timeout, ...extra }
     for (const name of fileFields) {
@@ -211,6 +222,7 @@ export async function runProcess(options: RunnerOptions): Promise<RunOutcome> {
         throw new ProcessError(`step "${step.label ?? step.name}" needs ${missing.map((f) => f.name).join(', ')}`, processUUID)
       }
       if (isLast) return { response, values: { ...response.values, ...known }, processUUID: processUUID!, steps, lastStep: step, lastScreen: options.present ? screen : undefined }
+      takeStepFiles()
       const fileFields = fields.filter((f) => f.type === 'BLOB' && pendingFiles[f.name]).map((f) => f.name)
       for (const name of fileFields) delete values[name]
       response = (await callOperation(baseUrl, 'stepProcess', { path: { processName: meta.name, processUUID: processUUID!, stepName: next }, query, form: form(values, {}, fileFields) }, fetchImpl)).data as StepResponse

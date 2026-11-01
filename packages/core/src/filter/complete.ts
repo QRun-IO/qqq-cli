@@ -47,11 +47,11 @@ export interface CompletionResult {
 const SHORTHAND = new Set(['=', '==', '!=', '<>', '<', '<=', '>', '>=', '~', '!~'])
 const SHORTHAND_OP: Record<string, Operator> = { '=': 'EQUALS', '==': 'EQUALS', '!=': 'NOT_EQUALS', '<>': 'NOT_EQUALS', '<': 'LESS_THAN', '<=': 'LESS_THAN_OR_EQUALS', '>': 'GREATER_THAN', '>=': 'GREATER_THAN_OR_EQUALS', '~': 'CONTAINS', '!~': 'NOT_CONTAINS' }
 
-const TEXT_OPS: Operator[] = ['EQUALS', 'NOT_EQUALS', 'CONTAINS', 'NOT_CONTAINS', 'STARTS_WITH', 'NOT_STARTS_WITH', 'ENDS_WITH', 'NOT_ENDS_WITH', 'IN', 'NOT_IN', 'LIKE', 'NOT_LIKE', 'IS_BLANK', 'IS_NOT_BLANK']
-const NUMBER_OPS: Operator[] = ['EQUALS', 'NOT_EQUALS', 'LESS_THAN', 'LESS_THAN_OR_EQUALS', 'GREATER_THAN', 'GREATER_THAN_OR_EQUALS', 'BETWEEN', 'NOT_BETWEEN', 'IN', 'NOT_IN', 'IS_BLANK', 'IS_NOT_BLANK']
-const DATE_OPS: Operator[] = ['EQUALS', 'NOT_EQUALS', 'LESS_THAN', 'LESS_THAN_OR_EQUALS', 'GREATER_THAN', 'GREATER_THAN_OR_EQUALS', 'BETWEEN', 'NOT_BETWEEN', 'IS_BLANK', 'IS_NOT_BLANK']
-const BOOLEAN_OPS: Operator[] = ['TRUE', 'FALSE', 'IS_BLANK', 'IS_NOT_BLANK']
-const CHOICE_OPS: Operator[] = ['EQUALS', 'NOT_EQUALS', 'IN', 'NOT_IN', 'IS_NULL_OR_IN', 'IS_BLANK', 'IS_NOT_BLANK']
+const TEXT_OPS: Operator[] = ['EQUALS', 'NOT_EQUALS', 'NOT_EQUALS_OR_IS_NULL', 'CONTAINS', 'NOT_CONTAINS', 'STARTS_WITH', 'NOT_STARTS_WITH', 'ENDS_WITH', 'NOT_ENDS_WITH', 'IN', 'NOT_IN', 'IS_NULL_OR_IN', 'LIKE', 'NOT_LIKE', 'IS_BLANK', 'IS_NOT_BLANK']
+const NUMBER_OPS: Operator[] = ['EQUALS', 'NOT_EQUALS', 'NOT_EQUALS_OR_IS_NULL', 'LESS_THAN', 'LESS_THAN_OR_EQUALS', 'GREATER_THAN', 'GREATER_THAN_OR_EQUALS', 'BETWEEN', 'NOT_BETWEEN', 'IN', 'NOT_IN', 'IS_NULL_OR_IN', 'IS_BLANK', 'IS_NOT_BLANK']
+const DATE_OPS: Operator[] = ['EQUALS', 'NOT_EQUALS', 'NOT_EQUALS_OR_IS_NULL', 'LESS_THAN', 'LESS_THAN_OR_EQUALS', 'GREATER_THAN', 'GREATER_THAN_OR_EQUALS', 'BETWEEN', 'NOT_BETWEEN', 'IN', 'NOT_IN', 'IS_BLANK', 'IS_NOT_BLANK']
+const BOOLEAN_OPS: Operator[] = ['TRUE', 'FALSE', 'EQUALS', 'NOT_EQUALS', 'IS_BLANK', 'IS_NOT_BLANK']
+const CHOICE_OPS: Operator[] = ['EQUALS', 'NOT_EQUALS', 'NOT_EQUALS_OR_IS_NULL', 'IN', 'NOT_IN', 'IS_NULL_OR_IN', 'IS_BLANK', 'IS_NOT_BLANK']
 
 /** The operators that make sense for a field, honouring `allowedFilterOperators`. */
 export function operatorsForField(field: Pick<CompletionField, 'type' | 'possibleValueSourceName' | 'allowedFilterOperators'> | undefined): Operator[] {

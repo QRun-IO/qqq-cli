@@ -64,6 +64,18 @@ export function layoutColumns(fields: FieldMetaData[], rows: QueryRecord[], avai
       c.width += add
       spare -= add
     }
+    // room for longer values on later pages: text columns grow toward 40 cells from what is left
+    // (the layout is frozen for the life of the grid, so this is decided once)
+    const growable = cols.filter((c) => !view.widths?.[c.name] && !c.numeric && ['STRING', 'TEXT', 'HTML'].includes(c.type) && c.width < 40)
+    while (spare > 0 && view.fit !== 'fill' && growable.some((c) => c.width < 40)) {
+      for (const c of growable) {
+        if (spare <= 0) break
+        if (c.width < 40) {
+          c.width++
+          spare--
+        }
+      }
+    }
     if (spare > 0 && view.fit === 'fill' && cols.length) {
       const each = Math.floor(spare / cols.length)
       cols.forEach((c, i) => { c.width += each + (i < spare - each * cols.length ? 1 : 0) })
@@ -112,6 +124,8 @@ export class TableScreen implements Screen {
     if (this.filter.orderBys?.[0]) this.sort = { field: this.filter.orderBys[0].fieldName, asc: this.filter.orderBys[0].isAscending }
     delete this.filter.orderBys
     this.view = readViewSettings(`table:${tableName}`)
+    const savedSort = this.view.sort as { field: string; asc: boolean } | undefined
+    if (!this.sort && savedSort) this.sort = savedSort
     store.run(store.client!.tableMeta(tableName), (meta) => {
       this.meta = meta
       this.newCursor(options.index ?? 0)
@@ -304,6 +318,11 @@ export class TableScreen implements Screen {
     if (!this.meta) return undefined
     return new GridViewSettingsOverlay(this.store, this.meta, `table:${this.tableName}`, this.fields().map((f) => f.name), () => {
       this.view = readViewSettings(`table:${this.tableName}`)
+      const sort = this.view.sort as { field: string; asc: boolean } | undefined
+      if (JSON.stringify(sort) !== JSON.stringify(this.sort)) {
+        this.sort = sort
+        this.newCursor(0)
+      }
       this.store.bump()
     })
   }

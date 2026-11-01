@@ -248,3 +248,24 @@ test('a server that never stops answering with a next step is an error, not a co
   ])
   await assert.rejects(runProcess({ baseUrl: base, fetch: server.fetch, meta: { name: 'loop', frontendSteps: loop } }), (error: unknown) => error instanceof ProcessError && /did not finish after 200 steps/.test(error.message))
 })
+
+test('stepFiles: a file the provider chooses during the run goes with that step as a multipart part', async () => {
+  const parts: string[] = []
+  const server = fakeServer([
+    [/POST .*\/init$/, () => ({ type: 'COMPLETE', processUUID: 'u1', nextStep: 'upload', values: {} })],
+    [/POST .*\/step\/upload$/, async (request) => {
+      const form = await request.formData()
+      const file = form.get('theFile') as File | null
+      parts.push(file ? `${file.name}:${await file.text()}` : 'none')
+      return { type: 'COMPLETE', processUUID: 'u1', nextStep: 'done', values: { ok: true } }
+    }],
+  ])
+  const meta: ProcessMeta = { name: 'loader', frontendSteps: [{ name: 'upload', components: [{ type: 'EDIT_FORM' }], formFields: [{ name: 'theFile', label: 'File', type: 'BLOB', isRequired: true }] }, { name: 'done', components: [{ type: 'VIEW_FORM' }] }] }
+  const stepFiles: Record<string, { name: string; bytes: Uint8Array }> = {}
+  await runProcess({ baseUrl: base, fetch: server.fetch, meta, stepFiles, provide: async () => {
+    stepFiles.theFile = { name: 'a.csv', bytes: new TextEncoder().encode('x,y') }
+    return { theFile: 'a.csv' }
+  } })
+  assert.deepEqual(parts, ['a.csv:x,y'])
+  assert.deepEqual(Object.keys(stepFiles), [], 'taken once sent')
+})
