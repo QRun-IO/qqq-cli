@@ -21,6 +21,21 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
   assistant's markdown as blocks with numbered links, one per target (a filter on the primary key is
   that record; JSON and base64 filters compare by content).
 
+- **Save as PDF…** is the first entry of the UI's printer picker (record `p`, grid Ctrl+P, `:print`; `:print pdf`
+  saves straight away): the server renders the same record sheet, table list or page (printing
+  `printingRenderToPdf`) and the PDF is saved the way downloads and exports are — the save dialog or, with
+  silent downloads, the download folder, the stamped name (`Customer-Ada-Lovelace_2026-11-01_120301.pdf`), no
+  silent overwrite. The CLI's `qqq print`, `qqq print list` and `qqq print text` take `--to-file [path]` (a
+  folder, a file, or the download folder by default).
+- Ctrl+P on screens that are not records or grids asks **Print what?**: **Content** (the default: the screen's
+  panels as a document with their titles, without navigation or borders) or **Screen** (the terminal as drawn).
+- Every printed or saved page carries the app's header (instance name, breadcrumb, server, user, time in the
+  profile's date format) and footer (`qqq ui <version> · <server>` or `qqq <version> · <server>`, a grid's filter
+  and sort, page n of m); the CLI sends the same.
+- `scripts/print-agent.sh` prints to `~/Downloads` unless `QQQ_PRINT_OUT` says otherwise (`--dir` reports it).
+- The kernel adds `renderToPdf`, `renderValues`, `canSaveAsPdf`, `chromeValues` and content sections on text
+  prints; the TUI's breadcrumbs moved to `breadcrumbs.ts`.
+
 ### Fixed
 
 - **The assistant's answers render** instead of showing raw markdown, in the TUI panel and in

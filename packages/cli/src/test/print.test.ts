@@ -14,7 +14,8 @@ import assert from 'node:assert/strict'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { after, before, describe, test } from 'node:test'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runCli, sandbox, startFakeServer, type FakeServer } from './harness.js'
 
@@ -24,6 +25,7 @@ interface PrintServer {
   url: string
   runs: { process: string; values: J; recordIds?: string }[]
   lists: { process: string; values: J; recordsParam?: string }[]
+  renders: J[]
   jobs: Map<string, { status: string[]; title: string; reads: number; message?: string }>
   close(): Promise<void>
 }
@@ -50,6 +52,7 @@ const CANCEL_META = { name: 'printingCancelSelectedJobs', label: 'Cancel queued 
 async function startPrintServer(): Promise<PrintServer> {
   const runs: PrintServer['runs'] = []
   const lists: PrintServer['lists'] = []
+  const renders: PrintServer['renders'] = []
   const jobs: PrintServer['jobs'] = new Map()
   const state = new Map<string, { process: string; values: J; recordIds?: string }>()
   let next = 1
@@ -69,10 +72,22 @@ async function startPrintServer(): Promise<PrintServer> {
     let m: RegExpExecArray | null
     if (path === '/version') return send(res, 200, { apiVersion: '1.9.0', features: ['metaData', 'tables', 'processes', 'version', 'extensions'], extensions: [{ name: 'printing', version: '2.1.0', pathPrefix: '/qbit/printing' }] })
     if (path === '/metaData/authentication') return send(res, 200, { type: 'MOCK' })
-    if (path === '/metaData') return send(res, 200, { tables: { person: { name: 'person', label: 'Person' } }, processes: { printingPrintRecords_person: { name: 'printingPrintRecords_person', label: 'Print', tableName: 'person' }, printingCancelSelectedJobs: { name: 'printingCancelSelectedJobs', tableName: 'printing_job' }, printingPrintTableList: { name: 'printingPrintTableList' }, printingPrintText: { name: 'printingPrintText' } }, apps: {} })
+    if (path === '/metaData') return send(res, 200, { tables: { person: { name: 'person', label: 'Person' } }, processes: { printingPrintRecords_person: { name: 'printingPrintRecords_person', label: 'Print', tableName: 'person' }, printingCancelSelectedJobs: { name: 'printingCancelSelectedJobs', tableName: 'printing_job' }, printingPrintTableList: { name: 'printingPrintTableList' }, printingPrintText: { name: 'printingPrintText' }, printingRenderToPdf: { name: 'printingRenderToPdf' } }, apps: {} })
     if (path === '/metaData/process/printingPrintRecords_person') return send(res, 200, PRINT_META)
     if (path === '/metaData/process/printingCancelSelectedJobs') return send(res, 200, CANCEL_META)
     if (path === '/metaData/table/person') return send(res, 200, PERSON_META)
+    if (path === '/metaData/process/printingRenderToPdf') return send(res, 200, { name: 'printingRenderToPdf', label: 'Save as PDF', frontendSteps: [{ name: 'download', label: 'Download', components: [{ type: 'DOWNLOAD_FORM' }], viewFields: [{ name: 'downloadFileName', type: 'STRING', label: 'File' }] }] })
+    if (path === '/processes/printingRenderToPdf/init') {
+      const v = JSON.parse(field(body, 'values') ?? '{}') as J
+      renders.push(v)
+      const name = v.kind === 'RECORD' ? `Person-${v.recordId}` : v.kind === 'LIST' ? 'Person' : String(v.title).replace(/[^A-Za-z0-9]+/g, '-')
+      return send(res, 200, { processUUID: 'render', nextStep: 'download', type: 'COMPLETE', values: { downloadFileName: `${name}.pdf`, serverFilePath: `/tmp/r-${renders.length}.pdf`, ...(v.kind === 'LIST' ? { printingMessage: 'Saved the first 10000 of 12000 rows: the limit is 10000 rows. Narrow the filter to save the rest.' } : {}) } })
+    }
+    if (path.startsWith('/download/')) {
+      res.writeHead(200, { 'Content-Type': 'application/pdf' })
+      res.end(`%PDF-1.7 ${path}`)
+      return
+    }
     if ((m = /^\/metaData\/process\/(printingPrintTableList|printingPrintText)$/.exec(path))) return send(res, 200, LIST_META(m[1]!))
     if ((m = /^\/processes\/(printingPrintTableList|printingPrintText)\/init$/.exec(path))) {
       lists.push({ process: m[1]!, values: JSON.parse(field(body, 'values') ?? '{}') as J, recordsParam: field(body, 'recordsParam') })
@@ -132,6 +147,7 @@ async function startPrintServer(): Promise<PrintServer> {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     runs,
     lists,
+    renders,
     jobs,
     close: () => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()) }),
   }
@@ -249,6 +265,11 @@ describe('qqq print and qqq printer', () => {
     assert.deepEqual(filter.criteria, [{ fieldName: 'lastName', operator: 'EQUALS', values: ['Odd'] }])
     assert.deepEqual(filter.orderBys, [{ fieldName: 'id', isAscending: false }])
     assert.equal(run.values.filterDescription, 'lastName EQUALS Odd')
+    // the app header and footer
+    assert.match(String(run.values.footerLeft), /^qqq \d+\.\d+\.\d+ · 127\.0\.0\.1:\d+$/)
+    assert.match(String(run.values.headerServer), /^127\.0\.0\.1:\d+$/)
+    assert.equal(run.values.headerTitle, 'Person')
+    assert.match(String(run.values.headerPrintedAt), /\d/)
   })
 
   test('print list --page prints one page; default columns skip hidden and binary fields; bad options are usage errors', async () => {
@@ -270,6 +291,41 @@ describe('qqq print and qqq printer', () => {
     assert.deepEqual([run.values.title, run.values.text, run.values.orientation], ['Build log', 'line 1\nline 2\n', 'LANDSCAPE'])
     const empty = await qqq(['print', 'text', '-', '--title', 'Nothing'], printServer.url, '  \n')
     assert.equal(empty.code, 2)
+  })
+
+  test('--to-file saves record sheets instead of printing: a folder gets stamped names; no job is queued', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'qqq-cli-pdf-'))
+    const before = printServer.runs.length
+    const result = await qqq(['print', 'person', '1', '2', '--to-file', folder])
+    assert.equal(result.code, 0, result.stderr)
+    const files = readdirSync(folder).sort()
+    assert.equal(files.length, 2)
+    assert.match(files[0]!, /^Person-1_\d{4}-\d{2}-\d{2}_\d{6}\.pdf$/)
+    assert.match(readFileSync(join(folder, files[0]!), 'utf8'), /^%PDF-1\.7 \/download\/Person-1\.pdf/)
+    assert.match(result.stderr, /Saved .*Person-2_\d{4}/)
+    assert.equal(printServer.runs.length, before, 'no print job')
+    assert.deepEqual(printServer.renders.slice(-2).map((r) => [r.kind, r.tableName, r.recordId]), [['RECORD', 'person', '1'], ['RECORD', 'person', '2']])
+    assert.match(String(printServer.renders.at(-1)!.footerLeft), /^qqq \d/)
+    const two = await qqq(['print', 'person', '1', '2', '--to-file', join(folder, 'one.pdf')])
+    assert.equal(two.code, 2)
+    assert.match(two.stderr, /takes a folder/)
+  })
+
+  test('print list --to-file writes the named file as given and shows the limit note; without a path it goes to the download folder', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'qqq-cli-pdf-'))
+    const named = join(folder, 'people.pdf')
+    const result = await qqq(['print', 'list', 'person', '-w', 'lastName = Odd', '--to-file', named])
+    assert.equal(result.code, 0, result.stderr)
+    assert.match(readFileSync(named, 'utf8'), /^%PDF/)
+    assert.match(result.stderr, /Saved the first 10000 of 12000 rows/)
+    const render = printServer.renders.at(-1)!
+    assert.deepEqual([render.kind, render.scope, render.printingPrinterId], ['LIST', 'ALL', undefined])
+    const downloads = mkdtempSync(join(tmpdir(), 'qqq-cli-dl-'))
+    assert.equal((await qqq(['config', 'set', 'download-dir', downloads])).code, 0)
+    const text = await qqq(['print', 'text', '-', '--title', 'Build log', '--to-file'], printServer.url, 'hello\n')
+    assert.equal(text.code, 0, text.stderr)
+    assert.match(readdirSync(downloads)[0]!, /^Build-log_\d{4}-\d{2}-\d{2}_\d{6}\.pdf$/)
+    assert.equal((await qqq(['config', 'set', 'download-dir', ''])).code, 0)
   })
 })
 

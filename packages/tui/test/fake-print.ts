@@ -16,6 +16,10 @@ export const printing = {
   enabled: false,
   /** The 2.1 table-list and text prints (on with the extension unless a test turns them off). */
   lists: true,
+  /** Save as PDF (printingRenderToPdf). */
+  render: true,
+  /** Render runs: the values each started with. */
+  renders: [] as J[],
   /** Table-list and text runs: the process and the values it finished with. */
   listRuns: [] as Array<{ process: string; values: J }>,
   /** Print runs: the values and record ids each one finished with. */
@@ -24,6 +28,8 @@ export const printing = {
   reset(): void {
     this.enabled = false
     this.lists = true
+    this.render = true
+    this.renders = []
     this.listRuns = []
     this.runs = []
     this.jobs.clear()
@@ -41,6 +47,7 @@ export function printProcessesMeta(): J {
   if (!printing.enabled) return {}
   return {
     printingPrintRecords_person: { name: 'printingPrintRecords_person', label: 'Print', tableName: 'person' },
+    ...(printing.render ? { printingRenderToPdf: { name: 'printingRenderToPdf', label: 'Save as PDF' } } : {}),
     ...(printing.lists ? { printingPrintTableList: { name: 'printingPrintTableList', label: 'Print a table list' }, printingPrintText: { name: 'printingPrintText', label: 'Print text' } } : {}),
   }
 }
@@ -76,6 +83,16 @@ export async function printRoute(path: string, method: string, body: unknown): P
     })
     return json({ type: 'COMPLETE', processUUID: 'pr', nextStep: 'result', values: { printingJobIds: ids.join(',') } })
   }
+  if (printing.render && path === '/metaData/process/printingRenderToPdf') {
+    return json({ name: 'printingRenderToPdf', label: 'Save as PDF', frontendSteps: [{ name: 'download', label: 'Download', components: [{ type: 'DOWNLOAD_FORM' }], viewFields: [{ name: 'downloadFileName', label: 'File', type: 'STRING' }] }] })
+  }
+  if (printing.render && path === '/processes/printingRenderToPdf/init') {
+    const v = values()
+    printing.renders.push(v)
+    const name = v.kind === 'RECORD' ? `Person-${v.recordId}` : v.kind === 'LIST' ? 'Person' : String(v.title).replace(/[^A-Za-z0-9]+/g, '-')
+    return json({ type: 'COMPLETE', processUUID: 'rd', nextStep: 'download', values: { downloadFileName: `${name}.pdf`, serverFilePath: `/tmp/qqq-print-${printing.renders.length}.pdf` } })
+  }
+  if (printing.render && path.startsWith('/download/')) return new Response(`%PDF-1.7 ${path}`, { status: 200, headers: { 'content-type': 'application/pdf' } })
   const list = /^\/(?:metaData\/process|processes)\/(printingPrintTableList|printingPrintText)(\/.*)?$/.exec(path)
   if (list && printing.lists) {
     const name = list[1]!

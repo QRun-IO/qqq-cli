@@ -22,10 +22,13 @@
  */
 
 import type { Command } from 'commander'
-import { readFileSync } from 'node:fs'
-import { FAILED_JOB_STATES, MAX_LIST_ROWS, printFilter, isFinalJobState, jobStateSummary, printProcessName, PRINT_PROCESS_PREFIX, readRememberedPrinter, resolvePrinter, whyNotPrintable, writeRememberedPrinter, type Printer, type PrintJob, type Printing } from '@qrun-io/qqq-core'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { profileNameForServer, formatDateValue, localeFromEnv, readDateSettings, resolveDateSettings, saveDownload, type PrintChrome, type RenderedPdf, type RenderRequest, FAILED_JOB_STATES, MAX_LIST_ROWS, printFilter, isFinalJobState, jobStateSummary, printProcessName, PRINT_PROCESS_PREFIX, readRememberedPrinter, resolvePrinter, whyNotPrintable, writeRememberedPrinter, type Printer, type PrintJob, type Printing } from '@qrun-io/qqq-core'
 import { EXIT, UsageError, type Context } from '../context.js'
-import { ORDER_OPTION, countFooter, instantText, positiveInt, type Json } from './shared.js'
+import { getLogin } from '../session.js'
+import { CLI_VERSION } from '../version.js'
+import { ORDER_OPTION, countFooter, instantText, positiveInt, writeDownload, type Json } from './shared.js'
 import { resolvedFilterFrom, type QueryOptions } from './table.js'
 
 const JOB_COLUMNS = ['id', 'title', 'status', 'printer', 'copies', 'created', 'message']
@@ -43,6 +46,61 @@ function jobRows(jobs: PrintJob[], c: Context): Json[] {
 
 function printerRows(printers: Printer[], remembered: string | undefined): Json[] {
   return printers.map((p) => ({ default: p.id === remembered ? '*' : '', name: p.name, device: p.device ?? '', status: p.status ?? '', approved: p.approved ? 'yes' : 'no', exposed: p.exposed ? 'yes' : 'no', formats: p.formats.join(' '), id: p.id }))
+}
+
+/**
+ * The app's header and footer for what the CLI prints: the instance's branding name (else the
+ * profile), the title, the server (profile and host), the signed-in user, the time in the
+ * profile's date format; the footer `qqq <version> · <server>`.
+ */
+async function chromeFor(c: Context, title?: string): Promise<PrintChrome> {
+  const t = c.target
+  let host = t.server
+  try {
+    host = new URL(t.server).host
+  } catch {
+    host = t.server
+  }
+  const server = t.name && t.name !== host && t.name !== profileNameForServer(t.server) ? `${t.name} (${host})` : host
+  let app: string | undefined
+  try {
+    app = ((await c.metaData()) as unknown as { branding?: { appName?: string } }).branding?.appName
+  } catch {
+    app = undefined
+  }
+  const login = await getLogin(t).catch(() => undefined)
+  const user = login && login.kind === 'session' ? String((login.user as { name?: string } | undefined)?.name ?? '') : ''
+  let printedAt = new Date().toISOString()
+  try {
+    printedAt = formatDateValue(printedAt, 'DATE_TIME', resolveDateSettings(readDateSettings(t.name), localeFromEnv()), { withSeconds: false })
+  } catch {
+    // the ISO instant stays
+  }
+  return { app: app ?? t.name, title, server, user: user || undefined, printedAt, footerLeft: `qqq ${CLI_VERSION} · ${server}` }
+}
+
+/**
+ * --to-file: renders each document on the server and saves it as downloads are saved: a folder
+ * given gets the stamped default names, a file name given is written as given (one document
+ * only), no path saves to the download folder (`qqq config get download-dir`) with the stamped
+ * name, never overwriting.
+ */
+async function saveAsPdf(c: Context, printing: Printing, requests: RenderRequest[], out: string | true, title?: string): Promise<void> {
+  const chrome = await chromeFor(c, title)
+  const path = out === true ? undefined : out
+  const folder = path !== undefined && path !== '-' && existsSync(path) && statSync(path).isDirectory()
+  if (path !== undefined && !folder && requests.length > 1) throw new UsageError('--to-file with several documents takes a folder (or no path: the download folder).')
+  const rows: Json[] = []
+  for (const request of requests) {
+    const pdf: RenderedPdf = await printing.renderToPdf(request, new Date(), chrome)
+    if (pdf.message) c.note(pdf.message)
+    const written = folder ? saveDownload(join(path!, pdf.fileName), pdf.bytes, { explicit: false }) : writeDownload(path, pdf.fileName, pdf.bytes)
+    if (written) {
+      c.note(`Saved ${written} (${pdf.bytes.length.toLocaleString('en-US')} bytes)`)
+      rows.push({ saved: written, bytes: pdf.bytes.length })
+    }
+  }
+  if (path !== '-') c.print({ data: rows, rows, columns: ['saved', 'bytes'] })
 }
 
 /** Tables the server offers Print on, from the metadata. */
@@ -102,16 +160,18 @@ export function registerPrint(program: Command, ctx: () => Context): void {
     .option('-c, --copies <n>', 'copies of each record (1-100)', '1')
     .option('--no-wait', 'return once the jobs are queued')
     .option('--timeout <seconds>', 'how long to wait for the jobs', '120')
-    .action(async (table: string, ids: string[], options: { printer?: string; copies: string; wait: boolean; timeout: string }) => {
+    .option('--to-file [path]', 'save each record sheet as a PDF instead of printing: a folder, a file (one record), or the download folder')
+    .action(async (table: string, ids: string[], options: { printer?: string; copies: string; wait: boolean; timeout: string; toFile?: string | true }) => {
       const c = ctx()
       const printing = await printingOf(c)
       const tables = await printableTables(c)
       if (!tables.includes(table)) throw new UsageError(`Print is not enabled for table "${table}" on this server${tables.length ? ` (tables with Print: ${tables.join(', ')})` : ''}.`)
+      if (options.toFile !== undefined) return saveAsPdf(c, printing, ids.map((id) => ({ kind: 'record' as const, table, id })), options.toFile)
       const copies = positiveInt(options.copies, '--copies')
       const printer = await choosePrinter(c, printing, options.printer)
       if (options.printer) writeRememberedPrinter(c.target.name, { id: printer.id, name: printer.name })
       c.note(`Printing ${ids.length} ${table} record${ids.length === 1 ? '' : 's'} on "${printer.name}"${copies > 1 ? `, ${copies} copies each` : ''} (${printProcessName(table)})`)
-      const jobIds = await printing.print({ table, ids, printer: printer.id, copies })
+      const jobIds = await printing.print({ table, ids, printer: printer.id, copies, chrome: await chromeFor(c) })
       if (!jobIds.length) throw new Error(`Nothing was printed: no ${table} record ${ids.join(', ')} was found (or you may not see ${ids.length === 1 ? 'it' : 'them'}).`)
       const jobs = options.wait ? await follow(c, printing, jobIds, positiveInt(options.timeout, '--timeout')) : await printing.jobs({ ids: jobIds })
       c.print({ data: { printer: { id: printer.id, name: printer.name }, jobs }, rows: jobRows(jobs, c), columns: JOB_COLUMNS, footer: countFooter(jobs.length, 'job', [jobStateSummary(jobs), !options.wait && `follow: qqq print job status ${jobIds.join(' ')} --watch`]) })
@@ -134,7 +194,8 @@ export function registerPrint(program: Command, ctx: () => Context): void {
     .option('--copies <n>', 'copies (1-100)', '1')
     .option('--no-wait', 'return once the job is queued')
     .option('--timeout <seconds>', 'how long to wait for the job', '300')
-    .action(async (table: string, options: QueryOptions & { columns?: string; page?: string; pageSize: string; title?: string; orientation: string; paper: string; printer?: string; copies: string; wait: boolean; timeout: string }) => {
+    .option('--to-file [path]', 'save the table list as a PDF instead of printing: a folder, a file, - for stdout, or the download folder')
+    .action(async (table: string, options: QueryOptions & { columns?: string; page?: string; pageSize: string; title?: string; orientation: string; paper: string; printer?: string; copies: string; wait: boolean; timeout: string; toFile?: string | true }) => {
       const c = ctx()
       const printing = await printingOf(c)
       const meta = await c.tableMeta<Json>(table)
@@ -148,11 +209,15 @@ export function registerPrint(program: Command, ctx: () => Context): void {
       const filter = await resolvedFilterFrom(c, { ...options, pageSize: '500' }, meta, columns)
       const pageSize = positiveInt(options.pageSize, '--page-size')
       const scope = options.page ? { kind: 'page' as const, skip: (positiveInt(options.page, '--page') - 1) * pageSize, limit: pageSize } : { kind: 'all' as const }
+      if (options.toFile !== undefined) {
+        const described = [printFilter(filter as never), options.search ? `quick "${options.search}"` : ''].filter(Boolean).join(' · ')
+        return saveAsPdf(c, printing, [{ kind: 'list', list: { table, columns, filter: filter as unknown as Record<string, unknown>, scope, title: options.title ?? String(meta.label ?? table), filterDescription: described || undefined, orientation: orientation as 'AUTO', pageSize: paper as 'LETTER', primaryKeyField: String(meta.primaryKeyField ?? 'id') } }], options.toFile, String(meta.label ?? table))
+      }
       const printer = await choosePrinter(c, printing, options.printer)
       if (options.printer) writeRememberedPrinter(c.target.name, { id: printer.id, name: printer.name })
       const described = [printFilter(filter as never), options.search ? `quick "${options.search}"` : ''].filter(Boolean).join(' · ')
       c.note(`Printing ${scope.kind === 'all' ? 'all rows of' : `page ${options.page} of`} ${meta.label ?? table}${described ? ` where ${described}` : ''} on "${printer.name}"`)
-      const outcome = await printing.printTableList({ table, columns, filter: filter as unknown as Record<string, unknown>, scope, title: options.title ?? String(meta.label ?? table), filterDescription: described || undefined, printer: printer.id, copies: positiveInt(options.copies, '--copies'), orientation: orientation as 'AUTO', pageSize: paper as 'LETTER', primaryKeyField: String(meta.primaryKeyField ?? 'id') })
+      const outcome = await printing.printTableList({ table, columns, filter: filter as unknown as Record<string, unknown>, scope, title: options.title ?? String(meta.label ?? table), filterDescription: described || undefined, printer: printer.id, copies: positiveInt(options.copies, '--copies'), orientation: orientation as 'AUTO', pageSize: paper as 'LETTER', primaryKeyField: String(meta.primaryKeyField ?? 'id'), chrome: await chromeFor(c, String(meta.label ?? table)) })
       if (outcome.message) c.note(outcome.message)
       if (!outcome.jobIds.length) throw new Error('The server queued no print job.')
       const jobs = options.wait ? await follow(c, printing, outcome.jobIds, positiveInt(options.timeout, '--timeout')) : await printing.jobs({ ids: outcome.jobIds })
@@ -168,14 +233,16 @@ export function registerPrint(program: Command, ctx: () => Context): void {
     .option('--copies <n>', 'copies (1-100)', '1')
     .option('--no-wait', 'return once the job is queued')
     .option('--timeout <seconds>', 'how long to wait for the job', '120')
-    .action(async (file: string | undefined, options: { title: string; subtitle?: string; landscape?: boolean; printer?: string; copies: string; wait: boolean; timeout: string }) => {
+    .option('--to-file [path]', 'save the text page as a PDF instead of printing: a folder, a file, or the download folder')
+    .action(async (file: string | undefined, options: { title: string; subtitle?: string; landscape?: boolean; printer?: string; copies: string; wait: boolean; timeout: string; toFile?: string | true }) => {
       const c = ctx()
       const printing = await printingOf(c)
       const text = readFileSync(file === undefined || file === '-' ? 0 : file, 'utf8')
       if (!text.trim()) throw new UsageError('Nothing to print: the text is empty.')
+      if (options.toFile !== undefined) return saveAsPdf(c, printing, [{ kind: 'text', title: options.title, subtitle: options.subtitle, text, orientation: options.landscape ? 'LANDSCAPE' : 'PORTRAIT' }], options.toFile, options.title)
       const printer = await choosePrinter(c, printing, options.printer)
       if (options.printer) writeRememberedPrinter(c.target.name, { id: printer.id, name: printer.name })
-      const outcome = await printing.printText({ title: options.title, subtitle: options.subtitle, text, printer: printer.id, copies: positiveInt(options.copies, '--copies'), orientation: options.landscape ? 'LANDSCAPE' : 'PORTRAIT' })
+      const outcome = await printing.printText({ title: options.title, subtitle: options.subtitle, text, printer: printer.id, copies: positiveInt(options.copies, '--copies'), orientation: options.landscape ? 'LANDSCAPE' : 'PORTRAIT', chrome: await chromeFor(c, options.title) })
       const jobs = options.wait ? await follow(c, printing, outcome.jobIds, positiveInt(options.timeout, '--timeout')) : await printing.jobs({ ids: outcome.jobIds })
       c.print({ data: { printer: { id: printer.id, name: printer.name }, jobs }, rows: jobRows(jobs, c), columns: JOB_COLUMNS, footer: countFooter(jobs.length, 'job', [jobStateSummary(jobs)]) })
     })
