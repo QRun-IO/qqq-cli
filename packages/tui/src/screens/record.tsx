@@ -10,7 +10,7 @@ import { WidgetView } from '../widget-view'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
-import { RecordCollaboration, summaryText, viewingText, type CollabSummary } from '../collab'
+import { RecordCollaboration, summaryText, uploadBlocked, viewingText, type CollabSummary } from '../collab'
 import { CollabScreen, sharePreview, toggleFollow, uploadAttachment, type CollabView } from './collab'
 import { presenceSource } from '../presence'
 import { canPrintTable, openPrintDialog, printUnavailable } from '../printing'
@@ -635,7 +635,7 @@ export class RecordScreen implements Screen {
       { section: 'Context', label: 'Add a comment…', run: () => { this.openCollab('comments'); (this.store.screen as CollabScreen | undefined)?.add?.() } },
       { section: 'Context', label: sum?.following ? 'Stop following this record' : 'Follow this record', key: 'W', detail: sum?.following ? 'following' : 'notifies you of changes and comments', run: () => this.toggleFollow() },
       { section: 'Context', label: `Attachments${sum?.attachments !== undefined ? ` (${sum.attachments})` : ''}…`, key: 'P', run: () => this.openCollab('attachments') },
-      { section: 'Context', label: 'Upload an attachment…', run: () => uploadAttachment(this.store, c, () => { this.store.flash('uploaded'); this.loadCollab() }) },
+      { section: 'Context', label: 'Upload an attachment…', disabled: uploadBlocked(this.store.client!.server, this.store.extensions.all().map((e) => e.name)), run: () => uploadAttachment(this.store, c, () => { this.store.flash('uploaded'); this.loadCollab() }) },
       { section: 'Context', label: 'Timeline…', key: 'T', detail: 'changes, comments and activity', run: () => this.openCollab('timeline') },
       { section: 'Context', label: `Tasks${sum?.tasks !== undefined ? ` (${sum.tasks} open)` : ''}…`, key: 'K', run: () => this.openCollab('tasks') },
       { section: 'Context', label: 'Share preview: who could read it…', detail: 'pick people, see who can read, then send', run: () => sharePreview(this.store, c, this.title()) },

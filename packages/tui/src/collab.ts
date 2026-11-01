@@ -12,7 +12,7 @@
 
 import { basename } from 'node:path'
 import { readFileSync } from 'node:fs'
-import { Collaboration, type CommentEntry, type ExtensionRegistry, type FollowState, type PersonEntry } from '@qrun-io/qqq-core'
+import { Collaboration, NO_OBJECT_STORAGE, missingQBitMessage, type CommentEntry, type ExtensionRegistry, type FollowState, type PersonEntry } from '@qrun-io/qqq-core'
 import type { CallInput, CallResult } from '@qrun-io/qqq-core'
 
 type J = Record<string, unknown>
@@ -65,6 +65,26 @@ export interface CollabClient {
   call(id: string, input?: CallInput): Promise<CallResult>
   fetch: typeof fetch
   server: string
+}
+
+/** Servers known (this session) to have no Object Storage QBit: uploads are not offered there. */
+const noStorage = new Set<string>()
+
+/**
+ * Why uploads cannot work on this server, when that is known before trying: an earlier upload
+ * answered that the Object Storage QBit is missing, or GET /version lists the extensions and none
+ * is object storage while it names one for storage elsewhere. Undefined when an upload may work.
+ */
+export function uploadBlocked(server: string, extensions: string[] = []): string | undefined {
+  if (extensions.some((e) => /object.?storage/i.test(e))) return undefined
+  return noStorage.has(server) ? NO_OBJECT_STORAGE : undefined
+}
+
+/** Remembers a failed upload's reason when it is the missing Object Storage QBit; returns the plain line. */
+export function noteUploadFailure(server: string, error: unknown): string | undefined {
+  const missing = missingQBitMessage(error)
+  if (missing === NO_OBJECT_STORAGE) noStorage.add(server)
+  return missing
 }
 
 export class RecordCollaboration {

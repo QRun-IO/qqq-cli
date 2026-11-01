@@ -10,7 +10,7 @@
  */
 
 import { displayDateTime, formatSize, saveDownload, type PersonEntry } from '@qrun-io/qqq-core'
-import { commentLines, type RecordCollaboration } from '../collab'
+import { commentLines, noteUploadFailure, uploadBlocked, type RecordCollaboration } from '../collab'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
 import { ChoiceOverlay, PromptOverlay } from '../overlays/basic'
@@ -51,7 +51,8 @@ export class CollabScreen extends LinesScreen {
       } else if (this.view === 'attachments') {
         const items = await c.attachments()
         rows.push({ text: `${items.length} attachment${items.length === 1 ? '' : 's'}, newest first · Enter downloads · n uploads`, fg: t.dim })
-        rows.push({ text: `  + Upload a file`, fg: t.acc, key: 'add', action: () => this.add() })
+        const blocked = uploadBlocked(this.store.client!.server, this.store.extensions.all().map((e) => e.name))
+        rows.push(blocked ? { text: `  + Upload a file (${blocked})`, fg: t.dim, key: 'add', action: () => this.store.flash(blocked) } : { text: `  + Upload a file`, fg: t.acc, key: 'add', action: () => this.add() })
         for (const a of items) {
           rows.push({ text: `  ${a.fileName ?? `attachment ${a.id}`}   ${a.sizeBytes !== undefined ? formatSize(a.sizeBytes) : ''}   ${a.createdByDisplayName ?? ''} · ${when(a.createDate)}${a.description ? ` · ${a.description}` : ''}`, key: `a:${a.id}`, action: () => this.attachmentActions(a.id!, a.fileName ?? `attachment-${a.id}`, Boolean(a.canDelete)) })
         }
@@ -142,7 +143,18 @@ export function downloadAttachment(store: AppStore, collab: RecordCollaboration,
 
 /** Uploads a file chosen in the file navigator as an attachment. */
 export function uploadAttachment(store: AppStore, collab: RecordCollaboration, then: () => void): void {
-  openFile(store, 'Upload an attachment', (path) => store.run(collab.upload(path), then))
+  const server = store.client!.server
+  const blocked = uploadBlocked(server, store.extensions.all().map((e) => e.name))
+  if (blocked) return store.flash(blocked, 'error')
+  openFile(store, 'Upload an attachment', (path) => {
+    collab.upload(path).then(() => { then(); store.bump() }).catch((e) => {
+      // no Object Storage QBit: one plain line, and the upload row is dimmed from now on
+      const plain = noteUploadFailure(server, e)
+      if (plain) store.message(plain, 'error', 'Upload')
+      else store.error(e)
+      store.screen?.refresh?.()
+    })
+  })
 }
 
 /**

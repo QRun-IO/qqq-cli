@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { Collaboration, Printing, runProcess, type ProcessMeta, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { Collaboration, Printing, missingQBitMessage, runProcess, type ProcessMeta, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieHeaderFor, target, type Target } from './session.js'
 
@@ -183,6 +183,9 @@ export function describeError(error: unknown, trace = false): { code: number; te
   if (error instanceof UsageError || error instanceof FilterSyntaxError || error instanceof UnsafeFileNameError || error instanceof OperationInputError) return { code: EXIT.usage, text: `Error: ${error.message}` }
   if (error instanceof ExtensionNotInstalledError) return { code: EXIT.notFound, text: `Error: ${error.message}` }
   if (error instanceof UiApiError) {
+    // a server failure that only says a QBit is missing (attachments without Object Storage): one plain line
+    const missing = missingQBitMessage(error)
+    if (missing) return { code: EXIT.unexpected, text: `Error: ${missing}` }
     const lines = [`Error: ${error.message} (${error.code}, HTTP ${error.status}${error.traceId ? `, trace ${error.traceId}` : ''})`]
     for (const fieldError of error.fieldErrors) lines.push(`  ${fieldError.field}: ${fieldError.message}`)
     if (error.code === 'UNAUTHENTICATED') lines.push('Sign in again with `qqq login`.')

@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { displayDateTime, valueText } from '@qrun-io/qqq-core'
+import { displayDateTime, missingQBitMessage, valueText } from '@qrun-io/qqq-core'
 import { glyphs } from '../theme'
 
 /** Cuts text to a width, with an ellipsis when it was longer. */
@@ -100,6 +100,9 @@ export function shellQuote(arg: string): string {
 }
 
 export function errorText(error: unknown): string {
+  // a server failure that only says a QBit is missing (attachments without Object Storage): one plain line
+  const missing = missingQBitMessage(error)
+  if (missing) return missing
   if (error && typeof error === 'object' && 'fieldErrors' in error && Array.isArray((error as { fieldErrors: unknown[] }).fieldErrors) && (error as { fieldErrors: unknown[] }).fieldErrors.length) {
     const e = error as { message: string; fieldErrors: Array<{ field: string; message: string }> }
     return `${e.message}: ${e.fieldErrors.map((f) => `${f.field} ${f.message}`).join('; ')}`

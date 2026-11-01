@@ -14,7 +14,8 @@ import { NO_QUICK_SEARCH, paletteGroups, paletteRows, recordItem, type PaletteIt
 import { HELP_POINTER, helpKeyGroups } from '../src/help-keys'
 import { structuredLines } from '../src/structured'
 import { structuredOutput } from '../src/commands'
-import { summaryText, viewingText, commentLines } from '../src/collab'
+import { summaryText, viewingText, commentLines, noteUploadFailure, uploadBlocked } from '../src/collab'
+import { errorText } from '../src/util/text'
 import { blockLines } from '../src/widgets'
 
 const known = { tables: { jobs_job: {}, alerts_channel: {}, person: {} }, processes: { syncOrder: {} }, apps: { jobs: {}, alerts: {}, esb: {} } }
@@ -229,9 +230,10 @@ test('help: only keys grouped by what they do, the pointer line, no commands or 
   expect(keys.some(([, what]) => /^(App|Table|Process|Recent):|Switch profile|Sign out|Theme:/.test(what))).toBe(false)
   // F4 is listed above, so the screen's own F4 entry is not repeated
   expect(groups.at(-1)!.keys).toEqual([['S', 'Column statistics']])
-  expect(HELP_POINTER).toContain('/ search anything')
+  expect(HELP_POINTER).toContain('F2 search records')
+  expect(HELP_POINTER).toContain('/ find anything')
   expect(HELP_POINTER).toContain('F9 menu')
-  expect(HELP_POINTER).toContain(':search <text>')
+  expect(helpKeyGroups('home', true)[0]!.keys.find(([k]) => k === 'F2')![1]).toContain(':search <text>')
   const noSingle = helpKeyGroups('record', false).flatMap((g) => g.keys)
   expect(noSingle.some(([k]) => k === 'a' || k === 'c' || k === 'v')).toBe(false)
   expect(helpKeyGroups('form', true).find((g) => g.title === 'Open and change')!.keys.map(([k]) => k)).toContain('Ctrl+S')
@@ -244,4 +246,15 @@ test('collaboration header: counts, follow state and who is viewing (this user m
   expect(viewingText(undefined)).toBe('Viewing now: …')
   expect(summaryText(undefined)).toBe('Comments … (C) · Attachments … (P) · Tasks … (K) · Timeline (T) · following … (W)')
   expect(commentLines({ authorDisplayName: 'Pat', body: 'hi @[Lee](user:7)', createdAt: undefined, replies: [{ authorDisplayName: 'Lee', body: 'ok' }] }, () => 'now')).toEqual(['Pat · now: hi @Lee', '    ↳ Lee · now: ok'])
+})
+
+test('uploads: the missing Object Storage QBit becomes one plain line, and uploads are then not offered on that server', () => {
+  const server = 'http://no-storage.test'
+  expect(uploadBlocked(server)).toBeUndefined()
+  expect(noteUploadFailure(server, { status: 500, message: 'IllegalStateException (The Object Storage qbit is not installed)' })).toBe('This server cannot store attachments: the Object Storage QBit is not installed.')
+  expect(uploadBlocked(server)).toBe('This server cannot store attachments: the Object Storage QBit is not installed.')
+  expect(uploadBlocked('http://other.test')).toBeUndefined()
+  expect(noteUploadFailure('http://x.test', { status: 400, message: 'file too big' })).toBeUndefined()
+  expect(uploadBlocked('http://x.test')).toBeUndefined()
+  expect(errorText(Object.assign(new Error('IllegalStateException (The Object Storage qbit is not installed)'), { status: 500 }))).toBe('This server cannot store attachments: the Object Storage QBit is not installed.')
 })
