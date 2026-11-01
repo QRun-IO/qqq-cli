@@ -2,19 +2,37 @@
 
 ## What runs today
 
-`.circleci/config.yml` is the qqq-orb setup stub; `.qqq-ci.yml` selects the orb's `cli` profile (orb 0.8,
-read from `qqq-orb` at v0.8.32, identical to `develop`). That profile generates one job,
-`qqq-orb/cli_verify_publish`, on **Linux, `cimg/node:22.12`**:
+`.circleci/config.yml` is the qqq-orb setup stub on the `0.8` track (it picks up every 0.8.x release by
+itself); `.qqq-ci.yml` selects the orb's `cli` profile and, since qqq-orb **0.8.33**, turns on the
+platform lanes with `platforms: [macos-arm64, windows-x64]`. The profile generates three jobs:
 
-1. `npm ci`
-2. `npm run generate`, then `git diff --exit-code -- packages/ui-api-client/src/schema.ts`
-3. `npm run build`, `npm test`
-4. a Prism smoke: `prism mock` on the merged document, `GET /qqq/v1/version` and `/metaData/authentication`
-5. on a tag `v<client version>` with `publish.release: true`: `npm publish --tag rc` of
-   `@qrun-io/qqq-ui-api-client`, `@qrun-io/qqq-ui-api-conformance` and `@qrun-io/qqq-cli` to GitHub Packages
-   (in orb 0.8.32; qqq-orb PR #165 adds `@qrun-io/qqq-core` and publishes as `latest` when all four
-   versions are final, as 1.0.0's are. Until that orb release is out, the release runbook's step 5 does
-   both by hand.)
+| Job | Executor | What it runs |
+|---|---|---|
+| `cli-macos-arm64` (`qqq-orb/cli_platform`) | macOS, Xcode 16.4, `m4pro.medium` | Node 20.20.2 (the `engines` floor) with nvm, `npm ci`, `npm run build && npm test && npm run lint` |
+| `cli-windows-x64` (`qqq-orb/cli_platform`) | Windows Server 2022, `windows.medium`, steps in Git Bash | the same, on Windows (keyring DPAPI path, Windows paths) |
+| `qqq-orb/cli_verify_publish` | Linux, `cimg/node:22.23` | `npm ci`; `npm run generate` then `git diff --exit-code` on `schema.ts` and `operations.ts`; build, test, lint; a Prism smoke (`GET /qqq/v1/version`, `/metaData/authentication`); on a tag `v<client version>` with `publish.release: true`, publishing (below) |
+
+On branches and pull requests the three jobs run side by side. On a release tag `cli_verify_publish`
+**requires both platform lanes**, so nothing is published unless macOS and Windows are green. Publishing
+puts all four packages on GitHub Packages (client, core, conformance, CLI, in that order) with the dist-tag
+`latest` when all four versions are final and `rc` when any of them has a prerelease part. The CircleCI
+plan must include the `m4pro.medium` and `windows.medium` resource classes.
+
+The orb's generator accepts this manifest: rendered with `src/scripts/generate_pipeline.py` from qqq-orb
+v0.8.33, a push to `main` gives `cli-macos-arm64`, `cli-windows-x64` and `cli_verify_publish` in
+`test_only`, and the tag `v1.8.0` gives the same in `publish_release` with `cli_verify_publish` requiring
+both lanes and bound to the `qqq-maven-registry-credentials` context.
+
+Still not in CI: the TUI (`npm run test:tui`, `typecheck:tui`, which need Bun), and building and smoking
+the platform binaries (`scripts/build-binaries.mjs --host`, `scripts/verify-binary.sh` / `.ps1`); the
+lanes run the Node packages only. Those stay release-machine steps in `docs/release-runbook.md`.
+
+### History
+
+Before orb 0.8.33 the profile generated only `cli_verify_publish` (on `cimg/node:22.12`), without lint,
+without the `operations.ts` drift check, without publishing `@qrun-io/qqq-core`, always with the
+dist-tag `rc`, and with no macOS or Windows lane. The gap list and proposal below are what led to
+0.8.33; they are kept for the record.
 
 Checked on 2026-10-31 by running the orb's own `cli_verify.sh` in Docker on the release branch, plus
 `npm run prepublishOnly` and `npm run lint`:
@@ -24,7 +42,7 @@ Checked on 2026-10-31 by running the orb's own `cli_verify.sh` in Docker on the 
 | `node:20-bookworm-slim` (Node 20.20.2) | all green |
 | `cimg/node:22.12` (the orb's image) | all green since 2026-10-31. Before, two prompt tests (Ctrl-D and Ctrl-C at a question) hung: on 22.12 readline leaves a pending question unsettled when Ctrl-D closes the interface. `prompt.ts` now also settles the question when the interface closes; checked on Node 20.20, 22.12 and 24.22. |
 
-Gaps in the profile, to fix in the orb:
+Gaps in the profile as of 0.8.32 (all closed in 0.8.33 except the TUI, which still needs Bun):
 
 - **`@qrun-io/qqq-core` is not published.** `@qrun-io/qqq-cli` depends on it, so the CLI package the
   orb publishes cannot be installed until core is published by hand (`scripts/release.mjs` prints the
@@ -42,9 +60,8 @@ Gaps in the profile, to fix in the orb:
 
 ## Proposal for James: two orb changes
 
-Written before 1.0.0-rc.1 and kept as sent; part 1b became qqq-orb PR #165. The changes are in
-`kingsrook/qqq-orb` and need an orb release (0.8.x patch) before this repository picks them up; the
-release runbook's checklist tracks what is still open for 1.0.0.
+Written before 1.0.0-rc.1 and kept as sent. Part 1b became qqq-orb PR #165; all of it, and the
+platform lanes of Option A below, shipped in qqq-orb 0.8.33, and this repository has opted in.
 
 > **Subject: qqq-orb `cli` profile: publish @qrun-io/qqq-core, and opt-in macOS/Windows lanes**
 >
@@ -96,7 +113,7 @@ installs Node 20 and Bun 1.4.4, runs build, test and lint, builds the binary for
 `scripts/build-binaries.mjs --host` and smoke-runs it. Linux arm64 and musl can be added the same way
 later (`arm.medium` machine executor, `node:20-alpine`).
 
-### Option A (recommended): an orb change
+### Option A (recommended, shipped in qqq-orb 0.8.33): an orb change
 
 The `cli` profile is the one place CLI CI is defined, so the lanes belong there. Changes in `qqq-orb`:
 
@@ -121,7 +138,7 @@ Then this repository opts in with two lines and no change to `.circleci/config.y
 platforms: [macos-arm64, windows-x64]
 ```
 
-### Option B: a second pipeline in this repository
+### Option B: a second pipeline in this repository (not needed since 0.8.33)
 
 If the orb change has to wait: CircleCI projects on the GitHub App integration can have more than one
 pipeline, each with its own config file (Project Settings, Pipelines, "Add pipeline", config path

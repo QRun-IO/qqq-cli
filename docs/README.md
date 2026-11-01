@@ -25,7 +25,7 @@ Everything under `docs/`:
 | [packaging/README.md](packaging/README.md) | the install paths (curl installer, Homebrew, Scoop, npm), where the formula and manifest live, platform notes (Gatekeeper, SmartScreen, musl), and how the terminal UI is bundled |
 | [packaging/homebrew-tap/](packaging/homebrew-tap/README.md) | the complete `QRun-IO/homebrew-tap` repository, ready to copy: `Formula/qqq.rb`, README, LICENSE and its qqq-orb CI files |
 | [packaging/qqq.json](packaging/qqq.json) | the Scoop manifest, copied to `bucket/qqq.json` in `QRun-IO/scoop-bucket` |
-| [ci-lanes.md](ci-lanes.md) | what CircleCI (the qqq-orb `cli` profile) runs today, its gaps, and the proposed macOS and Windows lanes |
+| [ci-lanes.md](ci-lanes.md) | what CircleCI (the qqq-orb `cli` profile) runs: the Linux verify-and-publish job and the macOS arm64 and Windows x64 lanes, what is still outside CI, and the history of the orb changes |
 
 `scripts/update-packaging.mjs` fills the version and checksums of the formula and manifest from a
 release's `SHA256SUMS`.

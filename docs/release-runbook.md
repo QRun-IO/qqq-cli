@@ -27,12 +27,13 @@ prerelease (the readiness gate's "package versions" line).
 
 Nobody else can do these; each says what happens without it.
 
-- [ ] **Orb changes merged and released** (0.8.x patch of `kingsrook/qqq-orb`, proposal in
-      `docs/ci-lanes.md`): publish `@qrun-io/qqq-core`, run lint, the macOS arm64 and Windows x64 lanes,
-      and the dist-tag rule above (PR #165, head 4119818). Without the released orb: publish core by
-      hand and move `latest` by hand (step 5).
-- [ ] **CircleCI plan** includes the `m4pro.medium` (macOS) and `windows.medium` resource classes, for
-      the lanes. Without it: Windows x64 and macOS x64 ship unverified (see "Not verified" below).
+- [x] **Orb changes released** in `kingsrook/qqq-orb` 0.8.33 (`docs/ci-lanes.md`): publishing
+      `@qrun-io/qqq-core`, lint, the `operations.ts` drift check, the dist-tag rule above (PR #165), and
+      the macOS arm64 and Windows x64 lanes, which `.qqq-ci.yml` turns on (`platforms:`) and a release tag
+      requires before publishing.
+- [ ] **CircleCI plan** includes the `m4pro.medium` (macOS) and `windows.medium` resource classes. Without
+      them the platform lanes cannot start, and because a release tag requires them, the publish waits;
+      remove `platforms:` from `.qqq-ci.yml` to publish without them.
 - [ ] **Apple Developer ID and notarization**: a "Developer ID Application" certificate and a notary
       credential (App Store Connect API key) on the release machine. Without it the macOS binaries are
       only ad-hoc signed. Homebrew and the curl installer are not affected (they do not set the
@@ -51,9 +52,13 @@ Nobody else can do these; each says what happens without it.
       four `@qrun-io` packages (the orb checks it authenticates; write access is only proven by a publish).
 - [ ] **Go for 1.0.0 final**: the 1.0.0-rc.1 feedback is accepted and no blocker is open.
 
-## Not verified before 1.0 (unless the lanes run first)
+## Not verified before 1.0
 
-- `qqq-windows-x64.exe` (CLI and UI) has never run; the Windows lane runs `scripts/verify-binary.ps1`.
+The platform lanes run the Node packages' build, tests and lint on macOS arm64 and Windows x64 (Node
+20), which covers the keyring code paths there, but they do not build or run the binaries.
+
+- `qqq-windows-x64.exe` (CLI and UI) has never run; `scripts/verify-binary.ps1` is the smoke to run on
+  a Windows machine.
 - `qqq-darwin-x64` has never run (no Intel Mac or Rosetta on the build machine).
 - Windows Terminal rendering of `qqq ui`, and the DPAPI keyring outside unit tests.
 
@@ -65,7 +70,8 @@ smoke against the sample server), linux-x64 glibc, linux-arm64 glibc and linux-a
 ## 1. Branch green
 
 - `feat/m5-cli-release` (and whatever else is in the release) is merged to `main`; the orb pipeline on
-  `main` is green on its Node 22.12 image, and so are the platform lanes once they exist.
+  `main` is green: `cli_verify_publish` (Linux, `cimg/node:22.23`) and the `cli-macos-arm64` and
+  `cli-windows-x64` lanes.
 - Locally on `main`, clean tree: `npm ci && npm run build && npm test && npm run lint && npm run test:tui`.
 
 ## 2. Versions: release candidate to final

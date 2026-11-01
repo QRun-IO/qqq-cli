@@ -273,7 +273,7 @@ checks a server against the document.
 | [docs/server-findings.md](docs/server-findings.md) | UI API issues found while building the clients |
 | [docs/release-runbook.md](docs/release-runbook.md) | how a release is cut, signed, published and packaged |
 | [docs/packaging/README.md](docs/packaging/README.md) | the curl installer, Homebrew formula, Scoop manifest and platform notes |
-| [docs/ci-lanes.md](docs/ci-lanes.md) | what CI runs today and the planned macOS and Windows lanes |
+| [docs/ci-lanes.md](docs/ci-lanes.md) | what CI runs: Linux verify and publish, macOS arm64 and Windows x64 lanes |
 | [CHANGELOG.md](CHANGELOG.md) | every change by version |
 
 The UI API itself is documented in QQQ:
