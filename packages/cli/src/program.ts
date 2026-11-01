@@ -28,6 +28,7 @@ import { registerExtensions } from './commands/extensions.js'
 import { registerHelp } from './commands/help.js'
 import { registerJob } from './commands/job.js'
 import { registerMisc } from './commands/misc.js'
+import { registerPrint } from './commands/print.js'
 import { registerProcess } from './commands/process.js'
 import { registerSavedView } from './commands/saved-view.js'
 import { registerRelated } from './commands/related.js'
@@ -65,6 +66,7 @@ export function createProgram(): Command {
   registerRelated(program, ctx)
   registerBulk(program, ctx)
   registerProcess(program, ctx)
+  registerPrint(program, ctx)
   registerSavedView(program, ctx)
   registerJob(program, ctx)
   registerWidget(program, ctx)

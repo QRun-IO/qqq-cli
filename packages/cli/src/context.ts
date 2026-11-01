@@ -10,7 +10,7 @@
 
 import type { Command } from 'commander'
 import { UiApiError, unwrap, type UiApiClient } from '@qrun-io/qqq-ui-api-client'
-import { Collaboration, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
+import { Collaboration, Printing, runProcess, type ProcessMeta, ExtensionNotInstalledError, OperationInputError, ExtensionRegistry, KNOWN_EXTENSIONS, FilterSyntaxError, OUTPUT_FORMATS, ProcessError, UnsafeFileNameError, defaultTimeZone, type DisplayOptions, applyQuery, callOperation, defaultFormat, extensionRegistry, getMetaData, getTableMetaData, render, type CallInput, type CallResult, type MetaDataDocument, type OutputFormat, type Printable } from '@qrun-io/qqq-core'
 import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { CLIENT_CHANNEL, authenticatedFetch, clientFor, currentToken, selectTarget, sessionCookieHeaderFor, target, type Target } from './session.js'
 
@@ -132,6 +132,19 @@ export class Context {
           token: session ? undefined : () => currentToken(t),
         })
       })(),
+    })
+  }
+
+  /** The printing module for this server: printers, jobs and Print through the qbit's tables and processes. */
+  async printing(): Promise<Printing> {
+    const t = this.target
+    return new Printing(await this.extensions(), {
+      call: (id, input) => this.call(id, input),
+      runProcess: async (processName, { values, recordIds }) => {
+        const meta = await this.unwrap(this.client.GET('/qqq/v1/metaData/process/{processName}', { params: { path: { processName } } })) as unknown as ProcessMeta
+        const outcome = await runProcess({ baseUrl: t.server, fetch: authenticatedFetch(t), meta, values, records: { ids: recordIds }, stepTimeoutMillis: 60000 })
+        return outcome.values
+      },
     })
   }
 
