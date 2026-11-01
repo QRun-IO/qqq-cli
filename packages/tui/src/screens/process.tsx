@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { BACK, adHocControls, FormSession, fetchProcessRecords, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, adHocControls, FormSession, fetchProcessRecords, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, stripTags, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
 import { ChoiceOverlay } from '../overlays/basic'
 import { blockLines, tableLines } from '../widgets'
@@ -443,7 +443,7 @@ export class ProcessScreen implements Screen {
     const stepper = steps.map((s, i) => `${i < currentIdx || this.phase === 'done' ? g.check : i === currentIdx ? g.pointer + ' ' : g.uncheck} ${s.label ?? s.name}`).join('   ')
     const body: React.ReactNode[] = []
     const lines: Array<{ text: string; fg?: string; bold?: boolean }> = []
-    const help = (this.step?.components ?? []).filter((c) => c.type === 'HELP_TEXT' || c.type === 'HTML').map((c) => String(c.values?.text ?? c.values?.html ?? '').replace(/<[^>]+>/g, ''))
+    const help = (this.step?.components ?? []).filter((c) => c.type === 'HELP_TEXT' || c.type === 'HTML').map((c) => stripTags(String(c.values?.text ?? c.values?.html ?? '')))
     if (this.phase === 'starting') lines.push({ text: 'starting…', fg: t.dim })
     if (this.phase === 'running') {
       const p = this.progress
