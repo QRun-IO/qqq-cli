@@ -13,14 +13,20 @@
  */
 
 import { CommanderError } from 'commander'
-import { EXIT, describeError } from './context.js'
+import { EXIT, describeError, exitOnBrokenPipe, isBrokenPipe } from './context.js'
 import { createProgram } from './program.js'
 import { importLegacyCredentials } from './session.js'
 
+exitOnBrokenPipe()
 const program = createProgram()
 importLegacyCredentials().then(() => program.parseAsync()).catch((error: unknown) => {
   if (error instanceof CommanderError) {
     process.exitCode = error.exitCode === 0 ? 0 : EXIT.usage
+    return
+  }
+  // a stream that failed with EPIPE (an export piped into head): the reader left, nothing to report
+  if (isBrokenPipe(error)) {
+    process.exitCode = 0
     return
   }
   const { code, text } = describeError(error, Boolean(program.opts().trace))

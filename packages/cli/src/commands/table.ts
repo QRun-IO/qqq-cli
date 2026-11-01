@@ -5,7 +5,7 @@
 
 import { basename } from 'node:path'
 import type { Command } from 'commander'
-import { exportFileName, deniedTableReason, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, readViewSettings, writeViewSettings, type DynamicFormPayload, withJoinFields, AssociationError, FilterLabelError, resolveFilterLabels, associationJoin, buildFilter, columnStatsAvailability, combineWithQuickSearch, computeColumnStats, copyRecordValues, defaultJoinColumns, exposedJoins, fieldLabel, filterDateTimesToUtc, findRecordByKey, findSavedView, FormInputError, FormSession, gotoKeys, isGotoKey, JoinError, joinFieldNames, listSavedViews, listTableVariants, parentLinkValues, planJoins, printFilter, quickSearchFields, quickSearchFilter, relatedRecordTarget, resolveField, runColumnStats, safeFileName, saveDownload, SavedViewError, savedViewProcesses, variantBody, variantParam, viewToQuery, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin, type RecordLike, type TableMetaLike } from '@qrun-io/qqq-core'
+import { exportFileName, deniedTableReason, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, readViewSettings, writeViewSettings, type DynamicFormPayload, withJoinFields, AssociationError, FilterLabelError, resolveFilterLabels, associationJoin, buildFilter, columnStatsAvailability, combineWithQuickSearch, computeColumnStats, computeLoadedColumnStats, type LoadedColumnStats, copyRecordValues, defaultJoinColumns, exposedJoins, fieldLabel, filterDateTimesToUtc, findRecordByKey, findSavedView, FormInputError, FormSession, gotoKeys, isGotoKey, JoinError, joinFieldNames, listSavedViews, listTableVariants, parentLinkValues, planJoins, printFilter, quickSearchFields, quickSearchFilter, relatedRecordTarget, resolveField, runColumnStats, safeFileName, saveDownload, SavedViewError, savedViewProcesses, variantBody, variantParam, viewToQuery, type ExposedJoin, type FieldMeta, type QueryFilter, type QueryJoin, type RecordLike, type TableMetaLike } from '@qrun-io/qqq-core'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
@@ -72,6 +72,19 @@ export async function resolvedFilterFrom(c: Context, options: QueryOptions, meta
 }
 
 /** A file extension for editing a field in $EDITOR: html for HTML, the code editor's language, else txt. */
+/** The statistic rows of columns computed here from records: the figures the field's kind has. */
+function loadedStatsRows(stats: LoadedColumnStats): Array<{ statistic: string; value: unknown }> {
+  const row = (statistic: string, value: unknown) => ({ statistic, value: value ?? '' })
+  const rows = [row('Count', stats.count), row('Nulls', stats.nulls), row('Distinct', stats.distinct)]
+  if (stats.kind === 'number') rows.push(row('Sum', stats.sum), row('Mean', stats.mean), row('Median', stats.median), row('Min', stats.min), row('Max', stats.max))
+  else if (stats.kind === 'date') rows.push(row('Earliest', stats.min), row('Latest', stats.max))
+  else {
+    rows.push(row('Min', stats.min), row('Max', stats.max))
+    if (stats.kind === 'string') rows.push(row('Shortest', stats.shortest), row('Longest', stats.longest))
+  }
+  return rows
+}
+
 export function editorExtension(field: FieldMeta): string {
   if (field.type === 'HTML') return 'html'
   const code = (field.adornments ?? []).find((a) => a.type === 'CODE_EDITOR') as { values?: Record<string, unknown> } | undefined
@@ -330,8 +343,9 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-j, --join <table...>', 'join exposed joins (the field may be table.field)')
     .option('--sort <order>', 'distribution order: count (default, most first), count-asc, value, value-desc', 'count')
     .option('-l, --limit <n>', 'most distribution rows to show', '25')
-    .option('--local', 'when the server offers no statistics, compute them here from the matching records (paged)')
-    .option('--max-records <n>', 'with --local, the most records to read', '100000')
+    .option('--local', 'compute the statistics here from the matching records (paged), even when the server offers them; without it this is the fallback when the server offers none (or answers 403 or 404)')
+    .option('--no-local', 'never compute here: a server without column statistics is an error')
+    .option('--max-records <n>', 'when computing here, the most records to read', '10000')
     .option(...VARIANT_OPTION)
     .action(async (name: string, field: string, options: QueryOptions & { sort: string; local?: boolean; maxRecords: string }) => {
       const c = ctx()
@@ -346,9 +360,19 @@ export function registerTable(program: Command, ctx: () => Context): void {
       const variant = await chooseVariant(c, meta, options.variant)
       const availability = columnStatsAvailability(meta, await c.metaData() as unknown as Json)
       let stats
-      if (availability.available) {
-        stats = await runColumnStats(c.server, authenticatedFetch(c.target), { table: name, field, filter, orderBy: orderField, tableVariant: variant })
-      } else if (options.local) {
+      let loaded: LoadedColumnStats | undefined
+      let serverReason = availability.reason
+      if (availability.available && options.local !== true) {
+        try {
+          stats = await runColumnStats(c.server, authenticatedFetch(c.target), { table: name, field, filter, orderBy: orderField, tableVariant: variant })
+        } catch (e) {
+          // the server says no (403, 404): compute here unless --no-local
+          if (!(e instanceof UiApiError && (e.status === 403 || e.status === 404)) || options.local === false) throw e
+          serverReason = `the server refused column statistics (${e.status})`
+        }
+      }
+      if (!stats) {
+        if (options.local === false) throw new UsageError(`No column statistics: ${serverReason}. Without --no-local they are computed here from the matching records.`)
         const { joins } = joinsFrom(options, available, [field], filter)
         const records: Json[] = []
         const pageSize = 1000
@@ -359,16 +383,22 @@ export function registerTable(program: Command, ctx: () => Context): void {
           records.push(...page)
           if (page.length < pageSize) break
         }
-        if (records.length >= max) c.note(`note: stopped at --max-records ${max}; the statistics cover those records only`)
+        const capped = records.length >= max
+        c.note(`from ${records.length.toLocaleString('en-US')} matching records (the server offers no column statistics for ${String(meta.label ?? name)})${capped ? ` · stopped at --max-records ${max}; the statistics cover those records only` : ''}`)
         stats = computeColumnStats(records, field, resolved.field, orderField)
-      } else {
-        throw new UsageError(`No column statistics: ${availability.reason}. --local computes them here from the matching records.`)
+        loaded = computeLoadedColumnStats(records as never, field, resolved.field)
       }
       const label = fieldLabel(meta, available, field)
       const limit = positiveInt(options.limit ?? '25', '--limit')
       const distribution = stats.valueCounts.slice(0, limit).map((r) => ({ value: r.displayValues[field] ?? r.values[field] ?? '', count: r.values.count }))
       if (c.format === 'json' || c.format === 'yaml' || c.options.query) {
-        c.print({ data: { field, label, ...stats } })
+        c.print({ data: { field, label, ...(loaded ? { source: 'matching records', loaded } : {}), ...stats } })
+        return
+      }
+      const loadedRows = loaded && loadedStatsRows(loaded)
+      if (loadedRows) {
+        c.print({ data: stats, rows: loadedRows, columns: ['statistic', 'value'], footer: `${meta.label}: ${label}${resolved.field.type === 'DATE_TIME' ? ' (grouped by hour)' : ''} (computed locally)` })
+        c.print({ data: stats.valueCounts, rows: distribution, columns: ['value', 'count'], headers: [label, 'Count'], footer: countFooter(distribution.length, 'value', [stats.valueCounts.length > limit && `${stats.valueCounts.length} in all; --limit for more`]) })
         return
       }
       c.print({ data: stats, rows: stats.fields.map((f) => ({ statistic: f.label, value: stats.stats.displayValues[f.name] ?? stats.stats.values[f.name] ?? '' })), columns: ['statistic', 'value'], footer: `${meta.label}: ${label}${resolved.field.type === 'DATE_TIME' ? ' (grouped by hour)' : ''}${availability.available ? '' : ' (computed locally)'}` })

@@ -76,7 +76,7 @@ Global options, anywhere on the line: `--server <url>`, `-p, --profile <name>`, 
 json|table|text|csv|yaml`, `--json`, `-Q, --query <jmespath>`, `--fields <names>`, `-y, --yes`, `--utc`,
 `--trace`. Output is a table on a terminal and JSON in a pipe; extension results print their scalars as
 key/value rows and each list as a sub-table fitted to the terminal (`--columns` chooses, `--json` shows
-everything).
+everything). `table stats` computes from the matching records (up to `--max-records`, 10,000) when the server offers no column statistics (`--no-local` makes that an error); a pipe whose reader exits early (`| head -1`) ends the command quietly with status 0.
 
 Flag convention: `-o, --out <file>` is the output file on every command that writes one; the sort is
 `--order <field...>` (prefix `-` for descending; no short form). Until 1.1, `-o` still sorts on `table query`,

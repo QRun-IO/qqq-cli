@@ -292,6 +292,8 @@ in parentheses mark the changes made after the candidate.
 
 ### Fixed
 
+- `qqq table stats <table> <field>` on a table without QUERY_STATS (or when the server answers 403 or 404) computes the statistics from the matching records instead of failing: count, nulls, distinct, min, max, sum, mean and median for numbers, shortest and longest for text, earliest and latest for dates, and the distribution; it says `from N matching records (the server offers no column statistics for X)` on stderr and exits 0. `--local` forces it, `--no-local` restores the error, `--max-records` (now 10,000 by default) caps the read.
+- Output piped into a reader that exits early (`qqq table query person | head -1`, exports, process logs, `assistant ask`) ends quietly with status 0 instead of an unhandled `write EPIPE` stack trace.
 - The UI's Search (F2) said only "no records match" when quick search found nothing. It now explains
   the coverage: "No records match "Gondor". Quick search indexes 17 of 189 tables (Customer, Order, …
   and 12 more) · 57 records · last reindex 10:38. Tables not indexed cannot be found here; add them in

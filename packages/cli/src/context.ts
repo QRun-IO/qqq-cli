@@ -26,6 +26,21 @@ export const io = {
   width: (): number | undefined => (process.stdout.isTTY ? process.stdout.columns : undefined),
 }
 
+/** Whether an error is a write to a pipe whose reader has gone (`qqq table query | head -1`). */
+export function isBrokenPipe(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException | undefined)?.code === 'EPIPE'
+}
+
+/** Exits quietly with status 0 when stdout or stderr is a pipe nobody reads any more, as `yes | head` does. */
+export function exitOnBrokenPipe(streams: Array<NodeJS.WriteStream> = [process.stdout, process.stderr], exit: (code: number) => void = (code) => process.exit(code)): void {
+  for (const stream of streams) {
+    stream.on('error', (error) => {
+      if (isBrokenPipe(error)) exit(0)
+      else throw error
+    })
+  }
+}
+
 /** Exit codes, as in the design doc (KofTwentyTwo ADR-0031 shape). */
 export const EXIT = { ok: 0, error: 1, usage: 2, auth: 3, transient: 4, notFound: 5, validation: 6, unexpected: 70 } as const
 
