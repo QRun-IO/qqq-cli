@@ -16,6 +16,7 @@ import { wrap } from '../overlays/basic'
 import { cell, errorText, pad, trunc, hintLine } from '../util/text'
 import { FormEditor } from './form'
 import { Panel } from './list'
+import { history, processEvent } from '../history/record'
 
 class Cancelled extends Error {
   constructor() {
@@ -173,6 +174,7 @@ export class ProcessScreen implements Screen {
       this.result = { values: outcome.values, lastStep: outcome.lastStep }
       this.phase = 'done'
       this.finished = Date.now()
+      history.record(this.store, processEvent(this.store, this.processName, 'complete', this.cliEquivalent(), this.finished - this.started))
       this.note('complete')
       if (this.options.autoDownload && this.downloads.length) this.saveDownloadFile()
       this.store.bump()
@@ -184,6 +186,7 @@ export class ProcessScreen implements Screen {
         this.error = e instanceof ProcessError ? e.message : errorText(e)
       }
       this.finished = Date.now()
+      history.record(this.store, processEvent(this.store, this.processName, this.phase === 'cancelled' ? 'cancelled' : 'failed', this.cliEquivalent(), this.finished - this.started, this.error))
       this.store.bump()
     })
   }

@@ -14,6 +14,7 @@ import type { FKeyLabels, Screen } from '../types'
 import { errorText, pad } from '../util/text'
 import { HomeScreen } from './home'
 import { ListModel, Panel, type Row } from './list'
+import { history } from '../history/record'
 
 export interface SignInDeps {
   secrets: () => SecretStore
@@ -67,6 +68,7 @@ export async function connect(store: AppStore, target: Target, deps: SignInDeps)
   } catch {
     // config.json unreadable: not critical here
   }
+  history.record(store, { kind: 'auth', summary: `Signed in to ${target.server}${store.status.user ? ` as ${store.status.user}` : ''} (${store.status.auth})` })
   while (store.routes.length) store.routes.pop()?.dispose?.()
   store.push(new HomeScreen(store))
   deps.afterConnect?.(store)

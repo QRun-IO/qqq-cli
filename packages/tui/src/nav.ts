@@ -15,6 +15,7 @@ import { TableScreen } from './screens/table'
 import type { AppStore } from './store'
 import { isRunnerApp } from './sql/apps'
 import { openSqlRunner } from './sql/entry'
+import { history, openEvent, recordEvent, tableEvent } from './history/record'
 
 /**
  * Whether a table, process or app can be opened: unknown names (hidden from this user: not in
@@ -47,11 +48,13 @@ export function permits(meta: { insertPermission?: boolean; editPermission?: boo
 
 export function openTable(store: AppStore, table: string, filter?: QueryFilter): void {
   if (!known(store, 'tables', table)) return
+  history.record(store, tableEvent(store, table, filter))
   store.push(new TableScreen(store, table, filter))
 }
 
 export function openRecord(store: AppStore, table: string, primaryKey: string | undefined, options: { cursor?: ResultCursor; label?: string; tableVariant?: string } = {}): void {
   if (!known(store, 'tables', table)) return
+  history.record(store, recordEvent(store, table, primaryKey, options.label))
   store.push(new RecordScreen(store, table, primaryKey, options.cursor, options.label, options.tableVariant))
 }
 
@@ -70,12 +73,14 @@ export function openForm(store: AppStore, table: string, options: FormOptions & 
 
 export function openProcess(store: AppStore, name: string, options: ProcessOptions = {}): void {
   if (!known(store, 'processes', name)) return
+  history.record(store, openEvent(store, 'process', name))
   store.push(new ProcessScreen(store, name, options))
 }
 
 export function openApp(store: AppStore, name: string): void {
   if (!known(store, 'apps', name)) return
   if (isRunnerApp(store.meta, name)) return openSqlRunner(store)
+  history.record(store, openEvent(store, 'app', name))
   store.push(new AppHomeScreen(store, name))
 }
 

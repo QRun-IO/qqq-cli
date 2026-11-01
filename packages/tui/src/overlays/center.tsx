@@ -21,6 +21,7 @@ import { CompletionPopup, PopupBox, type PopupItem } from './popup'
 import { pickRow } from '../mouse/keys'
 import { SELECT_HINT } from '../mouse/settings'
 import { Zone } from '../mouse/zone'
+import { ReverseSearch } from '../history/reverse-search'
 
 export { MenuOverlay } from './menu'
 
@@ -242,7 +243,10 @@ export class CommandLineOverlay implements Overlay {
   historyIndex = -1
   /** The completion popup (Tab), with where the completed word starts. */
   popup?: { model: CompletionPopup; from: number }
-  search?: LineEditor
+  /** Ctrl+R: reverse search (history/reverse-search.ts). */
+  search?: ReverseSearch
+  /** The lines Ctrl+R searches, newest first (commands.ts sets the activity log's; default: this line's history). */
+  searchLines: () => string[] = () => this.history.entries()
 
   constructor(private store: AppStore, private history: History, private complete: (line: string, cursor: number) => { from: number; candidates: string[]; items?: PopupItem[] }, private onRun: (line: string) => void, initial = '') {
     this.editor = new LineEditor(initial)
@@ -254,17 +258,14 @@ export class CommandLineOverlay implements Overlay {
 
   onKey(key: Key): void {
     if (this.search) {
-      if (key.name === 'escape') {
-        this.search = undefined
-        return
+      const hit = this.search.current()
+      const r = this.search.handle(key)
+      if (r) this.search = undefined
+      if (r === 'edit' && hit) this.editor.set(hit)
+      if (r === 'run' && hit) {
+        this.editor.set(hit)
+        this.onKey({ name: 'return', sequence: '\r' })
       }
-      if (key.name === 'return' || (key.ctrl && key.name === 'r')) {
-        const hit = this.history.search(this.search.value)[0]
-        if (hit) this.editor.set(hit)
-        this.search = undefined
-        return
-      }
-      this.search.handle(key)
       return
     }
     if (this.popup) {
@@ -281,7 +282,7 @@ export class CommandLineOverlay implements Overlay {
     }
     if (key.name === 'escape') return this.store.closeOverlay(this)
     if (key.ctrl && key.name === 'r') {
-      this.search = new LineEditor('')
+      this.search = new ReverseSearch(this.searchLines)
       return
     }
     if (key.name === 'return') {
@@ -326,7 +327,7 @@ export class CommandLineOverlay implements Overlay {
     const width = Math.min(sw - 2, 140)
     const inner = width - 2
     const hint = this.search
-      ? ` history search: ${this.search.value}_  → ${this.history.search(this.search.value)[0] ?? '(no match)'}`
+      ? ` ${this.search.prompt()}  · Ctrl+R older · Enter runs · Esc edits · Ctrl+G cancels`
       : this.popup ? ' ↑↓ choose · Enter or Tab inserts · type to filter · Esc closes the list' : ' ↑↓ history · Ctrl+R search · Tab completes · Enter runs · Esc · e.g. table query person -w "lastName STARTS_WITH S" · theme light · lock · quit'
     const left = Math.max(0, Math.floor((sw - width) / 2))
     const top = Math.max(0, sh - 6)

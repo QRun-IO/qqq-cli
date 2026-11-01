@@ -70,6 +70,7 @@ the options.
 | `api <operationId>` | any UI API operation by id |
 | `extensions`, `esb`, `collab`, `health`, `alerts`, ... | one noun per extension, run when the server has it installed |
 | `print`, `printer` | print records, table lists and text through the printing extension, follow print jobs; printers and print agents |
+| `history` | everything you did with the CLI and the TUI, like a shell history (see below) |
 | `login`, `logout`, `profile`, `config`, `cache`, `completion`, `doctor` | sign-in, saved server profiles (`profile list|add|edit|use|remove`), settings, the metadata cache, shell completion (bash, zsh, fish, PowerShell), checks |
 
 Global options, anywhere on the line: `--server <url>`, `-p, --profile <name>`, `-O, --output
@@ -84,6 +85,35 @@ Flag convention: `-o, --out <file>` is the output file on every command that wri
 
 Exit codes: 0 ok, 1 error, 2 usage or bad filter, 3 auth, 4 server unreachable or rate limited,
 5 not found, 6 validation, 70 server error, 130 interrupted.
+
+## History
+
+`qqq history` lists everything you did on the profile in use, with the CLI and in the terminal UI, like
+`history` in a shell: number, time, client (`cli` or `ui`), kind and a one-line summary, newest last.
+
+```
+qqq history                      # the last 50
+qqq history --since 2h --grep person
+qqq history --kind query         # kinds: cli, ui (the client) or command, open, query, record,
+                                 #        process, export, print, server, auth
+qqq history --commands           # adds the command that does each entry again, in full
+qqq history --absolute --limit 0 --all-profiles --format json
+qqq history rerun 42             # runs entry 42 again (asks first when it changes data; --yes)
+qqq history clear                # empties the profile's history (asks; --yes)
+```
+
+Every CLI invocation is recorded as typed (with its exit code and duration); the TUI records its `:`
+commands and what you open (apps, tables, records, with the CLI equivalent such as `qqq table get
+person 3`), queries with filters (`qqq table query person -g "…"`), records created, edited and deleted
+(which record and which fields, never values), process runs and their outcome, exports and prints, server
+switches, and sign-in and sign-out. A TUI entry re-runs as its CLI equivalent; `:…` entries are TUI
+commands and run on the `:` line of `qqq ui`.
+
+The log is one JSONL file per profile, `~/.local/state/qqq/activity/<profile>.jsonl` (`QQQ_STATE_DIR`
+moves it), one event per line; at 5 MB it is rotated once to `<profile>.jsonl.1`. Secrets never reach it:
+values of `--token`, `--password`, `--pin` and other secret flags, secret `name=value` pairs, filter
+criteria on secret or password fields, Authorization headers and bearer tokens are written as `***` (such
+an entry cannot be re-run). `QQQ_HISTORY=off` stops recording.
 
 ## Sign-in
 
@@ -106,7 +136,8 @@ bearer token, for scripts and CI.
 | `QQQ_PASSWORD` | the TABLE_BASED password, instead of a prompt |
 | `QQQ_OUTPUT` | the default output format |
 | `QQQ_KEYRING=file` | keep sign-ins in a 0600 file instead of the OS keyring |
-| `QQQ_CONFIG_DIR`, `QQQ_STATE_DIR`, `QQQ_CACHE_DIR` | profiles and settings (`~/.config/qqq`), histories (`~/.local/state/qqq`), metadata cache (`~/.cache/qqq`) |
+| `QQQ_CONFIG_DIR`, `QQQ_STATE_DIR`, `QQQ_CACHE_DIR` | profiles and settings (`~/.config/qqq`), histories and the activity log (`~/.local/state/qqq`), metadata cache (`~/.cache/qqq`) |
+| `QQQ_HISTORY=off` | do not record commands in the activity log (`qqq history`) |
 | `QQQ_EXTENSION_CHECK=off` | skip the installed-extension check (for a mock server) |
 
 ## Use it as a library

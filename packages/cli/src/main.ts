@@ -16,9 +16,17 @@ import { CommanderError } from 'commander'
 import { EXIT, describeError, exitOnBrokenPipe, isBrokenPipe } from './context.js'
 import { createProgram } from './program.js'
 import { importLegacyCredentials } from './session.js'
+import { recordInvocation } from './commands/history.js'
 
 exitOnBrokenPipe()
 const program = createProgram()
+// every invocation goes to the activity log (`qqq history`) once, on exit: also when a command
+// ends the process itself (the TUI, Ctrl-C at a prompt)
+const startedAt = Date.now()
+process.once('exit', (code) => {
+  const opts = program.opts<{ profile?: string; server?: string }>()
+  recordInvocation(process.argv.slice(2), { profile: opts.profile, server: opts.server }, typeof process.exitCode === 'number' ? process.exitCode : code, startedAt)
+})
 importLegacyCredentials().then(() => program.parseAsync()).catch((error: unknown) => {
   if (error instanceof CommanderError) {
     process.exitCode = error.exitCode === 0 ? 0 : EXIT.usage

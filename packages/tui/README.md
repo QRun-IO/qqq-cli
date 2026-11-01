@@ -48,7 +48,7 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 | F8, `d` | delete, after a question | `]` `[`, PgDn PgUp (Ctrl+N: next) in a record | next and previous record of the list it came from |
 | F9 | the menu in two levels: the areas (Context, Go to, Work, Connection, Settings, Help), then an area's entries; places and records are found with `/` | `b` | run a table process on the selection |
 | F10, `:quit` | Quit, Reset (home screen, metadata refreshed, session kept) or Cancel; `:reset` and `:home` reset | `x`, `g`, `v` | export, go to by key, view settings |
-| `:` | command line (history ↑↓, Ctrl+R, Tab completes) | Ctrl+S | save a form, continue a process step |
+| `:` | command line (history ↑↓, Ctrl+R reverse search, Tab completes) | Ctrl+S | save a form, continue a process step |
 | Ctrl+O, `:servers` | Servers: switch to another saved profile, add, edit | | |
 | Ctrl+C | quit at once (the terminal is restored) | `c` | copy a record |
 | `a` | actions here (the F9 Context entries) | `A`, `D` | audits, developer view (record or grid) |
@@ -68,7 +68,8 @@ Keys on one screen:
 | Bulk wizard | Space switch a field on (bulk edit), Enter choose, `h` header row, `l` layout, `k` key fields, `P` saved profiles, `v` validate, Ctrl+S next, F4 back |
 | Widget | Enter on its heading: reload, dropdowns, export CSV, run, versions, setup editors |
 | Developer (`D`) | ←→ or 1-9 sections, ↑↓ PgUp PgDn scroll, Enter follow the line, `v` view the value in full, `y` copy it, F3 the record (or the grid), Esc back; see [Developer view](#developer-view) |
-| Command line | ↑↓ history, Ctrl+R search the history, Tab complete, Enter run, Esc close |
+| Command line | ↑↓ history, Ctrl+R reverse search (as bash: type to narrow, Ctrl+R or ↑ older, ↓ newer, Enter runs, Esc or ←→ edits, Ctrl+G cancels; searches the activity log's commands, CLI ones too), Tab complete, Enter run, Esc close |
+| History (`:history`) | type to filter, Enter does the entry again, `y` copies the CLI equivalent, `c` or F8 clears (asks), `t` relative or absolute times, `/` starts a filter beginning with `y` or `c`, Esc clears the filter, then back |
 | Filter (F6) | ↑↓ rows, ←→ Tab cells, Enter or typing edits the focused cell (text and numbers in place, choices from a list, Space cycles true/false), Backspace clears it to `(any)`, Ctrl+N add, Ctrl+D remove, Ctrl+O AND/OR, Ctrl+G group, F2 Advanced (grammar, cheat sheet, caret under errors), F10 apply, Esc cancel; see [docs/filter-dialog.md](docs/filter-dialog.md) |
 
 Printing: **Ctrl+P prints what you see, on every screen** (also `p` on records and grids, Print… in `a`
@@ -165,7 +166,7 @@ Two levels, as a menu bar. Level 1 lists the areas with a count and what each ho
 |---|---|
 | Context | the actions of the screen you are on (record, grid, process, form, app), and Back |
 | Go to | Reset (home), search (`/`), the apps and the recent records (groups: five and `more…`), favorites |
-| Work | jobs, notifications, my work, extensions |
+| Work | jobs, print jobs, history, notifications, my work, extensions |
 | Connection | the server in use (short name and host), Servers (Ctrl+O), profile, stream, metadata, sign out |
 | Settings | theme, view settings, shortcuts, layout, ASCII, lock, PIN, idle timeout, folders, server preferences |
 | Help | keys and help, search help, check the terminal, help-authoring mode, about, quit |
@@ -377,13 +378,29 @@ drives it in tmux at 80x24 and 120x36 against a server with the extension (defau
 TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `menu`, `search <text>` (also `find`, `goto`, `palette`), `view`,
 `views`, `share`, `actions`, `audits`, `dev`, `tags`, `report run <name>`, `theme <name>`, `ascii on|off`,
 `linear on|off`, `shortcuts on|off`, `dates [order ymd|mdy|dmy] [clock 24h|12h] [week monday|sunday] [weeknumbers on|off] [enter picker|next]`, `lock`, `saver [style|style <s>|refresh <s>|tables <a,b>|burnin on|off|dim <minutes|off>]`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
-`export <format>`, `jobs`, `profile [name]`, `servers`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
+`export <format>`, `jobs`, `history`, `profile [name]`, `servers`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
 `app <name>`, `record <table> <key>`, `sql [statement | open <id>]`. Tab on an empty line lists every
 command with a one-line description; after a command it lists its arguments (tables, processes, apps,
 profiles, subcommands), in the same popup as the SQL editor. `table query|get|create|update|delete` and `process run` open screens;
 any other CLI command runs in-process (`runCli` from `@qrun-io/qqq-cli/program`) and shows its output;
 an extension operation (`:alerts get-inbox`, `:collab get-records-tasks customer 1`, `:api <operationId>`)
 shows its JSON as key/value rows and sub-tables, with `J` for the raw JSON.
+
+### History
+
+`:history` (or F9 › Work › History) opens everything done on this profile, in the TUI and with the CLI
+(`qqq history` lists the same log): number, time, client, kind (100 columns and wider) and summary, newest
+at the bottom with the cursor there; the line under the list shows the entry's command. Typing filters
+(every word must match the summary, command, kind or client). Enter does the entry again: a `:` command
+runs, a record, app or process opens, a query opens the table with its filter, a CLI command runs on the
+`:` line (asking first when it changes data). `y` copies the CLI equivalent, `c` or F8 clears the history
+after a question. The screen fits 80×24.
+
+What the TUI records: `:` commands; opened apps, tables, records and processes (with the CLI equivalent,
+e.g. `qqq table get person 3`); queries with filters (`qqq table query person -g "…"`, values of password
+fields as `***`); records created, edited and deleted (which record and fields, never values); process
+runs with their outcome and time; exports with the file; prints with the job ids; server switches; sign-in
+and sign-out. Ctrl+R on the `:` line searches these commands too.
 
 ## Screen saver and lock
 
@@ -462,7 +479,9 @@ Everything below is local to the machine and shared with the CLI; nothing is sen
   - `saver`: the screen saver style, refresh seconds, `burnin` (default on) and `dimMinutes` (default 10, 0 off); `profiles.<name>.saver.tables`: favourite tables.
   - `ui.doctor`: the answers to the terminal check; `ui.recents`: recently viewed, per server.
 - `~/.local/state/qqq/` (`QQQ_STATE_DIR`): the `:` and filter histories (`history-commands`,
-  `history-filters`); lines that look like secrets are not kept.
+  `history-filters`); lines that look like secrets are not kept. `activity/<profile>.jsonl`: the activity
+  log the History screen and `qqq history` read (one JSON event per line, rotated once to `.1` at 5 MB;
+  secrets are written as `***`; `QQQ_HISTORY=off` stops it).
 - `~/.cache/qqq/` (`QQQ_CACHE_DIR`): the metadata cache.
 
 Themes: `high-contrast` (the default: bright text on black, strong selection), `classic` (the blue

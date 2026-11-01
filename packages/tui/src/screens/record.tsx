@@ -30,6 +30,7 @@ import { followLine } from '../links'
 import { ListModel, Panel, type Row } from './list'
 import { childBox, childColumnWidth, clampOffset, padRows, planRecordLayout, type LayoutItem } from './record-layout'
 import { defaultColumns } from './table'
+import { changeEvent, history } from '../history/record'
 
 type FullRecord = QueryRecord & { associatedRecords?: Record<string, QueryRecord[]> }
 
@@ -547,6 +548,7 @@ export class RecordScreen implements Screen {
     if (!permits(this.meta as never, 'delete')) return this.store.flash('you may not delete records of this table', 'error')
     this.store.confirm(`Delete ${this.meta?.label ?? this.tableName} ${this.primaryKey}${this.record?.recordLabel ? ` "${this.record.recordLabel}"` : ''}?`, () => {
       this.store.run(this.store.client!.remove(this.tableName, this.primaryKey), () => {
+        history.record(this.store, changeEvent(this.store, 'Deleted', this.tableName, String(this.primaryKey)))
         this.store.flash(`deleted ${this.meta?.label ?? this.tableName} ${this.primaryKey}`)
         const c = this.cursor
         if (!c) return this.store.back()

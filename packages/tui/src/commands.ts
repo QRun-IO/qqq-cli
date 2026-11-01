@@ -36,6 +36,9 @@ import { isRunnerWidget } from './sql/apps'
 import { errorText, shellSplit } from './util/text'
 import { openPrintJobs, printScreen } from './printing'
 import { withPrintEntry } from './overlays/actions'
+import { openHistory } from './history/screen'
+import { searchLines } from './history/reverse-search'
+import { changeEvent, commandEvent, history } from './history/record'
 
 const NOUNS: Record<string, string[]> = {
   table: ['list', 'describe', 'query', 'count', 'get', 'create', 'update', 'delete', 'export'],
@@ -50,7 +53,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates', 'history']
 
 /** One line on each TUI command, for the `:` line's completion popup. */
 export const TUI_COMMAND_HELP: Record<string, string> = {
@@ -59,7 +62,7 @@ export const TUI_COMMAND_HELP: Record<string, string> = {
   menu: 'the F9 menu', goto: 'search anything', view: 'view settings of this screen', theme: 'switch the theme', ascii: 'ASCII glyphs on or off', linear: 'linear layout on or off',
   shortcuts: 'single-key shortcuts on or off', lock: 'lock the screen', pin: 'set or remove the lock PIN', idle: 'screen saver after idle minutes', refresh: 'reload this screen',
   filter: 'filter the grid (grammar)', export: 'export the grid or result', jobs: 'your jobs', printjobs: 'print jobs', print: 'print what you see (or :print <printer>)', profile: 'switch profile', servers: 'saved servers (Ctrl+O)',
-  server: 'connect to a server URL', signout: 'sign out', connection: 'connection details', open: 'open a table', record: 'open a record by key', app: 'open an app',
+  history: 'everything you did (CLI and TUI)', server: 'connect to a server URL', signout: 'sign out', connection: 'connection details', open: 'open a table', record: 'open a record by key', app: 'open an app',
   sql: 'SQL Runner (statement to run, open <notebook id>)', saver: 'the screen saver', doctor: 'check the terminal', views: 'saved views of this table', share: 'share this record', helpkeys: 'help-authoring mode',
 }
 
@@ -238,7 +241,12 @@ export class Commands implements CommandsLike {
 
   commandLine(initial?: string): void {
     const s = this.store
-    s.open(new CommandLineOverlay(s, s.history, (line, cursor) => this.completeLine(line, cursor), (line) => void this.run(line), initial ?? this.lastFailed ?? ''))
+    const overlay = new CommandLineOverlay(s, s.history, (line, cursor) => this.completeLine(line, cursor), (line) => {
+      history.record(s, commandEvent(line))
+      void this.run(line)
+    }, initial ?? this.lastFailed ?? '')
+    overlay.searchLines = () => searchLines(s.target?.name, s.history)
+    s.open(overlay)
     this.lastFailed = undefined
   }
 
@@ -412,6 +420,8 @@ export class Commands implements CommandsLike {
         case 'server': return rest[0] ? this.switchServer(rest[0]) : fail('server <url>')
         case 'signout': return this.signOut()
         case 'connection': return this.connection()
+        case 'history': if (!rest.length) return openHistory(s)
+          break
         case 'open': return rest[0] ? openTable(s, rest[0]) : fail('open <table>')
         case 'app': return rest[0] ? openApp(s, rest[0]) : fail('app <name>')
         case 'sql': return sqlCommand(s, line.replace(/^sql\b/, ''))
@@ -470,7 +480,7 @@ export class Commands implements CommandsLike {
         return true
       case 'delete':
         if (!args[0]) return false
-        s.confirm(`Delete ${s.meta?.tables?.[table]?.label ?? table} ${args[0]}?`, () => s.run(s.client!.remove(table, args[0]), () => s.flash(`deleted ${table} ${args[0]}`)))
+        s.confirm(`Delete ${s.meta?.tables?.[table]?.label ?? table} ${args[0]}?`, () => s.run(s.client!.remove(table, args[0]), () => { history.record(s, changeEvent(s, 'Deleted', table, args[0])); s.flash(`deleted ${table} ${args[0]}`) }))
         return true
       default:
         return false
@@ -589,6 +599,7 @@ export class Commands implements CommandsLike {
     s.sidebar = undefined
     s.overlays = []
     s.refreshMetaOnConnect = true
+    history.record(s, { kind: 'server', summary: `Switched to ${target.name} (${target.server})`, command: `:profile ${target.name}` })
     // the footer names the server being connected to, not the one left
     Object.assign(s.status, { server: target.server, profile: target.name, short: undefined, user: '', userId: undefined, auth: '', apiVersion: '…', pingMs: null, stream: 'off', jobs: 'n/a', lastEvent: 'no events yet' })
     while (s.routes.length) s.routes.pop()
@@ -603,6 +614,7 @@ export class Commands implements CommandsLike {
     const target = s.target
     if (!deps || !target) return
     const finish = (note: string) => {
+      history.record(s, { kind: 'auth', summary: `Signed out of ${target.server}` })
       import('@qrun-io/qqq-core').then(({ deleteLogin }) => deleteLogin(deps.secrets(), target)).finally(() => {
         s.dispose()
         s.client = undefined
@@ -712,6 +724,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Work', label: 'Print jobs', detail: s.status.print, command: 'printjobs', disabled: s.extensions.has('printing') ? undefined : 'needs the printing extension', run: () => openPrintJobs(s) })
     out.push({ section: 'Work', label: 'Notifications', disabled: s.extensions.has('alerts') ? undefined : 'needs the alerts extension' })
     out.push({ section: 'Work', label: 'My work', disabled: s.extensions.has('collaboration') ? undefined : 'needs the collaboration extension' })
+    out.push({ section: 'Work', label: 'History', command: 'history', detail: 'everything you did, CLI and TUI', run: () => openHistory(s) })
     out.push(...sqlMenuEntries(s))
     for (const e of s.extensions.all()) out.push({ section: 'Work', label: `Extension: ${e.name} ${e.version}`, detail: e.description, command: `api --list`, run: () => s.message(`${e.name} ${e.version}\n${e.description ?? ''}\nPath: ${e.pathPrefix ?? ''}\nIts panels are not drawn by this TUI yet; its operations are reachable with :api.`, 'info', 'Extension') })
     // Connection

@@ -25,6 +25,7 @@ import { Panel } from './list'
 import { committedText, DateEditor, dateProblem, storedTextOf } from '../controls/date-editor'
 import { DateFieldLine, dateEditorFor, dateFieldHelp, handleDateFieldKey, opensPicker } from '../controls/date-picker'
 import { orderedSections } from './record'
+import { changeEvent, history } from '../history/record'
 
 const TEXT_TYPES = new Set(['STRING', 'TEXT', 'HTML', 'PASSWORD', 'INTEGER', 'LONG', 'DECIMAL', 'DATE', 'DATE_TIME', 'TIME', 'BLOB'])
 
@@ -513,6 +514,7 @@ export class FormScreen implements Screen {
           const values = dateTimesToUtc(Object.values(editor.session.fields), Object.fromEntries(changed.map((n) => [n, editor.session.values[n] ?? null])), { originals: this.originals })
           if (editor.files.size) await client.call('updateRecord', { path: { tableName: this.tableName, primaryKey: String(this.options.primaryKey) }, form: multipartRecord(values, editor.files) })
           else await client.update(this.tableName, this.options.primaryKey, values)
+          history.record(this.store, changeEvent(this.store, 'Edited', this.tableName, String(this.options.primaryKey), changed))
           this.store.flash(`saved ${meta.label} ${this.options.primaryKey}`)
           this.store.back()
         } else {
@@ -521,6 +523,7 @@ export class FormScreen implements Screen {
             ? ((await client.data<Record<string, unknown>>('insertRecord', { path: { tableName: this.tableName }, form: multipartRecord(values, editor.files) })).record ?? {}) as { values?: Record<string, unknown> }
             : await client.insert(this.tableName, values)
           const pk = record.values?.[meta.primaryKeyField]
+          history.record(this.store, changeEvent(this.store, 'Created', this.tableName, pk === undefined || pk === null ? undefined : String(pk)))
           this.store.flash(`created ${meta.label} ${String(pk ?? '')}`)
           replaceWithRecord(this.store, this.tableName, String(pk))
         }

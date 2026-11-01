@@ -23,6 +23,7 @@ import type { AppStore } from './store'
 import type { Screen } from './types'
 import { errorText } from './util/text'
 import { saveFile } from './overlays/files-helpers'
+import { history } from './history/record'
 
 /** The printing module of the store's server, or undefined without a client or the extension. */
 export function printingOf(store: AppStore): Printing | undefined {
@@ -100,6 +101,7 @@ function queued(store: AppStore, printing: Printing, printer: Printer, what: str
   store.flash(`Sending ${what} to ${printer.name}…`)
   store.run(work, (outcome) => {
     if (!outcome.jobIds.length) return store.flash(`Nothing was printed: ${what} was not found (or is not visible to you).`, 'error')
+    history.record(store, { kind: 'print', summary: `Printed ${what} on ${printer.name} (job${outcome.jobIds.length === 1 ? '' : 's'} ${outcome.jobIds.join(', ')})` })
     store.printTracker.track(printing, outcome.jobIds, what, printer.name, outcome.message)
   })
 }

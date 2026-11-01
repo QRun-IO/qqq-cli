@@ -93,6 +93,14 @@ in parentheses mark the changes made after the candidate.
   attachments: the Object Storage QBit is not installed."; any server failure naming a missing QBit gets one
   such line (437ed3c).
 
+- **History**: `qqq history` lists everything you did with the CLI and the TUI on the profile in use,
+  like a shell history (number, relative or `--absolute` time, client, kind, summary; `--limit`, `--since
+  2h|2026-11-01`, `--grep`, `--kind`, `--all-profiles`, `--commands`, `--format`); `qqq history rerun <n>`
+  runs a line again (asking first for commands that change data), `qqq history clear` empties it. The
+  activity log is one JSONL file per profile in `~/.local/state/qqq/activity/`, rotated once at 5 MB;
+  secrets (token, password and PIN flags, secret pairs and filter values, Authorization headers) are
+  written as `***`; `QQQ_HISTORY=off` turns it off.
+
 #### Terminal UI (`qqq ui`)
 
 - **A classic full-screen UI** in the same binary and on the same profiles and sign-ins as the CLI:
@@ -224,6 +232,14 @@ in parentheses mark the changes made after the candidate.
   random keys.
 - `packages/tui/scripts/smoke.sh --server URL [--profile NAME]` runs the tmux smoke test against any
   server in an isolated config (6950e9d, f149a47).
+
+- **History screen** (`:history`, F9 › Work › History): the activity log of the profile, newest at the
+  bottom; typing filters, Enter does an entry again (runs the `:` command, opens the record, the table with
+  its filter, the process), `y` copies the CLI equivalent, `c` or F8 clears. The TUI records its `:`
+  commands, opened apps, tables and records, queries with filters, record creates, edits and deletes (no
+  values), process runs and outcomes, exports, prints, server switches, sign-in and sign-out. Ctrl+R on the
+  `:` line is a bash-style reverse search over these commands (Ctrl+R again for older matches, Enter runs,
+  Esc edits).
 
 #### Kernel, client and conformance
 

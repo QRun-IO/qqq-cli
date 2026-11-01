@@ -27,6 +27,7 @@ import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
 import { cellWidth, errorText, fieldCell, num, pad, padLeft, shellQuote, trunc, hintLine } from '../util/text'
 import { Panel } from './list'
 import { startBulk, type BulkKind } from './bulk'
+import { changeEvent, history, queryCommand, tableEvent } from '../history/record'
 
 export interface GridColumn {
   name: string
@@ -434,6 +435,7 @@ export class TableScreen implements Screen {
     else if (filter.orderBys?.[0]) this.sort = { field: filter.orderBys[0].fieldName, asc: filter.orderBys[0].isAscending }
     this.selection.clear()
     this.newCursor(0)
+    history.record(this.store, tableEvent(this.store, this.tableName, this.filter, this.sort, (n) => (this.fullMeta ?? this.meta)?.fields?.[n]?.type))
   }
 
   openCurrent(): void {
@@ -453,6 +455,7 @@ export class TableScreen implements Screen {
         this.cursor?.removed(this.cursor.index)
         this.selection.delete(key)
         this.load(true)
+        history.record(this.store, changeEvent(this.store, 'Deleted', this.tableName, String(key)))
         this.store.flash(`deleted ${this.title()} ${key}`)
       })
     })
@@ -780,6 +783,7 @@ export class TableScreen implements Screen {
     const write = (out: string) => {
       this.store.run(this.store.client!.export(this.tableName, format, this.fullFilter(), this.fields().map((f) => f.name)), ({ bytes }) => {
         writeFileSync(out, bytes)
+        history.record(this.store, { kind: 'export', summary: `Exported ${this.title()} as ${format} to ${out}`, command: `${queryCommand(this.tableName, this.filter, (n) => (this.fullMeta ?? this.meta)?.fields?.[n]?.type, this.sort).replace(/^qqq table query/, 'qqq table export')} --format ${format} -o ${shellQuote(out)}`, target: { type: 'table', name: this.tableName } })
         this.store.message(`Wrote ${out} (${num(bytes.length)} bytes).`)
       })
     }

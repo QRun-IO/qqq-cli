@@ -26,6 +26,7 @@ import { registerDeveloper } from './commands/developer.js'
 import { registerDoctor } from './commands/doctor.js'
 import { registerExtensions } from './commands/extensions.js'
 import { registerHelp } from './commands/help.js'
+import { registerHistory } from './commands/history.js'
 import { registerJob } from './commands/job.js'
 import { registerMisc } from './commands/misc.js'
 import { registerPrint } from './commands/print.js'
@@ -78,6 +79,7 @@ export function createProgram(): Command {
   registerProfileCommands(program.command('profile').description('Named servers: list, add, edit, use, remove (the TUI\'s Servers dialog, Ctrl+O).'), ctx)
   registerDoctor(program, ctx)
   registerHelp(program, ctx)
+  registerHistory(program, ctx)
   registerUi(program, ctx)
 
   /** Flat aliases from 0.1: forward to the noun-verb commands with the same options. */

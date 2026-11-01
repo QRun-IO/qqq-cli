@@ -26,7 +26,7 @@ const ANYWHERE: KeyRow[] = [
   ['F9', 'menu: areas, then their actions'],
   ['Ctrl+P  PrtSc', 'print what you see: a record sheet, a table list (all rows or this page), or the screen; Ctrl+P always works, Print Screen only where the terminal passes it on'],
   ['Ctrl+O', 'servers: switch, add, edit'],
-  [':', 'command line; Tab completes, ↑↓ history'],
+  [':', 'command line; Tab completes, ↑↓ history, Ctrl+R searches it; :history lists all you did'],
   ['F10', 'quit, reset or cancel'],
   ['Ctrl+C', 'quit now'],
   ['Esc 1..0  Ctrl+1..0', 'F1..F10 when the terminal takes them'],
