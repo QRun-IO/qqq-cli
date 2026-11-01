@@ -208,7 +208,7 @@ The TUI column is `qqq ui` (M3); its notes start with "TUI:".
 | QRY-082 | Basic mode cannot simplify repeated or nested advanced conditions and explains why | n/a | n/a | TUI: the guided builder shows every condition; no basic mode |
 | QRY-083 | Advanced query shows and removes individual conditions (Next inline editor) | n/a | pass | TUI: guided builder edits and removes conditions |
 | QRY-084 | Sort picker changes field and direction; clearing filters requires confirmation and keeps the sort | n/a | pass | TUI: sort in the builder; c clears |
-| QRY-085 | Weekday criteria use the metadata-enabled date function and ISO weekday values | todo | blocked | weekday criteria; TUI: weekday(field) IN days sent as the WeekdayOf fieldFunction; the sample H2 backend fails it (server finding 24) |
+| QRY-085 | Weekday criteria use the metadata-enabled date function and ISO weekday values | todo | blocked | weekday criteria; TUI: weekday(field) IN days sent as the WeekdayOf fieldFunction; the sample H2 backend fails it (server finding 24, qqq#1355) |
 | QRY-086 | Relative date presets expose their evaluated date and filter records | pass | pass | expressions |
 | QRY-087 | Bulk pasted values become a multi-value filter | pass | pass | IN lists; quoted values; TUI: IN takes a pasted comma list |
 | QRY-088 | Instance query help accompanies the bulk paste dialog | n/a | pass | TUI: paste values split on commas, tabs, semicolons, new lines; the instance bulkAddFilterValues help shown (unit-tested only; the sample has no such help) |
