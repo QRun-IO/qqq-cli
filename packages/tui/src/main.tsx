@@ -19,6 +19,8 @@ import { App } from './app'
 import { boot, parseArgs } from './boot'
 import { runDoctor } from './doctor'
 import { isShutdownNoise, quietShutdownNoise } from './exit'
+import { legacyProfile } from './keys/fkeys'
+import { installFKeyRewrite } from './keys/stdin-rewrite'
 
 const args = parseArgs(process.argv.slice(2))
 if (args.check === 'full') {
@@ -48,6 +50,10 @@ const renderer = await createCliRenderer({
   openConsoleOnError: false,
   targetFps: 30,
 })
+
+// Shift+F3 (CSI 1;2R, which OpenTUI takes for a cursor report) and the legacy and rxvt Shift/Ctrl+F
+// forms reach OpenTUI as the canonical CSI n;m ~ (keys/fkeys.ts)
+const fkeyRewrite = installFKeyRewrite(process.stdin, legacyProfile())
 
 let destroyed = false
 function restore(): void {
@@ -93,7 +99,10 @@ store.editExternal = async (text: string) => {
     spawnSync(editor, [file], { stdio: 'inherit', shell: process.platform === 'win32' })
     return readFileSync(file, 'utf8')
   } finally {
+    // the resume probes the terminal again: its cursor reports are not Shift+F3
+    fkeyRewrite.quiet()
     await renderer.resume()
+    fkeyRewrite.quiet()
     rmSync(dir, { recursive: true, force: true })
   }
 }

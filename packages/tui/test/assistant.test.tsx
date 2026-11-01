@@ -271,7 +271,8 @@ test('F-key bar: 11 and 12 from 120 columns, 12Ask lit with the extension, a cli
   expect(keys.map((k) => k.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
   expect(keys.find((k) => k.n === 12)?.label).toBe('Ask')
   expect(keys.find((k) => k.n === 11)?.label).toBeNull()
-  const bar = h.frame().split('\n').filter((l) => l.trim()).pop()!
+  // the primary row (from 30 lines the Shift row is drawn under it)
+  const bar = h.frame().split('\n').find((l) => l.includes(' 1Help'))!
   expect(bar).toContain('12Ask')
   expect(bar).toMatch(/11\s+12Ask/)
   expect([...bar].length).toBeLessThanOrEqual(120)

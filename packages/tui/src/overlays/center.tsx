@@ -169,6 +169,9 @@ export class HelpOverlay implements Overlay {
   readonly id = overlayId('help')
   top = 0
 
+  /** Key groups shown after the screen's help (the Shift bank), before the mouse. */
+  after: KeyGroup[] = []
+
   constructor(private store: AppStore, readonly groups: KeyGroup[], readonly topicHelp: string[], readonly pointer = HELP_POINTER) {}
 
   onKey(key: Key): void {
@@ -190,6 +193,7 @@ export class HelpOverlay implements Overlay {
       body.push({ text: ' About this screen', fg: t.acc })
       for (const p of this.topicHelp) for (const l of wrap(p, inner - 4)) body.push({ text: `   ${l}` })
     }
+    if (this.after.length) this.keyLines(this.after, body, half)
     if (this.store.settings.mouse) this.keyLines([MOUSE_KEYS], body, half)
     return body
   }

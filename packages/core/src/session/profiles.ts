@@ -46,6 +46,8 @@ export interface UiSettings {
   childRows?: number
   /** The terminal UI copies a CLI equivalent to the clipboard as soon as it shows it (default off). */
   copyCliCommands?: boolean
+  /** The terminal UI's function-key bar: one row, two rows (with the Shift bank), or auto (two from 30 lines). */
+  fkeyBar?: 'one' | 'two' | 'auto'
   /** Date entry: display order, clock, week start, picker behaviour (forms/dates.ts). */
   dates?: import('../forms/dates.js').DateSettings
   /** Keyed by screen, e.g. `table:person`, `record:person`, `app:peopleApp`. */

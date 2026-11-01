@@ -8,6 +8,7 @@ import { Component, useEffect, useReducer, type ReactNode } from 'react'
 import { FKeyZone, PaneZone, StatusZone, useMouseDispatcher } from './mouse/app-zones'
 import { MouseCapture, MouseLayer, MouseRoot } from './mouse/zone'
 import { presenceText, usePresence } from './presence'
+import { ShiftRow, barRows } from './keys/shift-row'
 import type { AppStore } from './store'
 import { breadcrumbs } from './breadcrumbs'
 
@@ -132,7 +133,9 @@ export function App({ store }: { store: AppStore }) {
   const t = theme()
   const w = Math.max(20, width)
   const h = Math.max(8, height)
-  const bodyHeight = h - 3
+  // the F-key bar: the primary row, and the Shift row under it with two rows (keys/shift-row.tsx)
+  const rows = barRows(store, h)
+  const bodyHeight = h - 2 - rows
   const assistant = store.assistantLayout()
   const full = assistant?.mode === 'full'
   const sidebarWidth = store.showSidebar && !full ? (w >= 160 ? 32 : 28) : 0
@@ -156,7 +159,8 @@ export function App({ store }: { store: AppStore }) {
         {assistantWidth > 0 && store.assistant && <ErrorBoundary resetKey={store.assistant.id} width={assistantWidth} label="Assistant">{store.assistant.render(assistantWidth, bodyHeight, store.focus === 'assistant' && !top)}</ErrorBoundary>}
       </box>
       <StatusLine store={store} width={w} />
-      <FKeyBar store={store} width={w} />
+      {rows === 1 && store.shiftRowShown() ? <ShiftRow store={store} width={w} slots={store.fkeys().length} /> : <FKeyBar store={store} width={w} />}
+      {rows === 2 && <ShiftRow store={store} width={w} slots={store.fkeys().length} />}
       {store.overlays.map((o, i) => <MouseLayer key={o.id} layer={i + 1}><ErrorBoundary resetKey={o.id} width={Math.min(60, w)} label="Dialog">{o.render(w, h)}</ErrorBoundary></MouseLayer>)}
       {store.lock && <ErrorBoundary key="lock" resetKey="lock" width={w} label="Lock">{store.lock.render(w, h)}</ErrorBoundary>}
       <MouseCapture width={w} height={h} />

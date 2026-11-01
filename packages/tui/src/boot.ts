@@ -8,6 +8,7 @@
 import { readConfig, readTheme, resolveProfile, writeTheme, defaultSecretStore, type SecretStore } from '@qrun-io/qqq-core'
 import { installCommands } from './commands'
 import { readMouse } from './mouse/settings'
+import { readFKeyBar } from './keys/shift-bank'
 import { SignInScreen, type SignInDeps } from './screens/signin'
 import { Sidebar } from './screens/sidebar'
 import { AppStore, setSecretStoreFactory, type Target } from './store'
@@ -72,7 +73,7 @@ export function boot(options: BootOptions): AppStore {
     else note = `unknown theme "${args.theme}"; themes: ${Object.keys(THEMES).join(', ')}`
   }
   const theme = (args.theme && THEMES[args.theme] ? args.theme : undefined) ?? readTheme(target?.name) ?? DEFAULT_THEME
-  const store = new AppStore({ settings: { theme, ascii: args.ascii, linear: args.linear, mouse: args.mouse ?? readMouse(), singleKeys: true, copyCli: readConfig().ui?.copyCliCommands === true }, quit: options.quit, build: options.build, target, timers: options.timers })
+  const store = new AppStore({ settings: { theme, ascii: args.ascii, linear: args.linear, mouse: args.mouse ?? readMouse(), singleKeys: true, copyCli: readConfig().ui?.copyCliCommands === true, fkeyBar: readFKeyBar() }, quit: options.quit, build: options.build, target, timers: options.timers })
   let secrets: SecretStore | undefined
   const secretsFn = options.secrets ?? (() => (secrets ??= defaultSecretStore()))
   setSecretStoreFactory(secretsFn)

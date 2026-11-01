@@ -39,6 +39,7 @@ import { withPrintEntry } from './overlays/actions'
 import { openHistory } from './history/screen'
 import { searchLines } from './history/reverse-search'
 import { changeEvent, commandEvent, history } from './history/record'
+import { FKEY_BAR_MODES, describeFKeyBar, runShiftKey, setFKeyBar, shiftBankHelp, type FKeyBarMode } from './keys/shift-bank'
 
 const NOUNS: Record<string, string[]> = {
   table: ['list', 'describe', 'query', 'count', 'get', 'create', 'update', 'delete', 'export'],
@@ -53,7 +54,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'ask', 'dates', 'history']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'mouse', 'shortcuts', 'lock', 'saver', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'print', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'ask', 'dates', 'history', 'fkeys']
 
 /** One line on each TUI command, for the `:` line's completion popup. */
 export const TUI_COMMAND_HELP: Record<string, string> = {
@@ -63,7 +64,7 @@ export const TUI_COMMAND_HELP: Record<string, string> = {
   shortcuts: 'single-key shortcuts on or off', lock: 'lock the screen', pin: 'set or remove the lock PIN', idle: 'screen saver after idle minutes', refresh: 'reload this screen',
   filter: 'filter the grid (grammar)', export: 'export the grid or result', jobs: 'your jobs', printjobs: 'print jobs', print: 'print what you see (or :print <printer>)', profile: 'switch profile', servers: 'saved servers (Ctrl+O)',
   history: 'everything you did (CLI and TUI)', server: 'connect to a server URL', signout: 'sign out', connection: 'connection details', open: 'open a table', record: 'open a record by key', app: 'open an app',
-  sql: 'SQL Runner (statement to run, open <notebook id>)', ask: 'show or hide the Assistant panel (F12, Ctrl+G); with a question, asks it about this screen', saver: 'the screen saver', doctor: 'check the terminal', views: 'saved views of this table', share: 'share this record', helpkeys: 'help-authoring mode',
+  sql: 'SQL Runner (statement to run, open <notebook id>)', ask: 'show or hide the Assistant panel (F12, Ctrl+G); with a question, asks it about this screen', saver: 'the screen saver', doctor: 'check the terminal', views: 'saved views of this table', share: 'share this record', helpkeys: 'help-authoring mode', fkeys: 'F-key bar: one row, two rows (with the Shift bank) or auto',
 }
 
 /** CLI commands the `:` line does not offer (they make no sense inside the TUI). */
@@ -95,7 +96,10 @@ export class Commands implements CommandsLike {
     // keys only: the screen's own key rows and shortcuts from its actions (label and key), never the actions themselves
     const panelKeys = s.focus === 'assistant' && s.assistantOpen && s.assistant ? s.assistant.helpKeys() : []
     const screenKeys: KeyRow[] = [...panelKeys, ...(screen?.helpKeys?.() ?? []), ...(screen?.menu?.() ?? []).filter((e) => e.key && !e.disabled).map((e): KeyRow => [e.key!, e.label.replace(/…$/, '').replace(/\s*\([^)]*\d[^)]*\)$/, '')])]
-    s.open(new HelpOverlay(s, helpKeyGroups(screen?.kind, s.singleKeys, screenKeys), topicHelp))
+    const help = new HelpOverlay(s, helpKeyGroups(screen?.kind, s.singleKeys, screenKeys), topicHelp)
+    // the Shift bank (Shift+F1…F10) after the screen's help
+    help.after = [{ title: 'Shift bank (Shift+F1…F10; the second row of the F-key bar)', keys: shiftBankHelp(s) }]
+    s.open(help)
     // help for this screen: the kernel's help entries for the screen's roles; in help-authoring mode
     // (:helpkeys) every slot shows its key, with or without content, so authors see where help goes
     const authoring = s.helpKeys
@@ -230,6 +234,10 @@ export class Commands implements CommandsLike {
   }
 
   /** The Servers dialog: saved profiles, probed in the background; Enter switches. */
+  shiftKey(n: number): void {
+    runShiftKey(this.store, n)
+  }
+
   servers(): void {
     const s = this.store
     if (s.overlays.some((o) => o instanceof ServersOverlay)) return
@@ -418,6 +426,12 @@ export class Commands implements CommandsLike {
         case 'doctor': case 'check': return this.doctor()
         case 'profile': return rest[0] ? this.switchProfile(rest[0]) : this.chooseProfile()
         case 'servers': return this.servers()
+        case 'fkeys': {
+          const mode = rest[0] as FKeyBarMode | undefined
+          if (!mode) return s.flash(`F-key bar: ${describeFKeyBar(s.settings.fkeyBar ?? 'auto')} · :fkeys one|two|auto`)
+          if (!FKEY_BAR_MODES.includes(mode)) return fail('fkeys one|two|auto')
+          return setFKeyBar(s, mode)
+        }
         case 'server': return rest[0] ? this.switchServer(rest[0]) : fail('server <url>')
         case 'signout': return this.signOut()
         case 'connection': return this.connection()
@@ -749,6 +763,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Settings', label: `Single-key shortcuts: ${s.settings.singleKeys ? 'on' : 'off'}`, command: `shortcuts ${s.settings.singleKeys ? 'off' : 'on'}`, run: () => this.setShortcuts(!s.settings.singleKeys) })
     out.push({ section: 'Settings', label: `Linear layout: ${s.settings.linear ? 'on' : 'off'}`, command: `linear ${s.settings.linear ? 'off' : 'on'}`, run: () => { s.settings.linear = !s.settings.linear; s.bump() } })
     out.push({ id: 'settings:mouse', section: 'Settings', label: `Mouse: ${s.settings.mouse ? 'on' : 'off'}`, command: `mouse ${s.settings.mouse ? 'off' : 'on'}`, detail: s.settings.mouse ? 'off restores plain terminal text selection' : undefined, run: () => setMouseSetting(s, !s.settings.mouse) })
+    out.push({ id: 'settings:fkeys', section: 'Settings', label: `F-key bar: ${s.settings.fkeyBar ?? 'auto'}`, command: 'fkeys one|two|auto', detail: describeFKeyBar(s.settings.fkeyBar ?? 'auto'), run: () => s.open(new ChoiceOverlay<FKeyBarMode>(s, 'F-key bar', FKEY_BAR_MODES.map((m) => ({ label: m, value: m, detail: describeFKeyBar(m) })), (m) => setFKeyBar(s, m), 'Enter chooses')) })
     out.push({ section: 'Settings', label: `ASCII glyphs: ${s.settings.ascii ? 'on' : 'off'}`, command: `ascii ${s.settings.ascii ? 'off' : 'on'}`, run: () => s.setAscii(!s.settings.ascii) })
     out.push({ section: 'Settings', label: 'Screen saver / lock', command: 'lock', run: () => this.lock() })
     let idle = 0

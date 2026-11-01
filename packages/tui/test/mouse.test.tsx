@@ -101,8 +101,9 @@ test('F-key bar: a click presses the key; the footer connection opens the menu a
   expect(h.store.overlays.length).toBe(1)
   await press(h, () => h!.setup.mockInput.pressEscape())
   expect(h.store.overlays.length).toBe(0)
-  // the footer is the row above the F-key bar; its first cells are the server and profile: the Servers dialog
-  await press(h, () => mouse().click(2, 30 - 2))
+  // the footer is the row above the F-key bar (two rows from 30 lines: primary, then Shift); its
+  // first cells are the server and profile: the Servers dialog
+  await press(h, () => mouse().click(2, 30 - 3))
   await waitFor(h, () => h!.store.overlays.length === 1)
   expect(h.store.overlays[0]!.constructor.name).toBe('ServersOverlay')
 })
