@@ -159,7 +159,7 @@ eval "$(qqq completion zsh)"                                      # also bash, f
 | `home`, `find`, `apps`, `search`, `tail`, `whoami` | the landing page, the command palette, app homes (`--widgets`), global search, the live event stream, who you are |
 | `report`, `saved-report`, `saved-view`, `share`, `bulk-profile`, `audit`, `widget`, `script`, `job`, `prefs`, `help-search` | reports and saved reports (pivots, schedules), saved views, sharing, saved bulk-load mappings, audit history, dashboard widgets as text, associated scripts, jobs, preferences, help |
 | `api <operationId>` | any UI API operation by id: the escape hatch |
-| `print`, `printer` | print records (`print person 1 2`), follow and cancel print jobs (`print job list\|status\|cancel`), printers and print agents (`printer list\|use\|show\|forget\|devices`); needs the printing extension |
+| `print`, `printer` | print records (`print person 1 2`), table lists (`print list person -w ...`), text (`print text`), follow and cancel print jobs (`print job list\|status\|cancel`), printers and print agents (`printer list\|use\|show\|forget\|devices`); needs the printing extension |
 | `extensions`, and one noun per extension | `esb`, `collab`, `health`, `alerts`, `assistant`, `sql-workbench`, ..., offered when the server has the extension installed |
 | `login`, `logout`, `config`, `cache`, `completion`, `doctor`, `ui` | sign-in, profiles and settings, the metadata cache, shell completion, the environment check, the terminal UI |
 
@@ -187,7 +187,11 @@ the agents and their health, and `qqq print person 1 2 --printer "Virtual PDF pr
 record as a record sheet, queues one job per record and follows them until they have printed (`--no-wait`
 returns at once; `qqq print job status <id> --watch` follows later; `qqq print job cancel <id>` cancels a
 job still queued). The printer given with `--printer` (or `qqq printer use`) is remembered per profile.
-Tables print only where the server enabled Print for them. For local testing without hardware,
+`qqq print list person -w "lastName = Odd" --order -id --columns id,firstName,lastName` prints a table list
+of the whole result (up to 10,000 rows; `--page 2` for one page), and `some-command | qqq print text --title Log`
+prints text. In `qqq ui`, **Ctrl+P prints what you see** on every screen: a record sheet, a table list of
+the grid (all rows or this page), or the screen as text. Tables print only where the server enabled Print
+for them (qbit-printing 2.1 `registerAll` enables every table). For local testing without hardware,
 `scripts/print-agent.sh` runs qqq-print-agent's virtual file printer, which writes each job to a directory.
 
 [TRY-IT.md](TRY-IT.md) walks through every command against the sample server.

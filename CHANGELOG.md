@@ -30,6 +30,16 @@ candidate's, plus the changes since it listed first.
   attachments: the Object Storage QBit is not installed." (UI and CLI; any server failure naming a missing
   QBit gets one such line), and the UI then shows the upload row dimmed with that reason.
 
+- Print anything (printing 2.1): in the UI **Ctrl+P prints what you see on every screen** (also `p` on
+  records and grids, F8 where the screen has no Delete, `:print [printer]`, a and F9, and the Print Screen
+  key when the terminal passes it on). A record view prints its record sheet; a grid prints a table list
+  with the columns, widths, filter and sort shown, choosing all rows (the default when filtered or up to
+  2,000 rows; the server prints up to 10,000 and says when it stops), this page, or the selection as a list
+  or as record sheets; any other screen prints its text as a monospace PDF. Without printing, Ctrl+P saves
+  instead (the grid's export, else the screen text). Ctrl+P no longer steps to the previous record (PgUp
+  and `[` still do). The CLI adds `qqq print list <table>` (criteria, order, columns, `--page`, paper and
+  orientation) and `qqq print text [file|-]`; the kernel adds `printTableList`, `printText`,
+  `tableListValues` and `listScopeChoices`.
 - Printing (the printing extension, qbit-printing 2.x). The CLI: `qqq print <table> <id...>` renders each
   record as a record sheet through the table's Print process, queues one job per record and follows them
   until they have printed (`--printer`, `--copies`, `--no-wait`, `--timeout`; exit 1 when a job failed, 4
