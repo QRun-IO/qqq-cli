@@ -41,7 +41,7 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 | F3, Enter | view, open | ↑ ↓ PgUp PgDn Home End | move and page |
 | F4, `e` | edit | Ctrl+F, Ctrl+B | page forward and back (always works) |
 | F5, `r` | refresh | Space, Shift+Space | page lists (on a grid Space selects) |
-| F6, `f` | filter: guided builder or the grammar with completion | ← → | columns, tree |
+| F6, `f` | filter: condition rows (field, operator, value) with a live match count; F2 types the grammar | ← → | columns, tree |
 | F7, `n` | new record (on a child list: a child of this record) | `s` | sort by the column under the cursor |
 | F8, `d` | delete, after a question | `]` `[`, Ctrl+N Ctrl+P, PgDn PgUp in a record | next and previous record of the list it came from |
 | F9 | the command center: every action, searchable | `b` | run a table process on the selection |
@@ -62,6 +62,7 @@ Keys on one screen:
 | Bulk wizard | Space switch a field on (bulk edit), Enter choose, `h` header row, `l` layout, `k` key fields, `P` saved profiles, `v` validate, Ctrl+S next, F4 back |
 | Widget | Enter on its heading: reload, dropdowns, export CSV, run, versions, setup editors |
 | Command line | ↑↓ history, Ctrl+R search the history, Tab complete, Enter run, Esc close |
+| Filter (F6) | ↑↓ rows, ←→ Tab cells, Enter or typing edits the focused cell (text and numbers in place, choices from a list, Space cycles true/false), Backspace clears it to `(any)`, Ctrl+N add, Ctrl+D remove, Ctrl+O AND/OR, Ctrl+G group, F2 Advanced (grammar, cheat sheet, caret under errors), F10 apply, Esc cancel; see [docs/filter-dialog.md](docs/filter-dialog.md) |
 
 Single-key shortcuts follow the server preference `keyboard.singleKeyShortcuts` and can be switched in F9
 Settings; every F-key action is also in the F9 menu and on the `:` line.

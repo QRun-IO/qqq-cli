@@ -13,6 +13,16 @@ candidate's, plus the changes since it listed first.
 
 ### Changed since 1.0.0-rc.1
 
+- The UI's filter dialog (F6) was reworked for clarity: every condition is a row of three cells (field,
+  operator, value) edited the way its type asks (text and numbers in place, choices from a searchable
+  list, Space cycles true/false, dates with presets or typed, operators from a list that fits the field),
+  a row without a value shows `(any)` and is not applied, Backspace clears any cell, quick filter fields
+  are the same rows, AND/OR and groups are drawn as structure, the help and key lines follow the focus,
+  and the footer shows a live match count. Advanced mode adds a cheat sheet, a caret under parse errors
+  that follows the scrolled text, and says why it cannot switch back to Guided. Commands moved to Ctrl and
+  F keys so letters always type (Ctrl+N add, Ctrl+D remove, Ctrl+O AND/OR, Ctrl+G group, F2 mode, F10
+  apply); Esc asks before discarding changes. Before, a true/false quick filter could be set to true but
+  not changed from the quick row.
 - The curl installer (`scripts/install.sh`) installs the newest **stable** `cli-v*` release, the channel
   Homebrew and Scoop follow; `--pre` (or `QQQ_PRE=1`) takes prereleases, `--dry-run` prints what it would
   download, and `--help` works when piped from curl.

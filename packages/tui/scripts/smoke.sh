@@ -40,8 +40,12 @@ expect 04-record-next 'record 5 of'
 keys Escape
 expect 05-grid-row 'row 5 '
 keys F6
-expect 06-filter 'Filter Person' 'Guided'
-keys Tab 'T:lastName STARTS_WITH S' Enter
+expect 06-filter 'Filter Person' 'Guided' 'quick and First Name' 'matches'
+keys Down T:Av Enter
+expect 06b-filter-text 'firstName CONTAINS Av' 'First Name: type text'
+keys F2
+expect 06c-filter-advanced 'cheat sheet' 'firstName CONTAINS Av'
+keys C-u 'T:lastName STARTS_WITH S' Enter
 expect 07-filtered 'lastName STARTS_WITH S'
 keys T:: 'T:table create placeAddress' Enter
 expect 08-form 'New Address book' 'set Country first'

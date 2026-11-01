@@ -44,7 +44,7 @@ const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions
 /** Global keys for the help overlay. */
 export const GLOBAL_KEYS: Array<[string, string]> = [
   ['F1  ?', 'help (this)'], ['F2  /  .', 'go to anything'], ['F3  Enter', 'view / open'], ['F4  e', 'edit'], ['F5  r', 'refresh'],
-  ['F6  f', 'filter (grid)'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['Esc 1..0, Ctrl+1..0', 'F1..F10 when the terminal takes F-keys'], ['F10', 'quit, reset or cancel'],
+  ['F6  f', 'filter: field, operator, value rows; F2 grammar'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['Esc 1..0, Ctrl+1..0', 'F1..F10 when the terminal takes F-keys'], ['F10', 'quit, reset or cancel'],
   ['Esc', 'back, cancel'], ['Tab', 'Apps tree / content'], ['↑↓ PgUp PgDn', 'move, page'], ['Ctrl+F Ctrl+B', 'page (always works)'], ['Space S+Space', 'page lists'], ['Home End', 'first, last'], ['← →', 'columns, tree'],
   ['a', 'actions here'], ['A  D', 'audits, developer'], ['s', 'sort by column'], ['Space (grid)', 'select row'], ['b', 'run a process on selection'], ['x', 'export'], ['g', 'go to by key'], ['v', 'view settings'],
   [']  [', 'next / previous record'], ['Ctrl+S', 'save a form'], [':', 'command line'], ['Ctrl+K', 'palette'], ['Ctrl+C', 'quit now'],

@@ -9,7 +9,7 @@
 # Defaults: http://localhost:8077 for 10 minutes. It signs in with a fresh config and file keyring
 # (MOCK servers), so your own profiles and settings are not touched. Keys that quit (F10, Ctrl+C,
 # :quit), lock, sign out, confirm (y), save (Ctrl+S) and export are left out, so nothing on the server or
-# disk changes (every 60 keys F10 › Reset goes home, confirming only that a half-typed form is dropped);
+# disk changes (every 60 keys F10 › Reset goes home, confirming only that a half-typed form or filter is dropped);
 # QQQ_UI_NO_QUIT=1 ignores a Quit chosen from a menu, so only a crash ends the run.
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,7 +46,7 @@ while (( $(date +%s) < end )); do
     # every 60 keys: F10 › Reset to home, confirming the discard of a half-typed form (local only)
     echo 'RESET' >> "$out/keys.txt"
     tmux send-keys -t "$s" Escape; sleep 0.2; tmux send-keys -t "$s" F10; sleep 0.3; tmux send-keys -t "$s" Down; sleep 0.1; tmux send-keys -t "$s" Enter; sleep 0.3
-    tmux capture-pane -t "$s" -p | grep -q 'anyway?' && tmux send-keys -t "$s" -l -- y
+    tmux capture-pane -t "$s" -p | grep -q 'anyway?\|Discard the changes to the filter?' && tmux send-keys -t "$s" -l -- y
     sleep 0.3
   fi
   if (( RANDOM % 25 == 0 )); then
