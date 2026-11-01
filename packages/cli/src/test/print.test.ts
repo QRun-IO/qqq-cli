@@ -23,6 +23,7 @@ type J = Record<string, unknown>
 interface PrintServer {
   url: string
   runs: { process: string; values: J; recordIds?: string }[]
+  lists: { process: string; values: J; recordsParam?: string }[]
   jobs: Map<string, { status: string[]; title: string; reads: number; message?: string }>
   close(): Promise<void>
 }
@@ -39,10 +40,16 @@ const PRINT_META = {
     { name: 'result', label: 'Result', components: [{ type: 'PROCESS_SUMMARY_RESULTS' }] },
   ],
 }
+const LIST_META = (name: string) => ({ name, label: name, frontendSteps: [
+  { name: 'options', label: 'Choose a printer', formFields: [{ name: 'printingPrinterId', type: 'STRING', isRequired: true, label: 'Printer' }, { name: 'printingCopies', type: 'INTEGER', isRequired: true, label: 'Copies' }] },
+  { name: 'result', label: 'Result', viewFields: [{ name: 'result', type: 'STRING', label: 'Result' }] },
+] })
+const PERSON_META = { name: 'person', label: 'Person', primaryKeyField: 'id', fields: { id: { name: 'id', label: 'Id', type: 'INTEGER' }, firstName: { name: 'firstName', label: 'First name', type: 'STRING' }, lastName: { name: 'lastName', label: 'Last name', type: 'STRING' }, photo: { name: 'photo', label: 'Photo', type: 'BLOB' } } }
 const CANCEL_META = { name: 'printingCancelSelectedJobs', label: 'Cancel queued jobs', tableName: 'printing_job', frontendSteps: [{ name: 'review', components: [{ type: 'VALIDATION_REVIEW_SCREEN' }] }, { name: 'result', components: [{ type: 'PROCESS_SUMMARY_RESULTS' }] }] }
 
 async function startPrintServer(): Promise<PrintServer> {
   const runs: PrintServer['runs'] = []
+  const lists: PrintServer['lists'] = []
   const jobs: PrintServer['jobs'] = new Map()
   const state = new Map<string, { process: string; values: J; recordIds?: string }>()
   let next = 1
@@ -60,11 +67,25 @@ async function startPrintServer(): Promise<PrintServer> {
   const handle = (req: IncomingMessage, body: string, res: ServerResponse) => {
     const path = new URL(req.url ?? '/', 'http://fake').pathname.replace(/^\/qqq\/v1/, '')
     let m: RegExpExecArray | null
-    if (path === '/version') return send(res, 200, { apiVersion: '1.9.0', features: ['metaData', 'tables', 'processes', 'version', 'extensions'], extensions: [{ name: 'printing', version: '2.0.0', pathPrefix: '/qbit/printing' }] })
+    if (path === '/version') return send(res, 200, { apiVersion: '1.9.0', features: ['metaData', 'tables', 'processes', 'version', 'extensions'], extensions: [{ name: 'printing', version: '2.1.0', pathPrefix: '/qbit/printing' }] })
     if (path === '/metaData/authentication') return send(res, 200, { type: 'MOCK' })
-    if (path === '/metaData') return send(res, 200, { tables: { person: { name: 'person', label: 'Person' } }, processes: { printingPrintRecords_person: { name: 'printingPrintRecords_person', label: 'Print', tableName: 'person' }, printingCancelSelectedJobs: { name: 'printingCancelSelectedJobs', tableName: 'printing_job' } }, apps: {} })
+    if (path === '/metaData') return send(res, 200, { tables: { person: { name: 'person', label: 'Person' } }, processes: { printingPrintRecords_person: { name: 'printingPrintRecords_person', label: 'Print', tableName: 'person' }, printingCancelSelectedJobs: { name: 'printingCancelSelectedJobs', tableName: 'printing_job' }, printingPrintTableList: { name: 'printingPrintTableList' }, printingPrintText: { name: 'printingPrintText' } }, apps: {} })
     if (path === '/metaData/process/printingPrintRecords_person') return send(res, 200, PRINT_META)
     if (path === '/metaData/process/printingCancelSelectedJobs') return send(res, 200, CANCEL_META)
+    if (path === '/metaData/table/person') return send(res, 200, PERSON_META)
+    if ((m = /^\/metaData\/process\/(printingPrintTableList|printingPrintText)$/.exec(path))) return send(res, 200, LIST_META(m[1]!))
+    if ((m = /^\/processes\/(printingPrintTableList|printingPrintText)\/init$/.exec(path))) {
+      lists.push({ process: m[1]!, values: JSON.parse(field(body, 'values') ?? '{}') as J, recordsParam: field(body, 'recordsParam') })
+      return send(res, 200, { processUUID: 'list-run', nextStep: 'options', type: 'COMPLETE', values: { printingRowCount: 12000 } })
+    }
+    if ((m = /^\/processes\/(printingPrintTableList|printingPrintText)\/list-run\/step\/options$/.exec(path))) {
+      const run = lists.at(-1)!
+      Object.assign(run.values, JSON.parse(field(body, 'values') ?? '{}') as J)
+      const id = `list-${lists.length}`
+      jobs.set(id, { status: ['QUEUED', 'SPOOLER_COMPLETED'], title: String(run.values.title ?? m[1]), reads: 0 })
+      const truncated = m[1] === 'printingPrintTableList' && run.values.scope === 'ALL'
+      return send(res, 200, { processUUID: 'list-run', nextStep: 'result', type: 'COMPLETE', values: { printingJobIds: id, ...(truncated ? { printingTruncated: true, printingMessage: 'Printed the first 10000 of 12000 rows: the print limit is 10000 rows. Narrow the filter to print the rest.' } : {}) } })
+    }
     if ((m = /^\/table\/([^/]+)\/query$/.exec(path))) {
       const filter = (JSON.parse(body || '{}') as J).filter as J
       if (m[1] === 'printing_printer') return send(res, 200, { records: PRINTERS })
@@ -110,6 +131,7 @@ async function startPrintServer(): Promise<PrintServer> {
   return {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     runs,
+    lists,
     jobs,
     close: () => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()) }),
   }
@@ -130,7 +152,7 @@ after(async () => {
   box.dispose()
 })
 
-const qqq = (args: string[], server = printServer.url) => runCli(['--server', server, '-O', 'table', ...args], { QQQ_TOKEN: 'test-token', ...box.env })
+const qqq = (args: string[], server = printServer.url, input?: string) => runCli(['--server', server, '-O', 'table', ...args], { QQQ_TOKEN: 'test-token', ...box.env }, input)
 
 describe('qqq print and qqq printer', () => {
   test('printer list and devices show the printers, printability and agent health', async () => {
@@ -212,4 +234,42 @@ describe('qqq print and qqq printer', () => {
       assert.match(result.stderr, /extension printing is not installed on this server \(installed: /)
     }
   })
+
+  test('print list: all rows of the criteria in column order and sort; the row-limit note is shown; no record selection is sent', async () => {
+    const result = await qqq(['print', 'list', 'person', '-w', 'lastName = Odd', '--order', '-id', '--columns', 'firstName,id', '--printer', 'virtual'])
+    assert.equal(result.code, 0, result.stderr)
+    assert.match(result.stderr, /Printing all rows of Person where lastName EQUALS Odd on "Virtual PDF printer"/)
+    assert.match(result.stderr, /Printed the first 10000 of 12000 rows/)
+    assert.match(result.stdout, /list-\d+\s+Person\s+SPOOLER_COMPLETED/)
+    const run = printServer.lists.at(-1)!
+    assert.equal(run.process, 'printingPrintTableList')
+    assert.equal(run.recordsParam, undefined)
+    assert.deepEqual([run.values.tableName, run.values.columns, run.values.scope, run.values.maxRows, run.values.orientation, run.values.printingPrinterId], ['person', 'firstName,id', 'ALL', 10000, 'AUTO', 'p1'])
+    const filter = JSON.parse(String(run.values.filterJSON))
+    assert.deepEqual(filter.criteria, [{ fieldName: 'lastName', operator: 'EQUALS', values: ['Odd'] }])
+    assert.deepEqual(filter.orderBys, [{ fieldName: 'id', isAscending: false }])
+    assert.equal(run.values.filterDescription, 'lastName EQUALS Odd')
+  })
+
+  test('print list --page prints one page; default columns skip hidden and binary fields; bad options are usage errors', async () => {
+    const result = await qqq(['print', 'list', 'person', '--page', '3', '--page-size', '10', '--paper', 'a4', '--orientation', 'landscape', '--no-wait'])
+    assert.equal(result.code, 0, result.stderr)
+    const run = printServer.lists.at(-1)!
+    assert.equal(run.values.scope, 'PAGE')
+    assert.deepEqual([JSON.parse(String(run.values.filterJSON)).skip, JSON.parse(String(run.values.filterJSON)).limit], [20, 10])
+    assert.deepEqual([run.values.columns, run.values.pageSize, run.values.orientation], ['id,firstName,lastName', 'A4', 'LANDSCAPE'])
+    assert.equal((await qqq(['print', 'list', 'person', '--columns', 'nope'])).code, 2)
+    assert.equal((await qqq(['print', 'list', 'person', '--orientation', 'sideways'])).code, 2)
+  })
+
+  test('print text prints stdin (or a file) as a monospace document', async () => {
+    const result = await qqq(['print', 'text', '-', '--title', 'Build log', '--landscape'], printServer.url, 'line 1\nline 2\n')
+    assert.equal(result.code, 0, result.stderr)
+    const run = printServer.lists.at(-1)!
+    assert.equal(run.process, 'printingPrintText')
+    assert.deepEqual([run.values.title, run.values.text, run.values.orientation], ['Build log', 'line 1\nline 2\n', 'LANDSCAPE'])
+    const empty = await qqq(['print', 'text', '-', '--title', 'Nothing'], printServer.url, '  \n')
+    assert.equal(empty.code, 2)
+  })
 })
+

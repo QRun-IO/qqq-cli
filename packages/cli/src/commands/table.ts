@@ -14,7 +14,7 @@ import { ORDER_OPTION, copyToClipboard, countFooter, deprecatedOrderOption, orde
 import { getRecord, showRecord } from './related.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
-interface QueryOptions { caseSensitive?: boolean; where?: string[]; group?: string[]; or?: boolean; order?: string[]; o?: string[]; limit?: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean; view?: string; reveal?: boolean }
+export interface QueryOptions { caseSensitive?: boolean; where?: string[]; group?: string[]; or?: boolean; order?: string[]; o?: string[]; limit?: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean; view?: string; reveal?: boolean }
 
 /** The formats the export route writes. */
 const EXPORT_FORMATS = ['csv', 'xlsx', 'json', 'tsv']
@@ -58,7 +58,7 @@ function filterFrom(options: QueryOptions, meta: Json, columns?: string[], joins
  * filterFrom, with labels typed for possible-value fields (`homeCityId = 'New York'`) resolved
  * to ids as the web filter sends them (--filter-json is sent as given).
  */
-async function resolvedFilterFrom(c: Context, options: QueryOptions, meta: Json, columns?: string[], joins: ExposedJoin[] = []): Promise<QueryFilter> {
+export async function resolvedFilterFrom(c: Context, options: QueryOptions, meta: Json, columns?: string[], joins: ExposedJoin[] = []): Promise<QueryFilter> {
   const filter = filterFrom(options, meta, columns, joins)
   if (options.filterJson) return filter
   try {

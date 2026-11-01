@@ -142,7 +142,7 @@ export class Context {
       call: (id, input) => this.call(id, input),
       runProcess: async (processName, { values, recordIds }) => {
         const meta = await this.unwrap(this.client.GET('/qqq/v1/metaData/process/{processName}', { params: { path: { processName } } })) as unknown as ProcessMeta
-        const outcome = await runProcess({ baseUrl: t.server, fetch: authenticatedFetch(t), meta, values, records: { ids: recordIds }, stepTimeoutMillis: 60000 })
+        const outcome = await runProcess({ baseUrl: t.server, fetch: authenticatedFetch(t), meta, values, records: recordIds.length ? { ids: recordIds } : undefined, stepTimeoutMillis: 60000 })
         return outcome.values
       },
     })

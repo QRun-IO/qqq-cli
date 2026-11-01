@@ -7,6 +7,8 @@
  * Printing (the printing extension, qbit-printing 2.x):
  *
  *   qqq print <table> <id...> [--printer <name|id>] [--copies n] [--no-wait]   print records
+ *   qqq print list <table> [-w criteria] [--order f] [--columns a,b] [--page n]  a table list
+ *   qqq print text [file|-] --title t                                          text (a capture)
  *   qqq print job list [--status s] [--limit n]                                 recent jobs
  *   qqq print job status <jobId...> [--watch]                                   job states
  *   qqq print job cancel <jobId...>                                             cancel queued jobs
@@ -20,9 +22,11 @@
  */
 
 import type { Command } from 'commander'
-import { FAILED_JOB_STATES, isFinalJobState, jobStateSummary, printProcessName, PRINT_PROCESS_PREFIX, readRememberedPrinter, resolvePrinter, whyNotPrintable, writeRememberedPrinter, type Printer, type PrintJob, type Printing } from '@qrun-io/qqq-core'
+import { readFileSync } from 'node:fs'
+import { FAILED_JOB_STATES, MAX_LIST_ROWS, printFilter, isFinalJobState, jobStateSummary, printProcessName, PRINT_PROCESS_PREFIX, readRememberedPrinter, resolvePrinter, whyNotPrintable, writeRememberedPrinter, type Printer, type PrintJob, type Printing } from '@qrun-io/qqq-core'
 import { EXIT, UsageError, type Context } from '../context.js'
-import { countFooter, instantText, positiveInt, type Json } from './shared.js'
+import { ORDER_OPTION, countFooter, instantText, positiveInt, type Json } from './shared.js'
+import { resolvedFilterFrom, type QueryOptions } from './table.js'
 
 const JOB_COLUMNS = ['id', 'title', 'status', 'printer', 'copies', 'created', 'message']
 const PRINTER_COLUMNS = ['default', 'name', 'device', 'status', 'approved', 'exposed', 'formats', 'id']
@@ -111,6 +115,69 @@ export function registerPrint(program: Command, ctx: () => Context): void {
       if (!jobIds.length) throw new Error(`Nothing was printed: no ${table} record ${ids.join(', ')} was found (or you may not see ${ids.length === 1 ? 'it' : 'them'}).`)
       const jobs = options.wait ? await follow(c, printing, jobIds, positiveInt(options.timeout, '--timeout')) : await printing.jobs({ ids: jobIds })
       c.print({ data: { printer: { id: printer.id, name: printer.name }, jobs }, rows: jobRows(jobs, c), columns: JOB_COLUMNS, footer: countFooter(jobs.length, 'job', [jobStateSummary(jobs), !options.wait && `follow: qqq print job status ${jobIds.join(' ')} --watch`]) })
+    })
+
+  print.command('list <table>')
+    .description(`Print a table list (printing 2.1): the whole result of the criteria in the column order given (up to ${MAX_LIST_ROWS.toLocaleString('en-US')} rows; more prints the first rows and says so), or one page with --page.`)
+    .option('-w, --where <criteria...>', 'criteria, ANDed (as table query)')
+    .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
+    .option('--or', 'OR the --where criteria instead of AND')
+    .option(...ORDER_OPTION)
+    .option('-S, --search <text>', 'quick search, ANDed with the filter')
+    .option('-c, --columns <names>', 'comma-separated fields, in order (default: the visible fields)')
+    .option('--page <n>', 'print only this page (1-based), of --page-size rows')
+    .option('--page-size <n>', 'rows per page for --page', '20')
+    .option('--title <text>', 'the heading (default: the table label)')
+    .option('--orientation <o>', 'AUTO (landscape when the columns need it), PORTRAIT or LANDSCAPE', 'AUTO')
+    .option('--paper <size>', 'LETTER or A4', 'LETTER')
+    .option('-P, --printer <name|id>', 'the printer (remembered for this profile); default: the remembered one')
+    .option('--copies <n>', 'copies (1-100)', '1')
+    .option('--no-wait', 'return once the job is queued')
+    .option('--timeout <seconds>', 'how long to wait for the job', '300')
+    .action(async (table: string, options: QueryOptions & { columns?: string; page?: string; pageSize: string; title?: string; orientation: string; paper: string; printer?: string; copies: string; wait: boolean; timeout: string }) => {
+      const c = ctx()
+      const printing = await printingOf(c)
+      const meta = await c.tableMeta<Json>(table)
+      const fields = (meta.fields ?? {}) as Record<string, Json>
+      const columns = options.columns ? options.columns.split(',').map((s) => s.trim()).filter(Boolean) : Object.values(fields).filter((f) => !f.isHidden && f.type !== 'BLOB').map((f) => String(f.name))
+      for (const name of columns) if (!fields[name]) throw new UsageError(`${table} has no field ${name}`)
+      const orientation = options.orientation.toUpperCase()
+      if (!['AUTO', 'PORTRAIT', 'LANDSCAPE'].includes(orientation)) throw new UsageError('--orientation takes AUTO, PORTRAIT or LANDSCAPE')
+      const paper = options.paper.toUpperCase()
+      if (paper !== 'LETTER' && paper !== 'A4') throw new UsageError('--paper takes LETTER or A4')
+      const filter = await resolvedFilterFrom(c, { ...options, pageSize: '500' }, meta, columns)
+      const pageSize = positiveInt(options.pageSize, '--page-size')
+      const scope = options.page ? { kind: 'page' as const, skip: (positiveInt(options.page, '--page') - 1) * pageSize, limit: pageSize } : { kind: 'all' as const }
+      const printer = await choosePrinter(c, printing, options.printer)
+      if (options.printer) writeRememberedPrinter(c.target.name, { id: printer.id, name: printer.name })
+      const described = [printFilter(filter as never), options.search ? `quick "${options.search}"` : ''].filter(Boolean).join(' · ')
+      c.note(`Printing ${scope.kind === 'all' ? 'all rows of' : `page ${options.page} of`} ${meta.label ?? table}${described ? ` where ${described}` : ''} on "${printer.name}"`)
+      const outcome = await printing.printTableList({ table, columns, filter: filter as unknown as Record<string, unknown>, scope, title: options.title ?? String(meta.label ?? table), filterDescription: described || undefined, printer: printer.id, copies: positiveInt(options.copies, '--copies'), orientation: orientation as 'AUTO', pageSize: paper as 'LETTER', primaryKeyField: String(meta.primaryKeyField ?? 'id') })
+      if (outcome.message) c.note(outcome.message)
+      if (!outcome.jobIds.length) throw new Error('The server queued no print job.')
+      const jobs = options.wait ? await follow(c, printing, outcome.jobIds, positiveInt(options.timeout, '--timeout')) : await printing.jobs({ ids: outcome.jobIds })
+      c.print({ data: { printer: { id: printer.id, name: printer.name }, jobs, message: outcome.message ?? null }, rows: jobRows(jobs, c), columns: JOB_COLUMNS, footer: countFooter(jobs.length, 'job', [jobStateSummary(jobs)]) })
+    })
+
+  print.command('text [file]')
+    .description('Print text as a monospace PDF (printing 2.1): a file, or stdin with - or no file (a terminal capture, a log).')
+    .requiredOption('--title <text>', 'the heading')
+    .option('--subtitle <text>', 'a line under the heading')
+    .option('--landscape', 'landscape pages (wide text)')
+    .option('-P, --printer <name|id>', 'the printer (remembered for this profile); default: the remembered one')
+    .option('--copies <n>', 'copies (1-100)', '1')
+    .option('--no-wait', 'return once the job is queued')
+    .option('--timeout <seconds>', 'how long to wait for the job', '120')
+    .action(async (file: string | undefined, options: { title: string; subtitle?: string; landscape?: boolean; printer?: string; copies: string; wait: boolean; timeout: string }) => {
+      const c = ctx()
+      const printing = await printingOf(c)
+      const text = readFileSync(file === undefined || file === '-' ? 0 : file, 'utf8')
+      if (!text.trim()) throw new UsageError('Nothing to print: the text is empty.')
+      const printer = await choosePrinter(c, printing, options.printer)
+      if (options.printer) writeRememberedPrinter(c.target.name, { id: printer.id, name: printer.name })
+      const outcome = await printing.printText({ title: options.title, subtitle: options.subtitle, text, printer: printer.id, copies: positiveInt(options.copies, '--copies'), orientation: options.landscape ? 'LANDSCAPE' : 'PORTRAIT' })
+      const jobs = options.wait ? await follow(c, printing, outcome.jobIds, positiveInt(options.timeout, '--timeout')) : await printing.jobs({ ids: outcome.jobIds })
+      c.print({ data: { printer: { id: printer.id, name: printer.name }, jobs }, rows: jobRows(jobs, c), columns: JOB_COLUMNS, footer: countFooter(jobs.length, 'job', [jobStateSummary(jobs)]) })
     })
 
   const job = print.command('job').description('Print jobs: list, status, cancel.')
