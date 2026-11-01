@@ -88,6 +88,18 @@ DATE_TIME in the local zone), the process wizard (each step's form, validation r
 and elapsed, summary, cancel; ad hoc widget inputs and buttons), and the output pane of `:` commands run
 through the CLI in-process.
 
+Record view: the sections in tier order, then the child lists. The layout is the same for every record of
+a table, so paging with PgDn/PgUp moves nothing: field columns are placed from the metadata, and each child
+list is a box of fixed height (heading, column header, 5 data rows, a count line). A shorter list pads with
+blank rows, an empty one still shows its box, and a longer one scrolls inside the box ("rows 1-5 of 12"):
+on a list, PgDn/PgUp scroll it a box at a time and Down/Up (`j`/`k`) a row at its edges, while `]` `[`
+still step records; Enter opens the child under the cursor. A section whose `childRecordList` widget lists
+an association (by `manageAssociationName` or the association's `joinName`, as the Next UI binds it) shows
+that association there, once, under the section's label and with the widget's columns; other associations
+follow the sections, and a child's own child lists come last. The row count is a per-table view setting
+(`v`, saved as `childRows` in `ui.views.record:<table>`), defaulting to `ui.childRows` of the profile, else
+the global `ui.childRows`, else 5.
+
 Widgets (home, app homes, record sections) have their actions on Enter: reload, the payload's dropdowns
 (possible values or a date; kept per widget when it asks), export CSV, run a process widget, data bag
 versions, script revisions, and on a saved report the filter/columns and pivot setup editors (API-versioned

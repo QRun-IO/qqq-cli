@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { FileStore, SecretFileError, defaultSecretStore } from '../session/keyring.js'
 import { readFilePreferences, writeFilePreferences } from '../files/navigator.js'
-import { ConfigFileError, profileNameForServer, readConfig, readTheme, removeProfile, resolveProfile, upsertProfile, writeTheme } from '../session/profiles.js'
+import { ConfigFileError, DEFAULT_CHILD_ROWS, profileNameForServer, readChildRows, readConfig, readTheme, removeProfile, resolveProfile, upsertProfile, writeTheme } from '../session/profiles.js'
 
 test('profiles resolve from --profile, QQQ_PROFILE, --server, then the default', () => {
   const dir = mkdtempSync(join(tmpdir(), 'qqq-cfg-'))
@@ -92,6 +92,25 @@ test('a corrupt secrets file is refused, so one sign-in never wipes the others',
     const store = new FileStore(file)
     await assert.rejects(store.set('b@y', 'two'), SecretFileError)
     assert.equal(readFileSync(file, 'utf8'), '{"a@x": "one", ')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('record child-list rows: the profile, else the global ui setting, else 5; bad values fall back', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq-cfg-'))
+  const env = { QQQ_CONFIG_DIR: dir }
+  try {
+    upsertProfile('sample', { server: 'http://localhost:8077' }, {}, env)
+    assert.equal(readChildRows('sample', env), DEFAULT_CHILD_ROWS)
+    const config = readConfig(env)
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ ...config, ui: { childRows: 8 } }))
+    assert.equal(readChildRows('sample', env), 8)
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ ...config, ui: { childRows: 8 }, profiles: { sample: { ...config.profiles.sample, ui: { childRows: 3 } } } }))
+    assert.equal(readChildRows('sample', env), 3)
+    assert.equal(readChildRows(undefined, env), 8)
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ ...config, ui: { childRows: 0 } }))
+    assert.equal(readChildRows(undefined, env), DEFAULT_CHILD_ROWS)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

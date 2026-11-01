@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { FormSession, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, type DynamicFormPayload, ResultCursor, associationGroups, childFilter, childListFields, exposedJoins, formatSize, helpEntryText, selectHelpContent, planJoins, readViewSettings, withJoinFields, relatedRecordTarget, saveDownload, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
+import { FormSession, dynamicFormFields, dynamicFormMissing, dynamicFormSubmission, dynamicFormValues, type DynamicFormPayload, ResultCursor, associationGroups, childFilter, exposedJoins, formatSize, helpEntryText, selectHelpContent, planJoins, readViewSettings, withJoinFields, readChildRows, relatedRecordTarget, saveDownload, widgetAssociation, valueText, widgetToBlocks, writeViewSettings, type AssociationGroup, type FieldMeta, type TagEntry, type QueryRecord, type RenderBlock, type TableMetaLike } from '@qrun-io/qqq-core'
 import { openShareDialog, shareState } from '../overlays/share'
 import { FieldsFormScreen } from './fields-form'
 import { WidgetView } from '../widget-view'
@@ -12,7 +12,7 @@ import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
 import { AuditScreen } from './audits'
 import { DeveloperScreen } from './developer'
-import type { FieldMetaData, TableMetaData } from '../client'
+import type { FieldMetaData, SectionMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
 import { openForm, openProcess, openRecord, permits } from '../nav'
@@ -23,6 +23,7 @@ import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
 import { cell, errorText, fieldCell, pad, trunc } from '../util/text'
 import { blockLines } from '../widgets'
 import { ListModel, Panel, type Row } from './list'
+import { childBox, childColumnWidth, clampOffset, padRows, planRecordLayout, type LayoutItem } from './record-layout'
 import { defaultColumns } from './table'
 
 type FullRecord = QueryRecord & { associatedRecords?: Record<string, QueryRecord[]> }
@@ -206,6 +207,8 @@ export class RecordScreen implements Screen {
   loadWidgets(): void {
     for (const s of this.meta?.sections ?? []) {
       if (!s.widgetName) continue
+      // a widget section that lists an association is drawn from the record's associated records
+      if (widgetAssociation((this.store.meta?.widgets as Record<string, never> | undefined)?.[s.widgetName], this.meta as never)) continue
       const name = s.widgetName
       const rec = this.record
       const view = new WidgetView(this.store, name, {
@@ -234,6 +237,8 @@ export class RecordScreen implements Screen {
       this.record = undefined
       this.list.cursor = 0
       this.list.top = 0
+      this.childOffsets.clear()
+      this.tags = undefined
       this.widgets.clear()
       this.load()
     }))
@@ -254,7 +259,6 @@ export class RecordScreen implements Screen {
 
   build(): void {
     const t = theme()
-    const g = glyphs()
     const rows: Row[] = []
     const meta = this.meta
     const rec = this.record
@@ -272,66 +276,15 @@ export class RecordScreen implements Screen {
     const view = this.view()
     const labelWidth = view.labelWidth ?? Math.min(28, Math.max(8, ...Object.values({ ...meta.fields, ...Object.fromEntries((meta.sections ?? []).flatMap((x) => x.fieldNames ?? []).filter((n) => this.fullMeta?.fields[n]).map((n) => [n, this.fullMeta!.fields[n]!])) }).map((f) => f.label.length + 1)))
     rows.push({ text: `${rec.recordLabel ?? this.primaryKey}${this.cursor ? `   (${this.cursor.describe()})` : ''}`, fg: t.fg, bold: true })
-    if (this.tags) rows.push({ text: `Tags: ${this.tags.length ? this.tags.map((x) => x.label ?? x.name).join(' · ') : '(none)'}   t edits`, fg: t.acc2, key: 'tags', action: () => this.openTags() })
-    for (const s of orderedSections(meta)) {
-      if (s.widgetName) {
-        rows.push({ text: '' })
-        const wname = s.widgetName
-        rows.push({ text: `${s.label} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 2)))}`, fg: t.acc, bold: true, key: `w:${wname}`, action: () => this.widgetViews.get(wname)?.actionsMenu() })
-        const w = this.widgets.get(s.widgetName)
-        if (!w) rows.push({ text: '  loading…', fg: t.dim })
-        else if ('error' in w) rows.push({ text: `  ${w.error}`, fg: t.err })
-        else rows.push(...blockLines(w.filter((b) => b.kind !== 'heading'), inner - 2).map((l) => ({ ...l, text: '  ' + l.text })))
-        const payload = this.widgetPayloads.get(s.widgetName) as { type?: string } | undefined
-        if (payload && (payload.type ?? (this.store.meta?.widgets as Record<string, { type?: string }> | undefined)?.[s.widgetName]?.type) === 'dynamicForm' && (meta as { editPermission?: boolean }).editPermission !== false) {
-          const name = s.widgetName
-          rows.push({ text: `  ${g.pointer} Edit these fields`, fg: t.acc, key: `dyn:${name}`, action: () => this.editDynamicForm(name) })
-        }
-        continue
-      }
-      const fields = (s.fieldNames ?? []).map((n) => meta.fields[n] ?? this.fullMeta?.fields[n]).filter((f): f is FieldMetaData => Boolean(f) && !f!.isHidden)
-      if (!fields.length) continue
-      rows.push({ text: '' })
-      rows.push({ text: `${s.label}${s.tier ? ` (${s.tier})` : ''} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 8)))}`, fg: t.acc, bold: true })
-      // section help for the view screen (helpContents by role)
-      const sectionHelp = helpEntryText(selectHelpContent((s as { helpContents?: unknown }).helpContents))
-      if (sectionHelp) rows.push({ text: `  ${trunc(sectionHelp, inner - 4)}`, fg: t.dim })
-      const tableNames = Object.keys(this.store.meta?.tables ?? {})
-      const valueOf = (f: FieldMetaData) => f.type === 'BLOB' && !f.adornments?.some((a) => a.type === 'FILE_DOWNLOAD') ? blobText(rec, f.name) : valueText(f as FieldMeta, rec as never, { reveal: this.revealed.has(f.name), tableNames, tableName: this.tableName, primaryKey: this.primaryKey, widgets: this.store.meta?.widgets as never }).text
-      // the value column is sized once per section (first record shown) and kept while stepping records
-      const frozenKey = `${s.name}|${inner}`
-      // from the field set (type widths), and the first record's values; kept while stepping
-      const typeWidth = (f: FieldMetaData) => (f.type === 'DATE_TIME' ? 30 : f.type === 'DATE' ? 10 : f.type === 'TIME' ? 8 : f.type === 'BOOLEAN' ? 5 : ['INTEGER', 'LONG', 'DECIMAL'].includes(f.type) && !f.possibleValueSourceName ? 14 : Math.min(40, Number((f as { maxLength?: number }).maxLength ?? 24)))
-      if (!this.sectionWidths.has(frozenKey)) this.sectionWidths.set(frozenKey, Math.max(...fields.map((f) => Math.max(typeWidth(f), valueOf(f).length) + (linkTarget(this.store, f) ? 2 : 0)), 12))
-      const longest = this.sectionWidths.get(frozenKey)!
-      const colWidth = Math.min(60, labelWidth + 2 + longest)
-      const two = (view.recordColumns ?? (inner >= 2 * colWidth + 6 ? 2 : 1)) === 2 && inner >= 2 * Math.min(colWidth, 30) + 6
-      const fieldText = (f: FieldMetaData) => {
-        const v = valueText(f as FieldMeta, rec as never, { tableNames, widgets: this.store.meta?.widgets as never })
-        const link = v.link ? ` ${g.link}` : v.file || isBlob(rec, f) ? ' [file: Enter saves]' : v.masked ? ' [Enter reveals]' : ''
-        return `${pad(f.label, labelWidth)}  ${trunc(valueOf(f) + link, (two ? colWidth : Math.min(inner - 4, 100)) - labelWidth - 2)}`
-      }
-      // WIDGET-adorned fields: the value is a widget payload, drawn as blocks under its label
-      const widgetFields = fields.filter((f) => f.adornments?.some((a) => a.type === 'WIDGET') && rec.values?.[f.name] && typeof rec.values[f.name] === 'object')
-      for (const f of widgetFields) {
-        rows.push({ text: `  ${f.label}`, fg: t.fg, bold: true })
-        const wv = rec.values![f.name]
-        // a WIDGET-adorned field whose value is plain text (not a widget payload) shows the text
-        if (wv !== null && typeof wv !== 'object') rows.push({ text: `    ${String(wv)}` })
-        else rows.push(...blockLines(widgetToBlocks(wv), inner - 6).map((l) => ({ ...l, text: `    ${l.text}` })))
-      }
-      const plainFields = fields.filter((f) => !widgetFields.includes(f))
-      for (let i = 0; i < plainFields.length; i += two ? 2 : 1) {
-        const pair = two ? plainFields.slice(i, i + 2) : [plainFields[i]!]
-        const links = pair.filter((f) => { const v = valueText(f as FieldMeta, rec as never, { tableNames }); return Boolean(v.link || v.file || v.masked || isBlob(rec, f)) })
-        const text = '  ' + (two ? pad(fieldText(pair[0]!), colWidth) + '    ' + (pair[1] ? fieldText(pair[1]) : '') : fieldText(pair[0]!))
-        const chip = pair.some((f) => valueText(f as FieldMeta, rec as never, {}).adornment === 'CHIP' && cell(rec, f.name))
-        rows.push({ text, key: `f:${pair[0]!.name}`, action: () => this.follow(links), ...(chip ? { fg: chipColor(pair.find((f) => valueText(f as FieldMeta, rec as never, {}).adornment === 'CHIP')!, rec) } : {}) })
-      }
-    }
+    // the tags line is there for every record (collaboration), loaded or not, so nothing below moves
+    if (this.store.extensions.has('collaboration')) rows.push({ text: `Tags: ${!this.tags ? '…' : this.tags.length ? this.tags.map((x) => x.label ?? x.name).join(' · ') : '(none)'}   t edits`, fg: t.acc2, key: 'tags', action: () => this.openTags() })
     const tables: Record<string, TableMetaLike | undefined> = Object.fromEntries([...this.childMeta].map(([k, v]) => [k, v as unknown as TableMetaLike]))
     this.groups = associationGroups(rec as never, meta as unknown as TableMetaLike, tables, { widgets: this.store.meta?.widgets as never, maxDepth: 3 })
-    this.groups.forEach((group, gi) => this.childRows(group, gi, rows, inner))
+    for (const item of planRecordLayout(orderedSections(meta), meta, this.groups, this.store.meta?.widgets as never, this.childMeta)) {
+      if (item.kind === 'children') rows.push(...this.childRows(item, inner))
+      else if (item.kind === 'widget') rows.push(...this.widgetRows(item.section, inner))
+      else rows.push(...this.fieldRows(item.section, rec, labelWidth, inner))
+    }
     this.list.setRows(rows)
     // back from a child record: land on the child that was viewed last (it may have stepped)
     if (this.openedChild) {
@@ -345,37 +298,171 @@ export class RecordScreen implements Screen {
   openedChild?: { gi: number; cursor: ResultCursor }
 
   groups: AssociationGroup[] = []
-  /** Frozen layout: value width per section and child-list column widths, kept while stepping. */
-  sectionWidths = new Map<string, number>()
-  childWidths = new Map<string, number[]>()
+  /** First record shown by each scrolled child list (by group title); reset when stepping records. */
+  childOffsets = new Map<string, number>()
+  /** Tallest a widget section has been on this screen: it keeps that height while stepping records. */
+  widgetHeights = new Map<string, number>()
   revealed = new Set<string>()
 
-  childRows(group: AssociationGroup, gi: number, rows: Row[], inner: number): void {
+  /** Data rows of each child list: this table's view setting, else the profile's, else 5. */
+  childRowCount(): number {
+    const n = Number(this.view().childRows)
+    return Number.isInteger(n) && n >= 1 && n <= 50 ? n : readChildRows(this.store.status.profile || undefined)
+  }
+
+  private offsetKey(group: AssociationGroup): string {
+    return `${group.association.name}|${group.title}`
+  }
+
+  /** A section of fields. Column positions come from the field metadata, so they are the same for every record. */
+  fieldRows(s: SectionMetaData, rec: FullRecord, labelWidth: number, inner: number): Row[] {
     const t = theme()
     const g = glyphs()
+    const meta = this.meta!
+    const view = this.view()
+    const rows: Row[] = []
+    const fields = (s.fieldNames ?? []).map((n) => meta.fields[n] ?? this.fullMeta?.fields[n]).filter((f): f is FieldMetaData => Boolean(f) && !f!.isHidden)
+    if (!fields.length) return rows
+    rows.push({ text: '' })
+    rows.push({ text: `${s.label}${s.tier ? ` (${s.tier})` : ''} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 8)))}`, fg: t.acc, bold: true })
+    // section help for the view screen (helpContents by role)
+    const sectionHelp = helpEntryText(selectHelpContent((s as { helpContents?: unknown }).helpContents))
+    if (sectionHelp) rows.push({ text: `  ${trunc(sectionHelp, inner - 4)}`, fg: t.dim })
+    const tableNames = Object.keys(this.store.meta?.tables ?? {})
+    const valueOf = (f: FieldMetaData) => f.type === 'BLOB' && !f.adornments?.some((a) => a.type === 'FILE_DOWNLOAD') ? blobText(rec, f.name) : valueText(f as FieldMeta, rec as never, { reveal: this.revealed.has(f.name), tableNames, tableName: this.tableName, primaryKey: this.primaryKey, widgets: this.store.meta?.widgets as never }).text
+    // the value column is as wide as the field types need (metadata), never the values of this record
+    const typeWidth = (f: FieldMetaData) => (f.type === 'DATE_TIME' ? 30 : f.type === 'DATE' ? 10 : f.type === 'TIME' ? 8 : f.type === 'BOOLEAN' ? 5 : ['INTEGER', 'LONG', 'DECIMAL'].includes(f.type) && !f.possibleValueSourceName ? 14 : Math.min(40, Number((f as { maxLength?: number }).maxLength ?? 24)))
+    const longest = Math.max(12, ...fields.map((f) => typeWidth(f) + (linkTarget(this.store, f) ? 2 : 0)))
+    const colWidth = Math.min(60, labelWidth + 2 + longest)
+    const two = (view.recordColumns ?? (inner >= 2 * colWidth + 6 ? 2 : 1)) === 2 && inner >= 2 * Math.min(colWidth, 30) + 6
+    const fieldText = (f: FieldMetaData) => {
+      const v = valueText(f as FieldMeta, rec as never, { tableNames, widgets: this.store.meta?.widgets as never })
+      const link = v.link ? ` ${g.link}` : v.file || isBlob(rec, f) ? ' [file: Enter saves]' : v.masked ? ' [Enter reveals]' : ''
+      return `${pad(f.label, labelWidth)}  ${trunc(valueOf(f) + link, (two ? colWidth : Math.min(inner - 4, 100)) - labelWidth - 2)}`
+    }
+    // WIDGET-adorned fields (by metadata, so the same for every record): the value drawn as blocks under its label
+    const widgetFields = fields.filter((f) => f.adornments?.some((a) => a.type === 'WIDGET'))
+    for (const f of widgetFields) {
+      rows.push({ text: `  ${f.label}`, fg: t.fg, bold: true })
+      const wv = rec.values?.[f.name]
+      if (wv === null || wv === undefined || wv === '') rows.push({ text: '    (none)', fg: t.dim })
+      // a WIDGET-adorned field whose value is plain text (not a widget payload) shows the text
+      else if (typeof wv !== 'object') rows.push({ text: `    ${String(wv)}` })
+      else rows.push(...blockLines(widgetToBlocks(wv), inner - 6).map((l) => ({ ...l, text: `    ${l.text}` })))
+    }
+    const plainFields = fields.filter((f) => !widgetFields.includes(f))
+    for (let i = 0; i < plainFields.length; i += two ? 2 : 1) {
+      const pair = two ? plainFields.slice(i, i + 2) : [plainFields[i]!]
+      const links = pair.filter((f) => { const v = valueText(f as FieldMeta, rec as never, { tableNames }); return Boolean(v.link || v.file || v.masked || isBlob(rec, f)) })
+      const text = '  ' + (two ? pad(fieldText(pair[0]!), colWidth) + '    ' + (pair[1] ? fieldText(pair[1]) : '') : fieldText(pair[0]!))
+      const chip = pair.some((f) => valueText(f as FieldMeta, rec as never, {}).adornment === 'CHIP' && cell(rec, f.name))
+      rows.push({ text, key: `f:${pair[0]!.name}`, action: () => this.follow(links), ...(chip ? { fg: chipColor(pair.find((f) => valueText(f as FieldMeta, rec as never, {}).adornment === 'CHIP')!, rec) } : {}) })
+    }
+    return rows
+  }
+
+  /** A widget section. It keeps the tallest height it has had here, so stepping records (and loading) does not shrink it. */
+  widgetRows(s: SectionMetaData, inner: number): Row[] {
+    const t = theme()
+    const g = glyphs()
+    const meta = this.meta!
+    const wname = s.widgetName!
+    const rows: Row[] = [{ text: '' }]
+    rows.push({ text: `${s.label} ${g.rule.repeat(Math.max(0, Math.min(60, inner - s.label.length - 2)))}`, fg: t.acc, bold: true, key: `w:${wname}`, action: () => this.widgetViews.get(wname)?.actionsMenu() })
+    const w = this.widgets.get(wname)
+    if (!w) rows.push({ text: '  loading…', fg: t.dim })
+    else if ('error' in w) rows.push({ text: `  ${w.error}`, fg: t.err })
+    else rows.push(...blockLines(w.filter((b) => b.kind !== 'heading'), inner - 2).map((l) => ({ ...l, text: '  ' + l.text })))
+    const payload = this.widgetPayloads.get(wname) as { type?: string } | undefined
+    if (payload && (payload.type ?? (this.store.meta?.widgets as Record<string, { type?: string }> | undefined)?.[wname]?.type) === 'dynamicForm' && (meta as { editPermission?: boolean }).editPermission !== false) {
+      rows.push({ text: `  ${g.pointer} Edit these fields`, fg: t.acc, key: `dyn:${wname}`, action: () => this.editDynamicForm(wname) })
+    }
+    const height = Math.max(rows.length, this.widgetHeights.get(wname) ?? 0)
+    if (w) this.widgetHeights.set(wname, height)
+    return padRows(rows, height)
+  }
+
+  /** A child list: a box of fixed height (childRowCount data rows), padded when short, scrolled when long. */
+  childRows(item: Extract<LayoutItem, { kind: 'children' }>, inner: number): Row[] {
+    const t = theme()
+    const g = glyphs()
+    const { group, gi } = item
     const child = this.childMeta.get(group.table)
     const records = group.records as QueryRecord[]
-    rows.push({ text: '' })
-    const indent = '  '.repeat(Math.max(0, group.depth - 1))
-    const heading = group.depth > 1 ? group.title : group.label
-    if (group.depth > 1 && !records.length) return // empty grandchild lists stay out of the way
-    rows.push({ text: `${indent}${heading} (${records.length}) ${g.rule.repeat(Math.max(0, Math.min(60, inner - heading.length - 8 - indent.length)))}`, fg: t.acc, bold: true, key: `c:${gi}`, action: () => this.newChild(group) })
-    if (group.unavailable || !child) {
-      rows.push({ text: `  ${group.unavailable ?? 'no metadata'}`, fg: t.dim })
-      return
+    const rows = this.childRowCount()
+    let offset = this.childOffsets.get(this.offsetKey(group)) ?? 0
+    // back from a child record: scroll the list to the child viewed last
+    if (this.openedChild?.gi === gi) {
+      const at = this.openedChild.cursor.index
+      if (at < offset) offset = at
+      else if (at >= offset + rows) offset = at - rows + 1
     }
-    const binding = (group.association.join?.joinOns ?? []).map((j) => j.rightField)
-    const names = childListFields(child as unknown as TableMetaLike, binding)
-    const wkey = `${group.association.name}|${names.join(',')}`
-    if (!this.childWidths.has(wkey) || (records.length && this.childWidths.get(wkey)!.every((w, i) => w === child.fields[names[i]!]!.label.length))) {
-      this.childWidths.set(wkey, names.map((n) => Math.min(30, Math.max(child.fields[n]!.label.length, ...records.map((r) => fieldCell(r, child.fields[n]!).length)))))
-    }
-    const widths = this.childWidths.get(wkey)!
-    rows.push({ text: `${indent}  ` + names.map((n, i) => pad(child.fields[n]!.label, widths[i]!)).join('  '), fg: t.dim })
-    records.forEach((r, idx) => {
-      rows.push({ text: `${indent}  ` + names.map((n, i) => pad(fieldCell(r, child.fields[n]!), widths[i]!)).join('  '), key: `c:${gi}:${idx}`, action: () => this.openChild(group, idx) })
+    offset = clampOffset(offset, records.length, rows)
+    this.childOffsets.set(this.offsetKey(group), offset)
+    const names = child ? item.columns.filter((n) => child.fields[n]) : []
+    return childBox({
+      heading: item.label,
+      indent: '  '.repeat(Math.max(0, group.depth - 1)),
+      inner,
+      rows,
+      offset,
+      columns: names.map((n) => ({ label: child!.fields[n]!.label, width: childColumnWidth(child!.fields[n]!) })),
+      cells: child ? records.map((r) => names.map((n) => fieldCell(r, child.fields[n]!))) : [],
+      unavailable: group.unavailable ?? (child ? undefined : 'no metadata'),
+      key: (index) => (index === undefined ? `c:${gi}` : `c:${gi}:${index}`),
+      onHeading: () => this.newChild(group),
+      onOpen: (index) => this.openChild(group, index),
+      rule: g.rule,
+      colors: { heading: t.acc, dim: t.dim },
     })
-    if (!records.length) rows.push({ text: '  (none) · Enter on the heading or F7 adds one', fg: t.dim })
+  }
+
+  /** The child list the cursor is on (its heading or one of its rows), with the record index under the cursor. */
+  focusedList(): { gi: number; group: AssociationGroup; index?: number } | undefined {
+    const m = /^c:(\d+)(?::(\d+))?$/.exec(this.list.current?.key ?? '')
+    if (!m) return undefined
+    const gi = Number(m[1])
+    const group = this.groups[gi]
+    return group ? { gi, group, ...(m[2] !== undefined ? { index: Number(m[2]) } : {}) } : undefined
+  }
+
+  /**
+   * Keys of a focused child list that has more rows than its box: PgDn/PgUp scroll it a box at a
+   * time; Down/Up (j/k) scroll it a row at its edges. ] and [ still step records.
+   */
+  scrollList(key: Key): boolean {
+    const focus = this.focusedList()
+    if (!focus) return false
+    const count = focus.group.records.length
+    const rows = this.childRowCount()
+    if (count <= rows) return false
+    const okey = this.offsetKey(focus.group)
+    const offset = this.childOffsets.get(okey) ?? 0
+    const ch = charOf(key)
+    const single = this.store.singleKeys
+    let next = offset
+    let index = focus.index
+    if (key.name === 'pagedown' || key.name === 'pageup') {
+      next = clampOffset(offset + (key.name === 'pagedown' ? rows : -rows), count, rows)
+      if (next === offset) {
+        this.store.flash(key.name === 'pagedown' ? `last rows of ${focus.group.label} (] steps to the next record)` : `first rows of ${focus.group.label} ([ steps to the previous record)`)
+        return true
+      }
+      if (index !== undefined) index = Math.min(count - 1, Math.max(0, index + next - offset))
+    } else if ((key.name === 'down' || (single && ch === 'j')) && index !== undefined && index === offset + rows - 1 && index < count - 1) {
+      next = offset + 1
+      index++
+    } else if ((key.name === 'up' || (single && ch === 'k')) && index !== undefined && index === offset && offset > 0) {
+      next = offset - 1
+      index--
+    } else if (single && (ch === 'j' || ch === 'k')) {
+      return this.list.onKey({ name: ch === 'j' ? 'down' : 'up', sequence: '' })
+    } else return false
+    this.childOffsets.set(okey, next)
+    this.build()
+    const at = this.list.rows.findIndex((r) => r.key === (index === undefined ? `c:${focus.gi}` : `c:${focus.gi}:${index}`))
+    if (at >= 0) this.list.cursor = at
+    return true
   }
 
   /** The filter selecting this record's children of a group (kernel childFilter). */
@@ -491,6 +578,7 @@ export class RecordScreen implements Screen {
 
   onKey(key: Key): boolean {
     const ch = charOf(key)
+    if (this.scrollList(key)) return true
     if (key.name === 'pagedown' || ch === ']' || (key.ctrl && key.name === 'n')) {
       if (this.cursor) this.step(1)
       else this.list.onKey({ name: 'pagedown', sequence: '' })
@@ -553,7 +641,7 @@ export class RecordScreen implements Screen {
       { section: 'Context', label: 'Previous record', key: 'PgUp [ Ctrl+P', disabled: this.cursor ? undefined : 'not opened from a list', run: () => this.step(-1) },
       { section: 'Context', label: 'Refresh', key: 'F5 r', run: () => this.refresh() },
       ...this.shareEntry(),
-      { section: 'Context', label: 'View settings (columns, label width)', key: 'v', run: () => { const o = this.viewSettings(); if (o) this.store.open(o) } },
+      { section: 'Context', label: 'View settings (columns, label width, child list rows)', key: 'v', run: () => { const o = this.viewSettings(); if (o) this.store.open(o) } },
       { section: 'Context', label: 'Copy as a CLI command', detail: `qqq ${this.cliEquivalent()}`, run: () => this.store.message(`qqq ${this.cliEquivalent()}`, 'info', 'CLI equivalent') },
     ]
     for (const group of this.groups) {
@@ -596,12 +684,16 @@ export class RecordScreen implements Screen {
       { label: 'Two columns', value: '2' },
       { label: 'Label width: narrower (-4)', value: 'narrow' },
       { label: 'Label width: wider (+4)', value: 'wide' },
+      ...[3, 5, 8, 10, 15].map((n) => ({ label: `Child list rows: ${n}${v.childRows === n ? ' (current)' : ''}`, value: `rows:${n}` })),
+      { label: `Child list rows: profile default (${readChildRows(this.store.status.profile || undefined)})`, value: 'rows:default' },
       { label: 'Reset record view settings', value: 'reset' },
     ]
     return new ChoiceOverlay(this.store, `Record view settings · ${this.meta?.label ?? this.tableName}`, choices, (value) => {
       const next = { ...v }
       if (value === 'auto') delete next.recordColumns
       else if (value === '1' || value === '2') next.recordColumns = Number(value) as 1 | 2
+      else if (value === 'rows:default') delete next.childRows
+      else if (value.startsWith('rows:')) next.childRows = Number(value.slice(5))
       else if (value === 'narrow' || value === 'wide') next.labelWidth = Math.max(6, Math.min(40, (v.labelWidth ?? 20) + (value === 'wide' ? 4 : -4)))
       writeViewSettings(key, value === 'reset' ? undefined : next)
       this.build()

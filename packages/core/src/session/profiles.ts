@@ -19,12 +19,14 @@ export interface Profile {
   note?: string
   createdAt?: string
   /** Display settings of the terminal UI for this profile only (override the global `ui`). */
-  ui?: Pick<UiSettings, 'theme'>
+  ui?: Pick<UiSettings, 'theme' | 'childRows'>
 }
 
 /** Local display settings of the terminal UI (not server preferences): theme and per-screen view settings. */
 export interface UiSettings {
   theme?: string
+  /** Record view: data rows of each child list (default 5); a table's view settings override it. */
+  childRows?: number
   /** Keyed by screen, e.g. `table:person`, `record:person`, `app:peopleApp`. */
   views?: Record<string, ViewSettings>
 }
@@ -43,6 +45,8 @@ export interface ViewSettings {
   /** Record view: one or two columns of fields, and the label width. */
   recordColumns?: 1 | 2
   labelWidth?: number
+  /** Record view: data rows of each child list on this table (overrides the profile's `ui.childRows`). */
+  childRows?: number
   /** App home: widget names in display order. */
   widgetOrder?: string[]
   [key: string]: unknown
@@ -155,6 +159,16 @@ export function writeTheme(theme: string | undefined, options: { profile?: strin
     config.ui = { ...config.ui, theme }
   }
   writeConfig(config, env)
+}
+
+/** Data rows of a record-view child list when nothing is saved. */
+export const DEFAULT_CHILD_ROWS = 5
+
+/** Child-list rows of the record view: the profile's `ui.childRows`, else the global `ui.childRows`, else 5 (1 to 50). */
+export function readChildRows(profile?: string, env: NodeJS.ProcessEnv = process.env): number {
+  const config = readConfig(env)
+  const n = Number((profile ? config.profiles[profile]?.ui?.childRows : undefined) ?? config.ui?.childRows ?? DEFAULT_CHILD_ROWS)
+  return Number.isInteger(n) && n >= 1 && n <= 50 ? n : DEFAULT_CHILD_ROWS
 }
 
 /** The saved view settings of one screen (`table:person`), or an empty object. */

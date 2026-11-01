@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { AssociationError, associationGroups, associationLabel, childFilter, childListFields, fetchChildren, findAssociation, parentLinkValues, relationshipValues, type RecordLike, type TableMetaLike } from '../records/associations.js'
+import { AssociationError, associationGroups, associationLabel, childFilter, childListFields, childWidgetColumns, widgetAssociation, fetchChildren, findAssociation, parentLinkValues, relationshipValues, type RecordLike, type TableMetaLike } from '../records/associations.js'
 
 const f = (name: string, extra: Record<string, unknown> = {}) => ({ name, label: name[0]!.toUpperCase() + name.slice(1), type: 'STRING', ...extra })
 
@@ -104,4 +104,29 @@ test('fetchChildren queries one page and counts all children with the same crite
   assert.deepEqual((calls[0]!.body as { filter: { limit: number; skip: number } }).filter.limit, 1)
   assert.match(calls[1]!.url, /\/qqq\/v1\/table\/pet\/count\?includeDistinct=false$/)
   assert.deepEqual(calls[1]!.body, { filter: { criteria: [{ fieldName: 'personId', operator: 'EQUALS', values: ['1'] }], booleanOperator: 'AND' } })
+})
+
+test('a child-list widget section binds its association (manageAssociationName, associationName, or the join name), once', () => {
+  const order: TableMetaLike = { name: 'order', fields: { id: f('id') }, associations: [
+    { name: 'lines', associatedTableName: 'line', join: { name: 'orderJoinLine', leftTable: 'order', rightTable: 'line', joinOns: [{ leftField: 'id', rightField: 'orderId' }] } },
+    { name: 'tags', associatedTableName: 'tag', join: { name: 'orderJoinTag', leftTable: 'order', rightTable: 'tag', joinOns: [{ leftField: 'id', rightField: 'orderId' }] } },
+  ] }
+  assert.equal(widgetAssociation({ type: 'childRecordList', defaultValues: { joinName: 'orderJoinLine' } }, order)?.name, 'lines', 'the sample binds by join name')
+  assert.equal(widgetAssociation({ type: 'childRecordList', defaultValues: { manageAssociationName: 'tags', joinName: 'orderJoinLine' } }, order)?.name, 'tags', 'a managed association wins (Next)')
+  assert.equal(widgetAssociation({ type: 'rowBuilder', defaultValues: { associationName: 'lines' } }, order)?.name, 'lines')
+  assert.equal(widgetAssociation({ type: 'childRecordList', defaultValues: { joinName: 'elsewhere' } }, order), undefined, 'a join of another table lists other records: a distinct widget')
+  assert.equal(widgetAssociation({ type: 'statistics', defaultValues: { joinName: 'orderJoinLine' } }, order), undefined, 'only child-list widgets bind')
+  assert.equal(widgetAssociation(undefined, order), undefined)
+})
+
+test('a child-list widget shows the key first, fields in section order (T1 first), not the parent key, hidden, heavy or omitted fields', () => {
+  const line: TableMetaLike = {
+    name: 'line', primaryKeyField: 'id',
+    fields: { id: f('id'), orderId: f('orderId'), sku: f('sku'), qty: f('qty'), note: f('note', { isHeavy: true }), secret: f('secret', { isHidden: true }), createDate: f('createDate') },
+    sections: [{ name: 'd', tier: 'T3', fieldNames: ['createDate'] }, { name: 'i', tier: 'T1', fieldNames: ['orderId', 'sku', 'id', 'qty', 'note', 'secret'] }],
+  }
+  assert.deepEqual(childWidgetColumns(line, { bindingFields: ['orderId'] }), ['id', 'sku', 'qty', 'createDate'])
+  assert.deepEqual(childWidgetColumns(line, { widget: { defaultValues: { omitFieldNames: ['qty'] } } }), ['id', 'orderId', 'sku', 'createDate'])
+  assert.deepEqual(childWidgetColumns(line, { widget: { defaultValues: { onlyIncludeFieldNames: 'sku,id' } } }), ['id', 'sku'])
+  assert.deepEqual(childWidgetColumns({ name: 'x', primaryKeyField: 'id', fields: { a: f('a'), id: f('id') } }), ['id', 'a'], 'no sections: every field, key first')
 })

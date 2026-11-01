@@ -189,6 +189,49 @@ export function childListFields(childTable: TableMetaLike, bindingFields: string
   return order.slice(0, cap)
 }
 
+/**
+ * The association a record-view widget section lists, so the record view shows that association
+ * once, in the section's place and under the section's label. Next binds a `childRecordList` by
+ * `manageAssociationName` (a `rowBuilder` by `associationName`) and drops a bound association from
+ * its related list; a `childRecordList` that names only the association's `joinName` (as the
+ * sample's sales order does) lists the same children, so it binds too. Undefined when the widget
+ * lists no association of this table.
+ */
+export function widgetAssociation(widget: WidgetMetaLike | undefined, table: TableMetaLike): AssociationMeta | undefined {
+  if (!widget || !['childRecordList', 'rowBuilder'].includes(String(widget.type ?? ''))) return undefined
+  const defaults = widget.defaultValues ?? {}
+  const all = associationsOf(table)
+  const named = widget.type === 'childRecordList' ? defaults.manageAssociationName ?? defaults.associationName : defaults.associationName ?? defaults.manageAssociationName
+  if (typeof named === 'string' && named) return all.find((a) => a.name === named)
+  if (widget.type === 'childRecordList' && typeof defaults.joinName === 'string' && defaults.joinName) {
+    const byJoin = all.filter((a) => a.join?.name === defaults.joinName)
+    return byJoin.length === 1 ? byJoin[0] : undefined
+  }
+  return undefined
+}
+
+/**
+ * The columns a child-list widget shows (Next's `ChildRecordListWidget`): the child table's
+ * fields in section order (T1 sections first, hidden sections skipped), the key first, without
+ * hidden or heavy fields, the widget's `omitFieldNames`, and the fields a new child takes from the
+ * parent (the binding fields); only `onlyIncludeFieldNames` when the widget names them.
+ */
+export function childWidgetColumns(childTable: TableMetaLike, options: { widget?: WidgetMetaLike; bindingFields?: string[] } = {}): string[] {
+  const list = (value: unknown): string[] => (Array.isArray(value) ? value.map(String) : typeof value === 'string' && value ? value.split(',').map((x) => x.trim()) : [])
+  const omit = list(options.widget?.defaultValues?.omitFieldNames)
+  const only = list(options.widget?.defaultValues?.onlyIncludeFieldNames)
+  const sections = (childTable.sections ?? []).filter((s) => !s.isHidden && !(s as { hidden?: boolean }).hidden).sort((a, b) => Number(b.tier === 'T1') - Number(a.tier === 'T1'))
+  const names: string[] = []
+  for (const section of sections) for (const name of section.fieldNames ?? []) if (!names.includes(name)) names.push(name)
+  if (!names.length) names.push(...Object.keys(childTable.fields))
+  const pk = childTable.primaryKeyField
+  if (pk && names.includes(pk)) names.splice(0, 0, ...names.splice(names.indexOf(pk), 1))
+  return names.filter((name) => {
+    const field = childTable.fields[name]
+    return Boolean(field) && !field!.isHidden && !field!.isHeavy && !omit.includes(name) && (!only.length || only.includes(name)) && !(options.bindingFields ?? []).includes(name)
+  })
+}
+
 /** One child list of a record, with its place in the tree (`pets`, then `pets[Charlie].notes`). */
 export interface AssociationGroup {
   association: AssociationMeta

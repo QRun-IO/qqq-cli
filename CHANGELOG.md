@@ -177,6 +177,16 @@ candidate's, plus the changes since it listed first.
   fields, corrupt config and secrets files no longer overwritten, awaited 0.1 imports, Ctrl-C and Ctrl-D at
   prompts, REVEAL values masked in query cells, one DATE_TIME, help and download path, checked numeric
   options and file arguments.
+- The UI's record view keeps its layout when paging record to record (PgDn/PgUp): each child list is a
+  box of fixed height (5 data rows by default, padded when shorter, scrolled inside the box with
+  "rows 1-5 of 12" when longer), empty lists still draw their box, and field and child-list columns are
+  placed from the metadata instead of the current record's values. The row count is a per-table view
+  setting (`v`, saved as `childRows` under `ui.views.record:<table>`) with a default in `ui.childRows`
+  (globally or per profile).
+- The UI's record view showed an association twice when a section's `childRecordList` widget lists it
+  (the sample's sales order "Lines" and "Tags"): it now shows once, in the widget section's place and under
+  its label, with the widget's columns (Next's binding: `manageAssociationName`, or the association's
+  `joinName`).
 
 ### Known limitations
 
