@@ -168,12 +168,13 @@ jobs:
           name: Binary for this platform
           command: node scripts/build-binaries.mjs --no-build --host
       - run:
-          name: Binary smoke
+          name: Binary smoke (scripts/verify-binary.sh / .ps1)
           command: |
-            ./dist/<< parameters.binary >> --version
-            ./dist/<< parameters.binary >> __complete -- ta | grep -q table
-            ./dist/<< parameters.binary >> completion pwsh > /dev/null
-            QQQ_CONFIG_DIR="$PWD/.smoke" ./dist/<< parameters.binary >> config profile list
+            if [[ "$OSTYPE" == darwin* ]]; then
+              scripts/verify-binary.sh ./dist/<< parameters.binary >>
+            else
+              powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-binary.ps1 -Binary dist/<< parameters.binary >>
+            fi
       - store_artifacts:
           path: dist
 
@@ -189,6 +190,15 @@ workflows:
           platform: windows-x64
           binary: qqq-windows-x64.exe
 ```
+
+The smoke is `scripts/verify-binary.sh` (macOS, Linux) or `scripts/verify-binary.ps1` (Windows):
+version with `binary with ui`, completion, `qqq ui --check` naming the build, and with `--server` /
+`-Server` also login, doctor, whoami, a query and a process run. Without a QQQ server in CI the lanes
+run the offline half; a lane with the sample server (Java 21) or a Prism mock can add `--server`. Both
+scripts were run here: the `.sh` on darwin-arm64 (file keyring and the macOS Keychain) and in Debian
+amd64, the `.ps1` with PowerShell 7 in `mcr.microsoft.com/powershell` on the linux-x64 binary, all
+against the sample server. Neither has run on Windows: **Windows x64 and macOS x64 are unverified
+until these lanes run.**
 
 Notes on the YAML: Windows runs steps in Git Bash (`shell: bash.exe`), so the same commands work on
 both lanes; `nvm` comes with the Windows image; `QQQ_CONFIG_DIR` keeps the smoke away from the agent's
