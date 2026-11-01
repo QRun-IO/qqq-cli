@@ -61,9 +61,14 @@ First release candidate of `qqq` 1.0: the command-line client and the full-scree
   process widgets, data bag versions, script revisions, export, ad hoc buttons and inputs, dynamicForm
   editing and composite widgets; disabled tables, processes and apps explain the denial, and
   capabilities gate new, edit, delete and copy.
+- **Searching ignores case**: quick search, the palette and the guided filter's text conditions ask for
+  case-insensitive matches; a term starting with `=` (or Match exact case in the condition menu) asks for
+  exact case. As in the CLI, the server applies it once it reads the option (finding 27).
+- **Themes per profile**: the theme picker keeps a theme for every profile or just this one.
 - **Help**: F1 shows the application's help for the app, widget, table, process or step you are on, and
   the grid footer shows the column's help. Large tables stay quick: on a 10,000 x 40 table the first page
-  draws in about 100 ms.
+  draws in about 100 ms. A soak test (`packages/tui/scripts/soak.sh`) drives the real UI in tmux with
+  random keys from the keymap and fails on any exit or error.
 - **Dashboards and widgets** in block characters: stats, bar charts, sparklines, percentage bars, tables
   and steppers.
 - **Terminal care**: `qqq ui --check` (and a quick check at startup) finds tmux key and colour problems and
@@ -168,8 +173,8 @@ First release candidate of `qqq` 1.0: the command-line client and the full-scree
   Windows and macOS x64 binaries are cross-compiled and were not run before this candidate.
 - The npm package is the CLI only; `qqq ui` comes with the binaries.
 - Parity with the web UI (`docs/parity/feature-matrix.md`): the CLI has no open row (290 pass, 107 n/a,
-  4 blocked on cited server findings); the UI has one (SEC-030, Auth0 against a real tenant).
-  `npm run release -- --check` lists what is open; 1.0.0 final waits for none.
+  4 blocked on cited server findings) and neither has the UI (SEC-030, Auth0 against a real tenant, is
+  blocked on qqq-cli#10 and qqq#1359). `npm run release -- --check` reports READY.
 
 ## [0.1.0]
 
