@@ -13,8 +13,10 @@
  */
 
 import type { Command } from 'commander'
-import { KNOWN_EXTENSIONS, OPERATIONS, operationsOf, type OperationInfo } from '@qrun-io/qqq-core'
+import { EsbTriggerError, KNOWN_EXTENSIONS, OPERATIONS, esbTriggersOf, operationsOf, resolveEsbTrigger, type OperationInfo } from '@qrun-io/qqq-core'
+import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import type { Context } from '../context.js'
+import { UsageError } from '../context.js'
 import { runOperation, type OperationOptions } from './api.js'
 import { countFooter, instantText, plural, type Json } from './shared.js'
 import type { DisplayOptions } from '@qrun-io/qqq-core'
@@ -139,12 +141,36 @@ function registerEsb(noun: Command, ctx: () => Context): void {
     })
 
   noun.command('messages <destination>')
-    .description('Messages waiting on a destination (a topic needs --trigger: its messages are kept per trigger).')
-    .option('-t, --trigger <name>', 'the trigger (subscription) of a topic')
+    .description('Messages waiting on a destination (a topic needs --trigger: its messages are kept per trigger; the trigger name, e.g. syncOrder.orderEvents, or its process name).')
+    .option('-t, --trigger <name>', 'the trigger (subscription) of a topic, or the process it triggers')
     .option('-l, --limit <n>', 'most messages', '20')
     .option('--offset <n>', 'skip this many')
     .action(async (destination: string, options: { trigger?: string; limit: string; offset?: string }) => {
-      const { c, data } = await run('getEsbMessagesByDestination', { destination }, { trigger: options.trigger, limit: options.limit, offset: options.offset })
+      const c = ctx()
+      await requireExtension(c, 'esb')
+      const read = (trigger?: string) => c.call('getEsbMessagesByDestination', { path: { destination }, query: { trigger, limit: options.limit, offset: options.offset } })
+      let result
+      try {
+        result = await read(options.trigger)
+      } catch (error) {
+        // a topic without --trigger (400) or with a process name instead of the trigger name (404):
+        // find the trigger from the overview, or name the valid ones
+        if (!(error instanceof UiApiError) || (error.code !== 'BAD_REQUEST' && error.code !== 'NOT_FOUND')) throw error
+        const overview = (await c.call('getEsbOverview', {})).data
+        const triggers = esbTriggersOf(overview, destination)
+        if (!triggers.length && error.code === 'NOT_FOUND') throw error
+        let trigger: string
+        try {
+          trigger = resolveEsbTrigger(triggers, destination, options.trigger)
+        } catch (resolveError) {
+          if (resolveError instanceof EsbTriggerError) throw new UsageError(resolveError.message)
+          throw resolveError
+        }
+        if (trigger === options.trigger) throw error
+        c.note(`trigger ${trigger} (of process ${options.trigger})`)
+        result = await read(trigger)
+      }
+      const data = result.data as Json
       const rows = messageRows(data, c.dateTimeDisplay)
       c.print({ data, rows, columns: ['messageId', 'timestamp', 'deliveries', 'event', 'body'], footer: countFooter(rows.length, 'message', [Boolean(data.hasMore) && 'more with --offset']) })
     })

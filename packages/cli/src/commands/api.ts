@@ -5,7 +5,7 @@
 
 import { basename } from 'node:path'
 import type { Command } from 'commander'
-import { OPERATIONS, defaultListColumns, operation, parseColumnList, type OperationInfo } from '@qrun-io/qqq-core'
+import { OPERATIONS, UNADVERTISED_HEALTH_NOTE, defaultListColumns, operation, parseColumnList, probeHealth, type OperationInfo } from '@qrun-io/qqq-core'
 import type { Context } from '../context.js'
 import { UsageError } from '../context.js'
 import { parsePairs, readFileArg, readJson, writeDownload } from './shared.js'
@@ -53,6 +53,15 @@ export interface OperationOptions {
  * the server does not list is refused before the request (ExtensionNotInstalledError, exit 5).
  */
 export async function runOperation(c: Context, op: OperationInfo, options: OperationOptions, pathValues: Record<string, string> = {}): Promise<void> {
+  if (op.id === 'getHealthSummary' && !(await c.extensions()).has('health')) {
+    // qqq-all and others serve /health without listing the extension: show that, marked as such
+    const probed = await probeHealth(c.server)
+    if (probed) {
+      c.note(`note: ${UNADVERTISED_HEALTH_NOTE}.`)
+      c.print({ data: probed, layout: { columns: { components: ['name', 'status', 'durationMs', 'details'] } } })
+      return
+    }
+  }
   if (op.extension) (await c.extensions()).requireOperation(op.id)
   const operationId = op.id
   let form: Record<string, string | Blob> | undefined

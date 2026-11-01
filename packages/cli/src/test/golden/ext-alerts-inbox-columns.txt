@@ -1,0 +1,11 @@
+total   2
+offset  0
+limit   25
+
+items (2)
+id  title                                      actions
+--  -----------------------------------------  ------------------
+7   Send Test Event To Webhook failed          Mark read, Dismiss
+6   Calculate Order Total (JavaScript) failed
+--- stderr ---
+--- exit 0
