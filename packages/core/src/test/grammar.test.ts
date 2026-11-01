@@ -67,3 +67,13 @@ test('buildFilter assembles where, group, or, order, skip and limit', () => {
   assert.equal(only.criteria.length, 1)
   assert.equal(only.subFilters?.length, 1)
 })
+
+test('weekday criteria: weekday(field) with ISO numbers or day names, printed back; DATE_TIME gets its function', async () => {
+  const { applyFieldTypes, parseFilter: pf, printFilter: pr } = await import('../filter/grammar.js')
+  const f = pf('weekday(birthDate) IN sat,sun AND weekday(createDate) NOT_IN 1')
+  assert.deepEqual(f.criteria[0], { fieldName: 'birthDate', operator: 'IN', values: ['6', '7'], fieldFunction: { fieldName: 'birthDate', functionTypeIdentifierName: 'WeekdayOfDate' } })
+  applyFieldTypes(f, (n) => (n === 'createDate' ? 'DATE_TIME' : 'DATE'), { timeZoneId: 'America/Chicago' })
+  assert.deepEqual(f.criteria[1]!.fieldFunction, { fieldName: 'createDate', functionTypeIdentifierName: 'WeekdayOfDateTime', arguments: { timeZoneId: 'America/Chicago' } })
+  assert.equal(pr(f), 'weekday(birthDate) IN 6,7 AND weekday(createDate) NOT_IN 1')
+  assert.throws(() => pf('weekday(birthDate) IN funday'), /Not a weekday/)
+})

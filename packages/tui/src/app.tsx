@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { useKeyboard, useTerminalDimensions } from '@opentui/react'
+import { useKeyboard, usePaste, useTerminalDimensions } from '@opentui/react'
 import { Component, useEffect, useReducer, type ReactNode } from 'react'
 import type { AppTreeNode } from './client'
 import { presenceText, usePresence } from './presence'
@@ -141,6 +141,7 @@ export function App({ store }: { store: AppStore }) {
     if (width !== store.width || height !== store.height) store.resize(width, height)
   }, [width, height, store])
   useKeyboard((key) => store.handleKey(key))
+  usePaste((event) => store.handlePaste(new TextDecoder().decode(event.bytes)))
   const t = theme()
   const w = Math.max(20, width)
   const h = Math.max(8, height)

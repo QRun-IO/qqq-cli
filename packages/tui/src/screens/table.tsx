@@ -4,7 +4,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { ResultCursor, buildViewJson, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
+import { ResultCursor, buildViewJson, filterDateTimesToUtc, relatedRecordTarget, planJoins, withJoinFields, type ExposedJoin, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
@@ -107,6 +107,8 @@ export class TableScreen implements Screen {
   colCursor = 0
   leftCol = 0
   selection = new Set<string>()
+  /** Selection beyond checked rows: the whole result (the filter), or its first N records. */
+  selectAll?: { kind: 'all' } | { kind: 'first'; n: number }
   rows: QueryRecord[] = []
   rowsPage = -1
   loading = false
@@ -115,6 +117,9 @@ export class TableScreen implements Screen {
   pageSize = 20
   view: ViewSettings = {}
   private generation = 0
+  /** Exposed joins the user may read, and the metadata with their fields under qualified names (labels "Join: Field"). */
+  joins: ExposedJoin[] = []
+  fullMeta?: TableMetaData
   /** Quick search text (CONTAINS on the visible string columns, ANDed onto the filter). */
   quick = ''
   /** The table variant, for tables that need one. */
@@ -132,6 +137,13 @@ export class TableScreen implements Screen {
     if (!this.sort && savedSort) this.sort = savedSort
     store.run(store.client!.tableMeta(tableName), (meta) => {
       this.meta = meta
+      this.joins = exposedJoins(meta as never, store.meta?.tables as never)
+      const joined = withJoinFields(meta as never, this.joins) as unknown as TableMetaData
+      for (const j of this.joins) for (const [n, f] of Object.entries(j.tableMeta.fields as Record<string, FieldMetaData>)) {
+        const q = joined.fields[`${j.table}.${n}`]
+        if (q) q.label = `${j.label}: ${f.label}`
+      }
+      this.fullMeta = joined
       if (usesVariants(meta as never)) return this.chooseVariant(options.index ?? 0)
       this.newCursor(options.index ?? 0)
       this.store.remember({ kind: 'table', table: tableName, label: meta.label })
@@ -161,8 +173,20 @@ export class TableScreen implements Screen {
 
   fullFilter(): QueryFilter {
     const quick = this.meta && this.quick.trim() ? quickSearchFilter(this.quick, quickSearchFields(this.meta as never, this.fields().map((f) => f.name))) : undefined
-    const base = combineWithQuickSearch({ ...this.filter }, quick)
+    const base = combineWithQuickSearch(JSON.parse(JSON.stringify(this.filter)) as QueryFilter, quick)
+    // DATE_TIME criteria typed in the local zone go out as UTC instants (expressions stay for the server)
+    if (this.fullMeta ?? this.meta) filterDateTimesToUtc(base, (this.fullMeta ?? this.meta)!.fields as never)
     return { ...base, ...(this.sort ? { orderBys: [{ fieldName: this.sort.field, isAscending: this.sort.asc }] } : {}) }
+  }
+
+  /** Opens the record a possible-value cell links to (the column under the cursor). */
+  followCell(): void {
+    const f = this.fields()[this.colCursor]
+    const rec = this.currentRecord
+    if (!f || !rec) return
+    const target = relatedRecordTarget(f as never, rec as never, Object.keys(this.store.meta?.tables ?? {}))
+    if (!target) return this.store.flash(`${f.label} does not link to a record`)
+    openRecord(this.store, target.tableName, target.primaryKey)
   }
 
   quickSearch(): void {
@@ -192,13 +216,15 @@ export class TableScreen implements Screen {
     const procs = savedViewProcesses(meta as never, this.store.meta as never)
     if (!procs.query) return this.store.message('Saved views are not available for this table.', 'info', 'Saved views')
     this.store.run(listSavedViews(c.server, c.fetch, procs, this.tableName), (views) => {
-      type Pick = { kind: 'open' | 'delete'; v: (typeof views)[number] } | { kind: 'save' }
+      type Pick = { kind: 'open' | 'delete' | 'rename' | 'update'; v: (typeof views)[number] } | { kind: 'save' }
       const choices: Array<{ label: string; value: Pick; detail?: string }> = [
         ...views.map((v) => ({ label: v.label, value: { kind: 'open' as const, v }, detail: v.type ?? '' })),
         ...(procs.store ? [{ label: '+ Save the current query as a view…', value: { kind: 'save' as const } }] : []),
+        ...(procs.store ? views.map((v) => ({ label: `Rename "${v.label}"…`, value: { kind: 'rename' as const, v } })) : []),
+        ...(procs.store ? views.map((v) => ({ label: `Update "${v.label}" with the current query`, value: { kind: 'update' as const, v } })) : []),
         ...(procs.delete ? views.map((v) => ({ label: `Delete "${v.label}"`, value: { kind: 'delete' as const, v } })) : []),
       ]
-      this.store.open(new ChoiceOverlay<Pick>(this.store, `Saved views · ${this.title()}`, choices, (choice) => {
+      const overlay = new ChoiceOverlay<Pick>(this.store, `Saved views · ${this.title()}`, choices, (choice) => {
         if (choice.kind === 'open') {
           const q = viewToQuery(meta as never, exposedJoins(meta as never), choice.v.view)
           this.view = { ...this.view, columns: q.columns.filter((n) => meta.fields[n]) }
@@ -209,11 +235,30 @@ export class TableScreen implements Screen {
             if (!label.trim()) return
             this.store.run(storeSavedView(c.server, c.fetch, procs, { table: this.tableName, label: label.trim(), view: buildViewJson({ filter: this.fullFilter(), columns: this.fields().map((f) => f.name), allColumns: Object.keys(meta.fields), rowsPerPage: this.pageSize }) }), (v) => this.store.flash(`saved view ${v.label}`))
           }))
+        } else if (choice.kind === 'rename') {
+          const v = choice.v
+          this.store.open(new PromptOverlay(this.store, `Rename "${v.label}"`, 'The new name.', (label) => {
+            if (label.trim()) this.store.run(storeSavedView(c.server, c.fetch, procs, { table: this.tableName, label: label.trim(), view: v.view, id: v.id }), (x) => this.store.flash(`renamed to ${x.label}`))
+          }, v.label))
+        } else if (choice.kind === 'update') {
+          const v = choice.v
+          this.store.run(storeSavedView(c.server, c.fetch, procs, { table: this.tableName, label: v.label, id: v.id, view: buildViewJson({ filter: this.fullFilter(), columns: this.fields().map((f) => f.name), allColumns: Object.keys(meta.fields), rowsPerPage: this.pageSize, base: v.view }) }), (x) => this.store.flash(`updated ${x.label}`))
         } else if (choice.kind === 'delete') {
           const v = choice.v
           this.store.confirm(`Delete the saved view "${v.label}"?`, () => this.store.run(deleteSavedView(c.server, c.fetch, procs, v.id), () => this.store.flash(`deleted view ${v.label}`)))
         }
-      }))
+      })
+      this.store.open(overlay)
+      // counted quick views (doCount): their record counts load after the list shows
+      for (const v of views.filter((x) => x.doCount)) {
+        const q = viewToQuery(meta as never, exposedJoins(meta as never), v.view)
+        c.data<{ count?: number }>('countTable', { path: { tableName: this.tableName }, query: this.variant ? { tableVariant: variantParam(this.variant) } : undefined, json: { filter: q.filter } })
+          .then((r) => {
+            const choice = overlay.choices.find((x) => x.value.kind === 'open' && x.value.v.id === v.id)
+            if (choice) choice.detail = `${num(r.count ?? 0)} records`
+            this.store.bump()
+          }).catch(() => undefined)
+      }
     })
   }
 
@@ -231,7 +276,14 @@ export class TableScreen implements Screen {
   newCursor(index = 0): void {
     if (!this.meta) return
     if (usesVariants(this.meta as never) && !this.variant) return
-    this.cursor = new ResultCursor({ baseUrl: this.store.client!.server, fetch: this.store.client!.fetch, table: this.tableName, filter: this.fullFilter(), pageSize: this.pageSize, primaryKeyField: this.meta.primaryKeyField, index, query: this.variant ? { tableVariant: variantParam(this.variant) } : undefined })
+    // joins the columns, filter and sort need (exposed joins), selected when a column shows them
+    let plan: { joins: unknown[]; includeDistinct: boolean } = { joins: [], includeDistinct: false }
+    try {
+      plan = planJoins(this.joins, { columns: this.fields().map((f) => f.name), filter: this.fullFilter() })
+    } catch (e) {
+      this.error = errorText(e)
+    }
+    this.cursor = new ResultCursor({ baseUrl: this.store.client!.server, fetch: this.store.client!.fetch, table: this.tableName, filter: this.fullFilter(), pageSize: this.pageSize, primaryKeyField: this.meta.primaryKeyField, index, query: this.variant ? { tableVariant: variantParam(this.variant) } : undefined, joins: plan.joins, includeDistinct: plan.includeDistinct })
     this.rowsPage = -1
     this.load()
   }
@@ -257,6 +309,9 @@ export class TableScreen implements Screen {
       if (gen !== this.generation) return
       this.loading = false
       this.error = errorText(e)
+      // never leave the previous result on screen under a filter that failed
+      this.rows = []
+      this.rowsPage = -1
       this.store.bump()
     })
   }
@@ -275,9 +330,10 @@ export class TableScreen implements Screen {
   }
 
   fields(): FieldMetaData[] {
-    if (!this.meta) return []
-    const names = (this.view.columns?.length ? this.view.columns : defaultColumns(this.meta)).filter((n) => this.meta!.fields[n])
-    return names.map((n) => this.meta!.fields[n]!)
+    const meta = this.fullMeta ?? this.meta
+    if (!meta || !this.meta) return []
+    const names = (this.view.columns?.length ? this.view.columns : defaultColumns(this.meta)).filter((n) => meta.fields[n])
+    return names.map((n) => meta.fields[n]!)
   }
 
   moveTo(index: number): void {
@@ -313,7 +369,7 @@ export class TableScreen implements Screen {
     const rec = this.currentRecord
     const key = this.keyOf(rec)
     if (key === undefined || !this.cursor) return this.store.flash('no record under the cursor')
-    openRecord(this.store, this.tableName, key, { cursor: this.cursor, label: rec?.recordLabel })
+    openRecord(this.store, this.tableName, key, { cursor: this.cursor, label: rec?.recordLabel, tableVariant: variantParam(this.variant) })
   }
 
   deleteCurrent(): void {
@@ -338,20 +394,59 @@ export class TableScreen implements Screen {
       .sort((a, b) => Number(Boolean(a.parked)) - Number(Boolean(b.parked)) || a.label.localeCompare(b.label))
   }
 
+  /** The selection menu: this page, the full result, the first N, or clear. */
+  selectionMenu(): void {
+    type M = 'page' | 'all' | 'first' | 'clear'
+    const total = this.cursor?.total
+    this.store.open(new ChoiceOverlay<M>(this.store, 'Select', [
+      { label: 'This page', value: 'page', detail: `${this.rows.length} rows` },
+      { label: 'The full query result', value: 'all', detail: total !== undefined ? `${num(total)} records (the filter is sent)` : 'the filter is sent' },
+      { label: 'The first N records…', value: 'first' },
+      { label: 'Clear the selection', value: 'clear' },
+    ], (m) => {
+      if (m === 'page') for (const r of this.rows) { const k = this.keyOf(r); if (k !== undefined) this.selection.add(k) }
+      else if (m === 'all') { this.selection.clear(); this.selectAll = { kind: 'all' } }
+      else if (m === 'clear') { this.selection.clear(); this.selectAll = undefined }
+      else this.store.open(new PromptOverlay(this.store, 'Select the first N records', 'In the current sort order.', (v) => {
+        const n = Number(v)
+        if (!Number.isInteger(n) || n < 1) return this.store.flash('a whole number above 0', 'error')
+        this.selection.clear()
+        this.selectAll = { kind: 'first', n }
+        this.store.bump()
+      }, '10'))
+    }))
+  }
+
+  /** Runs a table process: on the selection, else on the cursor record, the whole result, or its first N records. */
   runProcess(name: string): void {
     const ids = [...this.selection]
     const tableVariant = variantParam(this.variant)
-    if (ids.length) openProcess(this.store, name, { recordIds: ids, tableVariant })
-    else {
-      const key = this.keyOf(this.currentRecord)
-      openProcess(this.store, name, key !== undefined ? { recordIds: [key], tableVariant } : { filter: this.fullFilter(), tableVariant })
-    }
+    if (this.selectAll?.kind === 'all') return openProcess(this.store, name, { filter: this.fullFilter(), tableVariant })
+    if (this.selectAll?.kind === 'first') return openProcess(this.store, name, { filter: { ...this.fullFilter(), limit: this.selectAll.n }, tableVariant })
+    if (ids.length) return openProcess(this.store, name, { recordIds: ids, tableVariant })
+    const key = this.keyOf(this.currentRecord)
+    const total = this.cursor?.total
+    type Scope = 'cursor' | 'all' | 'first'
+    const choices: Array<{ label: string; value: Scope; detail?: string }> = [
+      ...(key !== undefined ? [{ label: `The record under the cursor (${key})`, value: 'cursor' as const }] : []),
+      { label: `Every record of the result${total !== undefined ? ` (${num(total)})` : ''}`, value: 'all', detail: 'the filter is sent' },
+      { label: 'The first N records of the result…', value: 'first', detail: 'filter with a limit' },
+    ]
+    this.store.open(new ChoiceOverlay<Scope>(this.store, `Run ${this.store.meta?.processes?.[name]?.label ?? name} on`, choices, (scope) => {
+      if (scope === 'cursor') openProcess(this.store, name, { recordIds: [key!], tableVariant })
+      else if (scope === 'all') openProcess(this.store, name, { filter: this.fullFilter(), tableVariant })
+      else this.store.open(new PromptOverlay(this.store, 'How many records?', 'The first N records of the result, in its sort order.', (n) => {
+        const limit = Number(n)
+        if (!Number.isInteger(limit) || limit < 1) return this.store.flash('a whole number above 0', 'error')
+        openProcess(this.store, name, { filter: { ...this.fullFilter(), limit }, tableVariant })
+      }, '10'))
+    }))
   }
 
   bulkActions(): void {
     const procs = this.tableProcesses()
     if (!procs.length) return this.store.flash('this table has no processes')
-    const what = this.selection.size ? `${this.selection.size} selected` : 'the record under the cursor'
+    const what = this.selectAll?.kind === 'all' ? 'the full result' : this.selectAll?.kind === 'first' ? `the first ${this.selectAll.n}` : this.selection.size ? `${this.selection.size} selected` : 'the record under the cursor'
     this.store.open(new ChoiceOverlay(this.store, `Run on ${what}`, procs.map((p) => ({ label: p.label, value: p.name, detail: p.name, disabled: p.parked })), (name) => this.runProcess(name)))
   }
 
@@ -384,17 +479,20 @@ export class TableScreen implements Screen {
 
   filterDialog(): void {
     if (!this.meta) return
-    this.store.open(new FilterOverlay(this.store, this.meta, this.filter, this.sort, (filter, sort) => this.setFilter(filter, sort)))
+    this.store.open(new FilterOverlay(this.store, this.fullMeta ?? this.meta, this.filter, this.sort, (filter, sort) => this.setFilter(filter, sort)))
   }
 
   viewSettings(): Overlay | undefined {
     if (!this.meta) return undefined
-    return new GridViewSettingsOverlay(this.store, this.meta, `table:${this.tableName}`, this.fields().map((f) => f.name), () => {
+    return new GridViewSettingsOverlay(this.store, this.fullMeta ?? this.meta, `table:${this.tableName}`, this.fields().map((f) => f.name), () => {
+      const before = this.fields().map((f) => f.name).join(',')
       this.view = readViewSettings(`table:${this.tableName}`)
       const sort = this.view.sort as { field: string; asc: boolean } | undefined
       if (JSON.stringify(sort) !== JSON.stringify(this.sort)) {
         this.sort = sort
         this.newCursor(0)
+      } else if (this.joins.length && before !== this.fields().map((f) => f.name).join(',')) {
+        this.newCursor(this.cursor?.index ?? 0)
       }
       this.store.bump()
     })
@@ -422,7 +520,7 @@ export class TableScreen implements Screen {
       case 'return': case 'f3': this.openCurrent(); return true
       case 'f4': {
         const key2 = this.keyOf(this.currentRecord)
-        if (key2 !== undefined) openForm(this.store, this.tableName, { mode: 'edit', primaryKey: key2, cursor: c })
+        if (key2 !== undefined) openForm(this.store, this.tableName, { mode: 'edit', primaryKey: key2, cursor: c, tableVariant: variantParam(this.variant) })
         return true
       }
       case 'f6': this.filterDialog(); return true
@@ -438,8 +536,9 @@ export class TableScreen implements Screen {
         return true
       }
       case 'escape':
-        if (this.selection.size) {
+        if (this.selection.size || this.selectAll) {
           this.selection.clear()
+          this.selectAll = undefined
           return true
         }
         if (this.quick) {
@@ -451,7 +550,7 @@ export class TableScreen implements Screen {
       default: break
     }
     if (key.ctrl && key.name === 'a') {
-      for (const r of this.rows) { const k = this.keyOf(r); if (k !== undefined) this.selection.add(k) }
+      this.selectionMenu()
       return true
     }
     if (!single) return false
@@ -471,6 +570,7 @@ export class TableScreen implements Screen {
       case 'b': this.bulkActions(); return true
       case 'a': actionsOverlay(this.store, this); return true
       case 'q': this.quickSearch(); return true
+      case 'l': this.followCell(); return true
       case 'S': this.columnStats(); return true
       case 'D': this.store.push(new TableApisScreen(this.store, this.tableName)); return true
       default: return false
@@ -517,7 +617,7 @@ export class TableScreen implements Screen {
     const inner = width - 2
     const comfortable = this.view.density === 'comfortable'
     const headerRule = this.view.headerRule ?? true
-    const chrome = 1 + (headerRule ? 1 : 0) + 2 + (this.selection.size ? 1 : 0)
+    const chrome = 1 + (headerRule ? 1 : 0) + 2 + (this.selection.size || this.selectAll ? 1 : 0)
     const bodyLines = Math.max(1, height - 2 - chrome)
     const pageSize = Math.max(1, comfortable ? Math.ceil(bodyLines / 2) : bodyLines)
     if (this.cursor && pageSize !== this.cursor.pageSize) {
@@ -539,8 +639,15 @@ export class TableScreen implements Screen {
     const cols = this.frozen.cols
     this.colCursor = Math.min(this.colCursor, Math.max(0, cols.length - 1))
     if (this.colCursor < this.leftCol) this.leftCol = this.colCursor
-    while (this.leftCol < this.colCursor && !visibleFrom(cols, this.leftCol, inner - 2).some((c) => c.name === cols[this.colCursor]!.name)) this.leftCol++
-    const shown = visibleFrom(cols, this.leftCol, inner - 2).map((c) => ({ ...c }))
+    const pinnedCount = Math.max(0, Math.min(Number(this.view.pinned ?? 0), cols.length - 1))
+    const pinnedW = cols.slice(0, pinnedCount).reduce((a, c) => a + c.width + 1, 0)
+    if (this.colCursor >= pinnedCount) while (this.leftCol < this.colCursor && !visibleFrom(cols, Math.max(this.leftCol, pinnedCount), inner - 2 - pinnedW).some((c) => c.name === cols[this.colCursor]!.name)) this.leftCol++
+    // pinned columns stay on the left while the rest scroll
+    const pinned = Math.max(0, Math.min(Number(this.view.pinned ?? 0), cols.length - 1))
+    const pinnedCols = cols.slice(0, pinned)
+    const pinnedWidth = pinnedCols.reduce((a, c) => a + c.width + 1, 0)
+    if (this.leftCol < pinned) this.leftCol = pinned
+    const shown = [...pinnedCols, ...visibleFrom(cols, Math.max(this.leftCol, pinned), inner - 2 - pinnedWidth)].map((c) => ({ ...c }))
     if (this.view.fit === 'fill' && shown.length) {
       // fill: spread what is left of the width over the visible columns
       const spare = inner - 2 - shown.reduce((a, c) => a + c.width + 1, 0)
@@ -579,13 +686,14 @@ export class TableScreen implements Screen {
     for (let i = used; i < bodyLines; i++) {
       lines.push(<text flexShrink={0} wrapMode="none" key={`e${i}`} fg={this.error ? t.err : t.dim}>{pad(i === 0 && !this.rows.length ? (this.error ? ` ${this.error}` : this.loading || !this.meta ? ' loading…' : ' (no records match)') : '', inner)}</text>)
     }
-    if (this.selection.size) {
-      lines.push(<text flexShrink={0} wrapMode="none" key="bulk" fg={t.selFg} bg={t.acc}>{pad(` ${this.selection.size} selected · b run a process on them · Ctrl+A select page · Space toggle · Esc clear`, inner)}</text>)
+    if (this.selection.size || this.selectAll) {
+      const what = this.selectAll?.kind === 'all' ? `all ${this.cursor?.total !== undefined ? num(this.cursor.total) : ''} records of the result` : this.selectAll?.kind === 'first' ? `the first ${this.selectAll.n} records` : `${this.selection.size} selected`
+      lines.push(<text flexShrink={0} wrapMode="none" key="bulk" fg={t.selFg} bg={t.acc}>{pad(` ${what} · b run a process on them · Ctrl+A select menu · Space toggle · Esc clear`, inner)}</text>)
     }
     const c = this.cursor
     const filterText = `${printFilter(this.filter) || 'no filter'}${this.quick ? ` · quick "${this.quick}"` : ''}${this.variant ? ` · ${variantLabel(this.meta as never)} ${this.variant.name ?? this.variant.id}` : ''}`
     lines.push(<text flexShrink={0} wrapMode="none" key="f" fg={t.dim}>{pad(` ${filterText}`, inner)}</text>)
-    const status = c ? `${c.total === undefined ? '…' : num(c.total)} records · row ${num(c.index + 1)} · page ${this.rowsPage + 1}/${c.pageCount}${this.sort ? ` · sort ${this.sort.field} ${this.sort.asc ? 'asc' : 'desc'}` : ''} · col ${this.colCursor + 1}/${cols.length}${this.fetchMs !== undefined ? ` · ${this.fetchMs.toFixed(0)} ms` : ''}${this.loading ? ' · loading' : ''}` : 'loading…'
+    const status = c ? `${c.total === undefined ? '…' : num(c.total)} ${c.distinct !== undefined ? `rows (${num(c.distinct)} distinct)` : 'records'} · row ${num(c.index + 1)} · page ${this.rowsPage + 1}/${c.pageCount}${this.sort ? ` · sort ${this.sort.field} ${this.sort.asc ? 'asc' : 'desc'}` : ''} · col ${this.colCursor + 1}/${cols.length}${this.fetchMs !== undefined ? ` · ${this.fetchMs.toFixed(0)} ms` : ''}${this.loading ? ' · loading' : ''}` : 'loading…'
     const hint = this.store.singleKeys ? ' · a actions · s sort · f filter · q search · S stats · v view · x export · Space select' : ''
     lines.push(<text flexShrink={0} wrapMode="none" key="s" fg={t.dim}>{pad(` ${status}${hint}`, inner)}</text>)
     return <Panel title={this.title()} width={width} height={height} focused={focused}>{lines}</Panel>

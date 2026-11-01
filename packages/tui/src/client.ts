@@ -140,8 +140,11 @@ export class TuiClient {
     return Number((await this.data<{ count?: number }>('countTable', { path: { tableName: table }, json: { filter } })).count ?? 0)
   }
 
-  async record(table: string, primaryKey: unknown, associations = false): Promise<QueryRecord & { associatedRecords?: Record<string, QueryRecord[]> }> {
-    const data = await this.data<Json>('getRecord', { path: { tableName: table, primaryKey: String(primaryKey) }, query: associations ? { includeAssociations: 'true' } : undefined })
+  async record(table: string, primaryKey: unknown, associations = false, tableVariant?: string): Promise<QueryRecord & { associatedRecords?: Record<string, QueryRecord[]> }> {
+    const query: Record<string, string> = {}
+    if (associations) query.includeAssociations = 'true'
+    if (tableVariant) query.tableVariant = tableVariant
+    const data = await this.data<Json>('getRecord', { path: { tableName: table, primaryKey: String(primaryKey) }, query: Object.keys(query).length ? query : undefined })
     return (data.record ?? data) as QueryRecord
   }
 

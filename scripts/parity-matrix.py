@@ -12,7 +12,8 @@ SRC = sys.argv[1]
 OUT = sys.argv[2] if len(sys.argv) > 2 else 'docs/parity/feature-matrix.md'
 
 # id -> (cli, note) ; family default is todo
-P, T, N, X, B = 'pass', 'todo', 'partial', 'n/a', 'blocked'  # T is the default; B (blocked) notes cite a server finding
+P, T, N, X = 'pass', 'todo', 'partial', 'n/a'  # T is the default and the common case
+B = 'blocked'  # waits on a server finding or issue, named in the note
 STATUS = {
  # NAV: the CLI has no shell; the TUI covers these in M3
  **{f'NAV-{i:03d}': (X, 'browser shell') for i in (1,2,3,4,5,12,13,14,15,16,18,19,20,21,22,26,29,32,33,34,35,36,37,38,55,56)},
@@ -184,6 +185,69 @@ TUI.update({
  'REC-063': (T, 'record view and forms with the grid variant'), 'REC-064': (T, 'exposed-join fields in sections'), 'REC-065': (P, 'DATE_TIME edited in local zone, unchanged instants kept'),
 })
 
+# Batch: the 13 priority todos.
+TUI.update({
+ 'PRC-044': (P, 'scanner-format steps: no heading or step list, Enter in the input submits (unit-tested only; no sample scanner process)'),
+ 'QRY-094': (P, 'doCount views show their record counts in F9 Saved views (unit-tested only; no sample saved views)'),
+ 'QRY-020': (P, 'joined columns and filters, labelled "Join: Field", joins planned by the kernel (unit-tested only; the sample exposes no joins)'),
+ 'QRY-021': (P, 'many-side join: rows repeat and the status shows the distinct count (unit-tested only)'),
+ 'REC-064': (P, 'section fields of readable exposed joins read through a joined query (unit-tested only)'),
+ 'QRY-033': (P, 'run a table process on the first N records of the result (filter with a limit; unit-tested only)'),
+ 'QRY-080': (P, 'the filter dialog starts with the quick filter fields (defaultQuickFilterFieldNames, else T1); live on person'),
+ 'QRY-081': (P, 'add a quick filter field; kept per table in the local view settings'),
+ 'QRY-085': (B, 'weekday(field) IN days sent as the WeekdayOf fieldFunction; the sample H2 backend fails it (server finding 24, qqq#1355)'),
+ 'QRY-088': (P, 'paste values split on commas, tabs, semicolons, new lines; the instance bulkAddFilterValues help shown (unit-tested only; the sample has no such help)'),
+ 'REC-063': (P, 'records and forms opened from a variant grid read with tableVariant (unit-tested only; writes ignore it, finding 19)'),
+})
+
+# Batch: the partials.
+TUI.update({
+ 'NAV-005': (X, 'icon glyphs are a browser icon font; the TUI marks processes and reports and shows the icon name on app cards'),
+ 'NAV-012': (X, 'logo, favicon and accent images are browser-only; the app name is in the title bar and on Home'),
+ 'NAV-025': (P, 'the palette (F2, /, ., Ctrl+K) jumps to navigation targets and recently viewed records; live'),
+ 'NAV-027': (P, 'F9 › Connection: UI API version, features, extensions, metadata generation and age, client build; live'),
+ 'NAV-030': (B, 'the palette calls POST /search; the sample lists recordSearch with no provider (server finding 21)'),
+ 'PRC-014': (P, 'w saves the DOWNLOAD_FORM file through the save dialog (unit-tested only)'),
+ 'PRC-016': (P, 'F4 goes back to the backend back step with the entered values (isStepBack; unit-tested only)'),
+ 'PRC-020': (B, 'Esc asks, then POST cancel; the sample accepts the cancel and keeps the run (server finding 13)'),
+ 'PRC-025': (P, 'RECORD_LIST pages with n / p through getProcessRecords (unit-tested only)'),
+ 'PRC-035': (P, 'named WIDGET fetched with the process UUID and values, drawn from the kernel screen (unit-tested only)'),
+ 'PRC-036': (P, 'composite widget blocks seeded from process values drawn as text (kernel screen; unit-tested only)'),
+ 'QRY-013': (P, 'DATE_TIME criteria typed in the local zone go out as UTC instants; expressions pass through (unit-tested)'),
+ 'QRY-017': (X, 'URL state is browser-only; the TUI shows the grammar and the CLI command, and qqq ui accepts the command as a route'),
+ 'QRY-022': (P, 'S: kernel column statistics of the column under the cursor with the filter (unit-tested only; no sample QUERY_STATS table)'),
+ 'QRY-030': (P, 'Ctrl+A: this page, the full result, the first N, clear (unit-tested)'),
+ 'QRY-032': (P, 'with the full result selected, bulk delete gets the whole filter (unit-tested)'),
+ 'QRY-050': (P, 'F9 › Saved views lists and opens views (kernel; unit-tested only)'),
+ 'QRY-051': (P, 'save the current filter, sort, columns and page size as a view (unit-tested only)'),
+ 'QRY-052': (P, 'rename, update with the current query, delete (unit-tested only)'),
+ 'QRY-071': (P, 'processes from a variant grid carry tableVariant through the runner (unit-tested only)'),
+ 'QRY-090': (P, 's sorts, v hides, orders, sizes and pins columns, F6 filters; live on person'),
+ 'QRY-092': (P, 'v: / searches, columns grouped by table and join with shown counts, * marks changes; live'),
+ 'QRY-096': (P, 'opening a view drops removed fields and flashes the kernel warnings (unit-tested only)'),
+ 'REL-001': (P, 'labels with ↗ links in the record view; l opens a grid cell\'s linked record; live'),
+ 'REL-004': (P, 'child lists three levels deep (a pet\'s notes under the pet); live on person 1'),
+ 'REL-008': (P, 'a new child through a composite association gets every join value (unit-tested only)'),
+ 'REC-014': (P, 'single-line text inline; multi-line through $EDITOR (Ctrl+E) round-trips'),
+ 'REC-019': (P, 'DATE_TIME through the kernel displayDateTime: server-zoned display values as sent, else the viewer\'s zone; live on Field Lab'),
+ 'REC-020': (X, 'the rich-text editor is a browser component; HTML is edited as source in $EDITOR and shown as text'),
+ 'REC-029': (P, 'CHIP values bracketed and colored by the adornment color (unit-tested only)'),
+ 'REC-031': (X, 'the code editor is a browser component; code is shown as text and edited in $EDITOR'),
+ 'REC-032': (P, 'RENDER_HTML shown as text with the markup stripped (kernel htmlToText)'),
+ 'REC-037': (P, 'a WIDGET-adorned field\'s value drawn as its widget (unit-tested only)'),
+ 'REC-039': (P, 'field help by screen role in F1 and in the form\'s field hint (unit-tested only)'),
+ 'REC-040': (P, 'section help under the section heading and in F1 (unit-tested only)'),
+ 'REC-042': (P, 'A: audits newest first, who, when, what, changes (unit-tested only; the sample has no audit source)'),
+ 'REC-043': (P, 'without the audit process the kernel reads the audit table (kernel-tested; the TUI uses it)'),
+ 'REC-053': (P, 'D on a grid: the table\'s APIs and their OpenAPI documents, view or save (unit-tested only)'),
+ 'REC-054': (P, 'D on a record: panels (live), scripts, revisions, code, logs, store a new version (unit-tested)'),
+ 'REC-060': (P, 'form adjusters run on change through FormSession (unit-tested only; the sample has none)'),
+ 'INT-013': (P, 'no records explains it and offers F7 when the user may create; live'),
+ 'WID-040': (P, 'widgets in declared order, laid out side by side by gridColumns on wide terminals, v reorders; live'),
+ 'WID-060': (P, 'record section widgets get the record id and table (unit-tested)'),
+ 'HLP-002': (P, 'table, field and section help by screen role in F1 (unit-tested only; the sample has none)'),
+})
+
 rows = []
 for line in open(SRC, encoding='utf-8', errors='replace'):
     m = re.match(r'^\|\s*([A-Z]{3}-\d{3})\s*\|\s*(.*?)\s*\|', line)
@@ -211,19 +275,19 @@ for rid, feature in rows:
     both = note if not tnote else (f'{note}; TUI: {tnote}' if note else f'TUI: {tnote}')
     lines.append(f'| {rid} | {feature[:110].replace("|", "/")} | {cli} | {tui} | {both.replace("|", "/")} |')
 out.append('## Summary (CLI column)'); out.append('')
-out.append('| Family | rows | pass | todo | partial | n/a | blocked |'); out.append('|---|---|---|---|---|---|---|')
+out.append('| Family | rows | pass | todo | partial | blocked | n/a |'); out.append('|---|---|---|---|---|---|---|')
 total = collections.Counter()
 for fam in sorted(fam_counts):
     c = fam_counts[fam]; total.update(c)
-    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[X]} | {c[B]} |')
-out.append(f'| **all** | {sum(total.values())} | {total[P]} | {total[T]} | {total[N]} | {total[X]} | {total[B]} |'); out.append('')
+    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[B]} | {c[X]} |')
+out.append(f'| **all** | {sum(total.values())} | {total[P]} | {total[T]} | {total[N]} | {total[B]} | {total[X]} |'); out.append('')
 out.append('## Summary (TUI column)'); out.append('')
-out.append('| Family | rows | pass | todo | partial | n/a | blocked |'); out.append('|---|---|---|---|---|---|---|')
+out.append('| Family | rows | pass | todo | partial | blocked | n/a |'); out.append('|---|---|---|---|---|---|---|')
 ttotal = collections.Counter()
 for fam in sorted(tui_counts):
     c = tui_counts[fam]; ttotal.update(c)
-    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[X]} | {c[B]} |')
-out.append(f'| **all** | {sum(ttotal.values())} | {ttotal[P]} | {ttotal[T]} | {ttotal[N]} | {ttotal[X]} | {ttotal[B]} |'); out.append('')
+    out.append(f'| {fam} | {sum(c.values())} | {c[P]} | {c[T]} | {c[N]} | {c[B]} | {c[X]} |')
+out.append(f'| **all** | {sum(ttotal.values())} | {ttotal[P]} | {ttotal[T]} | {ttotal[N]} | {ttotal[B]} | {ttotal[X]} |'); out.append('')
 out.append('## Rows'); out.append(''); out.append('| ID | Feature | CLI | TUI | Note |'); out.append('|---|---|---|---|---|')
 out.extend(lines); out.append('')
 open(OUT, 'w', encoding='utf-8').write('\n'.join(out))

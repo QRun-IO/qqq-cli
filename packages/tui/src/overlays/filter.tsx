@@ -14,7 +14,7 @@
  */
 
 import {
-  FilterSyntaxError, LIST_OPERATORS, OPERATORS, UNARY_OPERATORS, applyCompletion, completeFilter, describeFilter, expressionCandidates, locateFilterError,
+  FilterSyntaxError, LIST_OPERATORS, OPERATORS, UNARY_OPERATORS, WEEKDAY_OF_DATE, WEEKDAY_OF_DATE_TIME, applyFieldTypes, applyCompletion, completeFilter, describeFilter, expressionCandidates, locateFilterError,
   operatorsForField, parseFilter, parseValue, printCriterion, printFilter, printValue, resolvePossibleValue, searchPossibleValues,
   type Completion, type CompletionResult, type Criterion, type FilterValue, type Operator, type QueryFilter,
 } from '@qrun-io/qqq-core'
@@ -26,18 +26,40 @@ import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { Overlay } from '../types'
 import { errorText, pad, shellQuote, trunc } from '../util/text'
+import { readViewSettings, writeViewSettings } from '@qrun-io/qqq-core'
 import { ChoiceOverlay, EditorLine, PromptOverlay, overlayId, wrap } from './basic'
 import { Frame, Line } from './frame'
 
 type Sort = { field: string; asc: boolean } | undefined
 
 type GuidedRow =
+  | { kind: 'quick'; field: string }
+  | { kind: 'addQuick' }
   | { kind: 'crit'; group: number; index: number }
   | { kind: 'group'; group: number }
   | { kind: 'add'; group: number }
   | { kind: 'addGroup' }
   | { kind: 'join' }
   | { kind: 'sort' }
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const PASTE = '\u0000paste'
+
+/** Splits pasted text on commas, tabs, semicolons and new lines (quoted values keep their commas). */
+export function splitPasted(text: string): string[] {
+  const out: string[] = []
+  let cur = ''
+  let quoted = false
+  for (const ch of text) {
+    if (ch === '"') quoted = !quoted
+    else if (!quoted && /[,;\t\n\r]/.test(ch)) {
+      out.push(cur)
+      cur = ''
+    } else cur += ch
+  }
+  out.push(cur)
+  return out.map((x) => x.trim()).filter(Boolean)
+}
 
 function clone(f: QueryFilter): QueryFilter {
   return JSON.parse(JSON.stringify(f)) as QueryFilter
@@ -92,8 +114,35 @@ export class FilterOverlay implements Overlay {
     return this.filter.subFilters ?? []
   }
 
+  /** Quick filter fields: the table's defaults (defaultQuickFilterFieldNames, else T1 fields) plus the ones added here (kept per table). */
+  quickFields(): string[] {
+    const md = ((this.meta.supplementalMetaData as Record<string, unknown> | undefined)?.materialDashboard ?? {}) as { defaultQuickFilterFieldNames?: string[] }
+    const defaults = md.defaultQuickFilterFieldNames?.length ? md.defaultQuickFilterFieldNames : (this.meta.sections ?? []).filter((x) => x.tier === 'T1').flatMap((x) => x.fieldNames ?? [])
+    const added = (readViewSettings(`table:${this.meta.name}`).quickFilterFields as string[] | undefined) ?? []
+    return [...new Set([...defaults, ...added])].filter((n) => this.meta.fields[n] && !this.meta.fields[n]!.isHidden && operatorsForField(this.meta.fields[n]).length)
+  }
+
+  /** The quick filter's starting comparison, as the web UI picks it. */
+  quickOperator(f: FieldMetaData): Operator {
+    if (f.possibleValueSourceName) return 'IN'
+    if (['INTEGER', 'LONG', 'DECIMAL', 'DATE', 'DATE_TIME', 'TIME'].includes(f.type)) return 'EQUALS'
+    if (f.type === 'BOOLEAN') return 'TRUE'
+    return 'CONTAINS'
+  }
+
+  editQuick(name: string): void {
+    const f = this.meta.fields[name]!
+    const at = this.filter.criteria.findIndex((c) => c.fieldName === name && !c.fieldFunction)
+    const current = at >= 0 ? this.filter.criteria[at]! : undefined
+    this.buildCriterion({ fieldName: name, operator: current?.operator ?? this.quickOperator(f), values: current?.values }, (c) => {
+      if (at >= 0) this.filter.criteria[at] = c
+      else this.filter.criteria.push(c)
+      this.store.bump()
+    })
+  }
+
   rows(): GuidedRow[] {
-    const out: GuidedRow[] = []
+    const out: GuidedRow[] = [...this.quickFields().map((field) => ({ kind: 'quick' as const, field })), { kind: 'addQuick' }]
     this.filter.criteria.forEach((_, i) => out.push({ kind: 'crit', group: -1, index: i }))
     out.push({ kind: 'add', group: -1 })
     this.groups().forEach((g, gi) => {
@@ -115,6 +164,9 @@ export class FilterOverlay implements Overlay {
 
   critText(c: Criterion): string {
     const f = this.field(c.fieldName)
+    if (c.fieldFunction && /^WeekdayOf/.test(c.fieldFunction.functionTypeIdentifierName)) {
+      return `${f?.label ?? c.fieldName}: day ${c.operator === 'NOT_IN' ? 'is none of' : 'is any of'} ${c.values.map((v) => DAYS[Number(v) - 1] ?? String(v)).join(', ')}`
+    }
     const op = c.operator.toLowerCase().replace(/_/g, ' ')
     return `${f?.label ?? c.fieldName} ${op}${c.values.length ? ` ${this.valueText(c)}` : ''}`
   }
@@ -130,7 +182,16 @@ export class FilterOverlay implements Overlay {
         if (start.operator && operatorsForField(f).includes(start.operator)) return next(start.operator)
         const ops = operatorsForField(f)
         const more = OPERATORS.filter((o) => !ops.includes(o))
-        const all = (pickAll: boolean) => this.store.open(new ChoiceOverlay<Operator | ''>(this.store, `${f.label}: which comparison?`, [...(pickAll ? OPERATORS : ops).map((o) => ({ label: o.toLowerCase().replace(/_/g, ' '), value: o as Operator | '', detail: o })), ...(!pickAll && more.length ? [{ label: 'More operators…', value: '' as const, detail: `${more.length} for other field types` }] : [])], (o) => (o ? next(o) : all(true))))
+        // weekday criteria (the instance's weekdayCriteriaSettings, on unless it says enabled: false)
+        const weekdays = (f.type === 'DATE' || f.type === 'DATE_TIME') && this.weekdayEnabled() ? ['WEEKDAY_IN', 'WEEKDAY_NOT_IN'] : []
+        const all = (pickAll: boolean) => this.store.open(new ChoiceOverlay<string>(this.store, `${f.label}: which comparison?`, [
+          ...(pickAll ? OPERATORS : ops).map((o) => ({ label: o.toLowerCase().replace(/_/g, ' '), value: o as string, detail: o })),
+          ...weekdays.map((w) => ({ label: w === 'WEEKDAY_IN' ? 'day of the week is any of' : 'day of the week is none of', value: w, detail: w === 'WEEKDAY_IN' ? 'weekday IN' : 'weekday NOT_IN' })),
+          ...(!pickAll && more.length ? [{ label: 'More operators…', value: '', detail: `${more.length} for other field types` }] : []),
+        ], (o) => {
+          if (o === 'WEEKDAY_IN' || o === 'WEEKDAY_NOT_IN') return this.pickWeekdays(f, o === 'WEEKDAY_IN' ? 'IN' : 'NOT_IN', done)
+          return o ? next(o as Operator) : all(true)
+        }))
         all(false)
       }
       pickOp((op) => {
@@ -149,6 +210,7 @@ export class FilterOverlay implements Overlay {
         const term = new LineEditor('')
         const overlay = new ChoiceOverlay<string | null>(this.store, `${f.label}${list ? ` (${acc.length} chosen; Esc when done)` : ''}`, [], (id) => {
           if (id === null) return done(acc)
+          if (id === PASTE) return this.pasteValues(f, true, (vals) => done([...acc, ...vals]))
           const next = list ? [...acc, id] : [id]
           if (list) pick(next)
           else done(next)
@@ -156,7 +218,7 @@ export class FilterOverlay implements Overlay {
         void term
         const load = (search: string) => {
           searchPossibleValues(this.store.client!.server, this.store.client!.fetch, { table: this.meta.name }, f.name, { searchTerm: search, useCase: 'FILTER', limit: 100 }).then((opts) => {
-            overlay.choices.splice(0, overlay.choices.length, ...(list && acc.length ? [{ label: `Done (${acc.length} chosen)`, value: null }] : []), ...opts.map((o) => {
+            overlay.choices.splice(0, overlay.choices.length, ...(list && acc.length ? [{ label: `Done (${acc.length} chosen)`, value: null }] : []), ...(list && !search ? [{ label: 'Paste a list of labels or ids…', value: PASTE, detail: 'bulk add' }] : []), ...opts.map((o) => {
               this.labels.set(`${f.name}\u0000${String(o.id)}`, o.label)
               return { label: o.label, value: String(o.id), detail: String(o.id) }
             }))
@@ -187,6 +249,10 @@ export class FilterOverlay implements Overlay {
       }
     }, initial))
     const initial = current.map(printValue).join(',')
+    if (list && !between) {
+      // a list: paste or type values separated by commas, tabs, semicolons or new lines
+      return this.pasteValues(f, false, (vals) => done(vals), initial)
+    }
     if (isDate && !list) {
       const presets = expressionCandidates(type).map((c) => ({ label: c.detail ?? c.value, value: c.value, detail: c.value }))
       this.store.open(new ChoiceOverlay(this.store, `${f.label}: when?`, [{ label: 'Type a date or an expression…', value: '', detail: 'YYYY-MM-DD' }, ...presets], (v) => (v ? done([parseValue(v)]) : prompt(initial))))
@@ -195,7 +261,63 @@ export class FilterOverlay implements Overlay {
     prompt(initial)
   }
 
+  weekdayEnabled(): boolean {
+    const sup = (this.store.meta as { supplementalInstanceMetaData?: { uiSettings?: Record<string, unknown>; materialDashboard?: Record<string, unknown> } } | undefined)?.supplementalInstanceMetaData
+    const settings = (sup?.uiSettings?.weekdayCriteriaSettings ?? sup?.materialDashboard?.weekdayCriteriaSettings) as { enabled?: boolean; dateTimeFieldFunctionArguments?: Record<string, unknown> } | undefined
+    return settings?.enabled !== false
+  }
+
+  /** Day-of-week criteria: a multi-pick of Monday … Sunday (ISO numbers), with the WeekdayOf function. */
+  pickWeekdays(f: FieldMetaData, op: Operator, done: (c: Criterion) => void, acc: string[] = []): void {
+    const choices = [...(acc.length ? [{ label: `Done (${acc.map((d) => DAYS[Number(d) - 1]).join(', ')})`, value: '' }] : []), ...DAYS.map((d, i) => ({ label: d, value: String(i + 1), detail: acc.includes(String(i + 1)) ? 'chosen' : '' }))]
+    this.store.open(new ChoiceOverlay(this.store, `${f.label}: day of the week ${op === 'IN' ? 'is any of' : 'is none of'}`, choices, (v) => {
+      if (!v) return done({ fieldName: f.name, operator: op, values: acc, fieldFunction: { fieldName: f.name, functionTypeIdentifierName: f.type === 'DATE_TIME' ? WEEKDAY_OF_DATE_TIME : WEEKDAY_OF_DATE } })
+      this.pickWeekdays(f, op, done, acc.includes(v) ? acc.filter((x) => x !== v) : [...acc, v].sort())
+    }, 'Enter adds or removes a day', 0, () => { if (acc.length) done({ fieldName: f.name, operator: op, values: acc, fieldFunction: { fieldName: f.name, functionTypeIdentifierName: f.type === 'DATE_TIME' ? WEEKDAY_OF_DATE_TIME : WEEKDAY_OF_DATE } }) }))
+  }
+
+  /** The instance's help for bulk-added filter values (help slots bulkAddFilterValues…). */
+  pasteHelp(pvs: boolean): string {
+    const help = (this.store.meta as { helpContents?: Record<string, Array<{ contentAsText?: string; content?: string }>> } | undefined)?.helpContents?.[pvs ? 'bulkAddFilterValuesPossibleValueSource' : 'bulkAddFilterValues']
+    return help?.map((h) => h.contentAsText ?? h.content ?? '').filter(Boolean).join(' ') ?? ''
+  }
+
+  /** Bulk paste: values separated by commas, tabs, semicolons or new lines; labels resolved for choice fields. */
+  pasteValues(f: FieldMetaData, pvs: boolean, done: (values: FilterValue[]) => void, initial = ''): void {
+    const help = this.pasteHelp(pvs)
+    this.store.open(new PromptOverlay(this.store, `${f.label}: values`, `Type or paste values separated by commas, tabs, semicolons or new lines${pvs ? ' (labels or ids)' : ''}; duplicates are dropped. Expressions work for dates.${help ? ` ${help}` : ''}`, (text) => {
+      const parts = [...new Set(splitPasted(text))]
+      if (!parts.length) return
+      if (!pvs) {
+        try {
+          return done(parts.map((p) => parseValue(p)))
+        } catch (e) {
+          return this.store.flash(errorText(e), 'error')
+        }
+      }
+      const c = this.store.client!
+      Promise.all(parts.map((p) => resolvePossibleValue(c.server, c.fetch, { table: this.meta.name }, f.name, p, { fieldType: f.type }).then((r) => ({ p, option: r.option }))))
+        .then((rs) => {
+          const missing = rs.filter((r) => !r.option).map((r) => r.p)
+          for (const r of rs) if (r.option) this.labels.set(`${f.name}\u0000${String(r.option.id)}`, r.option.label)
+          if (missing.length) this.store.flash(`not added (no match): ${missing.join(', ')}`, 'error')
+          done(rs.filter((r) => r.option).map((r) => String(r.option!.id)))
+          this.store.bump()
+        }).catch((e) => this.store.flash(errorText(e), 'error'))
+    }, initial, { newline: ', ' }))
+  }
+
   editRow(r: GuidedRow): void {
+    if (r.kind === 'quick') return this.editQuick(r.field)
+    if (r.kind === 'addQuick') {
+      this.store.open(new ChoiceOverlay(this.store, 'Add a quick filter field', this.fields().filter((f) => !this.quickFields().includes(f.name)).map((f) => ({ label: f.label, value: f.name, detail: f.name })), (name) => {
+        const key = `table:${this.meta.name}`
+        const v = readViewSettings(key)
+        writeViewSettings(key, { ...v, quickFilterFields: [...((v.quickFilterFields as string[] | undefined) ?? []), name] })
+        this.editQuick(name)
+      }))
+      return
+    }
     if (r.kind === 'crit') {
       const g = this.groupOf(r.group)
       const c = g.criteria[r.index]!
@@ -231,6 +353,13 @@ export class FilterOverlay implements Overlay {
   }
 
   removeRow(r: GuidedRow): void {
+    if (r.kind === 'quick') {
+      this.filter.criteria = this.filter.criteria.filter((c) => c.fieldName !== r.field || c.fieldFunction)
+      const key = `table:${this.meta.name}`
+      const v = readViewSettings(key)
+      writeViewSettings(key, { ...v, quickFilterFields: ((v.quickFilterFields as string[] | undefined) ?? []).filter((n) => n !== r.field) })
+      return
+    }
     if (r.kind === 'crit') this.groupOf(r.group).criteria.splice(r.index, 1)
     else if (r.kind === 'group') this.filter.subFilters = this.groups().filter((_, i) => i !== r.group)
     else if (r.kind === 'sort') this.sort = undefined
@@ -323,10 +452,25 @@ export class FilterOverlay implements Overlay {
     return copy
   }
 
+  /** Weekday functions follow the field type (WeekdayOfDateTime on DATE_TIME, with the instance's arguments). */
+  typed(f: QueryFilter): QueryFilter {
+    const sup = (this.store.meta as { supplementalInstanceMetaData?: { uiSettings?: Record<string, unknown> } } | undefined)?.supplementalInstanceMetaData
+    const args = (sup?.uiSettings?.weekdayCriteriaSettings as { dateTimeFieldFunctionArguments?: Record<string, unknown> } | undefined)?.dateTimeFieldFunctionArguments
+    return applyFieldTypes(f, (n) => this.meta.fields[n]?.type, args)
+  }
+
+  paste(text: string): void {
+    if (this.mode === 'advanced') {
+      this.text.insert(text)
+      this.complete()
+    }
+  }
+
   apply(): void {
     if (this.mode === 'advanced') {
-      const parsed = this.parse()
-      if (!parsed) return
+      const parsed0 = this.parse()
+      if (!parsed0) return
+      const parsed = this.typed(parsed0)
       this.store.filterHistory.add(this.text.value)
       this.store.run(this.resolveLabels(parsed), (resolved) => {
         this.store.closeOverlay(this)
@@ -334,7 +478,7 @@ export class FilterOverlay implements Overlay {
       })
       return
     }
-    const f = this.normalized()
+    const f = this.typed(this.normalized())
     if (printFilter(f)) this.store.filterHistory.add(printFilter(f))
     this.store.closeOverlay(this)
     this.onApply(f, this.sort ?? null)
@@ -363,7 +507,7 @@ export class FilterOverlay implements Overlay {
     else if (key.name === 'home') this.row = 0
     else if (key.name === 'end') this.row = rows.length - 1
     else if (key.name === 'return') {
-      if (r && (r.kind === 'add' || r.kind === 'addGroup' || r.kind === 'sort' || r.kind === 'join' || r.kind === 'group')) this.editRow(r)
+      if (r && (r.kind === 'add' || r.kind === 'addGroup' || r.kind === 'sort' || r.kind === 'join' || r.kind === 'group' || r.kind === 'quick' || r.kind === 'addQuick')) this.editRow(r)
       else this.apply()
     } else if (ch === 'e' || key.name === 'right' || key.name === 'space') {
       if (r) this.editRow(r)
@@ -446,7 +590,15 @@ export class FilterOverlay implements Overlay {
         const sel = top + i === this.row
         let text = ''
         let fg = t.fg
-        if (r.kind === 'crit') {
+        if (r.kind === 'quick') {
+          const f = this.field(r.field)!
+          const c = this.filter.criteria.find((x) => x.fieldName === r.field && !x.fieldFunction)
+          text = `  quick  ${pad(f.label, 22)} ${c ? this.critText(c).slice(f.label.length + 1) : '(any)'}`
+          fg = c ? t.fg : t.dim
+        } else if (r.kind === 'addQuick') {
+          text = '  quick  + add a quick filter field (remembered for this table)'
+          fg = t.acc
+        } else if (r.kind === 'crit') {
           const c = this.groupOf(r.group).criteria[r.index]!
           const join = r.index > 0 ? this.groupOf(r.group).booleanOperator.padEnd(4) : '    '
           text = `${r.group >= 0 ? '    ' : ''}${join}${this.critText(c)}`
