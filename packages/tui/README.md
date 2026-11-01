@@ -179,6 +179,8 @@ Theme (for this profile or for all), or `--theme`; the option wins over the prof
 global choice. `--ascii` replaces box drawing and symbols. Colours come only from the tokens in
 `src/theme.ts`.
 
+The CLI equivalent dialog copies its command with `y` (or Enter); F9 › Settings can copy it automatically, and Shift+drag selects it with the terminal.
+
 F9 › Settings also holds single-key shortcuts on/off (default: the server preference
 `keyboard.singleKeyShortcuts`), the download and upload folders, the PIN and idle lock, and the terminal check.
 

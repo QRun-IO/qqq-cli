@@ -642,7 +642,7 @@ export class RecordScreen implements Screen {
       { section: 'Context', label: 'Refresh', key: 'F5 r', run: () => this.refresh() },
       ...this.shareEntry(),
       { section: 'Context', label: 'View settings (columns, label width, child list rows)', key: 'v', run: () => { const o = this.viewSettings(); if (o) this.store.open(o) } },
-      { section: 'Context', label: 'Copy as a CLI command', detail: `qqq ${this.cliEquivalent()}`, run: () => this.store.message(`qqq ${this.cliEquivalent()}`, 'info', 'CLI equivalent') },
+      { section: 'Context', label: 'Copy as a CLI command', detail: `qqq ${this.cliEquivalent()}`, run: () => this.store.showCli(`qqq ${this.cliEquivalent()}`) },
     ]
     for (const group of this.groups) {
       const child = this.childMeta.get(group.table)

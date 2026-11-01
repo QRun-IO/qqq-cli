@@ -405,7 +405,7 @@ export class ProcessScreen implements Screen {
     return [
       { section: 'Context', label: 'Cancel the process', key: 'Esc', disabled: finished ? 'finished' : undefined, run: () => this.cancel() },
       { section: 'Context', label: 'Run it again', key: 'F5 r', disabled: finished ? undefined : 'still running', run: () => this.start() },
-      { section: 'Context', label: 'Copy as a CLI command', detail: `qqq ${this.cliEquivalent()}`, run: () => this.store.message(`qqq ${this.cliEquivalent()}`, 'info', 'CLI equivalent') },
+      { section: 'Context', label: 'Copy as a CLI command', detail: `qqq ${this.cliEquivalent()}`, run: () => this.store.showCli(`qqq ${this.cliEquivalent()}`) },
     ]
   }
 

@@ -55,6 +55,42 @@ export class MessageOverlay implements Overlay {
   }
 }
 
+/** The "CLI equivalent" dialog: y, c or Enter copies the command; Esc closes without copying. */
+export class CliCommandOverlay implements Overlay {
+  readonly id = overlayId('cli')
+  private note?: string
+  constructor(private store: AppStore, readonly command: string) {
+    if (store.settings.copyCli && this.copy()) this.note = 'copied to the clipboard'
+  }
+  private copy(): boolean {
+    const how = this.store.copyText(this.command)
+    if (!how) this.note = 'no clipboard here: select the text with Shift+drag'
+    else this.note = `copied (${how})`
+    return !!how
+  }
+  onKey(key: Key): void {
+    const ch = charOf(key).toLowerCase()
+    if (key.name !== 'escape' && !this.note && (ch === 'y' || ch === 'c' || key.name === 'return')) {
+      this.copy()
+      this.store.bump()
+      return
+    }
+    this.store.closeOverlay(this)
+  }
+  render(sw: number, sh: number) {
+    const width = Math.min(sw - 4, Math.max(54, Math.min(100, this.command.length + 4)))
+    const lines = wrap(this.command, width - 4).slice(0, sh - 8)
+    const footer = this.note ? ` ${this.note} · any key closes` : ' y copies · Shift+drag selects text · Esc closes'
+    return (
+      <Frame title="CLI equivalent" width={width} height={lines.length + 4} screenWidth={sw} screenHeight={sh}>
+        {lines.map((l, i) => <Line key={i} text={` ${l}`} width={width - 2} fg={theme().fg} />)}
+        <Line text="" width={width - 2} />
+        <Line text={footer} width={width - 2} fg={theme().dim} />
+      </Frame>
+    )
+  }
+}
+
 export class ConfirmOverlay implements Overlay {
   readonly id = overlayId('confirm')
   constructor(private store: AppStore, readonly text: string, private onYes: () => void, private onNo?: () => void, readonly defaultYes = false) {}

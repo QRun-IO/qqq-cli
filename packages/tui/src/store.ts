@@ -14,7 +14,7 @@ import { openRealtimeStream } from '@qrun-io/qqq-ui-api-client'
 import { History, MetaDataIndex, addRecent, currentCredential, readIdleMinutes, type MetaDataDocument, type RecentItem } from '@qrun-io/qqq-core'
 import { TUI_CHANNEL, TuiClient, type VersionInfo } from './client'
 import { charOf, isPrintable, type Key } from './keys'
-import { ChoiceOverlay, ConfirmOverlay, MessageOverlay } from './overlays/basic'
+import { ChoiceOverlay, ConfirmOverlay, CliCommandOverlay, MessageOverlay } from './overlays/basic'
 import { Extensions } from './extensions'
 import { collaborationPresence, presenceSource, setPresenceSource } from './presence'
 import { setAscii, setTheme, theme } from './theme'
@@ -28,6 +28,8 @@ export interface Settings {
   mouse: boolean
   /** Single-key shortcuts (s, v, n, e …); the server's keyboard.singleKeyShortcuts preference turns them off. */
   singleKeys: boolean
+  /** Copy CLI equivalents to the clipboard automatically (ui.copyCliCommands; default off). */
+  copyCli?: boolean
 }
 
 export interface Status {
@@ -219,6 +221,11 @@ export class AppStore {
     if (!overlay) this.overlays.pop()
     else this.overlays = this.overlays.filter((o) => o !== overlay)
     this.bump()
+  }
+
+  /** The CLI equivalent dialog; copies at once when the preference is on. */
+  showCli(command: string): void {
+    this.open(new CliCommandOverlay(this, command))
   }
 
   message(text: string, kind: 'info' | 'error' = 'info', title?: string): void {

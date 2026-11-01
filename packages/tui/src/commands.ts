@@ -11,7 +11,7 @@
 
 import { runCli } from '@qrun-io/qqq-cli/program'
 import { THEMES } from './theme'
-import { metaHelp, processHelp, tableHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
+import { metaHelp, processHelp, tableHelp, applyLiveFix, checkEnvironment, formatReport, buildFilter, readFilePreferences, startDirForSave, startDirForUpload, writeFilePreferences, hasPin, readConfig, readRecents, removePin, setPin, writeConfig, writeIdleMinutes, writeTheme, readIdleMinutes, type QueryFilter } from '@qrun-io/qqq-core'
 import type { AppTreeNode } from './client'
 import { openApp, openForm, openProcess, openRecord, openTable } from './nav'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
@@ -44,10 +44,10 @@ const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions
 /** Global keys for the help overlay. */
 export const GLOBAL_KEYS: Array<[string, string]> = [
   ['F1  ?', 'help (this)'], ['F2  /  .', 'go to anything'], ['F3  Enter', 'view / open'], ['F4  e', 'edit'], ['F5  r', 'refresh'],
-  ['F6  f', 'filter: field, operator, value rows; F2 grammar'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['Esc 1..0, Ctrl+1..0', 'F1..F10 when the terminal takes F-keys'], ['F10', 'quit, reset or cancel'],
+  ['F6  f', 'filter: field, operator, value rows; F2 grammar; Ctrl+Y copies its qqq command'], ['F7  n', 'new record'], ['F8  d', 'delete (asks)'], ['F9', 'menu: every command'], ['Esc 1..0, Ctrl+1..0', 'F1..F10 when the terminal takes F-keys'], ['F10', 'quit, reset or cancel'],
   ['Esc', 'back, cancel'], ['Tab', 'Apps tree / content'], ['↑↓ PgUp PgDn', 'move, page'], ['Ctrl+F Ctrl+B', 'page (always works)'], ['Space S+Space', 'page lists'], ['Home End', 'first, last'], ['← →', 'columns, tree'],
   ['a', 'actions here'], ['A  D', 'audits, developer'], ['s', 'sort by column'], ['Space (grid)', 'select row'], ['b', 'run a process on selection'], ['x', 'export'], ['g', 'go to by key'], ['v', 'view settings'],
-  [']  [', 'next / previous record'], ['Ctrl+S', 'save a form'], [':', 'command line'], ['Ctrl+K', 'palette'], ['Ctrl+C', 'quit now'],
+  [']  [', 'next / previous record'], ['Ctrl+S', 'save a form'], [':', 'command line'], ['Ctrl+K', 'palette'], ['y (CLI equivalent)', 'copy the qqq command to the clipboard'], ['Ctrl+C', 'quit now'],
 ]
 
 export class Commands implements CommandsLike {
@@ -412,6 +412,16 @@ export class Commands implements CommandsLike {
     }
   }
 
+  setCopyCli(on: boolean): void {
+    const s = this.store
+    s.settings.copyCli = on
+    const config = readConfig()
+    config.ui = { ...config.ui, copyCliCommands: on }
+    writeConfig(config)
+    s.bump()
+    s.flash(`CLI commands ${on ? 'are copied to the clipboard automatically' : 'are not copied automatically'}`)
+  }
+
   setPin(): void {
     const s = this.store
     const ask = () => s.open(new PromptOverlay(s, 'Set a screen-lock PIN', 'At least 4 characters. Only a salted hash is kept in ~/.config/qqq/config.json.', (pin) => {
@@ -617,6 +627,7 @@ export class Commands implements CommandsLike {
     out.push({ section: 'Settings', label: `Idle timeout: ${idle ? `${idle} min` : 'off'}`, command: 'idle <minutes>', run: () => s.open(new PromptOverlay(s, 'Screen saver after idle minutes', '0 turns it off.', (v) => void this.run(`idle ${v}`), String(idle))) })
     out.push({ section: 'Settings', label: hasPin() ? 'Change PIN' : 'Set PIN', command: 'pin', run: () => this.setPin() })
     if (hasPin()) out.push({ section: 'Settings', label: 'Remove PIN', command: 'pin remove', run: () => this.removePin() })
+    out.push({ section: 'Settings', label: `Copy CLI commands to the clipboard automatically: ${s.settings.copyCli ? 'on' : 'off'}`, run: () => this.setCopyCli(!s.settings.copyCli) })
     const fp = readFilePreferences()
     out.push({ section: 'Settings', label: `Download folder: ${fp.downloadDir ?? '(last used, else ~/Downloads)'}`, run: () => chooseFolder(s, 'Default download folder', startDirForSave(fp), (dir) => { writeFilePreferences({ downloadDir: dir }); s.flash(`downloads go to ${dir}`) }) })
     out.push({ section: 'Settings', label: `Downloads: ${fp.downloadMode === 'silent' ? 'save silently to the download folder' : 'ask every time'}`, run: () => { writeFilePreferences({ downloadMode: fp.downloadMode === 'silent' ? 'ask' : 'silent' }); s.flash('download mode changed') } })

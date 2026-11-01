@@ -87,6 +87,7 @@ candidate's, plus the changes since it listed first.
 
 ### Added: the terminal UI (`qqq ui`)
 
+- **The "CLI equivalent" dialog can be copied**: `y`, `c` or Enter copies the command to the clipboard (Esc closes without copying), the filter dialog has Ctrl+Y for its command, Shift+drag still selects with the terminal, and F9 › Settings › "Copy CLI commands to the clipboard automatically" (`ui.copyCliCommands`, default off) copies as soon as the dialog opens.
 - **A classic full-screen UI** in the same binary and on the same profiles and sign-ins as the CLI:
   function-key bar (F1 help to F10 quit, with Esc+digit for terminals that take the F-keys), PgUp/PgDn
   everywhere, Esc back with the screen below keeping its place, a `:` command line that speaks the CLI

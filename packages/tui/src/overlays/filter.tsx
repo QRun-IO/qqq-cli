@@ -988,6 +988,9 @@ export class FilterOverlay implements Overlay {
     this.store.open(new ConfirmOverlay(this.store, 'Discard the changes to the filter?', () => this.close()))
   }
 
+  /** The qqq command the footer shows (set by render); ^Y copies it. */
+  private cliText?: string
+
   onKey(key: Key): void {
     if (this.mode === 'guided' && this.editing) return this.editKey(key)
     if (key.name === 'escape') {
@@ -998,6 +1001,10 @@ export class FilterOverlay implements Overlay {
       return this.cancel()
     }
     if (key.name === 'f10' || (key.ctrl && key.name === 's')) return this.apply()
+    if (key.ctrl && key.name === 'y' && this.cliText) {
+      const how = this.store.copyText(this.cliText)
+      return this.store.flash(how ? `copied the command (${how})` : 'no clipboard here', how ? 'info' : 'error')
+    }
     if (key.name === 'f2') return this.mode === 'guided' ? this.toAdvanced() : this.toGuided()
     if (this.mode === 'guided') return this.guidedKey(key)
     return this.advancedKey(key)
@@ -1290,9 +1297,10 @@ export class FilterOverlay implements Overlay {
       lines.push(<Line key="keys" text={inner >= 96 ? ' Tab complete · ↑↓ choose (history when empty) · ^R history · F2 guided · Enter apply · Esc cancel' : ' Tab complete · ↑↓ choose · ^R history · F2 guided · Enter apply · Esc'} width={inner} fg={t.dim} />)
     }
     const cli = `qqq table query ${this.meta.name}${grammar ? ` -g ${shellQuote(grammar)}` : ''}${this.sort ? ` -o ${this.sort.asc ? '' : '-'}${this.sort.field}` : ''}`
+    this.cliText = cli
     lines.push(<Line key="count" text={this.countText()} width={inner} fg={this.count?.state === 'error' ? t.err : t.ok} />)
     lines.push(<text flexShrink={0} wrapMode="none" key="gram" fg={t.acc}>{pad(` ${trunc(grammar || '(no criteria: every record)', inner - 2)}`, inner)}</text>)
-    lines.push(<text flexShrink={0} wrapMode="none" key="cli" fg={t.dim}>{pad(` ${trunc(cli, inner - 2)}`, inner)}</text>)
+    lines.push(<text flexShrink={0} wrapMode="none" key="cli" fg={t.dim}>{pad(` ${trunc(cli, inner - 14)}`, inner - 11)}{pad('  ^Y copies', 11)}</text>)
     return <Frame title={`Filter ${this.meta.label}`} width={width} height={lines.length + 2} screenWidth={sw} screenHeight={sh} top={1}>{lines}</Frame>
   }
 }

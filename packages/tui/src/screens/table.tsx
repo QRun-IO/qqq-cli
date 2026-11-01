@@ -673,7 +673,7 @@ export class TableScreen implements Screen {
       { section: 'Context', label: 'Go to a record by key', key: 'g', run: () => this.gotoKey() },
       { section: 'Context', label: 'Refresh', key: 'F5 r', run: () => this.refresh() },
       { section: 'Context', label: 'View settings (columns, widths, stripes, density)', key: 'v', command: 'view', run: () => { const o = this.viewSettings(); if (o) this.store.open(o) } },
-      { section: 'Context', label: 'Copy as a CLI command', detail: this.cliEquivalent(), run: () => this.store.message(`qqq ${this.cliEquivalent()}`, 'info', 'CLI equivalent') },
+      { section: 'Context', label: 'Copy as a CLI command', detail: this.cliEquivalent(), run: () => this.store.showCli(`qqq ${this.cliEquivalent()}`) },
     ]
     for (const f of ['csv', 'xlsx', 'json', 'tsv']) out.push({ section: 'Context', label: `Export as ${f}`, key: f === 'csv' ? 'x' : undefined, command: `export ${f}`, run: () => this.exportAs(f) })
     out.push(...this.bulkEntries())
