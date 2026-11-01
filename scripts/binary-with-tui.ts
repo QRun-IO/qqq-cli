@@ -14,4 +14,5 @@ globalThis.__qqqRunTui = async (args: string[]) => {
   await import('../packages/tui/src/main.tsx')
 }
 
-await import('../packages/cli/src/main.ts')
+// the built CLI, the same module the TUI imports as @qrun-io/qqq-cli/program, so it is bundled once
+await import('../packages/cli/dist/main.js')
