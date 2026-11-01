@@ -2,7 +2,7 @@
 # Start, stop or inspect the local "enterprise" QQQ test server: qqq-all's enterprise profile
 # (every locally runnable qbit + the qqq sample app) on port 8078, MOCK auth (any user, admin).
 #
-#   enterprise-server.sh [--start] | --status | --stop | --build | --log | --dir
+#   enterprise-server.sh [--start] | --status | --assistant-status | --stop | --build | --log | --dir
 #
 # It only ever signals the pid it started (pid file in the state dir) and the two Docker
 # containers it names (qqq-enterprise-redis, qqq-enterprise-opensearch). It never touches the
@@ -15,6 +15,17 @@
 # its mode is 0600; the credentials file is parsed for its two keys, never sourced. Files that an earlier
 # version left under ${TMPDIR} are not migrated or read: delete them, and the MinIO container
 # (docker rm -f qqq-enterprise-minio) if it should get new credentials.
+#
+# Assistant (qbit-assistant): the server registers two model providers and picks one at start:
+# Anthropic when ANTHROPIC_API_KEY is set, else a local Ollama when it answers on 127.0.0.1:11434 and
+# lists QQQ_ASSISTANT_OLLAMA_MODEL (default llama3.3:70b-instruct-q4_K_M), else none (the assistant
+# then reports NOT_CONFIGURED). To use Claude, put one line in the private assistant env file
+# (default ~/.local/state/qqq-enterprise/assistant.env, QQQ_ENTERPRISE_ASSISTANT_ENV; you own it, not a
+# symlink, mode 0600):
+#   ANTHROPIC_API_KEY=<your key>
+# It is checked and parsed like minio.env (never sourced, never printed) and exported only into the
+# server's environment. QQQ_ASSISTANT_OLLAMA_MODEL may be set in that file or in the caller's environment.
+# Restart to switch providers; --status (or --assistant-status) prints which one answers.
 #
 # Env:
 #   QQQ_ALL_ENTERPRISE_DIR  qqq-all checkout on feat/enterprise-terminal-test
@@ -30,6 +41,8 @@
 #   QQQ_ENTERPRISE_DOCKER   0 = do not start the Redis/OpenSearch/MinIO containers (quick search, redis
 #                           and object storage are then left out of the instance)
 #   QQQ_ALL_ENTERPRISE_EXCLUDE  comma-separated feature names to leave out (see EnterpriseFeatures)
+#   QQQ_ENTERPRISE_ASSISTANT_ENV  the assistant env file (default <state root>/assistant.env)
+#   QQQ_ASSISTANT_OLLAMA_MODEL  the Ollama model the assistant uses (default llama3.3:70b-instruct-q4_K_M)
 set -euo pipefail
 
 self="${BASH_SOURCE[0]}"; while [[ -L "$self" ]]; do self="$(readlink "$self")"; done
@@ -53,6 +66,7 @@ search_name="qqq-enterprise-opensearch";  search_port=9210
 minio_name="qqq-enterprise-minio";        minio_port=9310
 minio_env="${QQQ_ENTERPRISE_MINIO_ENV:-$state_root/minio.env}"   # generated credentials for the shared container, 0600, never in git
 minio_bucket="qqq-enterprise-attachments"
+assistant_env="${QQQ_ENTERPRISE_ASSISTANT_ENV:-$state_root/assistant.env}"   # optional ANTHROPIC_API_KEY, 0600, never in git
 umask 077
 
 die() { echo "$*" >&2; exit 1; }
@@ -95,6 +109,55 @@ env_value() # file key
    local value; value="$(grep -m1 "^$2=" "$1" | cut -d= -f2-)" || true
    [[ -n "$value" && "$value" =~ ^[A-Za-z0-9_-]+$ ]] || die "invalid or missing $2 in $1"
    echo "$value"
+}
+
+# value of an optional KEY in the env file: empty when the file or the key is absent; a present but
+# malformed value (not matching the pattern) is refused. Values are never printed.
+optional_env_value() # file key pattern
+{
+   [[ -e "$1" || -L "$1" ]] || return 0
+   trusted_file "$1" 600
+   grep -q "^$2=" "$1" || return 0
+   local value; value="$(grep -m1 "^$2=" "$1" | cut -d= -f2-)" || true
+   [[ -z "$value" ]] && return 0
+   [[ "$value" =~ $3 ]] || die "invalid $2 in $1"
+   echo "$value"
+}
+
+# the optional assistant settings: ANTHROPIC_API_KEY from the env file only, QQQ_ASSISTANT_OLLAMA_MODEL
+# from the caller's environment or the env file. The model goes in env_args; the key in assistant_key.
+load_assistant_env()
+{
+   local key model
+   key="$(optional_env_value "$assistant_env" ANTHROPIC_API_KEY '^[A-Za-z0-9_-]+$')" || exit 1
+   model="${QQQ_ASSISTANT_OLLAMA_MODEL:-}"
+   if [[ -z "$model" ]]; then model="$(optional_env_value "$assistant_env" QQQ_ASSISTANT_OLLAMA_MODEL '^[A-Za-z0-9._:/-]+$')" || exit 1; fi
+   [[ -z "$model" || "$model" =~ ^[A-Za-z0-9._:/-]+$ ]] || die "invalid QQQ_ASSISTANT_OLLAMA_MODEL"
+   assistant_key="$key"   # exported just before java starts: environment only, never on a command line (ps)
+   [[ -n "$model" ]] && env_args+=(QQQ_ASSISTANT_OLLAMA_MODEL="$model")
+   if [[ -n "$key" ]]; then echo "assistant: ANTHROPIC_API_KEY set in $assistant_env (Claude answers)"
+   else echo "assistant: no ANTHROPIC_API_KEY in $assistant_env; Ollama (${model:-llama3.3:70b-instruct-q4_K_M}) answers if it is running"; fi
+}
+
+# one line: whether the assistant answers on the running server, and with which model, or why not
+assistant_status()
+{
+   local cookie config
+   cookie="$(curl -s -m 5 -D - -o /dev/null -X POST "http://localhost:$port/qqq/v1/manageSession" -H 'Content-Type: application/json' -d '{}' \
+      | tr -d '\r' | sed -n 's/^[Ss]et-[Cc]ookie: \(sessionUUID=[^;]*\).*/\1/p' | head -n 1)"
+   if [[ -z "$cookie" ]]; then echo "assistant: (no session; server not answering)"; return 0; fi
+   config="$(curl -s -m 10 -H "Cookie: $cookie" "http://localhost:$port/qqq/v1/assistant/config")" || true
+   printf '%s' "$config" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    print("assistant: not installed (no /qqq/v1/assistant/config)"); sys.exit(0)
+if d.get("enabled"):
+    print("assistant: enabled, model " + str(d.get("model")))
+else:
+    print("assistant: off (" + str(d.get("reason")) + ")" + (": " + d["message"] if d.get("message") else ""))
+' 2>/dev/null || echo "assistant: (could not read /qqq/v1/assistant/config)"
 }
 
 # create the credentials file if it is absent (noclobber: never follows a pre-planted symlink), then
@@ -150,6 +213,7 @@ case "${1:---start}" in
       fi
       [[ -f "$jar" ]] || build
       env_args=(QQQ_ALL_PROFILE=enterprise QQQ_ALL_PORT="$port" QQQ_ALL_DATA_DIR="$data_dir")
+      load_assistant_env
       if use_docker; then
          echo "starting Redis ($redis_name, :$redis_port) and OpenSearch ($search_name, :$search_port) containers"
          container_up "$redis_name" redis:7.4-alpine "$redis_port" 6379
@@ -173,6 +237,7 @@ case "${1:---start}" in
       classpath="$jar"
       if [[ -d "$sample_classes" ]]; then classpath="$jar:$sample_classes"; else echo "no sample classes at $sample_classes: sample app left out"; fi
       echo "starting enterprise server on port $port (log: $log_file, data: $data_dir)"
+      if [[ -n "${assistant_key:-}" ]]; then export ANTHROPIC_API_KEY="$assistant_key"; fi
       nohup env "${env_args[@]}" java -cp "$classpath" com.kingsrook.qqq.all.ProfileLauncher > "$log_file" 2>&1 &
       echo $! > "$pid_file"; chmod 600 "$pid_file"
       for _ in $(seq 1 90); do
@@ -203,13 +268,15 @@ case "${1:---start}" in
       if running; then
          echo "running: pid $(read_pid) on http://localhost:$port"
          curl -s -m 3 "http://localhost:$port/qqq/v1/version" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("UI API", d["apiVersion"]); print("extensions:", ", ".join(e["name"]+" "+e.get("version","?") for e in d.get("extensions",[])))' 2>/dev/null || echo "(not answering on /qqq/v1/version)"
+         assistant_status
       else
          echo "not running"
       fi
       echo "log: $log_file"
       echo "state: $state_dir"
       ;;
+   --assistant-status|assistant-status) if running; then assistant_status; else echo "not running"; fi ;;
    --dir|dir) echo "$state_dir" ;;
    --log|log) tail -n 100 -f "$log_file" ;;
-   *) echo "usage: $0 [--start] | --status | --stop | --build | --log | --dir"; exit 2 ;;
+   *) echo "usage: $0 [--start] | --status | --assistant-status | --stop | --build | --log | --dir"; exit 2 ;;
 esac

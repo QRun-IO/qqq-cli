@@ -5,7 +5,7 @@
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
-export XDG_STATE_HOME="$work/state" QQQ_ENTERPRISE_MINIO_ENV="$work/state/qqq-enterprise/minio.env"
+export XDG_STATE_HOME="$work/state" QQQ_ENTERPRISE_MINIO_ENV="$work/state/qqq-enterprise/minio.env" QQQ_ENTERPRISE_ASSISTANT_ENV="$work/state/qqq-enterprise/assistant.env"
 fails=0
 # runs a command in a subshell (the script's checks exit); prints PASS/FAIL against the expected status
 check() { local want="$1" name="$2"; shift 2; ( "$@" ) > "$work/out" 2>&1; local got=$?
@@ -33,6 +33,24 @@ printf 'S3_ACCESS_KEY=abc\nS3_SECRET_KEY=def\n' > "$work/real"; chmod 600 "$work
 rm -f "$env"; ln -s "$work/real" "$env";                           check fail "symlink refused" load_minio_env
 rm -f "$env"; ln -s "$work/missing" "$env";                        check fail "dangling symlink not followed" load_minio_env
 check ok   "dangling symlink not written through" test ! -e "$work/missing"
+rm -f "$env"
+
+# optional assistant settings (assistant.env): absent file or key is fine, a malformed value is refused, nothing is printed
+env="$assistant_env"
+check ok   "no env file: no assistant key" test -z "$(optional_env_value "$env" ANTHROPIC_API_KEY '^[A-Za-z0-9_-]+$')"
+printf 'S3_ACCESS_KEY=abc\nS3_SECRET_KEY=def\n' > "$env"; chmod 600 "$env"
+check ok   "key absent: empty"          test -z "$(optional_env_value "$env" ANTHROPIC_API_KEY '^[A-Za-z0-9_-]+$')"
+printf 'S3_ACCESS_KEY=abc\nS3_SECRET_KEY=def\nANTHROPIC_API_KEY=sk-ant-api03-Ab_9\n' > "$env"; chmod 600 "$env"
+check ok   "key parsed"                 test "$(optional_env_value "$env" ANTHROPIC_API_KEY '^[A-Za-z0-9_-]+$')" = sk-ant-api03-Ab_9
+keyed_env() { env_args=(); assistant_key=""; load_assistant_env > "$work/said" && [[ "$assistant_key" == sk-ant-api03-Ab_9 ]] && ! grep -q "sk-ant" "$work/said" && [[ "${env_args[*]}" != *sk-ant* ]]; }
+check ok   "key kept off env_args and stdout" keyed_env
+printf 'ANTHROPIC_API_KEY=sk$(touch %s/pwned)\n' "$work" > "$env"; chmod 600 "$env"
+check fail "shell syntax in key refused" optional_env_value "$env" ANTHROPIC_API_KEY '^[A-Za-z0-9_-]+$'
+check ok   "nothing executed (key)"     test ! -e "$work/pwned"
+chmod 644 "$env";                       check fail "mode 0644 refused (key)" optional_env_value "$env" ANTHROPIC_API_KEY '^[A-Za-z0-9_-]+$'
+printf 'QQQ_ASSISTANT_OLLAMA_MODEL=llama3.3:70b-instruct-q4_K_M\n' > "$env"; chmod 600 "$env"
+model_env() { env_args=(); QQQ_ASSISTANT_OLLAMA_MODEL="" load_assistant_env > /dev/null && [[ "${env_args[*]}" == "QQQ_ASSISTANT_OLLAMA_MODEL=llama3.3:70b-instruct-q4_K_M" ]]; }
+check ok   "ollama model from env file" model_env
 rm -f "$env"
 
 pid_file="$work/server.pid"
