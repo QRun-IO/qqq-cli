@@ -171,7 +171,7 @@ test('V on the grid shows the whole value of the cell under the cursor', async (
   const grid = h.store.screen as TableScreen
   grid.colCursor = 1
   await press(h, () => h!.setup.mockInput.typeText('V'))
-  const f = await waitFor(h, (x) => x.includes('First Name') && x.includes('any key closes'))
+  const f = await waitFor(h, (x) => x.includes('First Name') && x.includes('any key'))
   expect(checkCapture(f, 80, 24)).toEqual([])
 })
 
@@ -183,6 +183,6 @@ test('record view at 80: the key line drops whole keys, V shows the whole value 
   const hint = f.split('\n').find((l) => l.includes('Esc back'))!
   expect(hint).not.toContain('…')
   await press(h, () => h!.setup.mockInput.typeText('V'))
-  f = await waitFor(h, (x) => x.includes('any key closes'))
+  f = await waitFor(h, (x) => x.includes('any key'))
   expect(checkCapture(f, 80, 24)).toEqual([])
 })

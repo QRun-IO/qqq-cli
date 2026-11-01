@@ -70,7 +70,7 @@ shots=0
 
 start; shot 01-home 'Quick actions' 'Recently viewed'
 keys T:?; shot 02-help 'Keys'
-start; keys T:/; shot 03-palette 'Go to'
+start; keys T:/; shot 03-search 'Search'
 start; keys T:: 'T:table q'; shot 04-command-line ': table q'
 start; keys F9; shot 05-command-center 'Menu' 'Go to'
 keys T:job; shot 05b-command-center-search 'Menu'

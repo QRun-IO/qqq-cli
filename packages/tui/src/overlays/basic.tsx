@@ -13,7 +13,7 @@ import { Zone } from '../mouse/zone'
 import type { AppStore } from '../store'
 import { theme } from '../theme'
 import type { Overlay } from '../types'
-import { pad, trunc } from '../util/text'
+import { hintLine, pad, trunc } from '../util/text'
 import { Frame, Line } from './frame'
 
 let ids = 0
@@ -62,7 +62,7 @@ export class MessageOverlay implements Overlay {
       <Frame title={this.title ?? (this.kind === 'error' ? 'Error' : 'Message')} width={width} height={lines.length + 4} screenWidth={sw} screenHeight={sh}>
         {lines.map((l, i) => <Line key={i} text={` ${l}`} width={width - 2} fg={this.kind === 'error' ? theme().err : theme().fg} />)}
         <Line text="" width={width - 2} />
-        <Zone onClick={() => this.store.closeOverlay(this)}><text flexShrink={0} wrapMode="none" fg={theme().dim}>{pad(this.store.settings.mouse ? ` any key or a click here closes · ${SELECT_HINT}` : ' any key closes', width - 2)}</text></Zone>
+        <Zone onClick={() => this.store.closeOverlay(this)}><text flexShrink={0} wrapMode="none" fg={theme().dim}>{hintLine(this.store.settings.mouse ? [{ text: 'any key or a click here closes' }, { text: SELECT_HINT, drop: 1 }] : 'any key closes', width - 2)}</text></Zone>
       </Frame>
     )
   }
