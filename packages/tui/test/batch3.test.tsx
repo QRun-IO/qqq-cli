@@ -10,6 +10,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeFilePreferences } from '@qrun-io/qqq-core'
 import type { TableScreen } from '../src/screens/table'
+import type { DeveloperScreen } from '../src/screens/developer'
+import { paneText } from '../src/developer/pane'
 import { command, isolate, press, startTui, waitFor, type Harness } from './helpers'
 
 let h: Harness | undefined
@@ -80,27 +82,38 @@ test('column statistics of the column under the cursor', async () => {
   expect(f).toContain('Alpha ×1')
 })
 
-test('developer: panels, a script revision, its logs; table APIs and an OpenAPI document', async () => {
+test('developer: sections for panels, scripts (a revision, its logs), JSON; the table view with APIs and an OpenAPI document', async () => {
   h = await startTui(130, 44)
   await command(h, 'table get acc 1')
   await waitFor(h, (x) => x.includes('Alpha'))
   await key('D')
-  await waitFor(h, (x) => x.includes('Panel One') && x.includes('codeRef: acc-script') && x.includes('v2  second'))
-  const grid = h.store.screen as unknown as { list: { rows: Array<{ key?: string }>; cursor: number } }
-  grid.list.cursor = grid.list.rows.findIndex((r) => r.key === 'r:51')
+  await waitFor(h, (x) => x.includes('1 Security') && x.includes('8 Panel One') && x.includes('Record Security'))
+  // the F-key bar keeps the slots that apply here
+  const bar = await waitFor(h, (x) => x.includes('3Record'))
+  expect(bar).toContain('10Quit')
+  await key('8')
+  await waitFor(h, (x) => x.includes('panel text'))
+  await key('3')
+  await waitFor(h, (x) => x.includes('codeRef') && x.includes('acc-script') && x.includes('second'))
+  const dev = h.store.screen as unknown as DeveloperScreen
+  dev.pane().selected = dev.pane().lines.find((l) => paneText(l).startsWith('v2'))!.id
   await enter()
   await waitFor(h, (x) => x.includes('Show the run logs'))
   await press(h, () => h!.setup.mockInput.pressArrow('down'))
   await enter()
   await waitFor(h, (x) => x.includes('log line one'))
   await esc()
-  await esc()
+  await key('4')
+  await waitFor(h, (x) => x.includes('Record raw values (json)') && x.includes('"id": 1'))
   await esc()
   await command(h, 'table query acc')
   await waitFor(h, (x) => x.includes('1 records'))
   await key('D')
+  await waitFor(h, (x) => x.includes('1 Events') && x.includes('4 APIs') && x.includes('3Table'))
+  await key('4')
   await waitFor(h, (x) => x.includes('Public API (pub)'))
-  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  const table = h.store.screen as unknown as DeveloperScreen
+  table.pane().selected = table.pane().lines.find((l) => l.run)!.id
   await enter()
   await waitFor(h, (x) => x.includes('View it here'))
   await enter()

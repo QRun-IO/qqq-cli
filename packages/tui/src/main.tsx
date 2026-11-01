@@ -81,4 +81,16 @@ store.editExternal = async (text: string) => {
   }
 }
 
+// the system clipboard tool when there is one, else the terminal's OSC 52 (tmux and most terminals)
+store.copyText = (text: string) => {
+  const tools: Array<[string, string[]]> = process.platform === 'darwin' ? [['pbcopy', []]] : process.platform === 'win32' ? [['clip', []]] : [['wl-copy', []], ['xclip', ['-selection', 'clipboard']], ['xsel', ['--clipboard', '--input']]]
+  for (const [tool, toolArgs] of tools) {
+    if (tool === 'wl-copy' && !process.env.WAYLAND_DISPLAY) continue
+    if ((tool === 'xclip' || tool === 'xsel') && !process.env.DISPLAY) continue
+    const r = spawnSync(tool, toolArgs, { input: text, stdio: ['pipe', 'ignore', 'ignore'], timeout: 2000 })
+    if (!r.error && r.status === 0) return tool
+  }
+  return renderer.isOsc52Supported() && renderer.copyToClipboardOSC52(text) ? 'OSC 52' : undefined
+}
+
 createRoot(renderer).render(<App store={store} />)

@@ -23,6 +23,13 @@ candidate's, plus the changes since it listed first.
   F keys so letters always type (Ctrl+N add, Ctrl+D remove, Ctrl+O AND/OR, Ctrl+G group, F2 mode, F10
   apply); Esc asks before discarding changes. Before, a true/false quick filter could be set to true but
   not changed from the quick row.
+- The UI's developer view (`D` on a record or a grid) was redesigned: sections (Security, Events,
+  Scripts, JSON, Metadata, Audits, APIs, then any further developer panel; ←→ or 1-9) over a scrollable
+  pane with a scroll bar; tables in the grid's column layout with `—` for no value and a line saying why
+  a column is empty; JSON pretty-printed and tinted, `v` opens the value viewer and `y` copies; web links
+  become TUI actions (the table developer view, records, grids, processes) or show their URL as browser
+  only; the record view adds field values, API endpoints, audits and script test runs, and the table view
+  the ESB counters, the table metadata and its JSON; F3 goes to the record or the grid.
 - The curl installer (`scripts/install.sh`) installs the newest **stable** `cli-v*` release, the channel
   Homebrew and Scoop follow; `--pre` (or `QQQ_PRE=1`) takes prereleases, `--dry-run` prints what it would
   download, and `--help` works when piped from curl.
@@ -176,6 +183,11 @@ candidate's, plus the changes since it listed first.
 
 ### Fixed
 
+- The UI's developer view drew the ESB sample event as broken fragments that looked duplicated (`…/table/pe`,
+  `of:`, `Blair","lastName"…` twice): the event's minified JSON went through the prose word-wrap, which
+  split it at the spaces inside its string values (`"Clone of: Blair"`, in both `record` and `oldRecord`)
+  and cut every piece longer than the width. Code blocks are now pretty-printed and drawn one source line
+  per screen line, cut with `…`, never wrapped as prose.
 - `npm test` runs on Node 20 (the test glob is expanded by the shell; `node --test` only expands globs
   from Node 21).
 - A question closed with Ctrl-D no longer hangs on Node 22.12 (readline left the question pending).

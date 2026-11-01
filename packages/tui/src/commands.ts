@@ -19,7 +19,7 @@ import { CommandLineOverlay, HelpOverlay, LockOverlay, MenuOverlay, PaletteOverl
 import { chooseFolder } from './overlays/files-helpers'
 import { OutputScreen } from './screens/output'
 import { openReport } from './screens/report'
-import { TableApisScreen } from './screens/developer'
+import { TableDeveloperScreen } from './screens/developer'
 import { actionsOverlay } from './overlays/actions'
 import { SignInScreen } from './screens/signin'
 import type { AppStore, CommandsLike } from './store'
@@ -61,7 +61,7 @@ export class Commands implements CommandsLike {
     const topic = screen?.helpTopic?.()
     const topicHelp: string[] = []
     const actions = screen?.menu?.() ?? []
-    const keys = GLOBAL_KEYS.filter(([k]) => s.singleKeys || !/^[a-z?/.\]]/.test(k.split(/\s+/).pop() ?? ''))
+    const keys = [...(screen?.helpKeys?.() ?? []), ...GLOBAL_KEYS].filter(([k]) => s.singleKeys || !/^[a-z?/.\]]/.test(k.split(/\s+/).pop() ?? ''))
     const overlay = new HelpOverlay(s, keys, actions, topicHelp, async (q) => {
       const data = await s.client!.data<{ results?: Array<{ kind: string; label?: string; name: string; table?: string; key?: string }> }>('searchHelp', { query: { q, limit: '30' } })
       return (data.results ?? []).map((r) => ({
@@ -291,7 +291,7 @@ export class Commands implements CommandsLike {
         case 'dev': case 'developer': {
           const screen = s.screen as { kind?: string; openDeveloper?: () => void; tableName?: string } | undefined
           if (screen?.kind === 'record') return screen.openDeveloper?.()
-          if (screen?.kind === 'table' && screen.tableName) return s.push(new TableApisScreen(s, screen.tableName))
+          if (screen?.kind === 'table' && screen.tableName) return s.push(new TableDeveloperScreen(s, screen.tableName))
           return fail(':dev works on a record (scripts, panels) or a table (APIs)')
         }
         case 'tags': {

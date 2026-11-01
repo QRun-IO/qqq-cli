@@ -60,6 +60,13 @@ keys Escape 'T:?'
 expect 12-help 'Help  (F1' 'Keys'
 keys Escape T:: 'T:app SampleWidgetsDashboard' Enter
 expect 13-dashboard 'Sample Widgets Dashboard'
+keys Escape T:: 'T:table get person 12' Enter
+expect 13b-record-12 'Person ›' 'Identity'
+keys D
+expect 13c-developer '1 Security' 'Record Security' '3Record'
+keys 2
+expect 13d-developer-events 'ESB Events' 'Published to' 'v view'
+keys Escape
 keys F10
 expect 14-quit-confirm 'Quit qqq?' 'Reset: go to the home screen'
 keys Enter

@@ -58,6 +58,8 @@ export interface Screen {
   cliEquivalent?(): string | undefined
   /** The view-settings dialog for this screen, when it has one. */
   viewSettings?(): Overlay | undefined
+  /** Keys of this screen for the help overlay, listed before the global ones. */
+  helpKeys?(): Array<[string, string]>
   /** The help topic: table, process or app name, for F1. */
   helpTopic?(): { kind: 'table' | 'process' | 'app'; name: string } | undefined
 }

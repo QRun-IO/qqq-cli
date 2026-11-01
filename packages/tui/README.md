@@ -48,7 +48,7 @@ shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 | F10, `:quit` | Quit, Reset (home screen, metadata refreshed, session kept) or Cancel; `:reset` and `:home` reset | `x`, `g`, `v` | export, go to by key, view settings |
 | `:` | command line (history ↑↓, Ctrl+R, Tab completes) | Ctrl+S | save a form, continue a process step |
 | Ctrl+C | quit at once (the terminal is restored) | `c` | copy a record |
-| `a` | actions here (the F9 Context entries) | `A`, `D` | audits, developer (record); `D` on a grid: table APIs |
+| `a` | actions here (the F9 Context entries) | `A`, `D` | audits, developer view (record or grid) |
 | `t` | tags of a record (collaboration extension) | Esc then 1..0, Ctrl+1..0 | F1..F10 when the terminal takes the F-keys |
 
 Keys on one screen:
@@ -61,11 +61,34 @@ Keys on one screen:
 | Process | Ctrl+S continue, F4 back (when the step allows), Esc cancel, `w` save the step's file, `n` `p` page the records |
 | Bulk wizard | Space switch a field on (bulk edit), Enter choose, `h` header row, `l` layout, `k` key fields, `P` saved profiles, `v` validate, Ctrl+S next, F4 back |
 | Widget | Enter on its heading: reload, dropdowns, export CSV, run, versions, setup editors |
+| Developer (`D`) | ←→ or 1-9 sections, ↑↓ PgUp PgDn scroll, Enter follow the line, `v` view the value in full, `y` copy it, F3 the record (or the grid), Esc back; see [Developer view](#developer-view) |
 | Command line | ↑↓ history, Ctrl+R search the history, Tab complete, Enter run, Esc close |
 | Filter (F6) | ↑↓ rows, ←→ Tab cells, Enter or typing edits the focused cell (text and numbers in place, choices from a list, Space cycles true/false), Backspace clears it to `(any)`, Ctrl+N add, Ctrl+D remove, Ctrl+O AND/OR, Ctrl+G group, F2 Advanced (grammar, cheat sheet, caret under errors), F10 apply, Esc cancel; see [docs/filter-dialog.md](docs/filter-dialog.md) |
 
 Single-key shortcuts follow the server preference `keyboard.singleKeyShortcuts` and can be switched in F9
 Settings; every F-key action is also in the F9 menu and on the `:` line.
+
+## Developer view
+
+`D` on a record opens its developer view, `D` on a grid the table's. Each is a row of sections (←→ or
+the digits switch) over a scrollable pane with a scroll bar and a "lines a–b of n" counter:
+
+- Record: **Security** (record security locks), **Events** (CloudEvents attributes, where the table
+  publishes, its subscribers, a sample event), **Scripts** (associated scripts and their revisions:
+  Enter shows the code, the run logs or test-runs a revision; a line stores a new version from
+  `$EDITOR`), **JSON** (API endpoints, each field's display and raw value, the raw values), **Metadata**
+  (summary, fields, sections), **Audits** (Enter shows an entry's changes), **APIs** (application APIs;
+  Enter on a version opens its OpenAPI document), then one section per further developer panel the
+  server adds (Quick Search, SQL Workbench, Assistant...).
+- Table: **Events** (publications and subscribers with their message counters; Enter on a row shows
+  every counter), **JSON** (the full table metadata), **Metadata**, **APIs**.
+
+Tables use the grid's column layout (cells cut with `…`, `—` for no value, with a line saying why when
+a whole column is empty). JSON is pretty-printed and tinted; a long line is cut in the pane, and `v`
+opens the value viewer, which wraps it in full. `y` copies the selected value (pbcopy, wl-copy, xclip or
+xsel when present, else the terminal's OSC 52). Links of the web UI become TUI actions (the table
+developer view, a record, a grid, a process); those with no TUI screen, such as the ESB overview, show
+their URL marked "browser only". Design notes: [docs/developer-view.md](docs/developer-view.md).
 
 ## Screens
 

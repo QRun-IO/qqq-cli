@@ -93,6 +93,8 @@ export class AppStore {
   signInDeps?: import('./screens/signin').SignInDeps
   /** Opens text in $EDITOR and returns the edited text (set by main; suspends the renderer). */
   editExternal: (text: string) => Promise<string> = async () => { throw new Error('no external editor in this session') }
+  /** Copies text to the clipboard (set by main); returns how it was copied, or undefined when there is no clipboard. */
+  copyText: (text: string) => string | undefined = () => undefined
   sidebar?: SidebarLike
   private listeners = new Set<Listener>()
   private timers: Array<ReturnType<typeof setInterval>> = []
