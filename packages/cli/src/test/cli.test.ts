@@ -165,7 +165,8 @@ describe('doctor', () => {
     assert.equal(result.code, 0, result.stdout + result.stderr)
     const report = JSON.parse(result.stdout) as { ok: boolean; checks: Array<{ area: string; check: string; status: string; detail: string }> }
     assert.equal(report.ok, true)
-    assert.deepEqual(report.checks.filter((x) => x.area !== 'terminal').map((x) => [x.check, x.status]).slice(0, 6), [['profile', 'ok'], ['reachable', 'ok'], ['UI API version', 'ok'], ['authentication', 'ok'], ['signed in', 'ok'], ['extensions', 'ok']])
+    assert.match(report.checks[0]!.detail, /^qqq \S+; npm package or source checkout; Node \d+\.\d+\.\d+; \w+ \S+ \w+$/)
+    assert.deepEqual(report.checks.filter((x) => x.area !== 'terminal').map((x) => [x.check, x.status]).slice(0, 7), [['build', 'ok'], ['profile', 'ok'], ['reachable', 'ok'], ['UI API version', 'ok'], ['authentication', 'ok'], ['signed in', 'ok'], ['extensions', 'ok']])
   })
   test('doctor without a sign-in exits 1 and says what to do', async () => {
     const local = sandbox()

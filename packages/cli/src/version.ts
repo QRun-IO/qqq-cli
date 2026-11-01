@@ -11,6 +11,7 @@
  * an npm install leaves them undefined.
  */
 
+import { release } from 'node:os'
 import { UI_API_VERSION } from '@qrun-io/qqq-ui-api-client'
 
 declare const QQQ_BUILD_SHA: string | undefined
@@ -30,9 +31,27 @@ export const BUILD_TARGET = typeof QQQ_BUILD_TARGET === 'string' ? QQQ_BUILD_TAR
 /** True in a binary that carries the terminal UI. */
 export const BUILD_UI = typeof QQQ_BUILD_UI === 'boolean' ? QQQ_BUILD_UI : false
 
+/** The JavaScript runtime this process runs on: the Bun embedded in a binary, or Node. */
+export function runtimeText(): string {
+  return process.versions.bun ? `Bun ${process.versions.bun}` : `Node ${process.versions.node}`
+}
+
+/**
+ * One line for support (qqq doctor, qqq ui --check): version, how qqq was installed (which binary,
+ * with or without the UI, from which commit), the runtime and the platform.
+ */
+export function buildDescription(): string {
+  const parts = [`qqq ${CLI_VERSION}`]
+  parts.push(BUILD_TARGET ? `${BUILD_TARGET} binary ${BUILD_UI ? 'with ui' : 'without ui'}` : 'npm package or source checkout')
+  if (BUILD_SHA) parts.push(`commit ${BUILD_SHA}`)
+  parts.push(BUILD_TARGET ? `${runtimeText()} runtime (embedded)` : runtimeText())
+  parts.push(`${process.platform} ${release()} ${process.arch}`)
+  return parts.join('; ')
+}
+
 /** The text of `qqq --version`. */
 export function versionText(): string {
-  const build = BUILD_TARGET ? `${BUILD_TARGET} binary${BUILD_UI ? ' with ui' : ''}${BUILD_SHA ? `, ${BUILD_SHA}` : ''}` : `node ${process.versions.node}`
+  const build = BUILD_TARGET ? `${BUILD_TARGET} binary${BUILD_UI ? ' with ui' : ''}${BUILD_SHA ? `, ${BUILD_SHA}` : ''}, ${runtimeText().toLowerCase()}` : runtimeText().toLowerCase()
   return [
     `qqq ${CLI_VERSION} (${build})`,
     `UI API client ${UI_API_VERSION}; servers UI API ${UI_API_RANGE}`,

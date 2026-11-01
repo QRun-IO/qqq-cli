@@ -18,9 +18,10 @@ import { appendTmuxConf, applyLiveFix, callOperation, checkEnvironment, formatRe
 import { EXIT, type Context } from '../context.js'
 import { CLI_VERSION, authenticatedFetch, currentToken, getLogin, secretStoreKind } from '../session.js'
 import type { Json } from './shared.js'
+import { UI_API_MIN_VERSION, buildDescription } from '../version.js'
 
-/** The oldest UI API this client works with (README: UI API 1.6.0 or later). */
-export const MIN_UI_API = '1.6.0'
+/** The oldest UI API this client works with. */
+export const MIN_UI_API = UI_API_MIN_VERSION
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skip'
 export interface DoctorCheck { area: string; check: string; status: CheckStatus; detail: string }
@@ -153,10 +154,11 @@ export function registerDoctor(program: Command, ctx: () => Context): void {
     .action(async (options: { conformance?: boolean; fix?: boolean }) => {
       const c = ctx()
       const terminal = terminalChecks()
-      const checks = [...await connectivityChecks(c, options), ...terminal.checks]
+      const build: DoctorCheck = { area: 'local', check: 'build', status: 'ok', detail: buildDescription() }
+      const checks = [build, ...await connectivityChecks(c, options), ...terminal.checks]
       const failed = checks.filter((x) => x.status === 'fail')
       c.print({
-        data: { client: CLI_VERSION, uiApi: UI_API_VERSION, ok: failed.length === 0, checks },
+        data: { client: CLI_VERSION, build: build.detail, uiApi: UI_API_VERSION, ok: failed.length === 0, checks },
         rows: checks as unknown as Json[],
         columns: ['area', 'check', 'status', 'detail'],
         footer: failed.length ? `(${failed.length} of ${checks.length} checks failed: ${failed.map((x) => x.check).join(', ')})` : `(all ${checks.length} checks passed${checks.some((x) => x.status === 'warn') ? '; see the warnings' : ''})`,

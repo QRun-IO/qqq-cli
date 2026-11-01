@@ -9,6 +9,7 @@
  */
 
 import { createInterface } from 'node:readline/promises'
+import { buildDescription } from '@qrun-io/qqq-cli/program'
 import { appendTmuxConf, applyLiveFix, checkEnvironment, formatReport, readDoctorState, startupFindings, writeDoctorState, type Report } from '@qrun-io/qqq-core'
 
 export async function runDoctor(options: { full: boolean }): Promise<{ report: Report }> {
@@ -16,7 +17,7 @@ export async function runDoctor(options: { full: boolean }): Promise<{ report: R
   const report = checkEnvironment({ columns: process.stdout.columns, rows: process.stdout.rows })
   const state = readDoctorState()
   const ask = options.full ? report.findings.filter((f) => f.live || f.permanent) : startupFindings(report, state)
-  if (options.full) process.stdout.write(formatReport(report) + '\n\n')
+  if (options.full) process.stdout.write(`${buildDescription()}\n\n${formatReport(report)}\n\n`)
   if (!ask.length || !process.stdin.isTTY) {
     try {
       writeDoctorState({ lastCheck: new Date().toISOString() })
