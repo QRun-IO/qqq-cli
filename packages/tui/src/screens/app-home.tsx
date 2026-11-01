@@ -14,7 +14,7 @@ import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
 import { errorText, num, pad } from '../util/text'
-import { blockLines } from '../widgets'
+import { blockLines, prefixLine } from '../widgets'
 import { followLine } from '../links'
 import { ListModel, Panel, type Row } from './list'
 
@@ -153,7 +153,7 @@ export class AppHomeScreen implements Screen {
         out.push({ text: heading ? heading.text : label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
         if (heading?.sub) out.push({ text: `  ${heading.sub}`, fg: t.dim })
         // lines that link somewhere (a statistic's filtered grid, an ESB destination, a table in HTML) open it on Enter
-        out.push(...blockLines(heading ? data.slice(1) : data, colWidth - 4).map((l, k) => ({ ...l, text: '  ' + l.text, ...(l.href || l.trusted ? { key: `w:${w}:${k}`, action: () => followLine(this.store, l) } : {}) })))
+        out.push(...blockLines(heading ? data.slice(1) : data, colWidth - 4).map((l, k) => ({ ...prefixLine(l, '  '), ...(l.href || l.trusted ? { key: `w:${w}:${k}`, action: () => followLine(this.store, l) } : {}) })))
       }
       return out
     }

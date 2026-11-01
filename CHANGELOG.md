@@ -293,6 +293,14 @@ in parentheses mark the changes made after the candidate.
 ### Fixed
 
 - The screen saver moves every element so an OLED or CRT does not burn in: Bounce's tile panel rides beside the logo (the clock, server and lock lines used to sit still), the header and the lock line change place every 30 s, the flip clock drifts, Big numbers changes corners, and it dims after 10 minutes (`:saver burnin on|off`, `:saver dim <minutes|off>`); the block-letter logo now says the connected profile's name (short name up to 6 characters) with the server host beneath, instead of `qqq`.
+- The UI's text and HTML widgets (Quick Search Admin's Search Diagnostics, the SQL Workbench summary, the
+  alerts cards) were one undifferentiated block. They are drawn as a document with the web's hierarchy:
+  headings in the accent colour with a blank line before and their block indented under them, leading
+  status words (OK, WARN, FAIL, DEGRADED, DOWN, …) as fixed-width coloured badges, `Label: value` items as
+  an aligned two-column list (none/0 under a failure label in green), ISO timestamps in the profile's date
+  format, body text wrapped at ~100 cells with blank lines between paragraphs, enumerations ("Add Search
+  Index, Apply Search Index Changes, …") as bullets, stat cards kept together and button rows of links as
+  items that Enter follows; ASCII badges and bullets under the ASCII setting.
 - `qqq login --server URL` with `QQQ_PROFILE` (or `--profile`) naming an existing profile of another
   server silently pointed that profile at the new server. It now warns and needs `--yes` (or a yes at the
   question on a terminal); `--profile <new-name>` adds a profile instead. A token refresh under a one-off

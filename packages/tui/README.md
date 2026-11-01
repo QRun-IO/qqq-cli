@@ -285,6 +285,11 @@ timeline, tasks (list, add, done) and the share preview (find people or type use
 the record, then send). Without the extension the line is not drawn and F9 shows "Collaboration: needs the
 collaboration extension".
 
+**Text and HTML widgets** are drawn as a document: headings (HTML h1-h4, markdown `#`, or a short line
+before a block) in the accent colour with a blank line before, status badges (OK green, WARN/DEGRADED
+yellow, FAIL/DOWN red) at a fixed width, `Label: value` lists aligned, dates in your date format (`:dates`),
+paragraphs at ~100 cells, enumerations as bullets (`src/text-doc.ts`).
+
 **Widgets** the kernel has no block for are drawn by the TUI: the ESB overview (destinations with their
 publishers, triggers and counters, as `:esb overview`; Enter on a destination offers the ESB of its table
 and processes, its messages and dead letters), statistics that link to a filtered grid (the label and

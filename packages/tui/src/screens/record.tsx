@@ -25,7 +25,7 @@ import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
 import { cell, errorText, fieldCell, hintLine, pad, trunc, type KeyToken } from '../util/text'
-import { blockLines } from '../widgets'
+import { blockLines, prefixLine } from '../widgets'
 import { followLine } from '../links'
 import { ListModel, Panel, type Row } from './list'
 import { childBox, childColumnWidth, clampOffset, padRows, planRecordLayout, type LayoutItem } from './record-layout'
@@ -362,7 +362,7 @@ export class RecordScreen implements Screen {
       if (wv === null || wv === undefined || wv === '') rows.push({ text: '    (none)', fg: t.dim })
       // a WIDGET-adorned field whose value is plain text (not a widget payload) shows the text
       else if (typeof wv !== 'object') rows.push({ text: `    ${String(wv)}` })
-      else rows.push(...blockLines(widgetToBlocks(wv), inner - 6).map((l) => ({ ...l, text: `    ${l.text}`, ...(l.href || l.trusted ? { action: () => followLine(this.store, l) } : {}) })))
+      else rows.push(...blockLines(widgetToBlocks(wv), inner - 6).map((l) => ({ ...prefixLine(l, '    '), ...(l.href || l.trusted ? { action: () => followLine(this.store, l) } : {}) })))
     }
     const plainFields = fields.filter((f) => !widgetFields.includes(f))
     for (let i = 0; i < plainFields.length; i += two ? 2 : 1) {
@@ -387,7 +387,7 @@ export class RecordScreen implements Screen {
     const w = this.widgets.get(wname)
     if (!w) rows.push({ text: '  loading…', fg: t.dim })
     else if ('error' in w) rows.push({ text: `  ${w.error}`, fg: t.err })
-    else rows.push(...blockLines(w.filter((b) => b.kind !== 'heading'), inner - 2).map((l, k) => ({ ...l, text: '  ' + l.text, ...(l.href || l.trusted ? { key: `wl:${s.name}:${k}`, action: () => followLine(this.store, l) } : {}) })))
+    else rows.push(...blockLines(w.filter((b) => b.kind !== 'heading'), inner - 2).map((l, k) => ({ ...prefixLine(l, '  '), ...(l.href || l.trusted ? { key: `wl:${s.name}:${k}`, action: () => followLine(this.store, l) } : {}) })))
     const payload = this.widgetPayloads.get(wname) as { type?: string } | undefined
     if (payload && (payload.type ?? (this.store.meta?.widgets as Record<string, { type?: string }> | undefined)?.[wname]?.type) === 'dynamicForm' && (meta as { editPermission?: boolean }).editPermission !== false) {
       rows.push({ text: `  ${g.pointer} Edit these fields`, fg: t.acc, key: `dyn:${wname}`, action: () => this.editDynamicForm(wname) })

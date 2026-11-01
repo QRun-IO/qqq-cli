@@ -12,6 +12,7 @@
 import type { RenderBlock } from '@qrun-io/qqq-core'
 import { wrap } from './overlays/basic'
 import { structuredLines } from './structured'
+import { docLines, structured, type DocBlock } from './text-doc'
 import { TRUSTED_LINK, type TrustedLink } from './links'
 import { glyphs, theme } from './theme'
 import { pad, padLeft, trunc } from './util/text'
@@ -25,6 +26,46 @@ export interface StyledLine {
   href?: string
   /** A link the TUI built itself (an ESB destination row). */
   trusted?: TrustedLink
+  /** Coloured parts of the line (a status badge, a toned value); their texts make up `text`. */
+  segments?: Segment[]
+}
+
+export interface Segment {
+  text: string
+  fg?: string
+  bg?: string
+  bold?: boolean
+}
+
+/** A line cut to a width, its segments cut with it. */
+export function clipLine(line: StyledLine, width: number): StyledLine {
+  const text = trunc(line.text, width)
+  if (!line.segments || text === line.text) return { ...line, text }
+  const segments: Segment[] = []
+  let used = 0
+  for (const s of line.segments) {
+    if (used >= text.length) break
+    segments.push({ ...s, text: text.slice(used, used + s.text.length) })
+    used += s.text.length
+  }
+  return { ...line, text, segments }
+}
+
+/** A line with a prefix (an indent), its segments shifted with it. */
+export function prefixLine<T extends StyledLine>(line: T, prefix: string): T {
+  return { ...line, text: prefix + line.text, ...(line.segments ? { segments: [{ text: prefix }, ...line.segments] } : {}) }
+}
+
+/** The spans of a line padded to a width: its segments, or the whole text in one colour. */
+export function LineSpans({ line, width, fg, bg }: { line: StyledLine; width: number; fg: string; bg?: string }) {
+  if (!line.segments) return <>{line.bold ? <strong>{pad(line.text, width)}</strong> : pad(line.text, width)}</>
+  const used = line.segments.reduce((n, s) => n + s.text.length, 0)
+  return (
+    <>
+      {line.segments.map((s, i) => <span key={i} fg={s.fg ?? fg} bg={s.bg ?? bg}>{s.bold || line.bold ? <strong>{s.text}</strong> : s.text}</span>)}
+      <span fg={fg} bg={bg}>{' '.repeat(Math.max(0, width - used))}</span>
+    </>
+  )
 }
 
 function fmt(n: number): string {
@@ -68,12 +109,27 @@ export function tableLines(headers: string[], rows: string[][], width: number, l
   ]
 }
 
+/** A text or HTML document (text-doc.ts) carried among the kernel's render blocks. */
+export interface DocRenderBlock {
+  kind: 'doc'
+  doc: DocBlock[]
+}
+
+/** The document as a render block, or undefined when it has no structure worth drawing (plain text stays text). */
+export function docBlock(doc: DocBlock[]): RenderBlock[] | undefined {
+  return structured(doc) ? [{ kind: 'doc', doc } as DocRenderBlock as unknown as RenderBlock] : undefined
+}
+
 /** Turns blocks into lines for a width. */
 export function blockLines(blocks: RenderBlock[], width: number): StyledLine[] {
   const t = theme()
   const g = glyphs()
   const out: StyledLine[] = []
   for (const b of blocks) {
+    if ((b as unknown as DocRenderBlock).kind === 'doc') {
+      out.push(...docLines((b as unknown as DocRenderBlock).doc, width))
+      continue
+    }
     switch (b.kind) {
       case 'heading':
         out.push({ text: trunc(b.text, width), fg: t.acc, bold: true })
@@ -185,7 +241,7 @@ export function blockLines(blocks: RenderBlock[], width: number): StyledLine[] {
 export function Lines({ lines, width }: { lines: StyledLine[]; width: number }) {
   return (
     <>
-      {lines.map((l, i) => <text flexShrink={0} wrapMode="none" key={i} fg={l.fg ?? theme().fg} bg={l.bg}>{l.bold ? <strong>{pad(l.text, width)}</strong> : pad(l.text, width)}</text>)}
+      {lines.map((l, i) => <text flexShrink={0} wrapMode="none" key={i} fg={l.fg ?? theme().fg} bg={l.bg}><LineSpans line={l} width={width} fg={l.fg ?? theme().fg} bg={l.bg} /></text>)}
     </>
   )
 }

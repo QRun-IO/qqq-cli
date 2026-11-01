@@ -8,7 +8,7 @@ import type { Key } from '../keys'
 import type { ZoneHandlers } from '../mouse/registry'
 import { Zone } from '../mouse/zone'
 import { borderProps, theme } from '../theme'
-import type { StyledLine } from '../widgets'
+import { LineSpans, type StyledLine } from '../widgets'
 import { pad } from '../util/text'
 
 /** A row of a scrolling list: a line, optionally selectable with an action. */
@@ -90,7 +90,9 @@ export class ListModel {
       const at = this.top + i
       const sel = at === this.cursor && Boolean(r.action)
       const text = pad(r.text, width)
-      return <Zone key={i} {...this.rowMouse(at)}><text flexShrink={0} wrapMode="none" fg={sel ? (focused ? t.selFg : t.fg) : r.fg ?? t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : r.bg}>{r.bold ? <strong>{text}</strong> : text}</text></Zone>
+      // a row with coloured segments (a status badge) draws them, except under the cursor
+      const body = r.segments && !sel ? <LineSpans line={{ ...r, text: r.text.slice(0, width) }} width={width} fg={r.fg ?? t.fg} bg={r.bg} /> : r.bold ? <strong>{text}</strong> : text
+      return <Zone key={i} {...this.rowMouse(at)}><text flexShrink={0} wrapMode="none" fg={sel ? (focused ? t.selFg : t.fg) : r.fg ?? t.fg} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : r.bg}>{body}</text></Zone>
     })
     while (lines.length < height) lines.push(<text flexShrink={0} wrapMode="none" key={`pad${lines.length}`}>{pad('', width)}</text>)
     return <>{lines}</>

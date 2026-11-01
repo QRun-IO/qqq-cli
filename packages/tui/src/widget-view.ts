@@ -13,9 +13,12 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { exportFileName, htmlToText, datePickerValue, readViewSettings, reconcileSelections, resolveDropdowns, safeFileName, widgetCsv, widgetParams, widgetToBlocks, writeViewSettings, type QueryFilter, type RenderBlock, type WidgetContext, type WidgetControlMeta } from '@qrun-io/qqq-core'
+import { exportFileName, formatDateValue, htmlToText, datePickerValue, readViewSettings, reconcileSelections, resolveDropdowns, safeFileName, widgetCsv, widgetParams, widgetToBlocks, writeViewSettings, type QueryFilter, type RenderBlock, type WidgetContext, type WidgetControlMeta } from '@qrun-io/qqq-core'
 import { esbOverviewBlocks } from './esb'
 import { htmlRowBlocks } from './html-rows'
+import { docBlock } from './widgets'
+import { htmlDocument, textDocument } from './text-doc'
+import { dateSettingsFor } from './controls/date-settings'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
 import { saveFile } from './overlays/files-helpers'
 import type { AppStore } from './store'
@@ -142,14 +145,30 @@ export class WidgetView {
       }
       return at >= 0 ? [...blocks.slice(0, at), ...replacement, ...blocks.slice(at + 1)] : [...blocks, ...replacement]
     }
-    if (type === 'html' && typeof data.html === 'string') {
-      const rows = htmlRowBlocks(data.html)
-      if (!rows) return blocks
-      const text = typeof data.text === 'string' ? data.text : htmlToText(data.html)
+    if (type === 'html' && (typeof data.html === 'string' || typeof data.text === 'string')) {
+      const text = typeof data.text === 'string' ? data.text : htmlToText(String(data.html))
       const at = blocks.findIndex((b) => b.kind === 'text' && b.text === text)
-      if (at >= 0) return [...blocks.slice(0, at), ...rows, ...blocks.slice(at + 1)]
+      if (at < 0) return blocks
+      // row-shaped HTML (label, status, detail) as aligned columns; other text as a document with
+      // headings, badges, aligned label/value lists and paragraphs at a reading measure
+      const html = typeof data.html === 'string' ? data.html : undefined
+      const date = this.dateFormatter()
+      const replacement = (html ? htmlRowBlocks(html) : undefined) ?? docBlock(html ? htmlDocument(html, { date }) : textDocument(text, { date }))
+      if (replacement) return [...blocks.slice(0, at), ...replacement, ...blocks.slice(at + 1)]
     }
     return blocks
+  }
+
+  /** ISO instants in widget text, in the profile's date format. */
+  private dateFormatter(): (iso: string) => string {
+    const settings = dateSettingsFor(this.store)
+    return (iso) => {
+      try {
+        return formatDateValue(iso, 'DATE_TIME', settings) || iso
+      } catch {
+        return iso
+      }
+    }
   }
 
   /** A parent widget's children: those the metadata knows and the user may see, with the parent's selections. */
