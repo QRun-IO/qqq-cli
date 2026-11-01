@@ -24,6 +24,7 @@ import { TableDeveloperScreen } from './screens/developer'
 import { actionsOverlay } from './overlays/actions'
 import { SignInScreen } from './screens/signin'
 import { ServersOverlay } from './overlays/servers'
+import { datesCommand } from './controls/date-settings'
 import type { AppStore, CommandsLike } from './store'
 import type { MenuEntry } from './types'
 import { openSqlRunner, sqlCommand, sqlMenuEntries } from './sql/entry'
@@ -44,7 +45,7 @@ const NOUNS: Record<string, string[]> = {
   apps: [], whoami: [], search: [], 'help-search': [],
 }
 
-const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql']
+const TUI_COMMANDS = ['quit', 'home', 'reset', 'tags', 'audits', 'dev', 'actions', 'back', 'help', 'menu', 'goto', 'view', 'theme', 'ascii', 'linear', 'shortcuts', 'lock', 'pin', 'idle', 'refresh', 'filter', 'export', 'jobs', 'printjobs', 'profile', 'servers', 'server', 'signout', 'connection', 'open', 'record', 'app', 'sql', 'dates']
 
 export class Commands implements CommandsLike {
   constructor(private store: AppStore) {}
@@ -269,6 +270,7 @@ export class Commands implements CommandsLike {
           return s.flash(`theme ${name} (saved)`)
         }
         case 'ascii': s.setAscii(rest[0] !== 'off'); return s.flash(`ASCII glyphs ${s.settings.ascii ? 'on' : 'off'}`)
+        case 'dates': try { return s.flash(datesCommand(s, rest)) } catch (e) { return fail(errorText(e)) }
         case 'linear': s.settings.linear = rest[0] !== 'off'; s.bump(); return s.flash(`linear layout ${s.settings.linear ? 'on' : 'off'}`)
         case 'shortcuts': return this.setShortcuts(rest[0] !== 'off')
         case 'idle': {

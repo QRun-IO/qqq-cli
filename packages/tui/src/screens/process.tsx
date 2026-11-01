@@ -97,6 +97,10 @@ export class ProcessScreen implements Screen {
     return this.phase === 'form'
   }
 
+  claimsKey(key: Key): boolean {
+    return this.phase === 'form' && (this.editor?.claimsKey(key) ?? false)
+  }
+
   /** A fetch that stops when cancelled and notes the processUUID for the cancel call. */
   private fetchFor(): typeof fetch {
     const base = this.store.client!.fetch

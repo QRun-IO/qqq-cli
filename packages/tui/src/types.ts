@@ -63,7 +63,10 @@ export interface Screen {
   cliEquivalent?(): string | undefined
   /** The view-settings dialog for this screen, when it has one. */
   viewSettings?(): Overlay | undefined
-  /** Keys this screen takes before the global ones (F2 on the SQL Runner). */
+  /**
+   * Keys this screen takes before the global ones (F2 on the SQL Runner, F2 on a form's date field for
+   * its calendar instead of the palette). A claimed key the screen's onKey does not use falls through.
+   */
   claimsKey?(key: Key): boolean
   /** Keys of this screen for the help overlay, listed before the global ones. */
   helpKeys?(): Array<[string, string]>

@@ -58,6 +58,7 @@ export function helpKeyGroups(kind: string | undefined, singleKeys: boolean, scr
   if (kind === 'record') change.push([']  [  PgDn PgUp', 'next / previous record'])
   if (kind === 'form') change.push(['Ctrl+S', 'save'], ['Tab  ↑↓', 'next field'], ['Ctrl+E', 'edit a long value in $EDITOR'])
   if (kind === 'process') change.push(['Ctrl+S  F10', 'next step / submit'], ['Tab  ↑↓', 'next field'])
+  if (kind === 'form' || kind === 'process' || kind === 'fields-form') change.push(['F2  Ctrl+Space', 'date field: calendar (t today, Tab time); :dates sets the format'])
   change.push(['F5  r', 'refresh'], ['a', 'actions here (the F9 Context section)'], ['v', 'view settings'])
   groups.push({ title: 'Open and change', keys: change })
   if (kind === 'table') {

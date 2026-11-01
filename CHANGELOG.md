@@ -207,6 +207,21 @@ candidate's, plus the changes since it listed first.
   case-insensitive matches; a term starting with `=` (or Match exact case in the condition menu) asks for
   exact case. As in the CLI, the server applies it once it reads the option (finding 27).
 - **Themes per profile**: the theme picker keeps a theme for every profile or just this one.
+- **Dates: type them or pick them**: one date control for DATE and DATE_TIME fields in create and edit
+  forms, process forms, bulk edit and the filter dialog's value cell. Typed entry shows the value in the
+  profile's display format with the format hint (and zone) beside it, and reads ISO, the display format,
+  partial dates (`2026-3-5`, `3/5` in the current year), `t`/`today`, `n`/`now` and the filter grammar's
+  `now(-7d)` and `startOf(month)`; a date that does not exist is refused with the reason
+  (`February 2026 has 28 days`) and the field keeps the focus. F2 or Ctrl+Space opens a month calendar
+  anchored to the field (arrows a day or a week, PgUp/PgDn a month, Shift a year, Home/End, `t` today) with
+  a time row for DATE_TIME (hour, minute, seconds when the value has them, AM/PM on a 12-hour clock) and
+  the local zone, the UTC instant sent and the server's declared zone. In the filter, Enter on a date
+  value opens the calendar (from and to for between) and `p` the presets. `:dates order ymd|mdy|dmy clock
+  24h|12h week monday|sunday weeknumbers on|off enter picker|next` sets the format per profile; slash
+  dates are accepted only when the order says which part is the month. Values go out exactly as before:
+  `YYYY-MM-DD`, and DATE_TIME as the UTC instant of the local time (bulk edit now converts too). The
+  kernel's `parseDateInput`, `formatDateValue`, `monthGrid` and the date settings live in
+  `forms/dates.ts`.
 - **Help**: F1 shows the application's help for the app, widget, table, process or step you are on, and
   the grid footer shows the column's help. Large tables stay quick: on a 10,000 x 40 table the first page
   draws in about 100 ms. A soak test (`packages/tui/scripts/soak.sh`) drives the real UI in tmux with

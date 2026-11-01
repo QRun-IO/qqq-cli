@@ -30,7 +30,7 @@ export interface Profile {
   /** The last time the TUI connected with this profile (ISO time). */
   lastUsedAt?: string
   /** Display settings of the terminal UI for this profile only (override the global `ui`). */
-  ui?: Pick<UiSettings, 'theme' | 'childRows'>
+  ui?: Pick<UiSettings, 'theme' | 'childRows' | 'dates'>
 }
 
 /** Sign-in preference of a profile; the server's authentication type decides the rest. */
@@ -44,6 +44,8 @@ export interface UiSettings {
   childRows?: number
   /** The terminal UI copies a CLI equivalent to the clipboard as soon as it shows it (default off). */
   copyCliCommands?: boolean
+  /** Date entry: display order, clock, week start, picker behaviour (forms/dates.ts). */
+  dates?: import('../forms/dates.js').DateSettings
   /** Keyed by screen, e.g. `table:person`, `record:person`, `app:peopleApp`. */
   views?: Record<string, ViewSettings>
 }

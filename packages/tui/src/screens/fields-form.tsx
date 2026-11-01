@@ -36,6 +36,10 @@ export class FieldsFormScreen implements Screen {
     return true
   }
 
+  claimsKey(key: Key): boolean {
+    return this.editor.claimsKey(key)
+  }
+
   paste(text: string): void {
     this.editor.paste(text)
   }

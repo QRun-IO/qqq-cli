@@ -15,8 +15,8 @@
 
 import {
   FilterSyntaxError, LIST_OPERATORS, OPERATORS, UNARY_OPERATORS, WEEKDAY_OF_DATE, WEEKDAY_OF_DATE_TIME, applyFieldTypes, applyCompletion, completeFilter, isEscapedAt, describeFilter, expressionCandidates, locateFilterError,
-  operatorsForField, parseFilter, textMatchOptions, TEXT_MATCH_OPERATORS, CASE_INSENSITIVE, parseValue, printCriterion, printFilter, printValue, resolvePossibleValue, searchPossibleValues,
-  type CompletionResult, type Completion, type Criterion, type FilterValue, type Operator, type QueryFilter,
+  operatorsForField, parseDateInput, resolveDateSettings, parseFilter, textMatchOptions, TEXT_MATCH_OPERATORS, CASE_INSENSITIVE, parseValue, printCriterion, printFilter, printValue, resolvePossibleValue, searchPossibleValues,
+  type CompletionResult, type Completion, type ResolvedDateSettings, type Criterion, type FilterValue, type Operator, type QueryFilter,
 } from '@qrun-io/qqq-core'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
@@ -29,6 +29,8 @@ import { errorText, pad, shellQuote, trunc } from '../util/text'
 import { readViewSettings, writeViewSettings } from '@qrun-io/qqq-core'
 import { ChoiceOverlay, ConfirmOverlay, EditorLine, PromptOverlay, overlayId, wrap } from './basic'
 import { Frame, Line } from './frame'
+import { pickFilterDates } from '../controls/date-filter'
+import { dateSettingsFor } from '../controls/date-settings'
 
 type Sort = { field: string; asc: boolean } | undefined
 
@@ -177,13 +179,12 @@ export function operatorLabel(op: Operator, kind: FieldKind, weekday = false): s
 }
 
 const NUMBER = /^[-+]?(\d+(\.\d*)?|\.\d+)$/
-const DATE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/
 
 /**
  * The values typed into a value cell: one value, a list (a, b, c) or a range (from, to; or from and
  * to). Empty text means no value (the row is then not applied). Numbers and dates are checked.
  */
-export function valuesFromText(f: Pick<FieldMetaData, 'type' | 'possibleValueSourceName' | 'label'>, op: Operator, text: string): FilterValue[] {
+export function valuesFromText(f: Pick<FieldMetaData, 'type' | 'possibleValueSourceName' | 'label'>, op: Operator, text: string, dateSettings?: ResolvedDateSettings): FilterValue[] {
   const t = text.trim()
   if (!t) return []
   const kind = fieldKind(f)
@@ -195,7 +196,12 @@ export function valuesFromText(f: Pick<FieldMetaData, 'type' | 'possibleValueSou
     const v = parseValue(p)
     if (typeof v !== 'string') return v
     if (kind === 'number' && !NUMBER.test(v)) throw new FilterSyntaxError(`"${v}" is not a number`)
-    if (kind === 'date' && String(f.type).toUpperCase() !== 'TIME' && !DATE.test(v)) throw new FilterSyntaxError(`"${v}" is not a date: type YYYY-MM-DD or an expression such as now(-7d), startOf(month)`)
+    if (kind === 'date' && String(f.type).toUpperCase() !== 'TIME') {
+      // the date control's lenient reading: 2026-3-5, t, 3/5 with a date order; expressions stay
+      const r = parseDateInput(v, { kind: String(f.type).toUpperCase() === 'DATE_TIME' ? 'DATE_TIME' : 'DATE', settings: dateSettings ?? resolveDateSettings(), expressions: 'keep' })
+      if (!r.ok) throw new FilterSyntaxError(/is not a date/.test(r.reason) ? r.reason : `"${v}" is not a date: ${r.reason}`)
+      return r.value ?? v
+    }
     return v
   }
   return parts.map(one)
@@ -465,7 +471,7 @@ export class FilterOverlay implements Overlay {
     const c = this.condAt(this.focused())
     if (!c || !this.editing) return true
     try {
-      c.values = valuesFromText(this.field(c.field) ?? { type: 'STRING', label: c.field }, c.operator, this.editing.value)
+      c.values = valuesFromText(this.field(c.field) ?? { type: 'STRING', label: c.field }, c.operator, this.editing.value, dateSettingsFor(this.store))
       this.editing = undefined
       this.editError = undefined
       return true
@@ -535,14 +541,17 @@ export class FilterOverlay implements Overlay {
     if (UNARY_OPERATORS.has(c.operator)) return this.store.flash(`"${operatorLabel(c.operator, kind)}" takes no value; Backspace resets the comparison`)
     const between = c.operator === 'BETWEEN' || c.operator === 'NOT_BETWEEN'
     if (kind === 'choice' && !between) return this.pickChoices(f, c, ch)
-    if (kind === 'date' && !ch && !between && !LIST_OPERATORS.has(c.operator)) {
-      const presets = expressionCandidates(f.type).map((x) => ({ label: x.detail ?? x.value, value: x.value, detail: x.value }))
-      this.store.open(new ChoiceOverlay(this.store, `${f.label} ${operatorLabel(c.operator, kind)}`, [{ label: 'Type a date or an expression…', value: TYPE_IN, detail: 'YYYY-MM-DD' }, ...presets], (v) => {
-        if (v === TYPE_IN) return this.startEdit()
-        c.values = [parseValue(v)]
-        this.store.bump()
-      }))
-      return
+    if (kind === 'date' && !ch && (between || !LIST_OPERATORS.has(c.operator)) && String(f.type).toUpperCase() !== 'TIME') {
+      // the shared date control: the calendar (two for between), presets on p, digits type in the cell
+      const presets = () => {
+        const list = expressionCandidates(f.type).map((x) => ({ label: x.detail ?? x.value, value: x.value, detail: x.value }))
+        this.store.open(new ChoiceOverlay(this.store, `${f.label} ${operatorLabel(c.operator, kind)}`, [{ label: 'Type a date or an expression…', value: TYPE_IN, detail: 'YYYY-MM-DD' }, ...list], (v) => {
+          if (v === TYPE_IN) return this.startEdit()
+          c.values = [parseValue(v)]
+          this.store.bump()
+        }))
+      }
+      return pickFilterDates(this.store, { label: `${f.label} ${operatorLabel(c.operator, kind)}`, type: f.type, between, values: c.values, onValues: (v) => { c.values = v; this.store.bump() }, onType: (seed) => this.startEdit(seed), ...(between ? {} : { onPresets: presets }) })
     }
     this.startEdit(ch ? ch : undefined)
   }
@@ -1149,7 +1158,8 @@ export class FilterOverlay implements Overlay {
     if (UNARY_OPERATORS.has(c.operator)) return `${label}: "${operatorLabel(c.operator, kind)}" takes no value; Backspace resets the comparison`
     const between = c.operator === 'BETWEEN' || c.operator === 'NOT_BETWEEN'
     if (kind === 'choice' && !between) return `${label}: Enter or typing opens the list${LIST_OPERATORS.has(c.operator) ? ' (Enter toggles values)' : ''}; Backspace clears`
-    if (kind === 'date' && !between && !LIST_OPERATORS.has(c.operator)) return `${label}: type YYYY-MM-DD or now(-7d); Enter: presets; Backspace clears`
+    if (kind === 'date' && !between && !LIST_OPERATORS.has(c.operator)) return `${label}: type YYYY-MM-DD or now(-7d); Enter: calendar (p presets); Backspace clears`
+    if (kind === 'date' && between && String(f?.type).toUpperCase() !== 'TIME') return `${label}: type from, to; Enter: calendar for each; Backspace clears`
     const what = between ? 'from, to' : LIST_OPERATORS.has(c.operator) ? 'values separated by commas' : kind === 'number' ? 'a number' : kind === 'date' ? 'dates' : 'text (any case)'
     return `${label}: type ${what} (or Enter); Backspace clears`
   }

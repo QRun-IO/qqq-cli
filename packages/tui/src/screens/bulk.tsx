@@ -21,6 +21,7 @@ import {
 import type { Key } from '../keys'
 import { ChoiceOverlay, PromptOverlay } from '../overlays/basic'
 import { PickerOverlay } from '../overlays/picker'
+import { DatePromptOverlay } from '../controls/date-picker'
 import type { AppStore } from '../store'
 import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Screen } from '../types'
@@ -249,6 +250,8 @@ export class BulkScreen implements Screen {
         if (o) session.displayValues[f.name] = o.label
         set(o ? o.id : null)
       }))
+    } else if (f.type === 'DATE' || f.type === 'DATE_TIME') {
+      this.store.open(new DatePromptOverlay(this.store, f.label ?? f.name, f.type, session.values[f.name], (v) => set(v), { utc: true }))
     } else if (f.type === 'BOOLEAN') {
       this.store.open(new ChoiceOverlay(this.store, f.label ?? f.name, [{ label: 'Yes', value: true }, { label: 'No', value: false }, { label: '(empty)', value: null as boolean | null }], (v) => set(v)))
     } else {

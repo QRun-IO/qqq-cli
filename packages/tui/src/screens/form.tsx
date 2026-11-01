@@ -20,6 +20,8 @@ import { glyphs, theme } from '../theme'
 import type { FKeyLabels, Screen } from '../types'
 import { errorText, pad, trunc } from '../util/text'
 import { Panel } from './list'
+import { committedText, DateEditor, dateProblem, storedTextOf } from '../controls/date-editor'
+import { DateFieldLine, dateEditorFor, dateFieldHelp, handleDateFieldKey, opensPicker } from '../controls/date-picker'
 import { orderedSections } from './record'
 
 const TEXT_TYPES = new Set(['STRING', 'TEXT', 'HTML', 'PASSWORD', 'INTEGER', 'LONG', 'DECIMAL', 'DATE', 'DATE_TIME', 'TIME', 'BLOB'])
@@ -85,7 +87,7 @@ export class FormEditor {
     this.initial = { ...session.values }
     for (const name of order) {
       const f = session.fields[name]
-      if (f && TEXT_TYPES.has(f.type) && !session.hasChoices(name) && !isFileField(f)) this.editors.set(name, new LineEditor(textOf(session.values[name]), { masked: f.type === 'PASSWORD' }))
+      if (f && TEXT_TYPES.has(f.type) && !session.hasChoices(name) && !isFileField(f)) this.editors.set(name, dateEditorFor(store, f, session.values[name]) ?? new LineEditor(textOf(session.values[name]), { masked: f.type === 'PASSWORD' }))
     }
   }
 
@@ -122,7 +124,7 @@ export class FormEditor {
   /** The value a field has now (the editor text for text fields not yet committed). */
   valueFor(name: string): unknown {
     const ed = this.editors.get(name)
-    return ed ? ed.value : this.session.values[name]
+    return ed ? storedTextOf(ed) : this.session.values[name]
   }
 
   /** Writes a text editor's value into the session (behaviors, adjusters, local check). */
@@ -131,17 +133,24 @@ export class FormEditor {
     const ed = this.editors.get(name)
     if (!ed) return
     const f = this.session.fields[name]!
-    if (textOf(this.session.values[name]) === ed.value && !(name in this.session.errors)) return
+    // date fields: the typed text read leniently into the canonical value, or the reason it is not one
+    const typed = committedText(ed)
+    if ('error' in typed) {
+      this.session.errors[name] = typed.error
+      return
+    }
+    const text = typed.text
+    if (textOf(this.session.values[name]) === text && !(name in this.session.errors)) return
     if (this.session.state(name).disabledBecause) return
     try {
-      const result = await this.session.set(name, ed.value === '' ? null : ed.value)
+      const result = await this.session.set(name, text === '' ? null : text)
       for (const n of result.cleared) this.editors.get(n)?.set('')
-      if (this.options.bulkEdit && ed.value !== textOf(this.initial[name])) this.enabled.add(name)
-      const problem = validateValue(f, ed.value)
+      if (this.options.bulkEdit && text !== textOf(this.initial[name])) this.enabled.add(name)
+      const problem = validateValue(f, text)
       if (problem) this.session.errors[name] = `${problem}`
       for (const [n, v] of Object.entries(this.session.values)) {
         const other = this.editors.get(n)
-        if (other && n !== name && other.value !== textOf(v)) other.set(textOf(v))
+        if (other && n !== name && storedTextOf(other) !== textOf(v)) other.set(textOf(v))
       }
     } catch (e) {
       this.session.errors[name] = e instanceof FormInputError ? e.message.replace(`${f.label}: `, '') : errorText(e)
@@ -150,6 +159,12 @@ export class FormEditor {
 
   move(delta: number): void {
     const from = this.current
+    // a date that does not read keeps the focus, with the reason beside it
+    const problem = from ? dateProblem(this.editors.get(from)) : undefined
+    if (problem) {
+      this.session.errors[from!] = problem
+      return
+    }
     void this.commit(from).then(() => this.store.bump())
     this.index = Math.max(0, Math.min(this.names.length - 1, this.index + delta))
   }
@@ -224,6 +239,12 @@ export class FormEditor {
     }))
   }
 
+  /** Keys the form takes before the global ones: F2 on a date field opens its calendar. */
+  claimsKey(key: Key): boolean {
+    const name = this.current
+    return Boolean(name && opensPicker(key) && this.editors.get(name) instanceof DateEditor && !this.options.readOnly?.includes(name) && this.session.fields[name]?.isEditable !== false && !this.session.state(name).disabledBecause)
+  }
+
   onKey(key: Key): boolean {
     const name = this.current
     if (!name) return false
@@ -293,6 +314,7 @@ export class FormEditor {
       this.store.run(this.store.editExternal(ed.value), (text) => { ed.set(text.replace(/\n$/, '')); void this.commit(name) })
       return true
     }
+    if (ed instanceof DateEditor && handleDateFieldKey(this.store, ed, key, f.label, () => { delete this.session.errors[name]; void this.commit(name).then(() => this.store.bump()) })) return true
     if (key.name === 'return') {
       // scanner screens: Enter in an input submits the step (hand-held stations)
       if (this.options.submitOnEnter) {
@@ -330,7 +352,8 @@ export class FormEditor {
       const bulk = this.options.bulkEdit ? (this.enabled.has(name) ? g.check : g.uncheck) + ' ' : ''
       const ed = this.editors.get(name)
       let editor: React.ReactNode
-      if (ed && !disabled) editor = <EditorLine editor={ed} width={editorWidth} focused={sel} />
+      if (ed instanceof DateEditor && !disabled) editor = <DateFieldLine editor={ed} width={editorWidth} focused={sel} />
+      else if (ed && !disabled) editor = <EditorLine editor={ed} width={editorWidth} focused={sel} />
       else {
         let shown: string
         if (isFileField(f)) shown = this.files.get(name) ? `${this.files.get(name)!.name} (${formatSize(this.files.get(name)!.bytes.length)})` : isMissingValue(this.session.values[name]) ? '(choose a file…)' : '(stored file; Enter replaces)'
@@ -341,7 +364,7 @@ export class FormEditor {
         editor = <text flexShrink={0} wrapMode="none" fg={disabled ? t.dim : sel ? t.selFg : t.inputFg} bg={disabled ? undefined : sel ? t.selBg : t.inputBg}>{pad(trunc(shown, editorWidth - pickGlyph.length) + pickGlyph, editorWidth)}</text>
       }
       const fieldHelp = idx === this.index ? helpEntryText(selectHelpContent(f.helpContents, ['INSERT_SCREEN', 'EDIT_SCREEN', 'WRITE_SCREENS', 'ALL_SCREENS'])) : ''
-      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : fieldHelp ? fieldHelp : idx === this.index ? (isFileField(f) ? 'Enter chooses a file · Backspace clears' : this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : hintFor(f)) : ''
+      const msg = error ? `! ${error}` : state.disabledBecause ? state.disabledBecause : fieldHelp ? fieldHelp : idx === this.index ? (isFileField(f) ? 'Enter chooses a file · Backspace clears' : this.session.hasChoices(name) ? 'Enter or type to choose · Backspace clears' : ed instanceof DateEditor ? dateFieldHelp(ed) : hintFor(f)) : ''
       return (
         <box key={name} flexDirection="row" height={1}>
           <text flexShrink={0} wrapMode="none" fg={sel ? t.acc2 : disabled ? t.dim : t.fg}>{`${sel ? g.pointer : ' '}${bulk}${pad(f.label, labelWidth - 1)}${required} `}</text>
@@ -438,6 +461,10 @@ export class FormScreen implements Screen {
 
   capturesText(): boolean {
     return true
+  }
+
+  claimsKey(key: Key): boolean {
+    return this.editor?.claimsKey(key) ?? false
   }
 
   paste(text: string): void {

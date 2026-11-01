@@ -220,6 +220,35 @@ count; Enter opens the grid), row-shaped HTML (the alerts setup checklist) in al
 other payload as key/value rows and sub-tables. App cards show the app's Material icon as a glyph (an
 ASCII stand-in under the ASCII setting; unknown icons get the app mark).
 
+Dates and date-times use one control everywhere they are edited (forms, process forms, bulk edit, the
+filter dialog's value cell). Typed entry shows the value in the profile's display format, with the format
+hint (`YYYY-MM-DD`, `MM/DD/YYYY hh:mm AM CST`) dim on the right, and accepts:
+
+| Typed | DATE | DATE_TIME |
+| --- | --- | --- |
+| `2026-03-05`, `2026-3-5`, `2026/3/5`, `20260305` | 2026-03-05 | 2026-03-05 00:00 |
+| `2026-03-05T14:30`, `2026-03-05 14:30:15`, `2026-3-5 2:30pm` | refused (a date has no time) | that time |
+| `2026-03-05T20:30:00Z`, `…+02:00` (an instant) | refused | read in the local zone |
+| `03/05/2026`, `3/5`, `3/5/26` (order MDY), `05/03/2026`, `5.3` (order DMY) | the date; the current year when left out | the date (and a time after it) |
+| `t`, `today` / `n`, `now` | today | today 00:00 / now |
+| `14:30`, `2:30 pm` (a time alone) | refused | today at that time |
+| `now()`, `now(-7d)`, `now(+2h)`, `startOf(month)`, `startOf(month, -1)` | resolved to a date | resolved to a date and time |
+| empty, or Backspace on a whole value (when the field may be empty) | no value | no value |
+
+Slash dates are refused under the ISO order (`01/02/2026 could be month/day or day/month`): `:dates order
+mdy` or `dmy` says which. A date that does not exist is refused with the reason (`February 2026 has 28
+days`, `hour 25 is out of range (0-23)`), shown in red beside the field, which keeps the focus. F2 or
+Ctrl+Space opens the calendar under the field (above it when there is no room): ←→ a day, ↑↓ a week,
+PgUp/PgDn a month, Shift+PgUp/PgDn a year, Home/End the first or last of the month, `t` today, `n` now, Tab to
+the time row (hour, minute, seconds when the value has them, AM/PM on a 12-hour clock; digits or ↑↓, Tab or
+←→ between parts), Enter accepts, Esc cancels, and a digit typed on the calendar goes back to typed entry.
+For a DATE_TIME it shows the local zone, the UTC instant that is sent, and the server's zone when the
+instance declares one. In the filter dialog Enter on a date value opens the calendar (one for from and one
+for to with between) and `p` there opens the presets (`now(-7d)`, `thisPeriod(month)` … kept as
+expressions); typed values are read the same way. Enter on an empty date field opens the calendar when
+`:dates enter picker` is set. Values go out as before: `YYYY-MM-DD`, and DATE_TIME as the UTC instant of the
+local time.
+
 The bulk wizard (`a` on a grid: bulk insert, bulk edit with a file, bulk edit, bulk delete, the upload
 template) runs on the kernel's `runBulkProcess`: the file from the file navigator, the column mapping as a
 grid (Enter chooses a column, a typed default or value mapping; `h` header row, `l` layout, `k` key fields,
@@ -265,7 +294,7 @@ drives it in tmux at 80x24 and 120x36 against a server with the extension (defau
 
 TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `menu`, `search <text>` (also `find`, `goto`, `palette`), `view`,
 `views`, `share`, `actions`, `audits`, `dev`, `tags`, `report run <name>`, `theme <name>`, `ascii on|off`,
-`linear on|off`, `shortcuts on|off`, `lock`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
+`linear on|off`, `shortcuts on|off`, `dates [order ymd|mdy|dmy] [clock 24h|12h] [week monday|sunday] [weeknumbers on|off] [enter picker|next]`, `lock`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
 `export <format>`, `jobs`, `profile [name]`, `servers`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
 `app <name>`, `record <table> <key>`, `sql [statement | open <id>]`. `table query|get|create|update|delete` and `process run` open screens;
 any other CLI command runs in-process (`runCli` from `@qrun-io/qqq-cli/program`) and shows its output;
@@ -290,6 +319,9 @@ Everything below is local to the machine and shared with the CLI; nothing is sen
     and `defaultProfile`. Fields are only ever added: a 1.0.0-rc.1 file loads unchanged.
     Sign-ins themselves are in the OS keychain (or the file keyring), one per profile.
   - `ui.theme`: the theme for every profile without its own.
+  - `ui.dates` (global, or in a profile's `ui`): date order (`YMD`, `MDY`, `DMY`), `clock` (`24h`, `12h`),
+    `weekStart`, `weekNumbers`, `pickerOnEnter`, set with `:dates`. Without them the clock and the first day
+    of the week follow the locale (`LC_ALL`, `LC_TIME`, `LANG`), else 24-hour and Monday; the order is ISO.
   - `ui.views`: per screen. `table:<name>` columns (in order), widths, fit (content or fill), stripes,
     header rule, density, sort, pinned columns; `record:<name>` one or two columns and the label width;
     `app:<name>` widget order; `widget:<name>` dropdown choices of widgets that ask to keep them.
@@ -351,5 +383,7 @@ packages/tui/scripts/soak.sh [server] [minutes]  # random keys for 10 min; fails
 so handlers read live state, never a stale closure. Screens (`src/screens/*`) are route entries that keep their
 own state (grid cursor, filter, selection, scroll), which is why Esc finds them as they were. Overlays
 (`src/overlays/*`) are modal. Text fields are `LineEditor` objects driven by keys, not OpenTUI's focused
-input, so a burst of keys lands in the field that had focus. `src/app.tsx` draws the frame with an error
+input, so a burst of keys lands in the field that had focus. Shared controls (`src/controls/*`) are the date control:
+`DateEditor` (typed entry, a `LineEditor`), `DatePickerOverlay` (the calendar) and their wiring for forms,
+bulk edit and the filter cell; a screen whose field wants F2 says so with `claimsKey`. `src/app.tsx` draws the frame with an error
 boundary around every screen and overlay; `src/main.tsx` restores the terminal on any crash.
