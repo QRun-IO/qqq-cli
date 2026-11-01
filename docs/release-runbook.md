@@ -180,8 +180,14 @@ release (the channel Homebrew and Scoop follow); a release candidate is reached 
 ```sh
 gh release download cli-v1.0.0 --repo QRun-IO/qqq-cli -p SHA256SUMS -D /tmp/qqq-1.0.0
 node scripts/update-packaging.mjs /tmp/qqq-1.0.0/SHA256SUMS
+git diff docs/packaging                                  # every sha256 differs from the placeholder, none is all zeros
 git commit -S -am "packaging: qqq 1.0.0" && git push      # in qqq-cli, through a pull request
 ```
+
+The script exits 1 and writes nothing if `SHA256SUMS` lacks a target or has a malformed sum. Compare each sum
+in the diff with the release's `SHA256SUMS` by eye before committing: the tap's CI and the bucket's manifest
+tests catch a wrong sum (the download will not match) only when someone opens those pull requests and reads
+their checks.
 
 Then copy `docs/packaging/homebrew-tap/Formula/qqq.rb` to `Formula/qqq.rb` in `QRun-IO/homebrew-tap`
 and `docs/packaging/qqq.json` to `bucket/qqq.json` in `QRun-IO/scoop-bucket`, a pull request on each. The tap's
