@@ -1,30 +1,66 @@
 {
   "name": "@qrun-io/qqq-cli",
-  "version": "0.1.0-rc.1",
+  "version": "1.0.0",
   "description": "Reference command-line client for QQQ applications, built only on the QQQ UI API (/qqq/v1).",
+  "keywords": [
+    "qqq",
+    "qrun",
+    "ui-api",
+    "cli",
+    "command-line",
+    "low-code"
+  ],
   "license": "Apache-2.0",
+  "homepage": "https://github.com/QRun-IO/qqq-cli/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/QRun-IO/qqq-cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QRun-IO/qqq-cli.git",
+    "directory": "packages/cli"
+  },
   "type": "module",
   "bin": {
     "qqq": "dist/main.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./program": {
+      "types": "./dist/program.d.ts",
+      "default": "./dist/program.js"
+    },
+    "./browser-login": {
+      "types": "./dist/browser-login.d.ts",
+      "default": "./dist/browser-login.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
-    "README.md"
+    "!dist/test",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/QRun-IO/qqq-cli.git",
-    "directory": "packages/cli"
+  "engines": {
+    "node": ">=20"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test \"dist/test/*.test.js\""
+    "test": "node ../../scripts/run-tests.mjs dist/test",
+    "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@qrun-io/qqq-ui-api-client": "1.6.0-rc.1",
+    "@qrun-io/qqq-core": "1.0.0",
+    "@qrun-io/qqq-ui-api-client": "1.8.0",
+    "@qrun-io/qqq-ui-api-conformance": "1.6.0",
     "commander": "15.0.0"
   }
 }

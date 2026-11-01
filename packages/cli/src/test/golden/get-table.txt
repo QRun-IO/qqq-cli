@@ -1,0 +1,16 @@
+Section          Field          Value
+---------------  -------------  -----------------------
+Identity         Id             1
+Identity         First Name     Avery
+Identity         Last Name      Sample
+Basic Info       Email          avery@example.invalid
+Basic Info       Birth Date     1990-01-15
+Employment Info  Is Employed    Yes
+Employment Info  Annual Salary  $75,003.50
+Employment Info  Days Worked    42
+Dates            Create Date    2026-10-31 22:33:01 UTC
+Dates            Modify Date    2026-10-31 23:10:51 UTC
+Avery Sample
+associations: pets (--associations lists the child records)
+--- stderr ---
+--- exit 0

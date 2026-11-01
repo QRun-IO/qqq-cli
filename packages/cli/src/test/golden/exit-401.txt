@@ -1,0 +1,4 @@
+--- stderr ---
+Error: fake 401 (UNAUTHENTICATED, HTTP 401, trace trace-401)
+Sign in again with `qqq login`.
+--- exit 3

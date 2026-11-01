@@ -16,7 +16,11 @@
  * Rules: paths and operations are unioned (a duplicate method on one path is an error); component
  * schemas are unioned (a name defined twice must be identical, e.g. BasicErrorResponseV1); the
  * core document's info, servers and securitySchemes are kept; tags are unioned; every extension's
- * name and version is recorded in info.x-qqq-extensions.
+ * name, version, path prefix and operationIds are recorded in info.x-qqq-extensions.
+ *
+ * An extension whose operations the core input already carries (a server's merged document, e.g.
+ * the sample server's esb) is accepted when each such operation is identical; it is then recorded
+ * in info.x-qqq-extensions like any other.
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
@@ -50,6 +54,14 @@ function deriveOperationId(method, path) {
   return id
 }
 
+/** The path prefix an extension's operations share, relative to /qqq/v1 (`/qbit/{name}` or an established one such as `/esb`). */
+function pathPrefixOf(name, paths) {
+  const qbit = `/qqq/v1/qbit/${name}`
+  if (paths.length && paths.every((p) => p === qbit || p.startsWith(qbit + '/'))) return `/qbit/${name}`
+  const first = new Set(paths.map((p) => p.replace(/^\/qqq\/v1/, '').split('/')[1]))
+  return first.size === 1 ? `/${[...first][0]}` : undefined
+}
+
 async function load(source) {
   const text = /^https?:\/\//.test(source) ? await (await fetch(source)).text() : await readFile(source, 'utf8')
   return source.endsWith('.json') ? JSON.parse(text) : parse(text)
@@ -72,12 +84,22 @@ const extensions = []
 for (const source of extensionSources) {
   const doc = await load(source)
   const name = (doc.info?.title ?? '').replace(/^QQQ Middleware API extension: /, '') || source
-  extensions.push({ name, version: doc.info?.version, description: doc.info?.description })
+  const operationIdsOfExtension = []
+  const paths = Object.keys(doc.paths ?? {})
+  extensions.push({ name, version: doc.info?.version, description: doc.info?.description, pathPrefix: pathPrefixOf(name, paths), operations: operationIdsOfExtension })
 
   for (const [path, operations] of Object.entries(doc.paths ?? {})) {
     const target = (merged.paths[path] ??= {})
     for (const [method, operation] of Object.entries(operations)) {
-      if (target[method]) throw new Error(`duplicate operation ${method.toUpperCase()} ${path} (from ${name})`)
+      if (!['get', 'put', 'post', 'patch', 'delete', 'head', 'options'].includes(method)) {
+        target[method] ??= operation // path-level parameters, summary
+        continue
+      }
+      if (operation.operationId) operationIdsOfExtension.push(operation.operationId)
+      if (target[method]) {
+        if (JSON.stringify(stable(target[method])) === JSON.stringify(stable(operation))) continue
+        throw new Error(`duplicate operation ${method.toUpperCase()} ${path} (from ${name})`)
+      }
       target[method] = operation
     }
   }

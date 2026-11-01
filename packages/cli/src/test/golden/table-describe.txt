@@ -1,0 +1,20 @@
+name          label          type       required  editable  possibleValues  hidden
+------------  -------------  ---------  --------  --------  --------------  ------
+firstName     First Name     STRING     yes       yes
+lastName      Last Name      STRING     yes       yes
+annualSalary  Annual Salary  DECIMAL              yes
+modifyDate    Modify Date    DATE_TIME            no
+daysWorked    Days Worked    INTEGER              yes
+id            Id             INTEGER              no
+birthDate     Birth Date     DATE                 yes
+isEmployed    Is Employed    BOOLEAN              yes
+email         Email          STRING     yes       yes
+createDate    Create Date    DATE_TIME            no
+Person (person), primary key id
+T1 Identity: id, firstName, lastName
+T2 Basic Info: email, birthDate
+T2 Employment Info: isEmployed, annualSalary, daysWorked
+T3 Dates: createDate, modifyDate
+capabilities: TABLE_COUNT, TABLE_GET, TABLE_QUERY, TABLE_INSERT, TABLE_UPDATE, TABLE_DELETE, TABLE_EXPORT
+--- stderr ---
+--- exit 0

@@ -1,0 +1,9 @@
+total   2
+offset  0
+limit   25
+
+items (2)
+id  severity  title                                      category  age    unread
+--  --------  -----------------------------------------  --------  -----  ------
+7   ERROR     Send Test Event To Webhook failed          JOB       4 min  true
+6   ERROR     Calculate Order Total (JavaScript) failed  JOB       7 min  false

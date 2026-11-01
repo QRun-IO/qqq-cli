@@ -1,0 +1,9 @@
+total   2
+offset  0
+limit   25
+
+items (2)
+id  title                                      severity  category  age    unread  href          actions
+--  -----------------------------------------  --------  --------  -----  ------  ------------  ------------------
+7   Send Test Event To Webhook failed          ERROR     JOB       4 min  true    /app/webhook  Mark read, Dismiss
+6   Calculate Order Total (JavaScript) failed  ERROR     JOB       7 min  false

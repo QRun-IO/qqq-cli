@@ -1,0 +1,17 @@
+statistic  value
+---------  -----
+Count      15
+Nulls      6
+Distinct   2
+Min        false
+Max        true
+Person: Is Employed (computed locally)
+Is Employed  Count
+-----------  -----
+false        10
+             6
+true         5
+(3 values)
+--- stderr ---
+from 21 matching records (the server offers no column statistics for Person)
+--- exit 0

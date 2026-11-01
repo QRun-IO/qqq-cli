@@ -1,0 +1,5 @@
+deleted
+-------
+Pet 7
+--- stderr ---
+--- exit 0

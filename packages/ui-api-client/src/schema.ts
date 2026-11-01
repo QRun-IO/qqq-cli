@@ -116,6 +116,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/qqq/v1/avatars/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Look up users' avatars
+         * @description The avatar URL (GET /avatars/{avatarId}, with its version) of each user id given, for any signed-in user.
+         *     Users without an avatar are not in the result: draw their initials. At most 200 ids per call. Since 1.8.0.
+         */
+        post: operations["lookupAvatars"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/avatars/{avatarId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an avatar
+         * @description An avatar as a square PNG, by its opaque id, for any signed-in user. 404 when there is none (draw initials).
+         *     Avatar URLs come from POST /avatars/lookup (other users), `values.user.avatarUrl` of POST /manageSession and
+         *     the `profile` preferences section (the signed-in user). A user's chosen Gravatar is fetched and re-encoded by
+         *     the server, so browsers never contact Gravatar. With `v` equal to the current version the response is
+         *     cacheable for a year; otherwise for five minutes, with an ETag. Since 1.8.0.
+         */
+        get: operations["getAvatar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/qqq/v1/manageSession": {
         parameters: {
             query?: never;
@@ -1713,8 +1758,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Rename, pin or archive a conversation
-         * @description Rename, pin or archive a conversation
+         * Rename, pin, archive or mark read a conversation
+         * @description Rename, pin, archive or mark read a conversation
          */
         patch: operations["patchAssistantConversationsById"];
         trace?: never;
@@ -1893,6 +1938,26 @@ export interface paths {
         get: operations["getAssistantAccess"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/assistant/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report an error the client hit while showing the assistant (stored for administrators, rate limited per user)
+         * @description Report an error the client hit while showing the assistant (stored for administrators, rate limited per user)
+         */
+        post: operations["postAssistantClientErrors"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2979,6 +3044,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/qqq/v1/qbit/db-performance/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Database Performance overview
+         * @description Requires db_performance.view and uses the caller's session.
+         */
+        get: operations["dbPerformanceOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/db-performance/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Database Performance activity
+         * @description Requires db_performance.view and uses the caller's session.
+         */
+        get: operations["dbPerformanceActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/db-performance/explain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explain a PostgreSQL query
+         * @description PLAN requires db_performance.explain; ANALYZE requires db_performance.explain_analyze. Values and ANALYZE plans are never persisted.
+         */
+        post: operations["dbPerformanceExplain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/db-performance/statements/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Database Performance lookup
+         * @description Requires db_performance.view and uses the caller's session.
+         */
+        get: operations["dbPerformanceLookup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/qqq/v1/qbit/edi/guides/{guideId}/tree": {
         parameters: {
             query?: never;
@@ -3059,6 +3204,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/qqq/v1/qbit/qa-capture/capability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the QA capture capability
+         * @description Whether QA capture is on for the signed-in user and why, the provider settings, sanitizer rules, blur selectors, Content-Security-Policy origins and server context. Requires a session; a user without access gets enabled=false, never 403.
+         */
+        get: operations["qaCaptureCapability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/qa-capture/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a QA report
+         * @description Stores the report (page, app, table, record, process, recent request ids, client build) with the user, environment, backend version, node and provider filled in by the server, and returns its reference and the recorder parameters.
+         */
+        post: operations["qaCaptureReportCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/qqq/v1/qbit/quick-search/status": {
         parameters: {
             query?: never;
@@ -3093,6 +3278,66 @@ export interface paths {
         get: operations["getQuickSearchSuggestions"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/release-notes/releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Published release notes
+         * @description Published releases visible to the signed-in user, newest first, with their customer-facing items and whether each is new to the user.
+         */
+        get: operations["releaseNotesReleases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/release-notes/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What's new summary
+         * @description How many published releases are new to the signed-in user, and the latest one, for a menu badge.
+         */
+        get: operations["releaseNotesSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/release-notes/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark What's new as seen
+         * @description Clears the signed-in user's new indicator. Takes no body.
+         */
+        post: operations["releaseNotesSeen"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3506,6 +3751,346 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/qqq/v1/qbit/printing/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Session
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/bind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Bind
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingBind"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/devices/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Enroll
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingEnroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Heartbeat
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingHeartbeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/printers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Printing Inventory
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        put: operations["printingInventory"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Claim
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingClaim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/queued": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Queued
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingQueued"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Content
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Event
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/test-print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Test
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Retry
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingRetry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/jobs/{jobId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Cancel
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingCancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/control/poll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Poll
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingPoll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/device/control/commands/{commandId}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Receipt
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/admin/devices/{deviceId}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printing Action
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        post: operations["printingAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/admin/devices/{deviceId}/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Commands
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingCommands"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/qqq/v1/qbit/printing/admin/devices/{deviceId}/commands/{commandId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Command
+         * @description Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.
+         */
+        get: operations["printingCommand"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3523,6 +4108,8 @@ export interface components {
             };
             /** @description Icon to display for the app. */
             icon?: components["schemas"]["Icon"];
+            /** @description Search aliases (old labels, jargon, vendor names); match search on label, keywords and ancestor labels; never display */
+            keywords?: string[];
             /** @description User-facing name for this app */
             label?: string;
             /** @description Unique name for this app within the QQQ Instance */
@@ -3535,6 +4122,10 @@ export interface components {
             widgets?: string[];
         };
         AppSection: {
+            /** @description List of child app names for the section */
+            apps?: string[];
+            /** @description Whether the section is collapsed by default; SETTINGS defaults to true */
+            collapsedByDefault?: boolean | null;
             /** @description Icon to display for the section. */
             icon?: components["schemas"]["Icon"];
             /** @description User-facing name of the section. */
@@ -3545,6 +4136,11 @@ export interface components {
             processes?: string[];
             /** @description List of report names for the section */
             reports?: string[];
+            /**
+             * @description PRIMARY: items shown without a heading; HISTORY: system-written records under a heading; SETTINGS: configuration under a heading, collapsed by default; GROUP: a heading grouping child apps, never navigable
+             * @enum {string}
+             */
+            role?: "PRIMARY" | "HISTORY" | "SETTINGS" | "GROUP";
             /** @description List of table names for the section */
             tables?: string[];
         };
@@ -3553,6 +4149,8 @@ export interface components {
             children?: components["schemas"]["AppTreeNode"][];
             /** @description Icon to display for the item. */
             icon?: components["schemas"]["Icon"];
+            /** @description Search aliases (old labels, jargon, vendor names); match search on label, keywords and ancestor labels; never display */
+            keywords?: string[];
             /** @description User-facing name of the element. */
             label?: string;
             /** @description Unique (within its type) name for this element.  e.g., for type = 'table', the table's name. */
@@ -3583,11 +4181,11 @@ export interface components {
             name?: string;
         };
         AuditsCapabilityV1: {
-            /** @description True when the table is audited and the user can read its audits one of the two ways. */
+            /** @description True when the user can read this table and its audits one of the two ways (the audit process enforces both). Independent of level: records of a table at level NONE can still have audits written explicitly. */
             available?: boolean | null;
             /** @description The audit detail table (field changes), joined to tableName. */
             detailTableName?: string;
-            /** @description The table's audit level: NONE, RECORD or FIELD. */
+            /** @description The table's audit level: NONE, RECORD or FIELD (informational: what is audited automatically). */
             level?: string;
             /** @description The process that returns a record's audits (inputs tableName, recordId); absent when the user may not run it. */
             processName?: string;
@@ -3656,6 +4254,18 @@ export interface components {
                 nativeClientId?: string;
                 /** @description OAuth2 scopes to request (space-separated) */
                 scopes?: string;
+            };
+        };
+        /** @description The users to look up. */
+        AvatarLookupRequestV1: {
+            /** @description User ids (as in comments, presence and mentions); at most 200. */
+            userIds?: string[];
+        };
+        /** @description Avatar URLs by user id. */
+        AvatarLookupResponseV1: {
+            /** @description User id to avatar URL (relative; add size=32|64|128|256). Users without an avatar are absent. */
+            avatars?: {
+                [key: string]: string;
             };
         };
         BackChannelLogoutResponseV1: Record<string, never>;
@@ -3871,6 +4481,216 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** @description What the provider supports for this destination - show only the actions that are true. */
+        EsbCapabilities: {
+            /** @description Messages can be browsed. */
+            browse?: boolean;
+            /** @description The queue can be paused and resumed. */
+            pauseQueue?: boolean;
+            /** @description All messages can be deleted. */
+            purge?: boolean;
+            /** @description Selected messages can be deleted. */
+            deleteSelected?: boolean;
+            /** @description Messages older than a time can be deleted. */
+            deleteOlderThan?: boolean;
+            /** @description Messages can be moved to another destination. */
+            move?: boolean;
+        };
+        /** @description Activity counters since the server started. */
+        EsbCounter: {
+            /** @description Messages published. */
+            published?: number;
+            /** @description Publish attempts that failed. */
+            publishFailures?: number;
+            /** @description Messages consumed. */
+            consumed?: number;
+            /** @description Consumed messages processed successfully. */
+            succeeded?: number;
+            /** @description Consumed messages that failed. */
+            failed?: number;
+            /** @description Redeliveries. */
+            retried?: number;
+            /** @description Messages moved to the dead-letter destination. */
+            deadLettered?: number;
+            /** @description Messages being processed now. */
+            inFlight?: number;
+            /**
+             * Format: date-time
+             * @description Time of the last activity (ISO-8601), or null.
+             */
+            lastActivity?: string | null;
+            /** @description Average processing time in milliseconds. */
+            avgMs?: number;
+            /** @description Longest processing time in milliseconds. */
+            maxMs?: number;
+            /** @description The last error message, or null. */
+            lastError?: string | null;
+        };
+        /** @description A dead-letter (or subscription) destination of a trigger. */
+        EsbDeadLetter: {
+            /** @description Name on the broker. */
+            brokerName?: string;
+            /** @description Messages waiting, or null when unknown. */
+            messageCount?: number | null;
+            /** @description Whether it is paused, or null when unknown. */
+            paused?: boolean | null;
+        };
+        /** @description A queue or topic. */
+        EsbDestination: {
+            /** @description Destination name. */
+            name?: string;
+            /**
+             * @description Destination type.
+             * @enum {string}
+             */
+            type?: "QUEUE" | "TOPIC";
+            /** @description Name of the provider (broker connection). */
+            provider?: string;
+            /** @description Name of the destination on the broker. */
+            brokerName?: string;
+            counters?: components["schemas"]["EsbCounter"];
+            queueInfo?: components["schemas"]["EsbQueueInfo"];
+            capabilities?: components["schemas"]["EsbCapabilities"];
+        };
+        /** @description A message on a destination. */
+        EsbMessage: {
+            /** @description Broker message id. */
+            messageId?: string;
+            /**
+             * Format: date-time
+             * @description When it was sent (ISO-8601).
+             */
+            timestamp?: string;
+            /** @description Delivery attempts so far. */
+            deliveryCount?: number;
+            /** @description The CloudEvents envelope (specversion, id, source, type, time, subject, datacontenttype, data, qqqcausationid), or null when the body is not one. */
+            event?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description The message body as text. */
+            rawBody?: string;
+            /** @description Message properties. */
+            properties?: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description A page of messages. */
+        EsbMessagePageResponseV1: {
+            /** @description The messages, oldest first. */
+            messages?: components["schemas"]["EsbMessage"][];
+            /** @description Whether more messages follow this page. */
+            hasMore?: boolean;
+        };
+        /** @description A destination with its publishers and triggers. */
+        EsbOverviewDestination: components["schemas"]["EsbDestination"] & {
+            /** @description Tables and processes publishing to it. */
+            publishers?: components["schemas"]["EsbPublisher"][];
+            /** @description Triggers consuming it. */
+            triggers?: components["schemas"]["EsbTrigger"][];
+        };
+        /** @description GET /esb/overview: providers and every destination. */
+        EsbOverviewResponseV1: {
+            /** @description Broker connections. */
+            providers?: components["schemas"]["EsbProvider"][];
+            /** @description Destinations with their publishers and triggers. */
+            destinations?: components["schemas"]["EsbOverviewDestination"][];
+            permissions?: components["schemas"]["EsbPermissions"];
+        };
+        /** @description What the user may do. */
+        EsbPermissions: {
+            /** @description May pause, resume and retry. */
+            canOperate?: boolean;
+            /** @description May delete messages. */
+            canDelete?: boolean;
+        };
+        /** @description GET /esb/process/{process}: what a process publishes, and the triggers that run it. */
+        EsbProcessResponseV1: {
+            /** @description Process name. */
+            process?: string;
+            /** @description Destinations the process publishes to. */
+            publications?: components["schemas"]["EsbPublication"][];
+            /** @description Triggers that run the process. */
+            triggers?: components["schemas"]["EsbTrigger"][];
+            permissions?: components["schemas"]["EsbPermissions"];
+        };
+        /** @description A broker connection. */
+        EsbProvider: {
+            /** @description Provider name. */
+            name?: string;
+            /**
+             * @description Broker type.
+             * @enum {string}
+             */
+            type?: "ACTIVEMQ_ARTEMIS" | "RABBITMQ";
+            /** @description Whether the connection is up. */
+            connected?: boolean;
+            /** @description Whether broker management (browse, pause, purge) is available. */
+            managementEnabled?: boolean;
+        };
+        /** @description A destination that a table or process publishes events to. */
+        EsbPublication: {
+            destination?: components["schemas"]["EsbDestination"];
+            /** @description Events published: INSERT, UPDATE or DELETE for tables; STARTED, COMPLETED or FAILED for processes. */
+            events?: string[];
+        };
+        /** @description A table or process that publishes to a destination. */
+        EsbPublisher: {
+            /**
+             * @description What publishes.
+             * @enum {string}
+             */
+            kind?: "TABLE" | "PROCESS";
+            /** @description Table or process name. */
+            name?: string;
+            /** @description Events published. */
+            events?: string[];
+        };
+        /** @description Broker-reported state of a queue. */
+        EsbQueueInfo: {
+            /** @description Messages waiting. */
+            messageCount?: number;
+            /** @description Connected consumers. */
+            consumerCount?: number;
+            /** @description Whether the queue is paused. */
+            paused?: boolean;
+        };
+        /** @description GET /esb/table/{table}: what a table publishes, and who subscribes. */
+        EsbTableResponseV1: {
+            /** @description Table name. */
+            table?: string;
+            /** @description Destinations the table publishes to. */
+            publications?: components["schemas"]["EsbPublication"][];
+            /** @description Triggers subscribed to those destinations (on processes the user can access). */
+            subscribers?: components["schemas"]["EsbTrigger"][];
+            permissions?: components["schemas"]["EsbPermissions"];
+        };
+        /** @description A process subscribed to a destination. */
+        EsbTrigger: {
+            /** @description Trigger name. */
+            name?: string;
+            /** @description Process the trigger runs. */
+            processName?: string;
+            /** @description User-facing label of the process. */
+            processLabel?: string;
+            destination?: components["schemas"]["EsbDestination"];
+            /**
+             * @description SINGLE runs the process per message; BATCH per batch of messages.
+             * @enum {string}
+             */
+            mode?: "SINGLE" | "BATCH";
+            /** @description Consumers run in parallel. */
+            concurrency?: number;
+            /** @description Attempts before a message is dead-lettered. */
+            maxAttempts?: number;
+            /**
+             * @description Current state of the trigger.
+             * @enum {string}
+             */
+            state?: "RUNNING" | "PAUSED" | "CONNECTING" | "STOPPED";
+            counters?: components["schemas"]["EsbCounter"];
+            deadLetter?: components["schemas"]["EsbDeadLetter"];
+            subscription?: components["schemas"]["EsbDeadLetter"];
+        };
         ExposedJoin: {
             /** @description Whether or not this join is 'to many' in nature */
             isMany?: boolean | null;
@@ -3933,6 +4753,17 @@ export interface components {
                 width?: "xsmall" | "small" | "medium" | "medlarge" | "large" | "xlarge" | "full" | "half";
                 /** @description FILE_UPLOAD: control style (dragAndDrop or button). */
                 format?: string;
+                /** @description FILE_UPLOAD: upload the file with POST /uploads and send its ref as the field's value (null removes the file); the value read back is a URL to show. Since 1.8.0. */
+                valueIsUploadRef?: boolean;
+                /** @description FILE_UPLOAD: accepted MIME types, comma-separated (e.g. image/png,image/jpeg). Since 1.8.0. */
+                accept?: string;
+                /** @description FILE_UPLOAD: largest accepted file in bytes. Since 1.8.0. */
+                maxBytes?: number;
+                /**
+                 * @description FILE_UPLOAD: the field is an image to crop and preview in this shape (square or circle; both crop square). Since 1.8.0.
+                 * @enum {string}
+                 */
+                imageShape?: "square" | "circle";
                 /** @description CODE_EDITOR: language of the code (e.g. javascript, sql, json, velocity) - for highlighting; a client without an editor shows it monospaced. */
                 languageMode?: string;
                 /** @description TOOLTIP: the tooltip text. */
@@ -4434,7 +5265,7 @@ export interface components {
         ManageSessionResponseV1: {
             /** @description Unique identifier of the session. Required to be returned on subsequent requests in the sessionUUID Cookie, to prove authentication. Not included when the cookie is HttpOnly or the session was resumed from that cookie. */
             uuid?: string;
-            /** @description Optional object with application-defined values. */
+            /** @description Optional object with application-defined values. `user` describes the signed-in user: `name`, `email` or `username` (by authentication module), and, when the application installs user profiles (since 1.8.0), `displayName` (the name the user chose; prefer it to `name`) and `avatarUrl` (relative URL of GET /avatars/{avatarId} with its version; add `&size=32|64|128|256`). No `avatarUrl` means draw initials. */
             values?: {
                 [key: string]: unknown;
             };
@@ -5825,11 +6656,11 @@ export interface components {
                 SAVED_VIEW_STORE_PROCESS?: string;
                 /** @description Audit history of this table's records. */
                 audits?: {
-                    /** @description True when the table is audited and the user can read its audits one of the two ways. */
+                    /** @description True when the user can read this table and its audits one of the two ways (the audit process enforces both). Independent of level: records of a table at level NONE can still have audits written explicitly. */
                     available?: boolean | null;
                     /** @description The audit detail table (field changes), joined to tableName. */
                     detailTableName?: string;
-                    /** @description The table's audit level: NONE, RECORD or FIELD. */
+                    /** @description The table's audit level: NONE, RECORD or FIELD (informational: what is audited automatically). */
                     level?: string;
                     /** @description The process that returns a record's audits (inputs tableName, recordId); absent when the user may not run it. */
                     processName?: string;
@@ -7337,216 +8168,6 @@ export interface components {
             /** @description Widget data object, whose shape varies by widget type. */
             widgetData?: Record<string, never>;
         };
-        /** @description What the provider supports for this destination - show only the actions that are true. */
-        EsbCapabilities: {
-            /** @description Messages can be browsed. */
-            browse?: boolean;
-            /** @description The queue can be paused and resumed. */
-            pauseQueue?: boolean;
-            /** @description All messages can be deleted. */
-            purge?: boolean;
-            /** @description Selected messages can be deleted. */
-            deleteSelected?: boolean;
-            /** @description Messages older than a time can be deleted. */
-            deleteOlderThan?: boolean;
-            /** @description Messages can be moved to another destination. */
-            move?: boolean;
-        };
-        /** @description Activity counters since the server started. */
-        EsbCounter: {
-            /** @description Messages published. */
-            published?: number;
-            /** @description Publish attempts that failed. */
-            publishFailures?: number;
-            /** @description Messages consumed. */
-            consumed?: number;
-            /** @description Consumed messages processed successfully. */
-            succeeded?: number;
-            /** @description Consumed messages that failed. */
-            failed?: number;
-            /** @description Redeliveries. */
-            retried?: number;
-            /** @description Messages moved to the dead-letter destination. */
-            deadLettered?: number;
-            /** @description Messages being processed now. */
-            inFlight?: number;
-            /**
-             * Format: date-time
-             * @description Time of the last activity (ISO-8601), or null.
-             */
-            lastActivity?: string | null;
-            /** @description Average processing time in milliseconds. */
-            avgMs?: number;
-            /** @description Longest processing time in milliseconds. */
-            maxMs?: number;
-            /** @description The last error message, or null. */
-            lastError?: string | null;
-        };
-        /** @description A dead-letter (or subscription) destination of a trigger. */
-        EsbDeadLetter: {
-            /** @description Name on the broker. */
-            brokerName?: string;
-            /** @description Messages waiting, or null when unknown. */
-            messageCount?: number | null;
-            /** @description Whether it is paused, or null when unknown. */
-            paused?: boolean | null;
-        };
-        /** @description A queue or topic. */
-        EsbDestination: {
-            /** @description Destination name. */
-            name?: string;
-            /**
-             * @description Destination type.
-             * @enum {string}
-             */
-            type?: "QUEUE" | "TOPIC";
-            /** @description Name of the provider (broker connection). */
-            provider?: string;
-            /** @description Name of the destination on the broker. */
-            brokerName?: string;
-            counters?: components["schemas"]["EsbCounter"];
-            queueInfo?: components["schemas"]["EsbQueueInfo"];
-            capabilities?: components["schemas"]["EsbCapabilities"];
-        };
-        /** @description A message on a destination. */
-        EsbMessage: {
-            /** @description Broker message id. */
-            messageId?: string;
-            /**
-             * Format: date-time
-             * @description When it was sent (ISO-8601).
-             */
-            timestamp?: string;
-            /** @description Delivery attempts so far. */
-            deliveryCount?: number;
-            /** @description The CloudEvents envelope (specversion, id, source, type, time, subject, datacontenttype, data, qqqcausationid), or null when the body is not one. */
-            event?: {
-                [key: string]: unknown;
-            } | null;
-            /** @description The message body as text. */
-            rawBody?: string;
-            /** @description Message properties. */
-            properties?: {
-                [key: string]: unknown;
-            };
-        };
-        /** @description A page of messages. */
-        EsbMessagePageResponseV1: {
-            /** @description The messages, oldest first. */
-            messages?: components["schemas"]["EsbMessage"][];
-            /** @description Whether more messages follow this page. */
-            hasMore?: boolean;
-        };
-        /** @description A destination with its publishers and triggers. */
-        EsbOverviewDestination: components["schemas"]["EsbDestination"] & {
-            /** @description Tables and processes publishing to it. */
-            publishers?: components["schemas"]["EsbPublisher"][];
-            /** @description Triggers consuming it. */
-            triggers?: components["schemas"]["EsbTrigger"][];
-        };
-        /** @description GET /esb/overview: providers and every destination. */
-        EsbOverviewResponseV1: {
-            /** @description Broker connections. */
-            providers?: components["schemas"]["EsbProvider"][];
-            /** @description Destinations with their publishers and triggers. */
-            destinations?: components["schemas"]["EsbOverviewDestination"][];
-            permissions?: components["schemas"]["EsbPermissions"];
-        };
-        /** @description What the user may do. */
-        EsbPermissions: {
-            /** @description May pause, resume and retry. */
-            canOperate?: boolean;
-            /** @description May delete messages. */
-            canDelete?: boolean;
-        };
-        /** @description GET /esb/process/{process}: what a process publishes, and the triggers that run it. */
-        EsbProcessResponseV1: {
-            /** @description Process name. */
-            process?: string;
-            /** @description Destinations the process publishes to. */
-            publications?: components["schemas"]["EsbPublication"][];
-            /** @description Triggers that run the process. */
-            triggers?: components["schemas"]["EsbTrigger"][];
-            permissions?: components["schemas"]["EsbPermissions"];
-        };
-        /** @description A broker connection. */
-        EsbProvider: {
-            /** @description Provider name. */
-            name?: string;
-            /**
-             * @description Broker type.
-             * @enum {string}
-             */
-            type?: "ACTIVEMQ_ARTEMIS" | "RABBITMQ";
-            /** @description Whether the connection is up. */
-            connected?: boolean;
-            /** @description Whether broker management (browse, pause, purge) is available. */
-            managementEnabled?: boolean;
-        };
-        /** @description A destination that a table or process publishes events to. */
-        EsbPublication: {
-            destination?: components["schemas"]["EsbDestination"];
-            /** @description Events published: INSERT, UPDATE or DELETE for tables; STARTED, COMPLETED or FAILED for processes. */
-            events?: string[];
-        };
-        /** @description A table or process that publishes to a destination. */
-        EsbPublisher: {
-            /**
-             * @description What publishes.
-             * @enum {string}
-             */
-            kind?: "TABLE" | "PROCESS";
-            /** @description Table or process name. */
-            name?: string;
-            /** @description Events published. */
-            events?: string[];
-        };
-        /** @description Broker-reported state of a queue. */
-        EsbQueueInfo: {
-            /** @description Messages waiting. */
-            messageCount?: number;
-            /** @description Connected consumers. */
-            consumerCount?: number;
-            /** @description Whether the queue is paused. */
-            paused?: boolean;
-        };
-        /** @description GET /esb/table/{table}: what a table publishes, and who subscribes. */
-        EsbTableResponseV1: {
-            /** @description Table name. */
-            table?: string;
-            /** @description Destinations the table publishes to. */
-            publications?: components["schemas"]["EsbPublication"][];
-            /** @description Triggers subscribed to those destinations (on processes the user can access). */
-            subscribers?: components["schemas"]["EsbTrigger"][];
-            permissions?: components["schemas"]["EsbPermissions"];
-        };
-        /** @description A process subscribed to a destination. */
-        EsbTrigger: {
-            /** @description Trigger name. */
-            name?: string;
-            /** @description Process the trigger runs. */
-            processName?: string;
-            /** @description User-facing label of the process. */
-            processLabel?: string;
-            destination?: components["schemas"]["EsbDestination"];
-            /**
-             * @description SINGLE runs the process per message; BATCH per batch of messages.
-             * @enum {string}
-             */
-            mode?: "SINGLE" | "BATCH";
-            /** @description Consumers run in parallel. */
-            concurrency?: number;
-            /** @description Attempts before a message is dead-lettered. */
-            maxAttempts?: number;
-            /**
-             * @description Current state of the trigger.
-             * @enum {string}
-             */
-            state?: "RUNNING" | "PAUSED" | "CONNECTING" | "STOPPED";
-            counters?: components["schemas"]["EsbCounter"];
-            deadLetter?: components["schemas"]["EsbDeadLetter"];
-            subscription?: components["schemas"]["EsbDeadLetter"];
-        };
         HealthCheckV1: {
             name?: string | null;
             label?: string | null;
@@ -7767,6 +8388,41 @@ export interface components {
                 concurrencyMode?: string;
             }[];
         };
+        /** @description An error the client hit while showing the assistant (since 1.5.0). scope and message are required; longer values are truncated, message and stacks are scrubbed of e-mail addresses, long numbers, tokens and query strings, and ids are kept only when they are the user's own. */
+        AssistantClientErrorReportV1: {
+            /** @description Required. Where it happened: assistant-panel, assistant-message, assistant-part, assistant-render, assistant-stream, widget, record-section, page... */
+            scope?: string;
+            /** @description Required. The error message. */
+            message?: string;
+            /** @description The error's name, e.g. TypeError. */
+            errorName?: string | null;
+            /** @description The JavaScript stack. */
+            stack?: string | null;
+            /** @description The React component stack. */
+            componentStack?: string | null;
+            /** @description The request or trace id the client saw. */
+            requestId?: string | null;
+            /** @description The page path (no host, query or fragment). */
+            route?: string | null;
+            conversationId?: number | null;
+            messageId?: number | null;
+            turnId?: number | null;
+            /** @description The message part type being shown. */
+            partType?: string | null;
+            /** @description The render type being shown. */
+            renderType?: string | null;
+            /** @description The client build. */
+            appVersion?: string | null;
+            /**
+             * Format: date-time
+             * @description ISO-8601 instant.
+             */
+            occurredAt?: string | null;
+        };
+        /** @description Whether the report was stored: false when the user's reports are over the per-minute limit (still 202). */
+        AssistantClientErrorResponseV1: {
+            accepted?: boolean;
+        };
         /** @description Whether the assistant is available to this user, and how. */
         AssistantConfigResponseV1: {
             /** @description Whether the panel may be used. */
@@ -7777,15 +8433,17 @@ export interface components {
             shortcut?: string;
             /** @description The model that answers. */
             model?: string;
-            /** @description maxTurnSeconds and maxToolCallsPerTurn. */
+            /** @description maxTurnSeconds and maxToolCallsPerTurn. When features.attachments is true also maxAttachmentBytes (the largest file read, in bytes), maxAttachments (files per question) and attachmentTypes (human-readable type names for the file picker hint; images only when the model reads them). */
             limits?: {
                 [key: string]: unknown;
             };
-            /** @description writes: some table allows writes; pendingActions: writes wait for confirmation. */
+            /** @description writes: some table allows writes; pendingActions: writes wait for confirmation; attachments: files uploaded with POST /qqq/v1/uploads and sent as pageContext.attachments [{uploadRef, fileName}] are read for the question. */
             features?: {
                 [key: string]: unknown;
             };
             profile?: components["schemas"]["AssistantProfileV1"];
+            /** @description Since 1.6.0: the table name of the user's conversations (assistant_conversation) for the standard table UI (manage, archive, restore and delete); present only when this session may query that table. */
+            conversationsTable?: string | null;
         };
         /** @description A conversation and a page of its messages, oldest first. */
         AssistantConversationDetailResponseV1: {
@@ -7808,6 +8466,8 @@ export interface components {
             unreadCount?: number;
             /** @description ISO-8601 instant. */
             createDate?: string | null;
+            /** @description Since 1.6.0, in GET /conversations items only: whether an answer is in progress (a RUNNING or CANCELLING turn that is not orphaned). */
+            running?: boolean | null;
         };
         /** @description Deprecated since 1.3.0: errors use BasicErrorResponseV1. */
         AssistantErrorV1: {
@@ -7836,8 +8496,37 @@ export interface components {
             icon?: string;
             /** @description Shown on a new conversation. */
             greeting?: string | null;
-            /** @description Suggested first questions. */
+            /** @description Up to three suggested first questions in total: permitted configured questions first, then generated questions. Table, row and field access are checked on every request. */
             starterPrompts?: string[];
+        };
+        /** @description A tool part's render of type records (query results). columns and rows are always present - empty when the query matched nothing (since 1.4.0; older stored parts are completed when read). */
+        AssistantRecordsRenderV1: {
+            /** @description records */
+            type?: string;
+            tableName?: string;
+            tableLabel?: string;
+            /** @description Always present; empty when nothing matched. */
+            columns?: {
+                name?: string;
+                label?: string;
+            }[];
+            /** @description Always present; empty when nothing matched. */
+            rows?: {
+                /** @description The primary key. */
+                id?: string;
+                /** @description The record's /app link. */
+                href?: string;
+                /** @description Display values by column name. */
+                values?: {
+                    [key: string]: unknown;
+                };
+            }[];
+            /** @description All matching rows. */
+            totalCount?: number | null;
+            /** @description More rows match than are shown. */
+            truncated?: boolean;
+            /** @description The Query screen link. */
+            openHref?: string;
         };
         /** @description An acknowledgement. */
         AssistantStatusResponseV1: {
@@ -9255,6 +9944,103 @@ export interface components {
             message?: string;
             drill?: components["schemas"]["DataAnalysisDrillV1"];
         };
+        DbPerformanceActivityV1: {
+            blockingChains?: components["schemas"]["DbPerformanceBlockingChainV1"][];
+            liveTextRedacted?: boolean;
+            sessions?: components["schemas"]["DbPerformanceSessionV1"][];
+        };
+        DbPerformanceBlockingChainV1: {
+            blockedPids?: (number | null)[];
+            rootPid?: number | null;
+        };
+        DbPerformanceErrorV1: {
+            error?: string | null;
+        };
+        /** @description Supply exactly one of statementId or sql. Parameters are strings, accepted only for ANALYZE and never stored. */
+        DbPerformanceExplainRequestV1: {
+            backend?: string | null;
+            /** @enum {string} */
+            mode?: "PLAN" | "ANALYZE";
+            parameters?: (string | null)[];
+            sql?: string | null;
+            statementId?: number | null;
+        };
+        DbPerformanceExplainResultV1: {
+            actualTotalMs?: number | null;
+            assistantPrompt?: string | null;
+            explainId?: number | null;
+            mode?: string | null;
+            planJson?: string | null;
+            planText?: string | null;
+            sqlWorkbenchUrl?: string | null;
+            totalCost?: number | null;
+            warnings?: (string | null)[];
+        };
+        DbPerformanceFindingV1: {
+            id?: number | null;
+            score?: number | null;
+            severity?: string | null;
+            title?: string | null;
+        };
+        DbPerformanceLookupV1: {
+            fingerprint?: string | null;
+            matches?: components["schemas"]["DbPerformanceStatementV1"][];
+            normalizedSql?: string | null;
+        };
+        DbPerformanceOverviewV1: {
+            findingsBySeverity?: {
+                [key: string]: number | null;
+            };
+            settings?: components["schemas"]["DbPerformanceSettingsV1"];
+            snapshot?: components["schemas"]["DbPerformanceSnapshotV1"];
+            topFindings?: components["schemas"]["DbPerformanceFindingV1"][];
+            topStatements?: components["schemas"]["DbPerformanceStatementV1"][];
+        };
+        DbPerformanceSessionV1: {
+            application?: string | null;
+            blockedBy?: (number | null)[];
+            blockingCount?: number | null;
+            fingerprint?: string | null;
+            liveTextRedacted?: boolean;
+            normalizedText?: string | null;
+            pid?: number | null;
+            /** @description Raw live SQL only with view_live_text; never persisted. */
+            query?: string | null;
+            querySeconds?: number | null;
+            state?: string | null;
+            user?: string | null;
+            waitEvent?: string | null;
+            xactSeconds?: number | null;
+        };
+        DbPerformanceSettingsV1: {
+            lastSnapshotAt?: string | null;
+            provider?: string | null;
+            statsAccess?: string | null;
+            statsAccessMessage?: string | null;
+        };
+        DbPerformanceSnapshotV1: {
+            cacheHitRatio?: number | null;
+            capturedAt?: string | null;
+            connectionsTotal?: number | null;
+            deadlocks?: number | null;
+            id?: number | null;
+            maxConnections?: number | null;
+            statementCalls?: number | null;
+            statementTotalMs?: number | null;
+            status?: string | null;
+            tempBytes?: number | null;
+        };
+        DbPerformanceStatementV1: {
+            calls24h?: number | null;
+            historyPath?: string | null;
+            hitRatio?: number | null;
+            id?: number | null;
+            meanMs24h?: number | null;
+            /** @description Normalized SQL, truncated to 300 characters. */
+            queryText?: string | null;
+            shareOfDbTime24h?: number | null;
+            totalMs24h?: number | null;
+        };
         /** @description Concatenated acknowledgement previews; type is 997, 999, TA1, CONTRL, NONE or MIXED. text is null for PHI. */
         EdiAckV1: {
             text?: string | null;
@@ -9421,6 +10207,125 @@ export interface components {
         EdiValidationV1: {
             rules?: components["schemas"]["EdiRuleErrorsV1"][];
         };
+        /** @description What QA capture means for the signed-in user. Clients that see enabled=false do nothing else. */
+        QaCaptureCapabilityV1: {
+            /** @description CSS selectors to blur in recordings; empty when not enabled. */
+            blurSelectors?: string[];
+            /** @description Whether the user can file a report (Report a bug). */
+            canReport?: boolean;
+            context?: components["schemas"]["QaCaptureContextV1"];
+            cspOrigins?: components["schemas"]["QaCaptureCspOriginsV1"];
+            /** @description Whether capture is on for this user. */
+            enabled?: boolean;
+            /** @description The provider name (for example jam); null when not enabled. */
+            provider?: string | null;
+            /** @description Provider settings; null when not enabled. */
+            providerConfig?: components["schemas"]["QaCaptureProviderConfigV1"] | null;
+            qaMode?: components["schemas"]["QaCaptureQaModeV1"];
+            /**
+             * @description Why capture is on or off.
+             * @enum {string}
+             */
+            reason?: "AUDIENCE" | "QA_MODE" | "OFF" | "NOT_CONFIGURED" | "NO_ACCESS" | "QA_MODE_OFF";
+            /** @description The QA reports screen, only when the user can view reports. Clients follow it, never build it. */
+            reportsHref?: string | null;
+            /** @description The response header carrying the request id (X-Request-Id). */
+            requestIdHeader?: string;
+            /** @description Redaction rules; null when not enabled. */
+            sanitizer?: components["schemas"]["QaCaptureSanitizerV1"] | null;
+        };
+        /** @description Server context for capture metadata. */
+        QaCaptureContextV1: {
+            /** @description The backend build version. */
+            backendVersion?: string | null;
+            /** @description The environment name. */
+            environment?: string;
+            /** @description The serving node. */
+            node?: string | null;
+        };
+        /** @description Content-Security-Policy origins the provider needs; empty when not enabled. */
+        QaCaptureCspOriginsV1: {
+            /** @description connect-src sources. */
+            connectSrc?: string[];
+            /** @description frame-src sources. */
+            frameSrc?: string[];
+            /** @description script-src sources. */
+            scriptSrc?: string[];
+        };
+        /** @description An error. */
+        QaCaptureErrorV1: {
+            /** @description What went wrong. */
+            error?: string;
+        };
+        /** @description Provider settings for the browser. For Jam: teamId, recordingLinkId and the script URLs. */
+        QaCaptureProviderConfigV1: {
+            /** @description A reusable recording link id for in-app Report a bug; null when none is set. */
+            recordingLinkId?: string | null;
+            /** @description The provider's scripts, in load order. */
+            scriptUrls?: string[];
+            /** @description The provider team id. */
+            teamId?: string;
+        };
+        /** @description The user's self-serve QA mode switch. */
+        QaCaptureQaModeV1: {
+            /** @description Whether the user's QA mode is on. */
+            active?: boolean;
+            /** @description Whether the user can switch QA mode (self-serve mode and the qa_capture.use_qa_mode permission). */
+            available?: boolean;
+            /** @description The user preference section holding the switch; null when unavailable. */
+            preferenceSection?: string | null;
+        };
+        /** @description A new QA report. Only pageUrl is required. */
+        QaCaptureReportRequestV1: {
+            /** @description The current app. */
+            appName?: string | null;
+            /** @description The client build version. */
+            frontendVersion?: string | null;
+            /** @description The page the user is on; sanitizer query parameters are removed. */
+            pageUrl?: string;
+            /** @description The current process. */
+            processName?: string | null;
+            /** @description The current record id. */
+            recordId?: string | null;
+            /** @description Recent X-Request-Id values (at most 50 are kept, each at most 128 characters). */
+            requestIds?: string[] | null;
+            /** @description The current table. */
+            tableName?: string | null;
+            /** @description A short title; defaults to the table and record, process, app or page. */
+            title?: string | null;
+            /** @description The browser user agent. */
+            userAgent?: string | null;
+            /** @description The viewport size, for example 1440x900. */
+            viewport?: string | null;
+        };
+        /** @description The created report and how to open the provider's recorder for it. */
+        QaCaptureReportResultV1: {
+            /** @description The report id. */
+            id?: number;
+            /** @description Query parameters that open the recorder (Jam: jam-recording, jam-title, jam-reference); null when no recording link is configured. */
+            recordingParams?: {
+                [key: string]: string;
+            } | null;
+            /** @description The report reference (qa-<uuid>), matched by the provider webhook. */
+            reference?: string;
+            /** @description The report title. */
+            title?: string;
+        };
+        /** @description Redaction rules applied in the browser before anything is sent to the provider. */
+        QaCaptureSanitizerV1: {
+            /** @description JSON keys (any depth, case-insensitive) and form fields replaced by the redaction text. */
+            bodyFieldNames?: string[];
+            /** @description Same-origin path prefixes whose request and response bodies are dropped. */
+            dropPathPrefixes?: string[];
+            /** @description Lowercase header names deleted from request and response headers. */
+            headerNames?: string[];
+            /** @description Query parameters redacted in request URLs and the page URL. */
+            queryParamNames?: string[];
+            /** @description The replacement text. */
+            redaction?: string;
+            /** @description JavaScript RegExp sources applied with flag g to bodies and console arguments. */
+            valuePatterns?: string[];
+        };
         /** @description Deprecated since 1.1.0: errors use BasicErrorResponseV1. */
         QuickSearchErrorV1: {
             /** @description Framework error message. */
@@ -9491,6 +10396,8 @@ export interface components {
             nodes?: number | null;
             /** @description Pending and awaiting-reindex failed events, from at most 1000 backlog rows. */
             pending?: number | null;
+            /** @description Sizing or applying the index replicas failed at startup; null when not attempted. */
+            replicaSettingsFailed?: boolean | null;
             /**
              * @description Overall availability; incomplete diagnostics are DEGRADED.
              * @enum {string}
@@ -9498,6 +10405,10 @@ export interface components {
             state?: "OK" | "DEGRADED" | "DOWN" | "DISABLED";
             /** @description More than 100 index rows exist. */
             tablesTruncated?: boolean;
+            /** @description number_of_replicas Quick Search applies to its index; null when unknown or not managed (Serverless). */
+            targetReplicas?: number | null;
+            /** @description Unassigned shards when every primary is active (all are replicas); null when unknown or a primary is not active. */
+            unassignedReplicaShards?: number | null;
             /** @description Cluster health counter; null when unavailable. */
             unassignedShards?: number | null;
         };
@@ -9526,6 +10437,71 @@ export interface components {
             query?: string;
             /** @description More tables had accessible hits than maxTables. */
             truncated?: boolean;
+        };
+        ReleaseNotesErrorV1: {
+            /** @description What went wrong. */
+            error?: string;
+        };
+        ReleaseNotesItemV1: {
+            /**
+             * @description Item category.
+             * @enum {string}
+             */
+            category?: "NEW" | "IMPROVED" | "FIXED" | "SECURITY" | "REMOVED";
+            /** @description Category label, e.g. New. */
+            categoryLabel?: string;
+            /** @description Optional app path or https link. */
+            linkUrl?: string | null;
+            /** @description Optional screenshot URL. */
+            screenshotUrl?: string | null;
+            /** @description Customer-facing text. */
+            text?: string;
+        };
+        ReleaseNotesLatestV1: {
+            /** @description Release id. */
+            id?: number;
+            /** @description When it was published (ISO-8601). */
+            publishedAt?: string;
+            /** @description Release title. */
+            title?: string;
+            /** @description Application version. */
+            version?: string;
+        };
+        ReleaseNotesReleaseV1: {
+            /** @description Release id. */
+            id?: number;
+            /** @description Published after the user last looked. */
+            isNew?: boolean;
+            /** @description Included items in category order. */
+            items?: components["schemas"]["ReleaseNotesItemV1"][];
+            /** @description When it was published (ISO-8601). */
+            publishedAt?: string;
+            /** @description Short summary. */
+            summary?: string | null;
+            /** @description Release title. */
+            title?: string;
+            /** @description Application version. */
+            version?: string;
+        };
+        ReleaseNotesReleasesV1: {
+            /** @description When the user last marked What's new as seen. */
+            lastSeenAt?: string | null;
+            /** @description This page of releases, newest first. */
+            releases?: components["schemas"]["ReleaseNotesReleaseV1"][];
+            /** @description Visible published releases. */
+            total?: number;
+            /** @description Releases new to the user. */
+            unreadCount?: number;
+        };
+        ReleaseNotesSeenV1: {
+            /** @description Always 0 after marking seen. */
+            unreadCount?: number;
+        };
+        ReleaseNotesSummaryV1: {
+            /** @description The newest visible release, or null. */
+            latest?: components["schemas"]["ReleaseNotesLatestV1"];
+            /** @description Releases new to the user. */
+            unreadCount?: number;
         };
         SecuredDataBreakGlassV1: {
             id?: number;
@@ -9932,6 +10908,203 @@ export interface components {
         SqlWorkbenchVersionsV1: {
             versions?: components["schemas"]["SqlWorkbenchVersionSummaryV1"][];
         };
+        PrintingAcknowledgmentV1: {
+            accepted: boolean;
+        };
+        PrintingActionRequestV1: {
+            requestId: string;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            issuedAt: string;
+            /** @enum {string} */
+            action: "PAUSE_DISPATCH" | "RESUME_DISPATCH" | "DISCONNECT" | "RECONNECT" | "REVOKE" | "REFRESH_INVENTORY" | "CLEAR_QUEUE" | "CANCEL_SPOOL";
+            jobId?: string;
+        };
+        PrintingActionV1: {
+            commandId: string;
+            requestId: string;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            issuedAt: string;
+            deviceId: string;
+            /** @enum {string} */
+            action: "PAUSE_DISPATCH" | "RESUME_DISPATCH" | "DISCONNECT" | "RECONNECT" | "REVOKE" | "REFRESH_INVENTORY" | "CLEAR_QUEUE" | "CANCEL_SPOOL";
+            /** @enum {string} */
+            status: "PENDING" | "SUCCEEDED" | "FAILED" | "EXPIRED" | "OUTCOME_UNKNOWN";
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            expiresAt: string;
+            jobId?: string;
+            resultCode?: string;
+            cancelledJobCount?: number;
+            receipt?: components["schemas"]["PrintingReceiptRequestV1"];
+        };
+        PrintingActionsV1: {
+            commands: components["schemas"]["PrintingActionV1"][];
+            nextCursor: string | null;
+        };
+        PrintingClaimV1: {
+            job: components["schemas"]["PrintingJobV1"];
+        };
+        PrintingCommandV1: {
+            commandId: string;
+            requestId: string;
+            /** @enum {string} */
+            action: "REFRESH_INVENTORY" | "CANCEL_SPOOL";
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            expiresAt: string;
+            jobId?: string;
+        };
+        PrintingControlPollRequestV1: {
+            controlVersion: number;
+            agentVersion: string;
+            capabilities: ("REFRESH_INVENTORY" | "CANCEL_SPOOL")[];
+            lastAppliedRevision: number;
+        };
+        PrintingControlPollV1: {
+            controlVersion: number;
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            serverTime: string;
+            pollIntervalSeconds: number;
+            desiredState: components["schemas"]["PrintingDesiredStateV1"];
+            commands: components["schemas"]["PrintingCommandV1"][];
+        };
+        PrintingDesiredStateV1: {
+            revision: number;
+            dispatchPaused: boolean;
+            /** @enum {string} */
+            connectionState: "CONNECTED" | "DISCONNECTED";
+        };
+        PrintingEmptyV1: Record<string, never>;
+        PrintingEnrollmentRequestV1: {
+            enrollmentCode: string;
+            deviceName: string;
+            agentVersion: string;
+        };
+        PrintingEnrollmentV1: {
+            protocolVersion: number;
+            deviceId: string;
+            /** @description Private device proof, returned once; never log. */
+            deviceToken: string;
+            pollIntervalSeconds: number;
+        };
+        PrintingEventRequestV1: {
+            eventId: string;
+            /** @enum {string} */
+            status: "RECEIVED" | "SUBMITTING" | "SPOOLED" | "SPOOLER_COMPLETED" | "FAILED" | "OUTCOME_UNKNOWN";
+            message?: string;
+            spoolerJobId?: string;
+        };
+        PrintingHeartbeatRequestV1: {
+            agentVersion: string;
+            profile?: components["schemas"]["PrintingProfileV1"];
+        };
+        PrintingHeartbeatV1: {
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            serverTime: string;
+        };
+        PrintingInventoryRequestV1: {
+            printers: components["schemas"]["PrintingPrinterV1"][];
+        };
+        PrintingJobV1: {
+            jobId: string;
+            deviceId: string;
+            printerId: string;
+            title: string;
+            /** @enum {string} */
+            format: "PDF" | "ZPL";
+            contentSha256: string;
+            contentLength: number;
+            options: components["schemas"]["PrintingOptionsV1"];
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            createdAt: string;
+            /** @enum {string} */
+            status: "QUEUED" | "CLAIMED" | "RECEIVED" | "SUBMITTING" | "SPOOLED" | "SPOOLER_COMPLETED" | "FAILED" | "OUTCOME_UNKNOWN";
+            message?: string;
+            spoolerJobId?: string;
+        };
+        PrintingJobsV1: {
+            jobs: components["schemas"]["PrintingJobV1"][];
+        };
+        PrintingOptionsV1: {
+            copies?: number;
+            /** @enum {string} */
+            scale?: "ACTUAL_SIZE" | "FIT";
+            paperWidthMm?: number;
+            paperHeightMm?: number;
+        };
+        PrintingPrinterV1: {
+            printerId: string;
+            name: string;
+            driverName?: string;
+            portName?: string;
+            /** @enum {string} */
+            status?: "READY" | "OFFLINE" | "PAUSED" | "ERROR" | "UNKNOWN";
+            formats: ("PDF" | "ZPL")[];
+            displayName?: string;
+            description?: string;
+            location?: string;
+        };
+        PrintingProfileV1: {
+            name?: string | null;
+            description?: string | null;
+            location?: string | null;
+        };
+        PrintingReceiptRequestV1: {
+            receiptId: string;
+            /** @enum {string} */
+            outcome: "INVENTORY_REFRESHED" | "CANCEL_REQUESTED" | "ALREADY_ABSENT" | "OWNERSHIP_MISMATCH" | "UNSUPPORTED" | "FAILED" | "EXPIRED" | "OUTCOME_UNKNOWN";
+            /**
+             * Format: date-time
+             * @description RFC3339 UTC ending in uppercase Z.
+             */
+            completedAt: string;
+            message?: string;
+        };
+        PrintingRetryRequestV1: {
+            requestId: string;
+            confirmDuplicateRisk?: boolean;
+        };
+        PrintingSessionV1: {
+            principalId: string;
+            tenantId: string;
+            deviceId?: string;
+        };
+        PrintingTestRequestV1: {
+            requestId: string;
+            printerId: string;
+            /** @enum {string} */
+            format: "PDF" | "ZPL";
+            testProfile?: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -10235,6 +11408,173 @@ export interface operations {
             };
             /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    lookupAvatars: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarLookupRequestV1"];
+            };
+        };
+        responses: {
+            /** @description The avatar URLs of the users that have one. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarLookupResponseV1"];
+                };
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    getAvatar: {
+        parameters: {
+            query?: {
+                /** @description Edge in pixels: 32, 64, 128 or 256 (default 128). */
+                size?: number;
+                /** @description The avatar's version, from an avatarUrl; makes the response cacheable for a year. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The avatar's opaque id (from an avatar URL). */
+                avatarId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The avatar (PNG). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                };
+            };
+            /** @description Not modified (If-None-Match matched the ETag). */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request: a parameter or the body is invalid (code BAD_REQUEST); fieldErrors may name the fields. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17157,6 +18497,8 @@ export interface operations {
                     pinned?: boolean;
                     /** @description ACTIVE or ARCHIVED. */
                     status?: string;
+                    /** @description Since 1.6.0: true sets unreadCount to 0 (the user watched the reply stream in). Only true is accepted. */
+                    read?: boolean;
                 };
             };
         };
@@ -17250,7 +18592,7 @@ export interface operations {
                 "application/json": {
                     /** @description The user's message. */
                     text?: string;
-                    /** @description Where the user is in the app. */
+                    /** @description Where the user is in the app: route, tableName, recordId, filter, selectedIds, and attachments (at most 5 of {uploadRef, fileName}, the user's own uploads; their content is read for this question, as untrusted data). */
                     pageContext?: {
                         [key: string]: unknown;
                     };
@@ -17975,6 +19317,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssistantAccessResponseV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not authenticated, or the session or token is invalid or expired (code UNAUTHENTICATED). Sign in again, or refresh the token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description No access to the assistant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found (or not the user's own) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Already finished or decided */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Budget or rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Disabled, not configured, or the kill switch is on */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    postAssistantClientErrors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistantClientErrorReportV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantClientErrorResponseV1"];
                 };
             };
             /** @description Invalid input */
@@ -23322,6 +24751,208 @@ export interface operations {
             };
         };
     };
+    dbPerformanceOverview: {
+        parameters: {
+            query?: {
+                /** @description Configured monitored backend; defaults to the qbit backend. */
+                backend?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceOverviewV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+        };
+    };
+    dbPerformanceActivity: {
+        parameters: {
+            query?: {
+                /** @description Configured monitored backend; defaults to the qbit backend. */
+                backend?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceActivityV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+        };
+    };
+    dbPerformanceExplain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DbPerformanceExplainRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceExplainResultV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+        };
+    };
+    dbPerformanceLookup: {
+        parameters: {
+            query: {
+                /** @description Configured monitored backend; defaults to the qbit backend. */
+                backend?: string;
+                sql: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceLookupV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DbPerformanceErrorV1"];
+                };
+            };
+        };
+    };
     getQbitEdiGuidesByGuideIdTree: {
         parameters: {
             query?: never;
@@ -23671,6 +25302,104 @@ export interface operations {
             };
         };
     };
+    qaCaptureCapability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QaCaptureCapabilityV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QaCaptureErrorV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QaCaptureErrorV1"];
+                };
+            };
+            /** @description QA capture is not enabled for this user */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QaCaptureErrorV1"];
+                };
+            };
+        };
+    };
+    qaCaptureReportCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QaCaptureReportRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QaCaptureReportResultV1"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QaCaptureErrorV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QaCaptureErrorV1"];
+                };
+            };
+            /** @description QA capture is not enabled for this user */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QaCaptureErrorV1"];
+                };
+            };
+        };
+    };
     getQuickSearchStatus: {
         parameters: {
             query?: never;
@@ -23791,6 +25520,233 @@ export interface operations {
                 };
             };
             /** @description Session permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    releaseNotesReleases: {
+        parameters: {
+            query?: {
+                /** @description Releases per page (1-50, default 20). */
+                limit?: number;
+                /** @description Releases to skip (default 0). */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseNotesReleasesV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseNotesErrorV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseNotesErrorV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    releaseNotesSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseNotesSummaryV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseNotesErrorV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseNotesErrorV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Not found, or not visible to this user (code NOT_FOUND). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Conflict with the current state, e.g. an edit conflict or an invalid transition (code CONFLICT). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    releaseNotesSeen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseNotesSeenV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseNotesErrorV1"];
+                };
+            };
+            /** @description Sign in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseNotesErrorV1"];
+                };
+            };
+            /** @description The user (or the credential's scope) may not do this (code PERMISSION_DENIED). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -25713,6 +27669,1538 @@ export interface operations {
                 };
             };
             /** @description Too many requests (code RATE_LIMITED); retry later. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-QQQ-Device-Id"?: string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingSessionV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingBind: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEmptyV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingEnroll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEnrollmentRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingEnrollmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingHeartbeat: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingHeartbeatRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingHeartbeatV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingInventory: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingInventoryRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingClaim: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEmptyV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingClaimV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingQueued: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingJobsV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingContent: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified retained document bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingEvent: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEventRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingTest: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingTestRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingJobV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingRetry: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingRetryRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingJobV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingCancel: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingEmptyV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingPoll: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingControlPollRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingControlPollV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingReceipt: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-QQQ-Device-Id": string;
+                /** @description Private secondary device proof; never log. */
+                "X-QQQ-Device-Token": string;
+            };
+            path: {
+                commandId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingReceiptRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingAcknowledgmentV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintingActionRequestV1"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingActionV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingCommands: {
+        parameters: {
+            query?: {
+                /** @description 1 through 200; default 50. */
+                limit?: number;
+                before?: string;
+            };
+            header?: never;
+            path: {
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingActionsV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+        };
+    };
+    printingCommand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deviceId: string;
+                commandId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingActionV1"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Native QQQ sign-in required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Permission, device proof or user binding denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Record not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description State or request conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Request or content expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BasicErrorResponseV1"];
+                };
+            };
+            /** @description Bounded capacity reached */
             429: {
                 headers: {
                     [name: string]: unknown;

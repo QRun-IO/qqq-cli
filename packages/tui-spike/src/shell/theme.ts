@@ -1,0 +1,20 @@
+// Classic TUI palette: cyan title bar, grey text, yellow function-key labels on a cyan bar.
+export const T = {
+   titleBg: "#1b6587",
+   titleFg: "#ffffff",
+   fg: "#d5dce5",
+   dim: "#66737f",
+   acc: "#7cc2e8",
+   ok: "#8bd49b",
+   warn: "#f1c86e",
+   err: "#ff9088",
+   selBg: "#1f3646",
+   selFg: "#ffffff",
+   focusBorder: "#7cc2e8",
+   border: "#3a4654",
+   keyNum: "#ffffff",
+   keyLabelBg: "#1b6587",
+   keyLabelFg: "#ffd98a",
+   overlayBg: "#161d26",
+   statusBg: "#10151b",
+};

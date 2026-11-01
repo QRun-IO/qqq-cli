@@ -7,7 +7,9 @@
  * Sign-in for native clients (CLI, TUI, desktop), as documented in the QQQ docs
  * UI-API-CLIENTS.md section 7: read GET /qqq/v1/metaData/authentication, use the app's public
  * native client (values.nativeClientId) at its issuer with the OAuth2 device-authorization grant
- * (RFC 8628), then send the access token as `Authorization: Bearer`; refresh it at the provider.
+ * (RFC 8628) or the authorization-code grant with PKCE on a loopback redirect (RFC 7636, RFC 8252),
+ * then send the access token as `Authorization: Bearer`; refresh it at the provider; on sign-out,
+ * revoke the refresh token (RFC 7009) and end the provider session.
  */
 
 /** Tokens from the provider, with an absolute expiry. */
@@ -26,6 +28,8 @@ export interface NativeSignInConfig {
   issuer: string
   clientId: string
   scope: string
+  /** The API audience the access token is for (Auth0 issues a JWT for the API only when it is asked for one). */
+  audience?: string
 }
 
 /** The parts of an OIDC discovery document a native client uses. */
@@ -34,6 +38,8 @@ export interface ProviderEndpoints {
   tokenEndpoint: string
   deviceAuthorizationEndpoint?: string
   authorizationEndpoint?: string
+  endSessionEndpoint?: string
+  revocationEndpoint?: string
 }
 
 /** What to show the user while a device sign-in waits for approval. */
@@ -56,13 +62,28 @@ export async function getNativeSignInConfig(baseUrl: string, fetchImpl: typeof f
   if (!response.ok) throw new Error(`GET /qqq/v1/metaData/authentication answered ${response.status}`)
   const body = await response.json() as { type?: string; values?: Record<string, unknown> }
   const values = body.values ?? {}
-  if (body.type !== 'OAUTH2') throw new Error(`The server uses ${body.type ?? 'unknown'} authentication; this client supports OAUTH2.`)
+  if (body.type === 'AUTH_0') return auth0SignInConfig(values)
+  if (body.type !== 'OAUTH2') throw new Error(`The server uses ${body.type ?? 'unknown'} authentication; this client supports OAUTH2 and AUTH_0.`)
   const clientId = typeof values.nativeClientId === 'string' ? values.nativeClientId : undefined
   if (!clientId) throw new Error('The server publishes no native client (values.nativeClientId); it cannot be used from a CLI yet.')
   const issuer = typeof values.nativeClientBaseUrl === 'string' ? values.nativeClientBaseUrl : String(values.baseUrl)
   const scopes = new Set(String(values.scopes ?? 'openid profile email').split(/\s+/).filter(Boolean))
   scopes.add('offline_access')
   return { issuer, clientId, scope: [...scopes].join(' ') }
+}
+
+/**
+ * The native sign-in of an AUTH_0 server (`values`: `baseUrl`, `clientId`, `audience`, and the
+ * optional `nativeClientId` of an Auth0 Native application with the device code grant): the tenant
+ * is the issuer, the audience is sent so the access token is a JWT the server can verify.
+ */
+export function auth0SignInConfig(values: Record<string, unknown>): NativeSignInConfig {
+  const clientId = typeof values.nativeClientId === 'string' && values.nativeClientId ? values.nativeClientId : typeof values.clientId === 'string' ? values.clientId : undefined
+  if (!clientId) throw new Error('The AUTH_0 server publishes no client id (values.clientId or values.nativeClientId).')
+  if (typeof values.baseUrl !== 'string' || !values.baseUrl) throw new Error('The AUTH_0 server publishes no tenant (values.baseUrl).')
+  const scopes = new Set(String(values.scopes ?? 'openid profile email').split(/\s+/).filter(Boolean))
+  scopes.add('offline_access')
+  return { issuer: values.baseUrl, clientId, scope: [...scopes].join(' '), ...(typeof values.audience === 'string' && values.audience ? { audience: values.audience } : {}) }
 }
 
 /**
@@ -82,6 +103,8 @@ export async function discoverProvider(issuer: string, fetchImpl: typeof fetch =
     tokenEndpoint: doc.token_endpoint,
     deviceAuthorizationEndpoint: doc.device_authorization_endpoint,
     authorizationEndpoint: doc.authorization_endpoint,
+    endSessionEndpoint: doc.end_session_endpoint,
+    revocationEndpoint: doc.revocation_endpoint,
   }
 }
 
@@ -104,7 +127,7 @@ export async function deviceSignIn(
   const endpoints = await discoverProvider(config.issuer, fetchImpl)
   if (!endpoints.deviceAuthorizationEndpoint) throw new Error('The provider does not offer the device-authorization grant')
 
-  const start = await postForm(fetchImpl, endpoints.deviceAuthorizationEndpoint, { client_id: config.clientId, scope: config.scope }, options.signal)
+  const start = await postForm(fetchImpl, endpoints.deviceAuthorizationEndpoint, { client_id: config.clientId, scope: config.scope, ...(config.audience ? { audience: config.audience } : {}) }, options.signal)
   if (!start.ok) throw new Error(`Device authorization failed: ${start.body.error_description ?? start.body.error ?? start.status}`)
   const deviceCode = String(start.body.device_code)
   let interval = Number(start.body.interval ?? 5)
@@ -138,6 +161,91 @@ export async function deviceSignIn(
   throw new Error('The code expired; sign in again')
 }
 
+/** A PKCE pair (RFC 7636, S256). */
+export interface Pkce {
+  verifier: string
+  challenge: string
+}
+
+function base64url(bytes: Uint8Array): string {
+  return Buffer.from(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** Creates a random code verifier (43 characters) and its S256 challenge. */
+export async function createPkce(): Promise<Pkce> {
+  const verifier = base64url(globalThis.crypto.getRandomValues(new Uint8Array(32)))
+  const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)))
+  return { verifier, challenge: base64url(digest) }
+}
+
+/** A random `state` value for an authorization request. */
+export function createState(): string {
+  return base64url(globalThis.crypto.getRandomValues(new Uint8Array(16)))
+}
+
+/**
+ * The authorization URL to open in the browser (code + PKCE). No `nonce` is sent: some providers
+ * copy it into the access token, which the server then refuses (UI-API-CLIENTS.md section 7).
+ */
+export function authorizationUrl(endpoints: ProviderEndpoints, config: NativeSignInConfig, request: { redirectUri: string; state: string; challenge: string }): string {
+  if (!endpoints.authorizationEndpoint) throw new Error('The provider has no authorization_endpoint')
+  const url = new URL(endpoints.authorizationEndpoint)
+  url.searchParams.set('response_type', 'code')
+  url.searchParams.set('client_id', config.clientId)
+  url.searchParams.set('redirect_uri', request.redirectUri)
+  url.searchParams.set('scope', config.scope)
+  if (config.audience) url.searchParams.set('audience', config.audience)
+  url.searchParams.set('state', request.state)
+  url.searchParams.set('code_challenge', request.challenge)
+  url.searchParams.set('code_challenge_method', 'S256')
+  return url.toString()
+}
+
+/** What the loopback redirect brought back, checked: the code, or why sign-in failed. */
+export function readAuthorizationCallback(callback: URL, expectedState: string): { code: string } {
+  const params = callback.searchParams
+  const error = params.get('error')
+  if (error) throw new Error(error === 'access_denied' ? `Sign-in was denied${params.get('error_description') ? `: ${params.get('error_description')}` : ''}` : `Sign-in failed at the provider: ${params.get('error_description') ?? error}`)
+  if (params.get('state') !== expectedState) throw new Error('Sign-in failed: the state in the provider redirect does not match this request (possible forgery); nothing was saved')
+  const code = params.get('code')
+  if (!code) throw new Error('Sign-in failed: the provider redirect carries no code')
+  return { code }
+}
+
+/** Exchanges an authorization code at the token endpoint with the PKCE verifier (public client). */
+export async function exchangeAuthorizationCode(config: NativeSignInConfig, request: { code: string; verifier: string; redirectUri: string }, fetchImpl: typeof fetch = fetch, endpoints?: ProviderEndpoints): Promise<TokenSet> {
+  const ep = endpoints ?? await discoverProvider(config.issuer, fetchImpl)
+  const result = await postForm(fetchImpl, ep.tokenEndpoint, {
+    grant_type: 'authorization_code',
+    client_id: config.clientId,
+    code: request.code,
+    code_verifier: request.verifier,
+    redirect_uri: request.redirectUri,
+  })
+  if (!result.ok) throw new Error(`Exchanging the code failed: ${result.body.error_description ?? result.body.error ?? result.status}`)
+  return toTokenSet(result.body)
+}
+
+/** Revokes a token at the provider (RFC 7009); false when the provider has no revocation endpoint. */
+export async function revokeToken(config: NativeSignInConfig, token: string, tokenTypeHint: 'refresh_token' | 'access_token' = 'refresh_token', fetchImpl: typeof fetch = fetch): Promise<boolean> {
+  const ep = await discoverProvider(config.issuer, fetchImpl)
+  if (!ep.revocationEndpoint) return false
+  const result = await postForm(fetchImpl, ep.revocationEndpoint, { token, token_type_hint: tokenTypeHint, client_id: config.clientId })
+  if (!result.ok) throw new Error(`Revoking the token failed: ${result.body.error_description ?? result.body.error ?? result.status}`)
+  return true
+}
+
+/** The provider's end-session URL (OIDC RP-initiated logout), or undefined when it has none. */
+export async function endSessionUrl(config: NativeSignInConfig, options: { idToken?: string; postLogoutRedirectUri?: string } = {}, fetchImpl: typeof fetch = fetch): Promise<string | undefined> {
+  const ep = await discoverProvider(config.issuer, fetchImpl)
+  if (!ep.endSessionEndpoint) return undefined
+  const url = new URL(ep.endSessionEndpoint)
+  url.searchParams.set('client_id', config.clientId)
+  if (options.idToken) url.searchParams.set('id_token_hint', options.idToken)
+  if (options.postLogoutRedirectUri) url.searchParams.set('post_logout_redirect_uri', options.postLogoutRedirectUri)
+  return url.toString()
+}
+
 /**
  * Refreshes the access token at the provider (refresh_token grant, public client).
  *
@@ -156,6 +264,11 @@ export async function refreshTokens(config: NativeSignInConfig, refreshToken: st
   if (!result.ok) throw new Error(`Refreshing the token failed: ${result.body.error_description ?? result.body.error ?? result.status}`)
   const tokens = toTokenSet(result.body)
   return { ...tokens, refreshToken: tokens.refreshToken ?? refreshToken }
+}
+
+/** Keeps the ID token of a sign-in across refreshes that do not return one (for id_token_hint at sign-out). */
+export function keepIdToken(next: TokenSet, previous: TokenSet): TokenSet {
+  return next.idToken ? next : { ...next, idToken: previous.idToken }
 }
 
 /** True when the access token expires within `skewSeconds`. */
@@ -195,4 +308,69 @@ function toTokenSet(body: Record<string, unknown>): TokenSet {
     expiresAt: Date.now() + Number(body.expires_in ?? 300) * 1000,
     scope: typeof body.scope === 'string' ? body.scope : undefined,
   }
+}
+
+/** The authentication metadata a server publishes before sign-in (GET /qqq/v1/metaData/authentication). */
+export interface AuthenticationMetaData {
+  /** OAUTH2, AUTH_0, TABLE_BASED, MOCK, FULLY_ANONYMOUS, or a type this client does not know. */
+  type: string
+  name?: string
+  branding?: { appName?: string; companyName?: string }
+  values?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+/**
+ * Reads the server's authentication metadata.
+ *
+ * @param baseUrl - Server origin.
+ */
+export async function getAuthenticationMetaData(baseUrl: string, fetchImpl: typeof fetch = fetch): Promise<AuthenticationMetaData> {
+  const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/qqq/v1/metaData/authentication`, { headers: { Accept: 'application/json' } })
+  if (!response.ok) throw new Error(`GET /qqq/v1/metaData/authentication failed: HTTP ${response.status}`)
+  return await response.json() as AuthenticationMetaData
+}
+
+/** What `manageSession` accepts: nothing (MOCK, FULLY_ANONYMOUS), a provider access token, or a PKCE code. */
+export interface ManageSessionRequest {
+  accessToken?: string
+  code?: string
+  codeVerifier?: string
+  redirectUri?: string
+  sessionUUID?: string
+}
+
+/** A session created by `manageSession`. */
+export interface ServerSession {
+  /** The session UUID, from the response body or the `sessionUUID` cookie the server set. */
+  sessionUUID: string
+  /** Application-defined values, including `user` (name, email or username, displayName, avatarUrl). */
+  values: Record<string, unknown>
+}
+
+/**
+ * Creates (or resumes) a server session with POST /qqq/v1/manageSession. The UUID is taken from the
+ * body when the server returns it, else from the `Set-Cookie` header (HttpOnly cookies are not in the body).
+ *
+ * @param baseUrl - Server origin.
+ * @param request - Credentials; `{}` for MOCK and FULLY_ANONYMOUS servers.
+ * @param clientChannel - X-QQQ-Client value.
+ */
+export async function createSession(baseUrl: string, request: ManageSessionRequest = {}, clientChannel?: string, fetchImpl: typeof fetch = fetch): Promise<ServerSession> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json' }
+  if (clientChannel) headers['X-QQQ-Client'] = clientChannel
+  const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/qqq/v1/manageSession`, { method: 'POST', headers, body: JSON.stringify(request) })
+  const text = await response.text()
+  let body: { uuid?: string; values?: Record<string, unknown>; message?: string } = {}
+  try {
+    body = text ? JSON.parse(text) as typeof body : {}
+  } catch {
+    // not JSON
+  }
+  if (!response.ok) throw new Error(`manageSession failed: HTTP ${response.status}${body.message ? ` ${body.message}` : ''}`)
+  const cookies: string[] = typeof response.headers.getSetCookie === 'function' ? response.headers.getSetCookie() : [response.headers.get('set-cookie') ?? '']
+  const fromCookie = cookies.map((c) => /(?:^|;\s*)sessionUUID=([^;]+)/.exec(c)?.[1]).find(Boolean)
+  const sessionUUID = body.uuid ?? fromCookie
+  if (!sessionUUID) throw new Error('manageSession returned neither a uuid nor a sessionUUID cookie')
+  return { sessionUUID, values: body.values ?? {} }
 }

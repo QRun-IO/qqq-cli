@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-10-31T20:40:36.912Z",
+  "platform": "darwin",
+  "arch": "arm64",
+  "bun": "1.4.4",
+  "term": "tmux-256color",
+  "columns": 100,
+  "rows": 19,
+  "summary": [
+    {
+      "name": "key:down",
+      "count": 1,
+      "avg": 2.05,
+      "p95": 2.05,
+      "max": 2.05
+    }
+  ],
+  "sampleCount": 1
+}

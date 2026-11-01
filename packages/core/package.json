@@ -1,0 +1,60 @@
+{
+  "name": "@qrun-io/qqq-core",
+  "version": "1.0.0",
+  "description": "Client kernel for QQQ terminal clients: sessions, metadata, filter grammar, records, processes, jobs, render model and output formats. No terminal code.",
+  "keywords": [
+    "qqq",
+    "qrun",
+    "ui-api",
+    "client",
+    "typescript",
+    "low-code"
+  ],
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/QRun-IO/qqq-cli/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/QRun-IO/qqq-cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QRun-IO/qqq-cli.git",
+    "directory": "packages/core"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "!dist/test",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node ../../scripts/run-tests.mjs dist/test",
+    "prepack": "node ../../scripts/copy-license.mjs"
+  },
+  "dependencies": {
+    "@qrun-io/qqq-ui-api-client": "1.8.0",
+    "jmespath": "0.16.0",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/jmespath": "0.15.2"
+  }
+}

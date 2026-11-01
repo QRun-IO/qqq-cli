@@ -1,0 +1,3 @@
+--- stderr ---
+Error: extension collaboration is not installed on this server (installed: esb 1.1.0)
+--- exit 5

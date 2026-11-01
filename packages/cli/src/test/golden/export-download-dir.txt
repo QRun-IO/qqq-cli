@@ -1,0 +1,3 @@
+--- stderr ---
+wrote <home>/downloads/person_<stamp>.csv (29 bytes, text/csv)
+--- exit 0

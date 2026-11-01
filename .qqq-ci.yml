@@ -4,3 +4,4 @@ default_branch: main
 publish:
   release: true
 publish_context: qqq-maven-registry-credentials
+platforms: [macos-arm64, windows-x64]

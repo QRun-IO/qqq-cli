@@ -1,0 +1,172 @@
+/*
+ * Copyright 2026 QRun.IO, Inc.
+ * Licensed under the Apache License, Version 2.0 (see LICENSE).
+ */
+
+/**
+ * Terminal prompts for filling a FormSession: one question per field, choices listed for
+ * possible-value fields (contingent ones only once their dependencies are set), local validation
+ * before moving on. Used by `table create -i`, `table update -i` and `process run` on a terminal.
+ */
+
+import { createInterface, type Interface } from 'node:readline/promises'
+import { ChoiceError, isMissingValue, type FieldMeta, type FormSession } from '@qrun-io/qqq-core'
+import { UsageError } from './context.js'
+
+export interface PromptOptions {
+  /** Ask only for these fields (default: every editable field). */
+  only?: string[]
+  /** Skip fields that already have a value. */
+  skipSet?: boolean
+  /** Where prompts are written (default stderr, so stdout stays machine-readable). */
+  out?: NodeJS.WritableStream
+  /** Aborting stops the prompt (the question rejects with an AbortError). */
+  signal?: AbortSignal
+}
+
+/**
+ * A readline interface whose Ctrl-C is passed on as SIGINT to the process (readline takes the
+ * terminal into raw mode, so the key would otherwise only reach the interface, which closes and
+ * fails the question with a bare AbortError): a command that listens for SIGINT (process run
+ * cancels its run) gets it, anything else exits 130 as a shell expects.
+ */
+function openInterface(out: NodeJS.WritableStream, input: NodeJS.ReadableStream = process.stdin): Interface {
+  const rl = createInterface({ input, output: out, terminal: Boolean((input as { isTTY?: boolean }).isTTY) })
+  rl.on('SIGINT', () => {
+    if (process.listenerCount('SIGINT') > 0) process.emit('SIGINT', 'SIGINT')
+    else process.exit(130)
+  })
+  return rl
+}
+
+/**
+ * Ctrl-D (end of input) at a question is a usage error; an abort the caller asked for stays an abort.
+ * The interface closing is watched too: some Node versions (22.12) leave the pending question
+ * unsettled when Ctrl-D closes the interface, which would otherwise hang the command.
+ */
+async function question(rl: Interface, text: string, signal?: AbortSignal): Promise<string> {
+  let onClose = () => {}
+  const closed = new Promise<never>((_, reject) => {
+    onClose = () => reject(signal?.aborted ? signal.reason : Object.assign(new Error('The interface was closed.'), { code: 'ABORT_ERR' }))
+    rl.once('close', onClose)
+  })
+  closed.catch(() => {})
+  try {
+    return await Promise.race([rl.question(text, { signal }), closed])
+  } catch (error) {
+    if (!signal?.aborted && (error as { code?: string }).code === 'ABORT_ERR') throw new UsageError('No answer (end of input).')
+    throw error
+  } finally {
+    rl.off('close', onClose)
+  }
+}
+
+/** Asks one question on the terminal; returns the trimmed answer. */
+export async function ask(text: string, options: { out?: NodeJS.WritableStream; signal?: AbortSignal; input?: NodeJS.ReadableStream } = {}): Promise<string> {
+  const input = options.input ?? process.stdin
+  if (!(input as { isTTY?: boolean }).isTTY) throw new UsageError('This question needs a terminal.')
+  const rl = openInterface(options.out ?? process.stderr, input)
+  try {
+    return (await question(rl, text, options.signal)).trim()
+  } finally {
+    rl.close()
+  }
+}
+
+/** Asks for each field in turn and sets it on the session; Ctrl-D or an empty required answer re-asks. */
+export async function promptForm(session: FormSession, options: PromptOptions = {}): Promise<void> {
+  if (!process.stdin.isTTY) throw new UsageError('Interactive prompts need a terminal; give values with --set, --values or --input-json.')
+  const out = options.out ?? process.stderr
+  const rl = openInterface(out)
+  try {
+    for (const name of session.promptOrder(options.only)) {
+      const field = session.fields[name]!
+      if (field.isEditable === false || field.isHidden) continue
+      if (options.skipSet && !isMissingValue(session.values[field.name])) continue
+      await promptField(rl, out, session, field, options.signal)
+    }
+  } finally {
+    rl.close()
+  }
+}
+
+async function promptField(rl: Interface, out: NodeJS.WritableStream, session: FormSession, field: FieldMeta, signal?: AbortSignal): Promise<void> {
+  for (;;) {
+    const state = session.state(field.name)
+    if (state.disabledBecause) {
+      out.write(`  ${field.label}: skipped (${state.disabledBecause})\n`)
+      return
+    }
+    const current = state.displayValue ?? (isMissingValue(state.value) ? '' : String(state.value))
+    let hint = field.type === 'DATE_TIME' ? `local date time YYYY-MM-DDTHH:MM, ${session.timeZone}` : field.type.toLowerCase().replace('_', ' ')
+    if (session.hasChoices(field.name)) {
+      const choices = await session.options(field.name, '', 12)
+      if (choices.length) {
+        out.write(`  ${field.label} choices: ${choices.map((c) => `${c.label} (${String(c.id)})`).join(', ')}${choices.length === 12 ? ', … (type part of a label to narrow)' : ''}\n`)
+        hint = 'label or id'
+      }
+    }
+    const answer = (await question(rl, `${field.label}${field.isRequired ? ' *' : ''} [${hint}]${current ? ` (${current})` : ''}: `, signal)).trim()
+    if (answer === '' && current) return
+    if (answer === '' && !field.isRequired) {
+      await session.set(field.name, null)
+      return
+    }
+    if (answer === '' && field.isRequired) {
+      out.write('  required\n')
+      continue
+    }
+    try {
+      const change = await session.set(field.name, answer)
+      const problem = session.validate([field.name])[field.name]
+      if (problem) {
+        out.write(`  ${field.label} ${problem}\n`)
+        continue
+      }
+      if (change.cleared.length) out.write(`  cleared ${change.cleared.map((n) => session.fields[n]?.label ?? n).join(', ')} (depends on ${field.label})\n`)
+      if (change.disabled) out.write(`  the form is disabled: ${change.disabled.message ?? ''}\n`)
+      return
+    } catch (error) {
+      if (error instanceof ChoiceError) {
+        out.write(`  ${error.message}\n`)
+        continue
+      }
+      throw error
+    }
+  }
+}
+
+/** Asks for a secret on the terminal without echoing it (a password). */
+export async function askHidden(text: string, options: { out?: NodeJS.WritableStream; input?: NodeJS.ReadableStream } = {}): Promise<string> {
+  const input = (options.input ?? process.stdin) as NodeJS.ReadStream
+  const out = options.out ?? process.stderr
+  if (!input.isTTY) throw new UsageError('This question needs a terminal.')
+  out.write(text)
+  return await new Promise<string>((resolve, reject) => {
+    let value = ''
+    const wasRaw = input.isRaw
+    input.setRawMode?.(true)
+    input.resume()
+    const done = (error?: Error) => {
+      input.setRawMode?.(wasRaw)
+      input.pause()
+      input.off('data', onData)
+      out.write('\n')
+      if (error) reject(error)
+      else resolve(value)
+    }
+    const onData = (chunk: Buffer) => {
+      for (const ch of chunk.toString('utf8')) {
+        if (ch === '\r' || ch === '\n') return done()
+        if (ch === '\u0003') {
+          done()
+          process.exit(130)
+        }
+        if (ch === '\u0004') return done(new UsageError('No answer (end of input).'))
+        if (ch === '\u007f' || ch === '\b') value = value.slice(0, -1)
+        else value += ch
+      }
+    }
+    input.on('data', onData)
+  })
+}

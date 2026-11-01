@@ -6,19 +6,35 @@
 
 /**
  * qqq-dev-idp - a tiny OpenID Connect provider for LOCAL DEVELOPMENT AND TESTS ONLY, so a client
- * author can run the whole native-client flow (device-authorization grant, refresh, bearer JWTs)
- * against a local QQQ server without an identity provider account. Never expose it: it approves
- * device codes for one configured user without a password.
+ * author can run the whole native-client flow (device-authorization grant, authorization code with
+ * PKCE on a loopback redirect, refresh, revocation, end-session, bearer JWTs) against a local QQQ
+ * server without an identity provider account. Never expose it: it approves device codes and
+ * authorization requests for one configured user without a password.
  *
  * Like Authentik, every client has its own issuer, http://localhost:{port}/application/o/{clientId}/,
  * with discovery and JWKS (RS256); the token and device endpoints are shared; GET /device?code=...
- * approves a code (or start it with --auto-approve).
+ * approves a code (or start it with --auto-approve). GET /application/o/authorize/ shows an
+ * Approve / Deny page (or redirects at once with --auto-approve); only S256 PKCE and loopback
+ * redirect URIs (127.0.0.1 or localhost, any port) are accepted. End-session and revocation
+ * invalidate the user's refresh tokens for that client; a post_logout_redirect_uri must be loopback too
+ * (else 400).
  *
  *   qqq-dev-idp --port 9400 --client sample-app --client sample-cli --user dev@example.com --groups admins [--auto-approve]
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { createSign, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto'
+import { createHash, createSign, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto'
+
+/** The loopback hosts a redirect URI may name (as URL.hostname gives them). */
+const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '[::1]']
+
+interface CodeGrant {
+  clientId: string
+  scope: string
+  redirectUri: string
+  challenge: string
+  expiresAt: number
+}
 
 interface DeviceGrant {
   clientId: string
@@ -58,6 +74,8 @@ export async function startDevIdp(options: DevIdpOptions): Promise<DevIdp> {
   const issuer = (clientId: string) => `${base}/application/o/${clientId}/`
   const devices = new Map<string, DeviceGrant>()
   const refreshTokens = new Map<string, { clientId: string; scope: string }>()
+  const codes = new Map<string, CodeGrant>()
+  const pendingAuthorizations = new Map<string, { clientId: string; scope: string; redirectUri: string; challenge: string; state: string }>()
   const log = options.log ?? (() => undefined)
 
   const sign = (clientId: string, scope: string): Record<string, unknown> => {
@@ -73,7 +91,58 @@ export async function startDevIdp(options: DevIdpOptions): Promise<DevIdp> {
     const signature = createSign('RSA-SHA256').update(input).sign(privateKey).toString('base64url')
     const refresh = randomBytes(24).toString('base64url')
     refreshTokens.set(refresh, { clientId, scope })
-    return { access_token: `${input}.${signature}`, token_type: 'Bearer', expires_in: lifetime, refresh_token: refresh, scope }
+    const idClaims = { iss: issuer(clientId), aud: clientId, sub: options.user.sub, iat: now, exp: now + lifetime, email: options.user.email, name: options.user.name, preferred_username: options.user.preferredUsername }
+    const idInput = `${encode({ alg: 'RS256', typ: 'JWT', kid })}.${encode(idClaims)}`
+    const idToken = `${idInput}.${createSign('RSA-SHA256').update(idInput).sign(privateKey).toString('base64url')}`
+    return { access_token: `${input}.${signature}`, token_type: 'Bearer', expires_in: lifetime, refresh_token: refresh, id_token: idToken, scope }
+  }
+
+  /**
+   * The redirect URI rebuilt from its parts when every client may use it (RFC 8252 loopback, any
+   * port: http on 127.0.0.1, localhost or [::1]), else undefined. The host in the result is one of
+   * those constants and the port a number, so nothing but a loopback address can come out.
+   */
+  const allowedRedirect = (uri: string): string | undefined => {
+    let u: URL
+    try {
+      u = new URL(uri)
+    } catch {
+      return undefined
+    }
+    const host = LOOPBACK_HOSTS.find((h) => h === u.hostname)
+    if (u.protocol !== 'http:' || !host || u.username || u.password) return undefined
+    return `http://${host}${u.port ? `:${Number(u.port)}` : ''}${u.pathname}${u.search}${u.hash}`
+  }
+  const isAllowedRedirect = (uri: string): boolean => allowedRedirect(uri) !== undefined
+
+  /** Redirects back to the client with a code (approved) or access_denied. */
+  const finishAuthorization = (res: ServerResponse, pending: { clientId: string; scope: string; redirectUri: string; challenge: string; state: string }, approved: boolean): void => {
+    const target = new URL(pending.redirectUri)
+    if (approved) {
+      const code = randomBytes(24).toString('base64url')
+      codes.set(code, { clientId: pending.clientId, scope: pending.scope, redirectUri: pending.redirectUri, challenge: pending.challenge, expiresAt: Date.now() + 120_000 })
+      target.searchParams.set('code', code)
+      log(`authorization code for ${pending.clientId} -> ${pending.redirectUri}`)
+    } else {
+      target.searchParams.set('error', 'access_denied')
+      target.searchParams.set('error_description', 'The user denied the request')
+      log(`authorization denied for ${pending.clientId}`)
+    }
+    if (pending.state) target.searchParams.set('state', pending.state)
+    res.writeHead(302, { Location: target.toString(), 'Cache-Control': 'no-store' })
+    res.end()
+  }
+
+  /** Drops every refresh token issued to a client (end-session, revocation of a refresh token). */
+  const revokeClient = (clientId: string): number => {
+    let n = 0
+    for (const [token, stored] of refreshTokens) {
+      if (stored.clientId === clientId) {
+        refreshTokens.delete(token)
+        n++
+      }
+    }
+    return n
   }
 
   const approve = (userCode: string): boolean => {
@@ -98,6 +167,41 @@ export async function startDevIdp(options: DevIdpOptions): Promise<DevIdp> {
       const code = url.searchParams.get('code')
       if (code) return send(200, approve(code) ? `Approved ${code}. You can close this page.` : `Unknown code ${code}.`, 'text/plain')
       return send(200, 'Open /device?code=XXXX-XXXX to approve a code.', 'text/plain')
+    }
+
+    if (req.method === 'GET' && url.pathname === '/application/o/authorize/') {
+      const q = url.searchParams
+      const clientId = q.get('client_id') ?? ''
+      const redirectUri = q.get('redirect_uri') ?? ''
+      if (!options.clients.includes(clientId)) return send(400, 'Unknown client_id.', 'text/plain')
+      if (!isAllowedRedirect(redirectUri)) return send(400, 'redirect_uri must be a loopback URI (http://127.0.0.1:{port}/... or http://localhost:{port}/...).', 'text/plain')
+      if (q.get('response_type') !== 'code') return send(400, 'response_type must be code.', 'text/plain')
+      if (!q.get('code_challenge') || q.get('code_challenge_method') !== 'S256') return send(400, 'PKCE with code_challenge_method=S256 is required.', 'text/plain')
+      if (q.get('nonce')) log('note: the authorization request carries a nonce (UI-API-CLIENTS.md section 7 says not to send one)')
+      const pending = { clientId, scope: q.get('scope') ?? 'openid', redirectUri, challenge: q.get('code_challenge')!, state: q.get('state') ?? '' }
+      if (options.autoApprove) return finishAuthorization(res, pending, true)
+      const id = randomBytes(12).toString('base64url')
+      pendingAuthorizations.set(id, pending)
+      return send(200, `<!doctype html><title>qqq-dev-idp</title><p>${clientId} asks to sign in as ${options.user.email} (${pending.scope}).</p><p><a href="/application/o/authorize/decide?id=${id}&approve=1">Approve</a> &nbsp; <a href="/application/o/authorize/decide?id=${id}&approve=0">Deny</a></p>`, 'text/html')
+    }
+    if (req.method === 'GET' && url.pathname === '/application/o/authorize/decide') {
+      const pending = pendingAuthorizations.get(url.searchParams.get('id') ?? '')
+      if (!pending) return send(400, 'Unknown or used authorization request.', 'text/plain')
+      pendingAuthorizations.delete(url.searchParams.get('id') ?? '')
+      return finishAuthorization(res, pending, url.searchParams.get('approve') === '1')
+    }
+
+    if (req.method === 'POST' && url.pathname === '/application/o/revoke/') {
+      let text = ''
+      for await (const chunk of req) text += chunk
+      const body = new URLSearchParams(text)
+      const stored = refreshTokens.get(body.get('token') ?? '')
+      if (stored && stored.clientId === body.get('client_id')) {
+        refreshTokens.delete(body.get('token') ?? '')
+        log(`revoked a refresh token of ${stored.clientId}`)
+      }
+      // RFC 7009: 200 whether or not the token was known
+      return send(200, {})
     }
 
     if (req.method === 'POST' && (url.pathname === '/application/o/token/' || url.pathname === '/application/o/device/')) {
@@ -126,6 +230,16 @@ export async function startDevIdp(options: DevIdpOptions): Promise<DevIdp> {
         devices.delete(body.get('device_code') ?? '')
         return send(200, sign(clientId, grant.scope))
       }
+      if (grantType === 'authorization_code') {
+        const code = body.get('code') ?? ''
+        const grant = codes.get(code)
+        codes.delete(code)
+        if (!grant || grant.clientId !== clientId || grant.expiresAt < Date.now()) return send(400, { error: 'invalid_grant', error_description: 'unknown, used or expired code' })
+        if (body.get('redirect_uri') !== grant.redirectUri) return send(400, { error: 'invalid_grant', error_description: 'redirect_uri does not match the authorization request' })
+        const verifier = body.get('code_verifier') ?? ''
+        if (createHash('sha256').update(verifier).digest('base64url') !== grant.challenge) return send(400, { error: 'invalid_grant', error_description: 'PKCE verification failed' })
+        return send(200, sign(clientId, grant.scope))
+      }
       if (grantType === 'refresh_token') {
         const stored = refreshTokens.get(body.get('refresh_token') ?? '')
         if (!stored || stored.clientId !== clientId) return send(400, { error: 'invalid_grant' })
@@ -142,11 +256,26 @@ export async function startDevIdp(options: DevIdpOptions): Promise<DevIdp> {
       return send(200, {
         issuer: issuer(clientId), jwks_uri: `${issuer(clientId)}jwks/`, token_endpoint: `${base}/application/o/token/`,
         device_authorization_endpoint: `${base}/application/o/device/`, authorization_endpoint: `${base}/application/o/authorize/`,
+        end_session_endpoint: `${issuer(clientId)}end-session/`, revocation_endpoint: `${base}/application/o/revoke/`,
         response_types_supported: ['code'], subject_types_supported: ['public'], id_token_signing_alg_values_supported: ['RS256'],
-        grant_types_supported: ['urn:ietf:params:oauth:grant-type:device_code', 'refresh_token'],
+        grant_types_supported: ['urn:ietf:params:oauth:grant-type:device_code', 'authorization_code', 'refresh_token'],
+        code_challenge_methods_supported: ['S256'],
       })
     }
     if (match[2] === 'jwks/') return send(200, { keys: [jwk] })
+    if (match[2] === 'end-session/') {
+      const n = revokeClient(clientId)
+      log(`end-session for ${clientId}: ${n} refresh token(s) revoked`)
+      const back = url.searchParams.get('post_logout_redirect_uri')
+      if (back) {
+        const target = allowedRedirect(back)
+        if (!target) return send(400, 'post_logout_redirect_uri must be a loopback URI (http://127.0.0.1:{port}/... or http://localhost:{port}/...).', 'text/plain')
+        res.writeHead(302, { Location: target })
+        res.end()
+        return
+      }
+      return send(200, 'Signed out of qqq-dev-idp. You can close this page.', 'text/plain')
+    }
     return send(404, { error: 'not_found' })
   })
 

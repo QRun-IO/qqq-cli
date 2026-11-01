@@ -17,6 +17,8 @@ export interface RealtimeStreamOptions {
   clientChannel?: string
   lastEventId?: string
   signal?: AbortSignal
+  /** Extra headers, e.g. a `Cookie: sessionUUID=...` for session-based sign-ins. */
+  headers?: Record<string, string>
   fetch?: typeof fetch
 }
 
@@ -31,7 +33,7 @@ export interface RealtimeStreamOptions {
  * @param options - Server, token and optional Last-Event-ID.
  */
 export async function* openRealtimeStream(options: RealtimeStreamOptions): AsyncGenerator<RealtimeMessage> {
-  const headers: Record<string, string> = { Accept: 'text/event-stream' }
+  const headers: Record<string, string> = { Accept: 'text/event-stream', ...(options.headers ?? {}) }
   const token = await options.token?.()
   if (token) headers.Authorization = `Bearer ${token}`
   if (options.clientChannel) headers['X-QQQ-Client'] = options.clientChannel
