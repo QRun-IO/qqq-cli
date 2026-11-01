@@ -12,6 +12,7 @@ import { writeFilePreferences } from '@qrun-io/qqq-core'
 import type { TableScreen } from '../src/screens/table'
 import type { DeveloperScreen } from '../src/screens/developer'
 import { paneText } from '../src/developer/pane'
+import { LoadedColumnStatsOverlay } from '../src/overlays/column-stats'
 import { command, isolate, press, startTui, waitFor, type Harness } from './helpers'
 
 let h: Harness | undefined
@@ -80,6 +81,75 @@ test('column statistics of the column under the cursor', async () => {
   const f = await waitFor(h, (x) => x.includes('Column statistics · Name'))
   expect(f).toContain('Distinct: 1')
   expect(f).toContain('Alpha ×1')
+})
+
+test('column statistics without a server capability: computed from the loaded rows, and "a" loads them all', async () => {
+  h = await startTui(130, 44)
+  await command(h, 'table query person')
+  await waitFor(h, (x) => x.includes('30 records'))
+  await press(h, () => h!.setup.resize(80, 24))
+  await press(h, () => h!.setup.mockInput.pressArrow('right'))
+  await key('S')
+  const f = await waitFor(h, (x) => x.includes('Column statistics · First Name'))
+  expect(f).toMatch(/from the 15 loaded rows \(the server offers no column statistics for/)
+  expect(f).toContain('Person) · load more rows to widen')
+  expect(f).toContain('Shortest: First1')
+  expect(f).toContain('Longest:')
+  expect(f).toContain('Most common values:')
+  expect(f).toContain('a loads all rows up to 10,000 and recomputes')
+  expect(h.log.requests.some((r) => r.path === '/processes/columnStats/init')).toBe(false)
+  await key('a')
+  const all = await waitFor(h, (x) => x.includes('from the 30 loaded rows') && x.includes('Count: 30'))
+  expect(all).not.toContain('load more rows')
+  expect(all).toContain('Distinct: 30')
+  expect(all).toContain('any key closes')
+  await key('x')
+  await waitFor(h, (x) => !x.includes('Column statistics ·'))
+})
+
+test('column statistics: a server that refuses the process (404) falls back to the loaded rows', async () => {
+  h = await startTui(130, 44)
+  await command(h, 'table query person')
+  await waitFor(h, (x) => x.includes('30 records'))
+  // the server claims the capability and the process, then refuses it
+  const screen = h.store.screen as unknown as TableScreen
+  screen.meta!.capabilities = ['TABLE_QUERY', 'QUERY_STATS']
+  ;(h.store.meta as { processes: Record<string, unknown> }).processes.columnStats = { name: 'columnStats', label: 'Stats', isHidden: true }
+  const client = h.store.client as unknown as { fetch: typeof fetch }
+  const real = client.fetch
+  client.fetch = (async (input: Request | string | URL, init?: RequestInit) => String(input instanceof Request ? input.url : input).includes('/processes/columnStats/')
+    ? new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'no such process' }), { status: 404, headers: { 'content-type': 'application/json' } })
+    : real(input as never, init)) as typeof fetch
+  await key('S')
+  const f = await waitFor(h, (x) => x.includes('Column statistics · Id') && x.includes('loaded rows'))
+  expect(f).toContain('Sum:')
+  expect(f).toContain('Median:')
+})
+
+test('column statistics from loaded rows: Esc stops the reload and keeps the rows loaded so far', async () => {
+  h = await startTui(130, 44)
+  const records = [{ values: { n: 1 } }, { values: { n: 2 } }]
+  let reached: (() => void) | undefined
+  const started = new Promise<void>((resolve) => { reached = resolve })
+  h.store.open(new LoadedColumnStatsOverlay(h.store, {
+    tableLabel: 'Thing', columnLabel: 'N', fieldName: 'n', field: { type: 'INTEGER' }, records, total: 50_000,
+    loadAll: async (cap, progress, signal) => {
+      progress(1_500, cap)
+      reached!()
+      await new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve()))
+      return { records: [...records, { values: { n: 3 } }, { values: { n: 4 } }, { values: { n: 5 } }], total: 50_000 }
+    },
+  }))
+  const first = await waitFor(h, (x) => x.includes('from the 2 loaded rows'))
+  expect(first).toContain('load more rows to')
+  await key('a')
+  await started
+  const loading = await waitFor(h, (x) => x.includes('loading rows 1,500 of 10,000'))
+  expect(loading).toContain('Esc stops')
+  await esc()
+  const after = await waitFor(h, (x) => x.includes('from the 5 loaded rows'))
+  expect(after).toContain('Sum: 15')
+  expect(after).toContain('load more rows to')
 })
 
 test('developer: sections for panels, scripts (a revision, its logs), JSON; the table view with APIs and an OpenAPI document', async () => {

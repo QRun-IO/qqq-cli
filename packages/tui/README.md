@@ -58,7 +58,7 @@ Keys on one screen:
 
 | Screen | Keys |
 |---|---|
-| Grid | `q` quick search, `S` column statistics, `l` follow the link in the cell, Ctrl+A select (page, whole result, first N), Space select row, `b` run on the selection, `a` bulk actions and processes |
+| Grid | `q` quick search, `S` column statistics (from the loaded rows when the server offers none; `a` there loads up to 10,000 rows and recomputes), `l` follow the link in the cell, Ctrl+A select (page, whole result, first N), Space select row, `b` run on the selection, `a` bulk actions and processes |
 | Record | `l` open the row under the cursor, `Z` share (shareable tables), `t` tags, `A` audits, `D` developer, `c` copy; with the collaboration extension `C` comments, `P` attachments, `K` tasks, `T` timeline, `W` follow / stop following |
 | Comments, attachments, tasks | `n` adds (a comment, an upload from the file navigator, a task); Enter replies, downloads (file navigator) or deletes, marks a task done or open |
 | `:` output | `J` switches an extension operation's JSON between rows and sub-tables and the raw JSON |

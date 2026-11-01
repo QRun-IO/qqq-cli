@@ -103,6 +103,7 @@ candidate's, plus the changes since it listed first.
 
 ### Fixed since 1.0.0-rc.1
 
+- `qqq ui` column statistics (`S`) on a table without the server capability (or when the server answers 403 or 404) are computed from the rows the grid has loaded, instead of a dead-end dialog: count, nulls, distinct, min, max; sum, mean and median for numbers; shortest, longest and the top 5 values for text; earliest, latest and the top 5 days for dates. The dialog says so, and `a` loads up to 10,000 rows (Esc stops) and recomputes.
 - `qqq esb messages <topic>` without `--trigger` names the topic's triggers in the error, and `--trigger`
   takes the process name too (`--trigger syncOrder` reads `syncOrder.orderEvents`; a process with several
   triggers on the topic lists them; an unknown name lists the valid ones). Before, the server's "name one

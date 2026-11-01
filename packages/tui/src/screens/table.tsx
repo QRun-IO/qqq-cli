@@ -5,11 +5,13 @@
 
 import { writeFileSync } from 'node:fs'
 import { helpEntryText, selectHelpContent, ResultCursor, bulkProcesses, uploadTemplates, safeFileName, saveDownload, buildViewJson, filterDateTimesToUtc, relatedRecordTarget, planJoins, withJoinFields, type ExposedJoin, columnStatsAvailability, combineWithQuickSearch, deleteSavedView, exposedJoins, findRecordByKey, gotoKeys, listSavedViews, listTableVariants, printFilter, quickSearchFields, quickSearchFilter, runColumnStats, savedViewProcesses, storeSavedView, usesVariants, variantLabel, variantParam, viewToQuery, type TableVariant, readViewSettings, type QueryFilter, type QueryRecord, type ViewSettings } from '@qrun-io/qqq-core'
+import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import type { FieldMetaData, TableMetaData } from '../client'
 import type { Key } from '../keys'
 import { charOf } from '../keys'
 import { openForm, openProcess, openRecord, permits } from '../nav'
 import { ChoiceOverlay, PromptOverlay } from '../overlays/basic'
+import { LoadedColumnStatsOverlay } from '../overlays/column-stats'
 import { FilterOverlay } from '../overlays/filter'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
@@ -212,12 +214,55 @@ export class TableScreen implements Screen {
     const field = this.fields()[this.colCursor]
     if (!meta || !field) return
     const avail = columnStatsAvailability(meta as never, this.store.meta as never)
-    if (!avail.available) return this.store.message(avail.reason ?? 'Column statistics are not available for this table.', 'info', 'Column statistics')
+    if (!avail.available) return this.loadedStats(field)
     const c = this.store.client!
-    this.store.run(runColumnStats(c.server, c.fetch, { table: this.tableName, field: field.name, filter: this.fullFilter(), tableVariant: this.variant }), (stats) => {
+    runColumnStats(c.server, c.fetch, { table: this.tableName, field: field.name, filter: this.fullFilter(), tableVariant: this.variant }).then((stats) => {
       const lines = [...stats.fields.map((f) => `${f.label}: ${String(stats.stats.displayValues[f.name] ?? stats.stats.values[f.name] ?? '')}`), '', 'Most common values:', ...stats.valueCounts.slice(0, 15).map((v) => `  ${String(v.displayValues[field.name] ?? v.values[field.name] ?? '(empty)')}  ×${String(v.values.count ?? '')}`)]
       this.store.message(lines.join('\n'), 'info', `Column statistics · ${field.label}`)
+      this.store.bump()
+    }).catch((e) => {
+      // the server says no (403, 404): compute from the loaded rows instead
+      if (e instanceof UiApiError && (e.status === 403 || e.status === 404)) this.loadedStats(field)
+      else this.store.error(e)
     })
+  }
+
+  /** Column statistics from the rows the grid has loaded, for a table the server offers none for. */
+  private loadedStats(field: FieldMetaData): void {
+    const cursor = this.cursor
+    if (!this.meta || !cursor) return
+    const c = this.store.client!
+    const meta = this.meta
+    this.store.open(new LoadedColumnStatsOverlay(this.store, {
+      tableLabel: String(meta.label ?? meta.name),
+      columnLabel: field.label,
+      fieldName: field.name,
+      field,
+      records: cursor.loadedRecords(),
+      total: cursor.total,
+      loadAll: async (cap, progress, signal) => {
+        const size = 500
+        const reader = new ResultCursor({ baseUrl: c.server, fetch: c.fetch, table: this.tableName, filter: this.fullFilter(), pageSize: size, primaryKeyField: meta.primaryKeyField, query: this.variant ? { tableVariant: variantParam(this.variant) } : undefined, joins: this.cursorJoins(), includeDistinct: false })
+        const total = await reader.count()
+        const want = Math.min(total, cap)
+        const records: QueryRecord[] = []
+        for (let page = 0; records.length < want && !signal.aborted; page++) {
+          const rows = await reader.page(page)
+          records.push(...rows)
+          progress(Math.min(records.length, want), want)
+          if (rows.length < size) break
+        }
+        return { records: records.slice(0, want), total }
+      },
+    }))
+  }
+
+  private cursorJoins(): unknown[] {
+    try {
+      return planJoins(this.joins, { columns: this.fields().map((f) => f.name), filter: this.fullFilter() }).joins
+    } catch {
+      return []
+    }
   }
 
   savedViews(): void {

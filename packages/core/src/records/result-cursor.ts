@@ -107,6 +107,11 @@ export class ResultCursor {
     if (total !== undefined) this.total = total
   }
 
+  /** Every record in the cached pages, in page order (what a grid has loaded so far). */
+  loadedRecords(): QueryRecord[] {
+    return [...this.pages.keys()].sort((a, b) => a - b).flatMap((page) => this.pages.get(page)!)
+  }
+
   /** The record at an index (loading its page), or undefined past the end. */
   async at(index: number): Promise<QueryRecord | undefined> {
     if (index < 0 || (this.total !== undefined && index >= this.total)) return undefined
