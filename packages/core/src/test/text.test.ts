@@ -126,3 +126,7 @@ test('filter values escape backslashes and quotes, and read back the same', () =
   assert.equal(isEscapedAt('a\\"', 2), true)
   assert.equal(isEscapedAt('a\\\\"', 3), false)
 })
+
+test('decodeEntities reads the common named entities and numeric ones, and leaves unknown names', () => {
+  assert.equal(decodeEntities('a &middot; b &mdash; c&hellip; &#183; &#xB7; &bogus; &amp;middot;'), 'a · b — c… · · &bogus; &middot;')
+})

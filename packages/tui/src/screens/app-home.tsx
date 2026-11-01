@@ -15,6 +15,7 @@ import { glyphs, theme } from '../theme'
 import type { FKeyLabels, MenuEntry, Overlay, Screen } from '../types'
 import { errorText, num, pad } from '../util/text'
 import { blockLines } from '../widgets'
+import { followLink } from '../links'
 import { ListModel, Panel, type Row } from './list'
 
 interface AppMeta {
@@ -151,7 +152,8 @@ export class AppHomeScreen implements Screen {
         const heading = data[0]?.kind === 'heading' ? data[0] : undefined
         out.push({ text: heading ? heading.text : label, fg: t.acc, bold: true, key: `w:${w}`, action: reload })
         if (heading?.sub) out.push({ text: `  ${heading.sub}`, fg: t.dim })
-        out.push(...blockLines(heading ? data.slice(1) : data, colWidth - 4).map((l) => ({ ...l, text: '  ' + l.text })))
+        // lines that link somewhere (a statistic's filtered grid, an ESB destination, a table in HTML) open it on Enter
+        out.push(...blockLines(heading ? data.slice(1) : data, colWidth - 4).map((l, k) => ({ ...l, text: '  ' + l.text, ...(l.href ? { key: `w:${w}:${k}`, action: () => followLink(this.store, l.href!) } : {}) })))
       }
       return out
     }

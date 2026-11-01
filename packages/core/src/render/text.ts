@@ -84,12 +84,23 @@ export function stripTags(html: string, replaceTag: (inner: string) => string = 
   return out + html.slice(from)
 }
 
-const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" }
+const ENTITIES: Record<string, string> = {
+  nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'", middot: '·', bull: '•', hellip: '…', mdash: '—', ndash: '–',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', laquo: '«', raquo: '»', lsaquo: '‹', rsaquo: '›', rarr: '→', larr: '←', uarr: '↑', darr: '↓',
+  times: '×', divide: '÷', plusmn: '±', deg: '°', copy: '©', reg: '®', trade: '™', euro: '€', pound: '£', yen: '¥', cent: '¢', sect: '§', para: '¶', check: '✓',
+}
 
 /**
- * Decodes the common HTML entities in one pass, so an escaped entity stays one level escaped
- * (`&amp;lt;` -> `&lt;`, not `<`).
+ * Decodes the common HTML entities (named ones and numeric `&#183;` / `&#xB7;`) in one pass, so an
+ * escaped entity stays one level escaped (`&amp;lt;` -> `&lt;`, not `<`). Unknown names stay as they are.
  */
 export function decodeEntities(text: string): string {
-  return text.replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (_, name: string) => ENTITIES[name]!)
+  return text.replace(/&(#x[0-9a-fA-F]{1,6}|#[0-9]{1,7}|[A-Za-z][A-Za-z0-9]{1,8});/g, (whole, name: string) => {
+    if (name === '#39') return "'"
+    if (name.startsWith('#')) {
+      const code = name[1] === 'x' || name[1] === 'X' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10)
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole
+    }
+    return ENTITIES[name] ?? whole
+  })
 }

@@ -39,3 +39,8 @@ test('multiStatistics reads statisticList (the sample server spelling) as well a
   const blocks = widgetToBlocks({ type: 'multiStatistics', statisticsGroupData: [{ header: 'This Week', statisticList: [{ label: 'Red', value: 15 }] }] })
   assert.deepEqual(blocks.filter((b) => b.kind === 'stat'), [{ kind: 'stat', label: 'Red', value: '15', context: undefined }])
 })
+
+test('a statistic with a url keeps it as the block href (the TUI opens it; the CLI prints the context)', () => {
+  const blocks = widgetToBlocks({ type: 'multiStatistics', statisticsGroupData: [{ header: 'Now', statisticList: [{ label: 'Running', value: 0, url: '/jobs/jobs_job?filter=%7B%7D' }] }] })
+  assert.deepEqual(blocks.filter((b) => b.kind === 'stat'), [{ kind: 'stat', label: 'Running', value: '0', context: '</jobs/jobs_job?filter=%7B%7D>', href: '/jobs/jobs_job?filter=%7B%7D' }])
+})

@@ -13,7 +13,9 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { datePickerValue, readViewSettings, reconcileSelections, resolveDropdowns, safeFileName, widgetCsv, widgetParams, widgetToBlocks, writeViewSettings, type QueryFilter, type RenderBlock, type WidgetContext, type WidgetControlMeta } from '@qrun-io/qqq-core'
+import { htmlToText, datePickerValue, readViewSettings, reconcileSelections, resolveDropdowns, safeFileName, widgetCsv, widgetParams, widgetToBlocks, writeViewSettings, type QueryFilter, type RenderBlock, type WidgetContext, type WidgetControlMeta } from '@qrun-io/qqq-core'
+import { esbOverviewBlocks } from './esb'
+import { htmlRowBlocks } from './html-rows'
 import { ChoiceOverlay, PromptOverlay } from './overlays/basic'
 import { saveFile } from './overlays/files-helpers'
 import type { AppStore } from './store'
@@ -106,7 +108,7 @@ export class WidgetView {
       }
       this.data = data
       this.error = undefined
-      const blocks = widgetToBlocks(data, this.context())
+      const blocks = await this.terminalBlocks(widgetToBlocks(data, this.context()), data, c)
       if (typeof data.dropdownNeedsSelectedText === 'string' && data.dropdownNeedsSelectedText) {
         // required dropdowns: the server waits for a choice
         const head = blocks[0]?.kind === 'heading' ? [blocks[0]] : []
@@ -119,6 +121,35 @@ export class WidgetView {
       this.loading = false
       this.options.onChange?.()
     }
+  }
+
+  /**
+   * Blocks the kernel leaves for the terminal client: the ESB overview (drawn from the ESB
+   * extension, as `:esb overview`), and row-shaped HTML as aligned columns.
+   */
+  private async terminalBlocks(blocks: RenderBlock[], data: J, c: { data: <T>(id: string, input?: Record<string, unknown>) => Promise<T> }): Promise<RenderBlock[]> {
+    const type = String(data.type ?? this.meta.type ?? '')
+    if (type === 'ESB_OVERVIEW') {
+      const at = blocks.findIndex((b) => b.kind === 'raw')
+      let replacement: RenderBlock[]
+      if (!this.store.extensions.has('esb')) replacement = [{ kind: 'alert', level: 'info', text: 'This widget needs the esb extension, which is not installed on this server.' }]
+      else {
+        try {
+          replacement = esbOverviewBlocks(await c.data<J>('getEsbOverview'))
+        } catch (e) {
+          replacement = [{ kind: 'alert', level: 'error', text: errorText(e) }]
+        }
+      }
+      return at >= 0 ? [...blocks.slice(0, at), ...replacement, ...blocks.slice(at + 1)] : [...blocks, ...replacement]
+    }
+    if (type === 'html' && typeof data.html === 'string') {
+      const rows = htmlRowBlocks(data.html)
+      if (!rows) return blocks
+      const text = typeof data.text === 'string' ? data.text : htmlToText(data.html)
+      const at = blocks.findIndex((b) => b.kind === 'text' && b.text === text)
+      if (at >= 0) return [...blocks.slice(0, at), ...rows, ...blocks.slice(at + 1)]
+    }
+    return blocks
   }
 
   /** A parent widget's children: those the metadata knows and the user may see, with the parent's selections. */

@@ -11,6 +11,7 @@
 
 import type { RenderBlock } from '@qrun-io/qqq-core'
 import { wrap } from './overlays/basic'
+import { structuredLines } from './structured'
 import { glyphs, theme } from './theme'
 import { pad, padLeft, trunc } from './util/text'
 
@@ -19,24 +20,47 @@ export interface StyledLine {
   fg?: string
   bg?: string
   bold?: boolean
+  /** A link the line opens on Enter (a web path, `esb:destination`, `:command`), read by links.ts. */
+  href?: string
 }
 
 function fmt(n: number): string {
   return Number.isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : String(n)
 }
 
-/** Aligned table lines that fit a width (columns shrink from the widest). */
-export function tableLines(headers: string[], rows: string[][], width: number): StyledLine[] {
+/**
+ * Aligned table lines that fit a width (columns shrink from the widest). `hrefs` gives a row its
+ * link. A table whose headers are all empty is a layout of aligned columns (no header, no rule):
+ * the last column takes the remaining width and wraps under itself.
+ */
+export function tableLines(headers: string[], rows: string[][], width: number, hrefs: Array<string | undefined> = []): StyledLine[] {
   const t = theme()
   if (!headers.length) return []
-  const widths = headers.map((h, i) => Math.min(40, Math.max(h.length, ...rows.map((r) => (r[i] ?? '').length))))
-  const total = () => widths.reduce((a, b) => a + b + 2, 0)
+  const headerless = headers.every((h) => !h)
+  const last = headers.length - 1
+  const widths = headers.map((h, i) => Math.min(headerless && i === last ? 1000 : 40, Math.max(h.length, ...rows.map((r) => (r[i] ?? '').length))))
+  const total = () => widths.reduce((a, b) => a + b + 2, 0) - 2
+  if (headerless && last > 0) {
+    // the leading columns keep their width; the last one gets what is left
+    widths[last] = Math.max(10, width - widths.slice(0, last).reduce((a, b) => a + b + 2, 0))
+    while (total() > width && Math.max(...widths.slice(0, last)) > 4) widths[widths.indexOf(Math.max(...widths.slice(0, last)))]!--
+    const lead = widths.slice(0, last).reduce((a, b) => a + b + 2, 0)
+    const out: StyledLine[] = []
+    rows.forEach((r, k) => {
+      const wrapped = wrap(r[last] ?? '', widths[last]!)
+      wrapped.forEach((part, j) => {
+        const leading = j === 0 ? r.slice(0, last).map((c, i) => pad(c, widths[i]!)).join('  ') + '  ' : ' '.repeat(lead)
+        out.push({ text: leading + part, ...(hrefs[k] ? { href: hrefs[k] } : {}) })
+      })
+    })
+    return out
+  }
   while (total() > width && Math.max(...widths) > 4) widths[widths.indexOf(Math.max(...widths))]!--
   const line = (cells: string[]) => cells.map((c, i) => pad(c, widths[i]!)).join('  ')
   return [
     { text: line(headers), fg: t.acc, bold: true },
     { text: widths.map((w) => glyphs().rule.repeat(w)).join('  '), fg: t.dim },
-    ...rows.map((r) => ({ text: line(r) })),
+    ...rows.map((r, k) => ({ text: line(r), ...(hrefs[k] ? { href: hrefs[k] } : {}) })),
   ]
 }
 
@@ -56,12 +80,15 @@ export function blockLines(blocks: RenderBlock[], width: number): StyledLine[] {
         break
       case 'stat': {
         const delta = b.delta ? `  ${b.delta.amount >= 0 ? '+' : ''}${b.delta.amount}%${b.delta.label ? ` ${b.delta.label}` : ''}` : ''
-        out.push({ text: trunc(`${b.label ? `${b.label}: ` : ''}${b.value}${b.context ? `  ${b.context}` : ''}`, width), fg: t.fg, bold: true })
+        // a statistic that links somewhere shows its label and count; Enter opens the link
+        const href = (b as { href?: string }).href ?? (/^<(.+)>$/.exec(b.context ?? '')?.[1])
+        const context = href ? '' : b.context
+        out.push({ text: trunc(`${b.label ? `${b.label}: ` : ''}${b.value}${context ? `  ${context}` : ''}`, width), fg: t.fg, bold: true, ...(href ? { href } : {}) })
         if (delta) out.push({ text: trunc(delta.trim(), width), fg: b.delta?.good === true ? t.ok : b.delta?.good === false ? t.err : t.dim })
         break
       }
       case 'table':
-        out.push(...tableLines(b.headers, b.rows.map((r) => b.columns.map((c) => String(r[c] ?? ''))), width))
+        out.push(...tableLines(b.headers, b.rows.map((r) => b.columns.map((c) => String(r[c] ?? ''))), width, b.rows.map((r) => (typeof r.__href === 'string' ? r.__href : undefined))))
         if (!b.rows.length) out.push({ text: '(no rows)', fg: t.dim })
         break
       case 'series': {
@@ -127,7 +154,7 @@ export function blockLines(blocks: RenderBlock[], width: number): StyledLine[] {
         out.push(...wrap(`[${b.level.toUpperCase()}] ${b.text}`, width).map((text) => ({ text, fg: b.level === 'error' ? t.err : b.level === 'warning' ? t.warn : b.level === 'success' ? t.ok : t.acc })))
         break
       case 'link':
-        out.push({ text: trunc(`${g.link} ${b.label}: ${b.href}`, width), fg: t.acc })
+        out.push({ text: trunc(`${g.link} ${b.label}`, width), fg: t.acc, href: b.href })
         break
       case 'rule':
         out.push({ text: g.rule.repeat(Math.min(width, 60)), fg: t.dim })
@@ -139,7 +166,11 @@ export function blockLines(blocks: RenderBlock[], width: number): StyledLine[] {
         })
         break
       case 'raw':
-        out.push({ text: trunc(`(${b.type}: no terminal rendering yet)`, width), fg: t.dim })
+        // a payload the kernel has no block for: its data as key/value rows and sub-tables
+        if (b.data && typeof b.data === 'object' && Object.keys(b.data as object).some((k) => k !== 'type')) {
+          const { type: _type, ...rest } = b.data as Record<string, unknown>
+          out.push(...structuredLines(rest, width))
+        } else out.push({ text: trunc(`(${b.type}: nothing to draw in a terminal)`, width), fg: t.dim })
         break
     }
   }

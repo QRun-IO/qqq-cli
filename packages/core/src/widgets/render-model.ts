@@ -15,7 +15,7 @@ import { decodeEntities, stripTags } from '../render/text.js'
 export type RenderBlock =
   | { kind: 'heading'; text: string; sub?: string }
   | { kind: 'text'; text: string }
-  | { kind: 'stat'; label?: string; value: string; context?: string; delta?: { amount: number; label?: string; good?: boolean } }
+  | { kind: 'stat'; label?: string; value: string; context?: string; delta?: { amount: number; label?: string; good?: boolean }; href?: string }
   | { kind: 'table'; columns: string[]; headers: string[]; rows: Row[] }
   | { kind: 'series'; labels: string[]; datasets: Array<{ label: string; data: number[] }>; chart: 'line' | 'bar' | 'pie' | 'stackedBar' | 'horizontalBar' | 'chart' }
   | { kind: 'pairs'; pairs: Array<{ label: string; value: string }> }
@@ -153,7 +153,7 @@ export function widgetToBlocks(data: unknown, context: WidgetContext = {}): Rend
       for (const group of groups) {
         const head = [group.icon ? `(${str(group.icon)})` : '', str(group.header ?? group.label), group.subheader ? str(group.subheader) : ''].filter(Boolean).join(' ')
         if (head) blocks.push({ kind: 'text', text: head })
-        for (const st of ((group.statisticList ?? group.statisticsList ?? group.statistics ?? []) as J[])) blocks.push({ kind: 'stat', label: str(st.label), value: num(st.value ?? st.count), context: st.url ? `<${str(st.url)}>` : st.context ? String(st.context) : undefined })
+        for (const st of ((group.statisticList ?? group.statisticsList ?? group.statistics ?? []) as J[])) blocks.push({ kind: 'stat', label: str(st.label), value: num(st.value ?? st.count), context: st.url ? `<${str(st.url)}>` : st.context ? String(st.context) : undefined, ...(st.url ? { href: str(st.url) } : {}) })
       }
       break
     }

@@ -395,6 +395,19 @@ export class Commands implements CommandsLike {
     const screen = new OutputScreen(s, line)
     s.push(screen)
     const globals = s.target ? ['--profile', s.target.name] : []
+    // an extension operation's JSON is drawn as rows and sub-tables (J shows it raw), not dumped on one line
+    if (structuredOutput(argv, s.extensions.all().map((e) => e.name))) {
+      let out = ''
+      const code = await runCli([...globals, '--json', ...argv], { stdout: (t) => { out += t }, stderr: (t) => screen.append(t, true), isTTY: false })
+      try {
+        if (out.trim()) screen.setStructured(JSON.parse(out), out)
+      } catch {
+        screen.append(out)
+      }
+      screen.done(code)
+      if (code !== 0) this.lastFailed = line
+      return
+    }
     const code = await runCli([...globals, ...argv], { stdout: (t) => screen.append(t), stderr: (t) => screen.append(t, true), isTTY: true })
     screen.done(code)
     if (code !== 0) this.lastFailed = line
@@ -683,6 +696,20 @@ export class Commands implements CommandsLike {
       s.open(new ChoiceOverlay(s, 'Preferences', (data.sections ?? []).map((x) => ({ label: x.label, value: x.name, detail: x.description })), (name) => void this.run(`prefs get ${name}`)))
     })
   }
+}
+
+/**
+ * Whether a `:` command is an extension operation (`alerts get-inbox`, `collab get-records-tasks
+ * customer 1`, `api <operationId>`) whose JSON the TUI draws itself; not when an output format,
+ * a query or a file is asked for, and not for the first-class commands that print their own tables.
+ */
+export function structuredOutput(argv: string[], installed: string[]): boolean {
+  const [noun, verb] = argv
+  if (!noun || !verb || verb.startsWith('-')) return false
+  if (argv.some((a) => /^(-O|--output|--json|-Q|--query|-o|--out|--fields|-h|--help|--list|-l)(=|$)/.test(a))) return false
+  if (noun === 'api') return true
+  const nouns = new Set([...installed, ...installed.map((n) => (n === 'collaboration' ? 'collab' : n))])
+  return nouns.has(noun) && /^(get|post|put|patch|delete)-/.test(verb)
 }
 
 /** Parses `-w a -w b --or -o x` style options into lists (flags become ['true']). */
