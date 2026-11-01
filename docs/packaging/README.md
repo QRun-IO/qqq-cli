@@ -26,7 +26,12 @@ See [`docs/release-runbook.md`](../release-runbook.md). In short: `node scripts/
 release with `dist/qqq-*` and `dist/SHA256SUMS`, `node scripts/update-packaging.mjs <that SHA256SUMS>`,
 copy `homebrew-tap/Formula/qqq.rb` to the tap and `qqq.json` to the bucket (the bucket's Excavator
 also picks up new releases by itself). Use the uploaded sums, not a
-local rebuild: each build stamps its commit, so checksums differ between builds.
+local rebuild: each build stamps its commit, so checksums differ between builds. The script exits 1 and writes
+nothing when a sum is missing or malformed, and never writes zeros; check the result anyway with
+`git diff` and `grep -c 0000000000000000 docs/packaging/qqq.json docs/packaging/homebrew-tap/Formula/qqq.rb`
+(both must print 0) before copying the files out. The tap's CI and the bucket's manifest tests would catch
+zeros (a download that does not match) only if their pull requests are opened and their checks are read;
+checkpoint the sums here first, not there.
 
 ## Where the formula and manifest live
 

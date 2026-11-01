@@ -21,6 +21,8 @@ here (`Formula/qctl.rb`) once this tap exists, with `homebrew-qctl` kept as a po
 The formula is generated in qqq-cli: after a `cli-v<version>` GitHub release, run
 `node scripts/update-packaging.mjs <release SHA256SUMS>` there and copy
 `docs/packaging/homebrew-tap/Formula/qqq.rb` here. CI (qqq-orb `homebrew-tap` profile) fetches every
-platform's download, installs the formula and runs its test.
+platform's download, installs the formula and runs its test, which fails on a wrong or all-zero sum, but
+only once the pull request here is opened and its checks are read. The script refuses to write missing or
+malformed sums; still compare the sums in the diff with the release's `SHA256SUMS` before opening the PR.
 
 Apache-2.0
