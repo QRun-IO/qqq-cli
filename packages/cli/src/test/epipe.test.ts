@@ -20,7 +20,7 @@ describe('broken pipes', () => {
     stub = await startStub([...BASE_ROUTES,
       [/^GET \/metaData$/, () => ({ tables: { big: { name: 'big', label: 'Big' } }, processes: {}, apps: {} })],
       [/^GET \/metaData\/table\/big$/, () => ({ name: 'big', label: 'Big', primaryKeyField: 'id', capabilities: ['TABLE_QUERY'], fields: { id: { name: 'id', label: 'Id', type: 'INTEGER' }, note: { name: 'note', label: 'Note', type: 'STRING' } } })],
-      [/^POST \/table\/big\/query$/, () => ({ records: Array.from({ length: 2000 }, (_, i) => ({ values: { id: i, note: 'x'.repeat(200) } })) })],
+      [/^POST \/table\/big\/query$/, () => ({ records: Array.from({ length: 5000 }, (_, i) => ({ values: { id: i, note: 'x'.repeat(200) } })) })],
     ])
   })
   after(async () => {
@@ -30,23 +30,40 @@ describe('broken pipes', () => {
 
   test('the helper exits 0 on EPIPE and rethrows anything else', () => {
     assert.ok(isBrokenPipe(Object.assign(new Error('write EPIPE'), { code: 'EPIPE' })))
+    assert.ok(isBrokenPipe(Object.assign(new Error('destroyed'), { code: 'ERR_STREAM_DESTROYED' })))
     assert.ok(!isBrokenPipe(new Error('other')))
     const listeners: Array<(e: Error) => void> = []
     const exits: number[] = []
-    exitOnBrokenPipe([{ on: (_: string, f: (e: Error) => void) => listeners.push(f) } as never], (code) => exits.push(code))
+    let uncaught: ((e: Error) => void) | undefined
+    exitOnBrokenPipe([{ on: (_: string, f: (e: Error) => void) => listeners.push(f) } as never], (code) => exits.push(code), (_, f) => { uncaught = f })
     listeners[0]!(Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }))
-    assert.deepEqual(exits, [0])
+    uncaught!(Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }))
+    assert.deepEqual(exits, [0, 0])
     assert.throws(() => listeners[0]!(new Error('disk full')), /disk full/)
   })
 
-  test('a closed stdout ends the command quietly with status 0 and no stack trace', async () => {
+  /** Runs a query whose output is far larger than a pipe buffer, closing the read end when `closeAt` says so. */
+  const query = async (closeAt: 'before-any-write' | 'first-chunk') => {
     const env = { ...process.env, ...box.env, QQQ_TOKEN: 't', NO_COLOR: '1' }
-    const child = spawn(process.execPath, [CLI, '--server', stub.url, 'table', 'query', 'big', '-O', 'json', '-l', '2000'], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(process.execPath, [CLI, '--server', stub.url, 'table', 'query', 'big', '-O', 'json', '-l', '5000'], { env, stdio: ['ignore', 'pipe', 'pipe'] })
     let stderr = ''
     child.stderr.on('data', (d: Buffer) => (stderr += d.toString('utf8')))
-    child.stdout.once('data', () => child.stdout.destroy())
+    // before-any-write: the reader is gone before the child has even started, so its first write meets a closed pipe
+    if (closeAt === 'before-any-write') child.stdout.destroy()
+    else child.stdout.once('data', () => child.stdout.destroy())
     const code = await new Promise<number | null>((resolve) => child.on('close', resolve))
-    assert.equal(code, 0)
+    return { code, stderr }
+  }
+
+  test('a reader that is gone before the first write ends the command quietly with status 0', { timeout: 60_000 }, async () => {
+    const { code, stderr } = await query('before-any-write')
+    assert.equal(code, 0, stderr)
+    assert.doesNotMatch(stderr, /EPIPE|at .*\.js/)
+  })
+
+  test('a reader that leaves after the first chunk ends the command quietly with status 0', { timeout: 60_000 }, async () => {
+    const { code, stderr } = await query('first-chunk')
+    assert.equal(code, 0, stderr)
     assert.doesNotMatch(stderr, /EPIPE|at .*\.js/)
   })
 })
