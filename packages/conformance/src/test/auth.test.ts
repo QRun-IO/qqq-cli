@@ -30,7 +30,7 @@ test('on a MOCK server without a token, every authenticated check (jobs too) use
   const seen: Array<{ path: string; authorization?: string; cookie?: string }> = []
   const results = await runConformance({ baseUrl: 'http://fake', fetch: fakeServer(seen) })
   const jobs = results.find((r) => r.name === 'GET /qqq/v1/jobs validates')!
-  assert.equal(jobs.ok && !jobs.skipped, true, jobs.detail)
+  assert.equal(jobs.ok && !jobs.skipped, true, jobs.detail ?? 'jobs check did not pass')
   assert.equal(seen.find((s) => s.path === '/qqq/v1/metaData')?.cookie, 'sessionUUID=s-1')
   assert.equal(seen.find((s) => s.path === '/qqq/v1/jobs')?.cookie, 'sessionUUID=s-1')
   assert.match(results.find((r) => r.name === 'GET /qqq/v1/metaData validates')!.detail!, /authenticated with a server session/)
