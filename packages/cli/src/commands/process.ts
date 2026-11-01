@@ -219,7 +219,7 @@ function outcomeStepLabel(meta: ProcessMeta, stepName: string): string {
 }
 
 /** Prints the last screen: as text on table/text output, else the response with summary or value rows. */
-function printOutcome(c: Context, outcome: RunOutcome, textOf: (screen: ScreenBlock[]) => string, saved: string[]): void {
+export function printOutcome(c: Context, outcome: RunOutcome, textOf: (screen: ScreenBlock[]) => string, saved: string[]): void {
   const out = outcome.values
   if ((c.format === 'table' || c.format === 'text') && !c.options.query && outcome.lastScreen?.length) {
     const text = textOf(outcome.lastScreen)

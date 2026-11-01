@@ -12,7 +12,7 @@ import { countFooter, defaultFields, positiveInt, readJson, type Json } from './
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
 /** The signed-in user's id as saved views record owners (email, else username or subject). */
-async function currentUserId(c: Context): Promise<string | undefined> {
+export async function currentUserId(c: Context): Promise<string | undefined> {
   const t = c.target
   const token = await currentToken(t)
   const claims = token && token.includes('.') ? decodeJwtClaims(token) as Json : {}
