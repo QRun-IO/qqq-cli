@@ -4,10 +4,13 @@
  */
 
 import assert from 'node:assert/strict'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { EXIT, UsageError, describeError } from '../context.js'
-import { defaultFields, parsePairs, readJson, valueText } from '../commands/shared.js'
+import { defaultFields, editFileName, parsePairs, readJson, runEditor, valueText } from '../commands/shared.js'
 
 test('pairs parse name=value, keeping = inside the value', () => {
   assert.deepEqual(parsePairs(['a=1', 'b=x=y'], '--set'), { a: '1', b: 'x=y' })
@@ -67,4 +70,25 @@ test('exit codes: gateways are transient, bad operation inputs are usage errors'
   assert.equal(describeError(new UiApiError(502, 'Bad Gateway')).code, EXIT.transient)
   assert.equal(describeError(new UiApiError(500, { message: 'boom' })).code, EXIT.unexpected)
   assert.equal(describeError(new OperationInputError('needs path parameter')).code, EXIT.usage)
+})
+
+test('the edit file name keeps letters, digits and ._- only (a primary key can hold shell syntax)', () => {
+  assert.equal(editFileName('person-$(touch pwned);`id`-notes.html'), 'person-__touch_pwned___id_-notes.html')
+  assert.equal(editFileName('script-7-code.js'), 'script-7-code.js')
+  assert.throws(() => editFileName('../'))
+})
+
+test('the editor command gets the file path as an argument, never as shell text', { skip: process.platform === 'win32' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqq edit $(touch pwned) '))
+  try {
+    const path = join(dir, "a b;'$(touch pwned2)'.txt")
+    writeFileSync(path, 'before')
+    const editor = "printf ' after' >>" // an editor command with its own arguments; the file comes last
+    const result = runEditor(editor, path)
+    assert.equal(result.status, 0)
+    assert.equal(readFileSync(path, 'utf8'), 'before after')
+    assert.ok(!existsSync('pwned') && !existsSync('pwned2') && !existsSync(join(dir, 'pwned')))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })

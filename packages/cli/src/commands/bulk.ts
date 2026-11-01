@@ -17,7 +17,7 @@ import {
   BACK, BulkDeclinedError, BulkMappingError, FilterLabelError, resolveFilterLabels, FormInputError, FormSession, ProcessCancelledError, ProcessError, SavedBulkLoadProfileError, blocksToText, buildFilter, bulkProcesses,
   checkInputRecords, checkMapping, columnLetter, columnName, columnPreview, deleteSavedBulkLoadProfile, diffMappings, displayDateTime, filterDateTimesToUtc, findColumn, findSavedBulkLoadProfile,
   formatTable, formatValue, isProfileOwner, listSavedBulkLoadProfiles, mappingDocument, mappingFromProfile, mappingRows, parseMappingDocument, profileFromMapping, readFileDescription, resolvePossibleValue,
-  runBulkProcess, safeFileName, savedBulkLoadProfilesAvailable, screenToText, searchPossibleValues, setHasHeaderRow, storeSavedBulkLoadProfile, structureFields, uploadTemplates, variantParam,
+  runBulkProcess, safeFileName, savedBulkLoadProfilesAvailable, screenToText, searchPossibleValues, setHasHeaderRow, storeSavedBulkLoadProfile, stripTags, structureFields, uploadTemplates, variantParam,
   type BulkLoadTableStructure, type BulkMapping, type BulkOutcome, type FieldMeta, type FileDescription, type MappingContext, type ProcessMeta, type QueryFilter, type ReviewContext, type ReviewDecision,
   type SavedBulkLoadProfile, type ScreenBlock, type ValueMappingContext,
 } from '@qrun-io/qqq-core'
@@ -509,7 +509,7 @@ async function editMapping(c: Context, ctx: MappingContext, start: BulkMapping):
   const columns = ctx.file.headers.map((h, i) => ({ col: ctx.file.letters[i] ?? columnLetter(i), header: h, preview: columnPreview(ctx.file, i, true).slice(0, 3).join(', ') }))
   c.note(`\n== ${ctx.step.label ?? ctx.step.name}: ${ctx.file.name ?? 'the file'} ==\n${formatTable(columns, ['col', 'header', 'preview'], ['Col', 'First row', 'Preview'])}`)
   const helps = (ctx.step.formFields ?? []).map((f) => (f as FieldMeta & { helpContents?: Array<{ contentAsText?: string; content?: string }> })).filter((f) => f.helpContents?.length)
-  for (const f of helps) c.note(`  ${f.label}: ${f.helpContents!.map((h) => h.contentAsText ?? h.content ?? '').join(' ').replace(/<[^>]+>/g, '').trim()}`)
+  for (const f of helps) c.note(`  ${f.label}: ${stripTags(f.helpContents!.map((h) => h.contentAsText ?? h.content ?? '').join(' ')).trim()}`)
   for (;;) {
     const header = await ask(`Does the first row hold headers? [${mapping.hasHeaderRow ? 'Y/n' : 'y/N'}] `)
     if (header) for (const w of setHasHeaderRow(mapping, /^y/i.test(header), ctx.file)) c.note(`warning: ${w}`)

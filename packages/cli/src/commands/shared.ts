@@ -140,14 +140,33 @@ export function labelsFor(meta: Json, names: string[]): string[] {
   return names.map((n) => String(fields[n]?.label ?? n))
 }
 
+/**
+ * The temporary file name for editing: the name's characters other than letters, digits, `.`, `_`
+ * and `-` become `_`. The name carries a table, primary key and field, which can hold anything.
+ */
+export function editFileName(name: string): string {
+  return safeFileName(name).replace(/[^A-Za-z0-9._-]/g, '_')
+}
+
+/**
+ * Runs the editor command on a file. $VISUAL / $EDITOR is a command line (`code --wait`), so it
+ * goes through a shell; the path never becomes part of that command text: on POSIX it is the
+ * shell's `$1` (as git runs its editor), on Windows the quoted `%QQQ_EDIT_FILE%` variable (a
+ * Windows path cannot hold the `"` that would end the quotes).
+ */
+export function runEditor(editor: string, path: string): ReturnType<typeof spawnSync> {
+  if (process.platform === 'win32') return spawnSync(`${editor} "%QQQ_EDIT_FILE%"`, { stdio: 'inherit', shell: true, env: { ...process.env, QQQ_EDIT_FILE: path } })
+  return spawnSync('/bin/sh', ['-c', `${editor} "$1"`, 'qqq-editor', path], { stdio: 'inherit' })
+}
+
 /** Opens $VISUAL / $EDITOR (else vi) on a text and returns what was saved. */
 export function editText(text: string, name: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'qqq-edit-'))
-  const path = join(dir, safeFileName(name))
+  const path = join(dir, editFileName(name))
   try {
     writeFileSync(path, text, { mode: 0o600 })
     const editor = process.env.VISUAL || process.env.EDITOR || 'vi'
-    const result = spawnSync(editor, [path], { stdio: 'inherit', shell: true })
+    const result = runEditor(editor, path)
     if (result.status !== 0) throw new UsageError(`${editor} exited with ${result.status ?? result.signal}; nothing was stored.`)
     return readFileSync(path, 'utf8')
   } finally {

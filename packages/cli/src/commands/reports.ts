@@ -13,7 +13,7 @@ import type { Command } from 'commander'
 import {
   RENDER_SAVED_REPORT_PROCESS, ReportError, SAVED_REPORT_TABLE, SCHEDULED_REPORT_TABLE, SHARE_SCOPES, SharingError, addShare, blocksToText, buildFilter, buildPivot, changeShare,
   filterAndColumnsBlocks, filterDateTimesToUtc, findSavedReport, listReportSchedules, listSavedReports, listShares, pivotTableBlocks, printFilter, removeShare,
-  reportFormat, savedReportFilterValues, shareScope, type FieldMeta, type QueryFilter, type SavedReport,
+  reportFormat, savedReportFilterValues, shareScope, trimChar, type FieldMeta, type QueryFilter, type SavedReport,
 } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch } from '../session.js'
@@ -87,7 +87,7 @@ export function registerReports(program: Command, ctx: () => Context): void {
       let total: unknown
       if (options.apiPath) {
         if (!options.apiVersion) throw new UsageError('--api-path needs --api-version')
-        const base = `${c.server}/${options.apiPath.replace(/^\/+|\/+$/g, '')}/${options.apiVersion}/table/${report.tableName}`
+        const base = `${c.server}/${trimChar(options.apiPath, '/')}/${options.apiVersion}/table/${report.tableName}`
         const fetchImpl = authenticatedFetch(c.target)
         const q = await (await fetchImpl(`${base}/query`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ filter }) })).json() as Json
         const n = await (await fetchImpl(`${base}/count`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ filter: { ...filter, skip: undefined, limit: undefined } }) })).json() as Json
