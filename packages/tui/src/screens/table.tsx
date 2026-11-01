@@ -340,10 +340,11 @@ export class TableScreen implements Screen {
 
   runProcess(name: string): void {
     const ids = [...this.selection]
-    if (ids.length) openProcess(this.store, name, { recordIds: ids })
+    const tableVariant = variantParam(this.variant)
+    if (ids.length) openProcess(this.store, name, { recordIds: ids, tableVariant })
     else {
       const key = this.keyOf(this.currentRecord)
-      openProcess(this.store, name, key !== undefined ? { recordIds: [key] } : { filter: this.fullFilter() })
+      openProcess(this.store, name, key !== undefined ? { recordIds: [key], tableVariant } : { filter: this.fullFilter(), tableVariant })
     }
   }
 

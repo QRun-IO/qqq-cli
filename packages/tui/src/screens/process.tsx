@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (see LICENSE).
  */
 
-import { BACK, FormSession, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
+import { BACK, FormSession, dateTimesToUtc, defaultTimeZone, isInstant, utcToLocalInput, ProcessError, checkInputRecords, downloadProcessFile, runProcess, safeFileName, saveDownload, screenToText, type FieldMeta, type FieldValues, type ProcessMeta, type ProcessStep, type QueryFilter, type ScreenBlock } from '@qrun-io/qqq-core'
 import { saveFile } from '../overlays/files-helpers'
 import { blockLines, tableLines } from '../widgets'
 import type { Key } from '../keys'
@@ -23,6 +23,8 @@ class Cancelled extends Error {
 }
 
 export interface ProcessOptions {
+  /** The table variant the records come from (sent on init, every step and status). */
+  tableVariant?: string
   recordIds?: string[]
   filter?: QueryFilter
   values?: FieldValues
@@ -129,6 +131,7 @@ export class ProcessScreen implements Screen {
         values: this.options.values,
         records: this.options.recordIds?.length ? { ids: this.options.recordIds } : this.options.filter ? { filter: this.options.filter } : undefined,
         stepFiles: this.stepFiles,
+        tableVariant: this.options.tableVariant,
         stepTimeoutMillis: 0,
         pollMillis: 250,
         always: true,
@@ -211,7 +214,9 @@ export class ProcessScreen implements Screen {
       this.reviewChoice = this.stepValues.validationSummary ? 1 : 0
     } else if (fields.length) {
       const client = this.store.client!
-      const session = new FormSession({ baseUrl: client.server, fetch: this.fetchFor(), scope: { process: this.processName }, fields, initialValues: values })
+      const local = { ...values }
+      for (const f of fields) if (f.type === 'DATE_TIME' && isInstant(local[f.name])) local[f.name] = utcToLocalInput(String(local[f.name]), defaultTimeZone())
+      const session = new FormSession({ baseUrl: client.server, fetch: this.fetchFor(), scope: { process: this.processName }, fields, initialValues: local })
       this.editor = new FormEditor(this.store, session, session.promptOrder(fields.map((f) => f.name)), { bulkEdit: types.includes('BULK_EDIT_FORM') })
       this.phase = 'form'
     } else {
@@ -243,7 +248,7 @@ export class ProcessScreen implements Screen {
         editor.index = Math.max(0, editor.names.findIndex((n) => problems[n]))
         return
       }
-      const out: FieldValues = {}
+      let out: FieldValues = {}
       const enabled = editor.options.bulkEdit ? editor.enabled : undefined
       for (const n of editor.names) if (editor.session.values[n] !== undefined && (!enabled || enabled.has(n))) out[n] = editor.session.values[n]
       if (enabled) out.bulkEditEnabledFields = [...enabled].join(',')
@@ -251,6 +256,8 @@ export class ProcessScreen implements Screen {
         this.stepFiles[name] = { name: file.name, bytes: file.bytes }
         out[name] = file.name
       }
+      // DATE_TIME inputs are typed in the local zone and sent as UTC instants
+      out = dateTimesToUtc(Object.values(editor.session.fields), out)
       this.pending = undefined
       this.phase = 'running'
       this.stepStarted = Date.now()
