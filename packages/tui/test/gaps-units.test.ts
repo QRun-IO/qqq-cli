@@ -14,7 +14,7 @@ import { NO_QUICK_SEARCH, paletteGroups, paletteRows, recordItem, type PaletteIt
 import { HELP_POINTER, helpKeyGroups } from '../src/help-keys'
 import { structuredLines } from '../src/structured'
 import { structuredOutput } from '../src/commands'
-import { summaryText, viewingText, commentLines, noteUploadFailure, uploadBlocked } from '../src/collab'
+import { viewingText, commentLines, noteUploadFailure, uploadBlocked } from '../src/collab'
 import { errorText } from '../src/util/text'
 import { blockLines } from '../src/widgets'
 
@@ -239,12 +239,10 @@ test('help: only keys grouped by what they do, the pointer line, no commands or 
   expect(helpKeyGroups('form', true).find((g) => g.title === 'Open and change')!.keys.map(([k]) => k)).toContain('Ctrl+S')
 })
 
-test('collaboration header: counts, follow state and who is viewing (this user marked)', () => {
-  expect(summaryText({ comments: 2, attachments: 0, tasks: 1, following: true })).toBe('Comments 2 (C) · Attachments 0 (P) · Tasks 1 (K) · Timeline (T) · following (W)')
+test('collaboration: who is viewing (this user marked) and comment lines', () => {
   expect(viewingText([{ name: 'Admin', self: true }])).toBe('Viewing now: Admin (you)')
   expect(viewingText([{ name: 'Tester', self: true }, { name: 'Pat Smith' }])).toBe('Viewing now: Tester (you), Pat Smith · 1 other')
   expect(viewingText(undefined)).toBe('Viewing now: …')
-  expect(summaryText(undefined)).toBe('Comments … (C) · Attachments … (P) · Tasks … (K) · Timeline (T) · following … (W)')
   expect(commentLines({ authorDisplayName: 'Pat', body: 'hi @[Lee](user:7)', createdAt: undefined, replies: [{ authorDisplayName: 'Lee', body: 'ok' }] }, () => 'now')).toEqual(['Pat · now: hi @Lee', '    ↳ Lee · now: ok'])
 })
 

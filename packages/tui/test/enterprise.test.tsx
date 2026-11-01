@@ -11,6 +11,8 @@ import { KeyCodes } from '@opentui/core/testing'
 import { ExtensionRegistry } from '@qrun-io/qqq-core'
 import { TuiClient } from '../src/client'
 import { RecordCollaboration } from '../src/collab'
+import type { RecordScreen } from '../src/screens/record'
+import { readViewSettings } from '@qrun-io/qqq-core'
 import { COLLABORATION, QUICK_SEARCH, collabState, fakeExtensions, resetCollab } from './fake-collab'
 import { fakeFetch } from './fake-server'
 import { command, isolate, press, startTui, waitFor, type Harness } from './helpers'
@@ -40,7 +42,7 @@ test('collaboration API: comments, follow, attachments (download from the server
   fakeExtensions.push(COLLABORATION)
   const c = collabClient()
   expect(c.available).toBe(true)
-  expect(await c.summary()).toEqual({ comments: 1, attachments: 1, tasks: 1, following: false })
+  expect(await c.summary()).toEqual({ comments: 1, attachments: 1, tasks: 1, following: false, latest: [{ author: 'Pat', at: '2026-11-01T10:00:00Z', text: 'first note' }], nextDue: undefined, followers: [] })
   await c.addComment('hello', 1)
   expect(collabState.comments[0]).toMatchObject({ body: 'hello', parentCommentId: 1 })
   expect((await c.toggleFollow(false)).following).toBe(true)
@@ -58,14 +60,21 @@ test('collaboration API: comments, follow, attachments (download from the server
   expect(await c.sharePreview(['u1', 'u2'])).toEqual([{ userId: 'u1', displayName: 'Pat Smith', canRead: true }, { userId: 'u2', displayName: 'u2', canRead: false }])
 })
 
-test('record view with collaboration: the summary line, a/F9 entries, comments (add), follow, timeline, tasks, share preview', async () => {
+test('record view with collaboration: the bottom strip, a/F9 entries, comments (add), follow, timeline, tasks, share preview', async () => {
   fakeExtensions.push(COLLABORATION)
   h = await startTui(130, 40)
   await command(h, 'table get person 1')
-  let f = await waitFor(h, (x) => x.includes('Comments 1 (C) · Attachments 1 (P) · Tasks 1 (K) · Timeline (T) · not following (W)'))
-  // presence: everyone on the record, this user marked; the title bar counts the others
-  f = await waitFor(h, (x) => x.includes('Viewing now: Pat Smith, Tester (you) · 1 other'))
+  // a 102-cell pane: timeline and the follow state are dropped first, the viewers and tags kept
+  let f = await waitFor(h, (x) => x.includes('Tags: none (t) · 1 comment (C) · 1 file (P) · 1 task (K) · viewing: Pat Smith (viewing)'))
+  // presence: the others (and what they do) in the strip; the title bar counts them
   expect(f).toContain('1 other viewing: Pat Smith')
+  // the strip is the line right above the key line, and nothing collaboration sits above the sections
+  const lines = f.split('\n')
+  const strip = lines.findIndex((l) => l.includes('Tags: none (t)'))
+  expect(lines[strip + 1]).toContain('Esc back')
+  expect(lines.slice(0, strip).some((l) => /Tags:|Viewing now|comment \(C\)/.test(l))).toBe(false)
+  const screen = h.store.screen as RecordScreen
+  expect(screen.list.current?.key).toStartWith('f:')
   await key('a')
   f = await waitFor(h, (x) => x.includes('Actions ·'))
   for (const label of ['Comments (1)', 'Add a comment', 'Follow this record', 'Attachments (1)', 'Upload an attachment', 'Timeline', 'Tasks (1 open)', 'Share preview', 'Viewing now']) expect(f).toContain(label)
@@ -82,8 +91,8 @@ test('record view with collaboration: the summary line, a/F9 entries, comments (
   expect(f).toContain('looks good')
   await escape()
   await key('W')
-  f = await waitFor(h, (x) => x.includes('· following (W)'))
-  expect(collabState.following).toBe(true)
+  await waitFor(h, () => collabState.following)
+  expect((h.store.screen as RecordScreen).collabSummary?.following).toBe(true)
   await key('T')
   f = await waitFor(h, (x) => x.includes('Timeline · Person'))
   expect(f).toContain('Changed Email from "a" to "b"')
@@ -110,11 +119,12 @@ test('record view with collaboration: the summary line, a/F9 entries, comments (
   expect(f).toContain('Send the share to 1 person')
 })
 
-test('record view without the collaboration extension: no collaboration line; F9 says it needs the extension', async () => {
+test('record view without the collaboration extension: no collaboration strip; F9 says it needs the extension', async () => {
   h = await startTui(130, 40)
   await command(h, 'table get person 1')
   let f = await waitFor(h, (x) => x.includes('Identity'))
-  expect(f).not.toContain('Comments ')
+  expect(f).not.toContain('comments (C)')
+  expect(f).not.toContain('Tags:')
   await key('C')
   await key('a')
   f = await waitFor(h, (x) => x.includes('Actions ·'))
@@ -170,4 +180,57 @@ test('F9 keeps its sections but no longer lists apps, recents or metadata matche
   expect(f).toContain('Search records (quick search)')
   expect(f).not.toContain('App: People')
   expect(f).not.toContain('Table: ')
+})
+
+test('record view at 160 columns: the collaboration panel (tags, latest comments, followers, viewing now), keys-only strip, clicks press the keys', async () => {
+  fakeExtensions.push(COLLABORATION)
+  collabState.tags = [{ id: 1, name: 'rush', label: 'rush' }, { id: 2, name: 'vip', label: 'vip' }]
+  h = await startTui(160, 40)
+  await command(h, 'table get person 1')
+  let f = await waitFor(h, (x) => x.includes('Comments 1 (C)') && x.includes('Pat Smith · viewing'))
+  for (const text of ['Collaboration', 'Tags (t)', 'rush, vip', 'first note', 'Tasks 1 open (K)', 'Files 1 (P)', 'Followers 0 (W)', 'Viewing now', 'Tester (you) · viewing']) expect(f).toContain(text)
+  // the strip is the keys only; the record's first field still has the cursor
+  expect(f).toContain('t tags · C comments · P files · K tasks · T timeline · W follow')
+  expect(f).not.toContain('not following (W)')
+  const screen = h.store.screen as RecordScreen
+  expect(screen.list.current?.key).toStartWith('f:')
+  // a click on the strip's "C comments" opens the comments, on the panel's "Tags (t)" row the tags
+  const at = (needle: string) => { const lines = h!.frame().split('\n'); const y = lines.findIndex((l) => l.includes(needle)); return { x: lines[y]!.indexOf(needle), y } }
+  const c = at('C comments')
+  await press(h, () => h!.setup.mockMouse.click(c.x + 1, c.y))
+  f = await waitFor(h, (x) => x.includes('Comments · Person'))
+  await escape()
+  await waitFor(h, (x) => x.includes('Tags (t)'))
+  const tags = at('Tags (t)')
+  await press(h, () => h!.setup.mockMouse.click(tags.x + 1, tags.y))
+  f = await waitFor(h, (x) => x.includes('rush') && h!.store.overlays.length > 0)
+  await escape()
+  // the keys are unchanged: P attachments, t tags
+  await key('P')
+  await waitFor(h, (x) => x.includes('Attachments · Person'))
+  await escape()
+  await waitFor(h, (x) => x.includes('Tags (t)'))
+  await key('t')
+  await waitFor(h, () => h!.store.overlays.length > 0)
+  await escape()
+  // the view setting (v): off hides the panel at 160 columns, the full strip comes back, and it is saved
+  h.store.open(screen.viewSettings()!)
+  await type('panel: off')
+  await enter()
+  f = await waitFor(h, (x) => x.includes('Tags: rush, vip (t) · 1 comment (C)') && !x.includes('Viewing now'))
+  expect(readViewSettings('record:person').collabPanel).toBe('off')
+  h.store.open(screen.viewSettings()!)
+  await type('panel: auto')
+  await enter()
+  await waitFor(h, (x) => x.includes('Viewing now'))
+  expect(readViewSettings('record:person').collabPanel).toBeUndefined()
+})
+
+test('record view without the collaboration extension: no strip, no panel, the cursor on the first field', async () => {
+  h = await startTui(160, 40)
+  await command(h, 'table get person 1')
+  const f = await waitFor(h, (x) => x.includes('Esc back') && x.includes('First'))
+  expect(f).not.toContain('Tags:')
+  expect(f).not.toContain('Collaboration')
+  expect((h.store.screen as RecordScreen).list.current?.key).toStartWith('f:')
 })

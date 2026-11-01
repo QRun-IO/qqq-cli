@@ -24,9 +24,10 @@ export interface CollabState {
   tasks: J[]
   uploads: J[]
   shares: J[]
+  tags: J[]
 }
 
-export const collabState: CollabState = { comments: [], following: false, attachments: [], tasks: [], uploads: [], shares: [] }
+export const collabState: CollabState = { comments: [], following: false, attachments: [], tasks: [], uploads: [], shares: [], tags: [] }
 
 export function resetCollab(): void {
   collabState.comments = [{ id: 1, body: 'first note', authorDisplayName: 'Pat', createdAt: '2026-11-01T10:00:00Z', replies: [{ id: 2, body: 'a reply', authorDisplayName: 'Lee', createdAt: '2026-11-01T11:00:00Z' }] }]
@@ -35,6 +36,7 @@ export function resetCollab(): void {
   collabState.tasks = [{ id: 3, title: 'Call back', status: 'OPEN' }]
   collabState.uploads = []
   collabState.shares = []
+  collabState.tags = []
 }
 resetCollab()
 
@@ -51,7 +53,7 @@ export async function collabRoute(path: string, method: string, body: unknown): 
   const rec = /^\/records\/([^/]+)\/([^/]+)\/(\w+)(\/preview)?$/.exec(rest)
   if (rec) {
     const what = rec[3]
-    if (what === 'tags') return json({ items: [] })
+    if (what === 'tags') return json({ items: collabState.tags })
     if (what === 'comments' && method === 'GET') return json({ threads: collabState.comments, nextCursor: null })
     if (what === 'comments' && method === 'POST') {
       const b = body as J
@@ -59,6 +61,7 @@ export async function collabRoute(path: string, method: string, body: unknown): 
       collabState.comments.unshift(c)
       return json(c)
     }
+    if (what === 'followers') return json({ items: collabState.following ? [{ userId: 't', userDisplayName: 'Tester' }] : [], nextCursor: null })
     if (what === 'follow' && method === 'GET') return json({ following: collabState.following })
     if (what === 'follow' && method === 'PUT') { collabState.following = true; return json({ following: true }) }
     if (what === 'follow' && method === 'DELETE') { collabState.following = false; return json({ following: false }) }

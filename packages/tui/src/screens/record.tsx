@@ -10,7 +10,7 @@ import { WidgetView } from '../widget-view'
 import { saveFile } from '../overlays/files-helpers'
 import { actionsOverlay } from '../overlays/actions'
 import { TagOverlay, collaborationOf } from '../overlays/tags'
-import { RecordCollaboration, summaryText, uploadBlocked, viewingText, type CollabSummary } from '../collab'
+import { RecordCollaboration, uploadBlocked, viewingText, type CollabSummary } from '../collab'
 import { CollabScreen, sharePreview, toggleFollow, uploadAttachment, type CollabView } from './collab'
 import { presenceSource } from '../presence'
 import { canPrintTable, printScreen } from '../printing'
@@ -29,6 +29,8 @@ import { blockLines, prefixLine } from '../widgets'
 import { followLine } from '../links'
 import { ListModel, Panel, type Row } from './list'
 import { childBox, childColumnWidth, clampOffset, padRows, planRecordLayout, type LayoutItem } from './record-layout'
+import { PANEL_WIDTH, fitStrip, panelRows, panelShown, segmentAt, stripSegments, type CollabState, type PlacedSegment } from './record-collab'
+import { Zone } from '../mouse/zone'
 import { defaultColumns } from './table'
 import { changeEvent, history } from '../history/record'
 
@@ -267,6 +269,42 @@ export class RecordScreen implements Screen {
     return readViewSettings(`record:${this.tableName}`)
   }
 
+  /** Whether the collaboration panel is drawn beside the record at the current width. */
+  hasPanel(width = this.width): boolean {
+    return panelShown(this.view().collabPanel, this.store.width, width, this.store.extensions.has('collaboration'))
+  }
+
+  /** Cells the record's rows have (the panel takes its share on wide terminals). */
+  listWidth(width = this.width): number {
+    return width - 2 - (this.hasPanel(width) ? PANEL_WIDTH : 0)
+  }
+
+  /** What the strip and the panel show: tags, the summary, and everyone on the record now. */
+  collabState(): CollabState {
+    return { tags: this.tags, summary: this.collabSummary, everyone: presenceSource().get(this.presenceScope()).everyone }
+  }
+
+  /** A collaboration key (t C P K T W), from the keyboard or a click on the strip or the panel. */
+  collabKey(key: string): boolean {
+    switch (key) {
+      case 't': if (collaborationOf(this.store)) { this.openTags(); return true } return false
+      case 'C': if (this.collab()) { this.openCollab('comments'); return true } return false
+      case 'P': if (this.collab()) { this.openCollab('attachments'); return true } return false
+      case 'T': if (this.collab()) { this.openCollab('timeline'); return true } return false
+      case 'K': if (this.collab()) { this.openCollab('tasks'); return true } return false
+      case 'W': if (this.collab()) { this.toggleFollow(); return true } return false
+      case 'collab': if (this.collab()) { this.collabMenu(); return true } return false
+      case 'viewing': if (this.collab()) { this.showViewers(); return true } return false
+      default: return false
+    }
+  }
+
+  /** Who else is on the record, in a dialog. */
+  showViewers(): void {
+    const viewers = this.viewers()
+    this.store.message(viewers.length ? `Also viewing ${this.title()}:\n${viewers.join('\n')}` : `No one else is viewing ${this.title()}.`, 'info', 'Presence')
+  }
+
   build(): void {
     const t = theme()
     const rows: Row[] = []
@@ -282,17 +320,11 @@ export class RecordScreen implements Screen {
       this.list.setRows(rows)
       return
     }
-    const inner = this.width - 2
+    const inner = this.listWidth()
     const view = this.view()
     const labelWidth = view.labelWidth ?? Math.min(28, Math.max(8, ...Object.values({ ...meta.fields, ...Object.fromEntries((meta.sections ?? []).flatMap((x) => x.fieldNames ?? []).filter((n) => this.fullMeta?.fields[n]).map((n) => [n, this.fullMeta!.fields[n]!])) }).map((f) => f.label.length + 1)))
     rows.push({ text: `${rec.recordLabel ?? this.primaryKey}${this.cursor ? `   (${this.cursor.describe()})` : ''}`, fg: t.fg, bold: true })
-    // the tags line is there for every record (collaboration), loaded or not, so nothing below moves
-    if (this.store.extensions.has('collaboration')) rows.push({ text: `Tags: ${!this.tags ? '…' : this.tags.length ? this.tags.map((x) => x.label ?? x.name).join(' · ') : '(none)'}   t edits`, fg: t.acc2, key: 'tags', action: () => this.openTags() })
-    // comments, attachments, tasks, following and who else is here (collaboration); Enter offers them all
-    if (this.store.extensions.has('collaboration')) {
-      rows.push({ text: summaryText(this.collabSummary), fg: t.acc2, key: 'collab', action: () => this.collabMenu() })
-      rows.push({ text: viewingText(presenceSource().get(this.presenceScope()).everyone), fg: t.dim })
-    }
+    // collaboration (tags, comments, who is here) lives in the strip above the key line and the side panel, not here
     const tables: Record<string, TableMetaLike | undefined> = Object.fromEntries([...this.childMeta].map(([k, v]) => [k, v as unknown as TableMetaLike]))
     this.groups = associationGroups(rec as never, meta as unknown as TableMetaLike, tables, { widgets: this.store.meta?.widgets as never, maxDepth: 3 })
     for (const item of planRecordLayout(orderedSections(meta), meta, this.groups, this.store.meta?.widgets as never, this.childMeta)) {
@@ -300,6 +332,8 @@ export class RecordScreen implements Screen {
       else if (item.kind === 'widget') rows.push(...this.widgetRows(item.section, inner))
       else rows.push(...this.fieldRows(item.section, rec, labelWidth, inner))
     }
+    // the first section starts right under the title (its separating blank line is for the sections after it)
+    if (rows[1]?.text === '' && !rows[1].action) rows.splice(1, 1)
     this.list.setRows(rows)
     // back from a child record: land on the child that was viewed last (it may have stepped)
     if (this.openedChild) {
@@ -577,7 +611,7 @@ export class RecordScreen implements Screen {
     this.store.open(new TagOverlay(this.store, collab, this.tableName, this.primaryKey, (t) => { this.tags = t; this.build() }))
   }
 
-  /** Counts and follow state of the collaboration line (collaboration extension). */
+  /** Counts, follow state and the panel details of the strip and the panel (collaboration extension). */
   collabSummary?: CollabSummary
   private presenceOff?: () => void
 
@@ -634,7 +668,6 @@ export class RecordScreen implements Screen {
     if (!this.store.extensions.has('collaboration')) return [{ section: 'Context', label: 'Collaboration', disabled: 'needs the collaboration extension' }]
     if (!c) return []
     const sum = this.collabSummary
-    const viewers = this.viewers()
     return [
       { section: 'Context', label: `Comments${sum?.comments !== undefined ? ` (${sum.comments})` : ''}…`, key: 'C', run: () => this.openCollab('comments') },
       { section: 'Context', label: 'Add a comment…', run: () => { this.openCollab('comments'); (this.store.screen as CollabScreen | undefined)?.add?.() } },
@@ -644,11 +677,11 @@ export class RecordScreen implements Screen {
       { section: 'Context', label: 'Timeline…', key: 'T', detail: 'changes, comments and activity', run: () => this.openCollab('timeline') },
       { section: 'Context', label: `Tasks${sum?.tasks !== undefined ? ` (${sum.tasks} open)` : ''}…`, key: 'K', run: () => this.openCollab('tasks') },
       { section: 'Context', label: 'Share preview: who could read it…', detail: 'pick people, see who can read, then send', run: () => sharePreview(this.store, c, this.title()) },
-      { section: 'Context', label: viewingText(presenceSource().get(this.presenceScope()).everyone), run: () => this.store.message(viewers.length ? `Also viewing ${this.title()}:\n${viewers.join('\n')}` : `No one else is viewing ${this.title()}.`, 'info', 'Presence') },
+      { section: 'Context', label: viewingText(presenceSource().get(this.presenceScope()).everyone), run: () => this.showViewers() },
     ]
   }
 
-  /** Enter on the collaboration line: its entries in a list. */
+  /** The collaboration entries in a list (a click on the panel's heading). */
   collabMenu(): void {
     const entries = this.collabEntries().filter((e) => e.run)
     this.store.open(new ChoiceOverlay<MenuEntry>(this.store, `Collaboration · ${this.title()}`, entries.map((e) => ({ label: e.label, value: e, detail: e.key ?? e.detail })), (e) => e.run?.()))
@@ -705,12 +738,7 @@ export class RecordScreen implements Screen {
       case 'r': this.refresh(); return true
       case 'l': this.list.current?.action?.(); return true
       case 'A': this.openAudits(); return true
-      case 't': if (collaborationOf(this.store)) { this.openTags(); return true } return false
-      case 'C': if (this.collab()) { this.openCollab('comments'); return true } return false
-      case 'P': if (this.collab()) { this.openCollab('attachments'); return true } return false
-      case 'T': if (this.collab()) { this.openCollab('timeline'); return true } return false
-      case 'K': if (this.collab()) { this.openCollab('tasks'); return true } return false
-      case 'W': if (this.collab()) { this.toggleFollow(); return true } return false
+      case 't': case 'C': case 'P': case 'T': case 'K': case 'W': return this.collabKey(ch)
       case 'D': this.openDeveloper(); return true
       case 'V': this.showValue(); return true
       case 'Z': {
@@ -743,7 +771,7 @@ export class RecordScreen implements Screen {
       { section: 'Context', label: 'Previous record', key: 'PgUp [', disabled: this.cursor ? undefined : 'not opened from a list', run: () => this.step(-1) },
       { section: 'Context', label: 'Refresh', key: 'F5 r', run: () => this.refresh() },
       ...this.shareEntry(),
-      { section: 'Context', label: 'View settings (columns, label width, child list rows)', key: 'v', run: () => { const o = this.viewSettings(); if (o) this.store.open(o) } },
+      { section: 'Context', label: `View settings (columns, label width, child list rows${this.store.extensions.has('collaboration') ? ', collaboration panel' : ''})`, key: 'v', run: () => { const o = this.viewSettings(); if (o) this.store.open(o) } },
       { section: 'Context', label: 'Copy as a CLI command', detail: `qqq ${this.cliEquivalent()}`, run: () => this.store.showCli(`qqq ${this.cliEquivalent()}`) },
     ]
     for (const group of this.groups) {
@@ -791,6 +819,8 @@ export class RecordScreen implements Screen {
       { label: 'Label width: wider (+4)', value: 'wide' },
       ...[3, 5, 8, 10, 15].map((n) => ({ label: `Child list rows: ${n}${v.childRows === n ? ' (current)' : ''}`, value: `rows:${n}` })),
       { label: `Child list rows: profile default (${readChildRows(this.store.status.profile || undefined)})`, value: 'rows:default' },
+      // the side panel only exists with the collaboration extension
+      ...(this.store.extensions.has('collaboration') ? (['auto', 'on', 'off'] as const).map((p) => ({ label: `Collaboration panel: ${p}${p === 'auto' ? ' (140 columns or more)' : ''}${(v.collabPanel ?? 'auto') === p ? ' (current)' : ''}`, value: `panel:${p}` })) : []),
       { label: 'Reset record view settings', value: 'reset' },
     ]
     return new ChoiceOverlay(this.store, `Record view settings · ${this.meta?.label ?? this.tableName}`, choices, (value) => {
@@ -798,6 +828,8 @@ export class RecordScreen implements Screen {
       if (value === 'auto') delete next.recordColumns
       else if (value === '1' || value === '2') next.recordColumns = Number(value) as 1 | 2
       else if (value === 'rows:default') delete next.childRows
+      else if (value === 'panel:auto') delete next.collabPanel
+      else if (value.startsWith('panel:')) next.collabPanel = value.slice(6) as 'on' | 'off'
       else if (value.startsWith('rows:')) next.childRows = Number(value.slice(5))
       else if (value === 'narrow' || value === 'wide') next.labelWidth = Math.max(6, Math.min(40, (v.labelWidth ?? 20) + (value === 'wide' ? 4 : -4)))
       writeViewSettings(key, value === 'reset' ? undefined : next)
@@ -828,11 +860,48 @@ export class RecordScreen implements Screen {
       { text: 'a actions', drop: 1 }, { text: 'V whole value', drop: 2 }, { text: 'A audits', drop: 3 }, { text: 'D developer', drop: 3 },
       { text: `Enter follows ${glyphs().link} or opens a child`, drop: 2 }, { text: 'Esc back' },
     ]
+    const collab = this.store.extensions.has('collaboration')
+    const side = this.hasPanel(width)
+    const listWidth = this.listWidth(width)
+    const listHeight = Math.max(1, height - 3 - (collab ? 1 : 0))
+    const state = collab ? this.collabState() : undefined
+    const others = state?.everyone?.some((p) => !p.self) ?? false
+    const strip = state ? fitStrip(stripSegments(state, side), width - 2) : []
+    const tone = { head: t.acc, fg: t.fg, dim: t.dim, accent: t.warn }
+    const panel = side && state ? panelRows(state, PANEL_WIDTH - 1, listHeight) : []
     return (
       <Panel title={`${this.meta?.label ?? this.tableName} › ${this.title()}`} width={width} height={height} focused={focused}>
-        {this.list.view(width - 2, height - 3, focused)}
+        {side && state ? (
+          <box flexDirection="row" height={listHeight} flexShrink={0}>
+            <box flexDirection="column" width={listWidth} flexShrink={0}>{this.list.view(listWidth, listHeight, focused)}</box>
+            <box flexDirection="column" width={PANEL_WIDTH} flexShrink={0}>
+              {Array.from({ length: listHeight }, (_, i) => {
+                const row = panel[i]
+                const line = <text key={i} flexShrink={0} wrapMode="none"><span fg={t.border}>{glyphs().border?.vertical ?? '│'}</span><span fg={row ? tone[row.tone] : t.fg}>{row?.tone === 'head' ? <strong>{row.text}</strong> : row?.text ?? pad('', PANEL_WIDTH - 1)}</span></text>
+                return row?.key ? <Zone key={i} onClick={() => { this.collabKey(row.key!) }}>{line}</Zone> : line
+              })}
+            </box>
+          </box>
+        ) : this.list.view(listWidth, listHeight, focused)}
+        {state ? this.stripView(strip, width - 2, others) : null}
         <text flexShrink={0} wrapMode="none" fg={t.dim}>{hintLine(hint, width - 2)}</text>
       </Panel>
+    )
+  }
+
+  /** The collaboration strip: dim, counts and names in normal weight, an accent when others are here; each segment is a click zone. */
+  stripView(placed: PlacedSegment[], width: number, others: boolean) {
+    const t = theme()
+    const base = others ? t.acc2 : t.dim
+    const spans = placed.flatMap((seg, i) => [
+      ...(i ? [<span key={`s${i}`} fg={t.dim}>{' · '}</span>] : []),
+      ...seg.parts.map((p, k) => <span key={`${i}:${k}`} fg={p.em ? (others && seg.key === 'viewing' ? t.warn : t.fg) : base}>{p.text}</span>),
+    ])
+    const used = placed.length ? placed[placed.length - 1]!.x + placed[placed.length - 1]!.width : 1
+    return (
+      <Zone onClick={(e) => { const seg = segmentAt(placed, e.x); if (seg) this.collabKey(seg.key) }}>
+        <text flexShrink={0} wrapMode="none"><span>{' '}</span>{spans}<span>{' '.repeat(Math.max(0, width - used))}</span></text>
+      </Zone>
     )
   }
 }

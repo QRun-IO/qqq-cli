@@ -17,6 +17,9 @@ import type { TuiClient } from './client'
 export interface PresencePerson {
   name: string
   since?: string
+  /** VIEWING or EDITING (the server's mode), and the field being edited when it says. */
+  mode?: string
+  fieldName?: string | null
 }
 
 export interface Presence {
@@ -92,8 +95,8 @@ export function collaborationPresence(registry: ExtensionRegistry, client: TuiCl
       current = entry
       collab.joinPresence(kind === 'record' ? { table, pk: pk.join(':') } : { table }, {
         onChange: (state) => {
-          const everyone = state.people.map((p) => ({ name: p.name, since: p.since.toISOString(), self: p.name === selfName }))
-          const people = everyone.filter((p) => !p.self).map(({ name, since }) => ({ name, since }))
+          const everyone = state.people.map((p) => ({ name: p.name, since: p.since.toISOString(), mode: p.mode, fieldName: p.fieldName, self: p.name === selfName }))
+          const people = everyone.filter((p) => !p.self).map(({ self: _self, ...person }) => person)
           entry.value = { count: people.length, people, everyone }
           notify()
         },

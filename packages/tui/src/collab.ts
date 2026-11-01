@@ -59,6 +59,12 @@ export interface CollabSummary {
   attachments?: number
   tasks?: number
   following?: boolean
+  /** The newest comment threads (newest first, at most two) for the collaboration panel. */
+  latest?: Array<{ author: string; at?: string; text: string }>
+  /** Earliest due date of the open tasks. */
+  nextDue?: string
+  /** Display names of the record's followers. */
+  followers?: string[]
 }
 
 export interface CollabClient {
@@ -179,19 +185,31 @@ export class RecordCollaboration {
     return this.data<J>('postQbitCollaborationRecordsByTableByPkShares', { path: this.path, json: { toUserIds: userIds, ...(message ? { message } : {}) } })
   }
 
-  /** Counts and follow state for the record header; each part fails on its own. */
+  /** Display names of the record's followers. */
+  async followers(): Promise<string[]> {
+    const items = (await this.data<{ items?: Array<{ userDisplayName?: string; userId?: string }> }>('getQbitCollaborationRecordsByTableByPkFollowers', { path: this.path, query: { limit: '50' } })).items ?? []
+    return items.map((f) => f.userDisplayName ?? f.userId ?? 'someone')
+  }
+
+  /** Counts, follow state and the panel's details for the record view; each part fails on its own. */
   async summary(): Promise<CollabSummary> {
-    const [comments, attachments, tasks, follow] = await Promise.allSettled([this.comments(), this.attachments(), this.tasks(false), this.followState()])
+    const [comments, attachments, tasks, follow, followers] = await Promise.allSettled([this.comments(), this.attachments(), this.tasks(false), this.followState(), this.followers()])
+    const threads = comments.status === 'fulfilled' ? comments.value : undefined
+    const open = tasks.status === 'fulfilled' ? tasks.value : undefined
+    const due = (open ?? []).map((k) => k.dueAt).filter((d): d is string => Boolean(d)).sort()
     return {
-      comments: comments.status === 'fulfilled' ? comments.value.length : undefined,
+      comments: threads?.length,
       attachments: attachments.status === 'fulfilled' ? attachments.value.length : undefined,
-      tasks: tasks.status === 'fulfilled' ? tasks.value.length : undefined,
+      tasks: open?.length,
       following: follow.status === 'fulfilled' ? follow.value.following : undefined,
+      latest: threads && [...threads].filter((c) => !c.deleted).sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? ''))).slice(0, 2).map((c) => ({ author: c.authorDisplayName ?? c.authorUserId ?? 'someone', at: c.createdAt, text: commentBody(c) })),
+      nextDue: due[0],
+      followers: followers.status === 'fulfilled' ? followers.value : undefined,
     }
   }
 }
 
-/** Who is on the record, for the header: everyone the server reports, this user marked "(you)". */
+/** Who is on the record (the actions entry): everyone the server reports, this user marked "(you)". */
 export function viewingText(everyone: Array<{ name: string; self?: boolean }> | undefined): string {
   if (!everyone) return 'Viewing now: …'
   if (!everyone.length) return 'Viewing now: no one else'
@@ -200,16 +218,13 @@ export function viewingText(everyone: Array<{ name: string; self?: boolean }> | 
   return `Viewing now: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` +${names.length - 3}` : ''}${others ? ` · ${others} other${others === 1 ? '' : 's'}` : ''}`
 }
 
-/** The record header line: counts and the follow state, each with its key. */
-export function summaryText(s: CollabSummary | undefined): string {
-  const n = (v: number | undefined) => (v === undefined ? '…' : String(v))
-  const follow = s?.following === undefined ? 'following …' : s.following ? 'following' : 'not following'
-  return `Comments ${n(s?.comments)} (C) · Attachments ${n(s?.attachments)} (P) · Tasks ${n(s?.tasks)} (K) · Timeline (T) · ${follow} (W)`
-}
-
 /** One comment thread as lines (the comment, then its replies indented). */
 export function commentLines(c: CommentEntry, when: (iso: string | undefined) => string): string[] {
   const head = (x: CommentEntry) => `${x.authorDisplayName ?? x.authorUserId ?? 'someone'} · ${when(x.createdAt)}${x.editedAt ? ' (edited)' : ''}${(x as { resolved?: boolean }).resolved ? ' · resolved' : ''}`
-  const body = (x: CommentEntry) => (x.deleted ? '(deleted)' : String(x.body ?? '').replace(/@\[([^\]]+)\]\(user:[^)]+\)/g, '@$1'))
-  return [`${head(c)}: ${body(c)}`, ...(c.replies ?? []).map((r) => `    ↳ ${head(r)}: ${body(r)}`)]
+  return [`${head(c)}: ${commentBody(c)}`, ...(c.replies ?? []).map((r) => `    ↳ ${head(r)}: ${commentBody(r)}`)]
+}
+
+/** A comment's text with mentions as @Name ("(deleted)" for a deleted one). */
+export function commentBody(x: CommentEntry): string {
+  return x.deleted ? '(deleted)' : String(x.body ?? '').replace(/@\[([^\]]+)\]\(user:[^)]+\)/g, '@$1')
 }

@@ -68,6 +68,8 @@ export interface ViewSettings {
   labelWidth?: number
   /** Record view: data rows of each child list on this table (overrides the profile's `ui.childRows`). */
   childRows?: number
+  /** Record view: the right-hand collaboration panel (auto: on terminals of 140 columns or more). */
+  collabPanel?: 'auto' | 'on' | 'off'
   /** App home: widget names in display order. */
   widgetOrder?: string[]
   [key: string]: unknown

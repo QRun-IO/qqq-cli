@@ -282,6 +282,15 @@ in parentheses mark the changes made after the candidate.
   dialog and screen-text capture (`<name>_<YYYY-MM-DD>_<HHmmss>.<ext>`, 24-hour, no colons). A name you give
   (`-o`, a name typed in the file dialog) is used exactly as given, and a name the server chooses is kept
   unless it is taken, when the stamp goes before the extension.
+- **`qqq ui`: collaboration lives at the bottom of the record view.** The tags, comments, attachments,
+  tasks, follow and "Viewing now" rows no longer sit above the record's sections (the cursor started on the
+  tags row); the record starts right under its title with the cursor on its first field. A dim strip above
+  the key line carries the same items with their keys (`Tags: none (t) · 0 comments (C) · … · viewing:
+  Admin (you)`), others viewing or editing replace "(you)" with an accent, and segments drop whole when the
+  width is short (viewers and tags last). From 140 columns a right-hand Collaboration panel (view setting
+  `collaboration panel: auto/on/off`) adds the latest comments, the next due task, the followers and each
+  viewer's state, and the strip shortens to the keys. The keys are unchanged; strip segments and panel rows
+  are click zones.
 - **One meaning for `-o` across the CLI: `-o`/`--out` is always the output file; the sort is `--order`**
   (no short form). `table export -o people.csv` used to sort by a field named `people.csv` (the server
   answered 403); it now writes the file. Migration: write `--order` wherever `-o` meant the sort. On the

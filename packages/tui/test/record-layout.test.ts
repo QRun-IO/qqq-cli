@@ -59,18 +59,19 @@ const RECORDS: Record<string, unknown> = {
 const META: Record<string, TableMetaData> = { sales_order: order, sales_order_line: line, sales_order_tag: tag }
 
 /** A record screen over a stub store: just enough client and store for load and build. */
-async function recordScreen(pk: string, cursor?: ResultCursor): Promise<RecordScreen> {
+async function recordScreen(pk: string, cursor?: ResultCursor, collaboration = false, width = 120): Promise<RecordScreen> {
   const store = {
     client: { tableMeta: async (name: string) => META[name]!, record: async (_t: string, key: string) => structuredClone(RECORDS[key]), server: 'http://fake.test', fetch },
     meta: { tables: Object.fromEntries(Object.keys(META).map((k) => [k, { name: k, label: META[k]!.label }])), widgets },
-    extensions: { has: () => false },
+    extensions: { has: (name: string) => collaboration && name === 'collaboration', registry: undefined, all: () => [] },
+    width,
     status: { profile: '' },
     singleKeys: true,
     remember: () => undefined, bump: () => undefined, flash: () => undefined, run: (p: Promise<unknown>) => p,
   }
   const screen = new RecordScreen(store as never, 'sales_order', pk, cursor)
   for (let i = 0; i < 50 && !screen.record; i++) await new Promise((r) => setTimeout(r, 5))
-  screen.width = 120
+  screen.width = width
   screen.build()
   return screen
 }
@@ -127,7 +128,7 @@ test('sections keep their lines across records with different child counts, empt
   const one = await recordScreen('1')
   const two = await recordScreen('2')
   const three = await recordScreen('3')
-  expect(headings(one)).toEqual(['2 Identity', '6 Lines', '15 Tags', '24 Dates'])
+  expect(headings(one)).toEqual(['1 Identity', '5 Lines', '14 Tags', '23 Dates'])
   expect(headings(two)).toEqual(headings(one))
   expect(headings(three)).toEqual(headings(one))
   expect(one.list.rows.length).toBe(two.list.rows.length)
@@ -146,7 +147,7 @@ test('the child row count is a per-table view setting', async () => {
   writeViewSettings('record:sales_order', { childRows: 3 })
   try {
     const screen = await recordScreen('2')
-    expect(headings(screen)).toEqual(['2 Identity', '6 Lines', '13 Tags', '20 Dates'])
+    expect(headings(screen)).toEqual(['1 Identity', '5 Lines', '12 Tags', '19 Dates'])
     expect(screen.list.rows.some((r) => r.text.includes('rows 1-3 of 12'))).toBe(true)
   } finally {
     writeViewSettings('record:sales_order', undefined)
@@ -175,7 +176,23 @@ test('a focused long list scrolls with PgDn/PgUp and j/k; Enter still opens the 
   expect(screen.list.rows.some((r) => r.text.includes('rows 6-10 of 12'))).toBe(true)
   screen.onKey({ name: 'pageup', sequence: '' })
   expect(screen.list.rows.some((r) => r.text.includes('rows 1-5 of 12'))).toBe(true)
-  expect(headings(screen)).toEqual(['2 Identity', '6 Lines', '15 Tags', '24 Dates'])
+  expect(headings(screen)).toEqual(['1 Identity', '5 Lines', '14 Tags', '23 Dates'])
   screen.onKey({ name: 'return', sequence: '' })
   expect(opened).toEqual([0])
+})
+
+test('collaboration takes no rows above the sections: the same lines with the extension, the cursor on the first field', async () => {
+  const plain = await recordScreen('1')
+  const collab = await recordScreen('1', undefined, true)
+  const other = await recordScreen('2', undefined, true)
+  expect(collab.list.rows.map((r) => r.text)).toEqual(plain.list.rows.map((r) => r.text))
+  expect(headings(other)).toEqual(headings(collab))
+  expect(collab.list.rows[1]!.text).toStartWith('Identity (T1) ─')
+  expect(collab.list.current?.key).toStartWith('f:')
+  // a 160-column terminal: the panel takes its cells, the section lines stay the same across records
+  const wide = await recordScreen('1', undefined, true, 160)
+  const wide2 = await recordScreen('3', undefined, true, 160)
+  expect(wide.hasPanel()).toBe(true)
+  expect(headings(wide2)).toEqual(headings(wide))
+  expect(Math.max(...wide.list.rows.map((r) => r.text.length))).toBeLessThanOrEqual(160 - 2 - 36)
 })

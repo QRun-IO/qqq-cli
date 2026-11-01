@@ -278,13 +278,23 @@ phrases, `field:value`, wildcards or OR (`status:new` searches `new`, with a not
 extension F2 still opens Search, finding tables, apps and processes by name and the records of the table
 it was opened from ("quick search not installed: searching names only").
 
-**Collaboration** (collaboration extension): under a record's tags a line shows its comments,
-attachments and open tasks with their keys, whether you follow it, and below it who is viewing the record
-now (everyone the server reports, you marked "(you)"; the title bar counts the others). `a` and F9 list
+**Collaboration** (collaboration extension) lives at the bottom of the record view, never above its
+sections: the record starts right under its title and the cursor on its first field. A strip directly above
+the key line shows the tags, the counts of comments, files and open tasks, the timeline, whether you follow
+the record and who is viewing it (`Tags: rush, vip (t) · 3 comments (C) · 1 file (P) · 0 tasks (K) ·
+timeline (T) · following (W) · viewing: Admin (you)`); when others are on the record their names and what
+they do (`Pat (editing email)`) replace "(you)" and the strip takes an accent colour. When the strip does not
+fit, timeline and the follow state go first, the viewers and the tags last. On terminals of 140 columns or
+more a Collaboration panel on the right (36 columns) shows the tags, the latest two comments (author, age,
+first line), the open tasks and the next due date, the files, the followers and everyone viewing now with
+what they are doing; the strip is then the keys only. The panel is a record view setting (`v`:
+Collaboration panel auto, on or off; on shows it whenever the record keeps 60 columns). Presence changes
+redraw the strip and the panel live. Every strip segment and panel row is a click zone that presses its key
+(`t` `C` `P` `K` `T` `W`; the panel's heading lists everything, a viewer shows who is here). `a` and F9 list
 comments (list, add, reply), follow or stop following, attachments (list, download, upload, delete), the
 timeline, tasks (list, add, done) and the share preview (find people or type user ids, see who could read
-the record, then send). Without the extension the line is not drawn and F9 shows "Collaboration: needs the
-collaboration extension".
+the record, then send). Without the extension neither the strip nor the panel is drawn and F9 shows
+"Collaboration: needs the collaboration extension".
 
 **Text and HTML widgets** are drawn as a document: headings (HTML h1-h4, markdown `#`, or a short line
 before a block) in the accent colour with a blank line before, status badges (OK green, WARN/DEGRADED
