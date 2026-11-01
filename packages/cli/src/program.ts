@@ -89,9 +89,11 @@ export function createProgram(): Command {
       for (const option of target.options) {
         const value = options[option.attributeName()]
         if (value === undefined || value === false) continue
-        if (value === true) argv.push(option.long!)
-        else if (Array.isArray(value)) for (const v of value) argv.push(option.long!, String(v))
-        else argv.push(option.long!, String(value))
+        // a short-only option (the deprecated -o sort) has no long form
+        const flag = (option.long ?? option.short)!
+        if (value === true) argv.push(flag)
+        else if (Array.isArray(value)) for (const v of value) argv.push(flag, String(v))
+        else argv.push(flag, String(value))
       }
       await target.parseAsync(argv, { from: 'user' })
     })

@@ -110,9 +110,9 @@ export function registerCompletion(program: Command, ctx: () => Context): void {
       }
       const tableInWords = () => rest.find((w) => !w.startsWith('-')) ?? before.find((w, i) => i > 0 && !w.startsWith('-') && (before[i - 1] === 'query' || before[i - 1] === 'get' || before[i - 1] === 'create' || before[i - 1] === 'update' || before[i - 1] === 'count' || before[i - 1] === 'describe' || before[i - 1] === 'delete' || before[i - 1] === 'export' || before[i - 1] === 'children' || before[i - 1] === 'download'))
       if (current.startsWith('-')) {
-        add(command.options.flatMap((o) => [o.long, o.short].filter(Boolean) as string[]))
+        add(command.options.filter((o) => !o.hidden).flatMap((o) => [o.long, o.short].filter(Boolean) as string[]))
         add(program.options.flatMap((o) => [o.long].filter(Boolean) as string[]))
-      } else if (['--where', '-w', '--order', '-o', '--fields', '-f', '--set', '-s', '--values', '-v'].includes(previous) || (previous === '-f' && command.name() === 'query')) {
+      } else if (['--where', '-w', '--order', '--fields', '-f', '--set', '-s', '--values', '-v'].includes(previous) || (previous === '-f' && command.name() === 'query')) {
         const table = tableInWords()
         let fields: string[] = []
         try {
@@ -120,7 +120,7 @@ export function registerCompletion(program: Command, ctx: () => Context): void {
         } catch {
           fields = []
         }
-        add(previous === '-o' || previous === '--order' ? fields.flatMap((f) => [f, `-${f}`]) : fields)
+        add(previous === '--order' ? fields.flatMap((f) => [f, `-${f}`]) : fields)
       } else if (previous === '--output' || previous === '-O') {
         add(['json', 'table', 'text', 'csv', 'yaml'])
       } else if (command.name() === 'api' && rest.length === 0) {

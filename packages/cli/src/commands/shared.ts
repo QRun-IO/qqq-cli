@@ -4,6 +4,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
+import { Option } from 'commander'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -99,6 +100,38 @@ export function writeDownload(out: string | undefined, defaultName: string, byte
 /** `n record`/`n records`. */
 export function plural(n: number, singular: string, pluralForm = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : pluralForm}`
+}
+
+/**
+ * The flag convention, the same on every command: `-o` / `--out` is the output file; the sort is
+ * `--order` (no short form). Until 1.1, `-o` still means the sort on commands that write no file
+ * (table query, saved-view save, saved-report preview and set), with a deprecation note.
+ */
+export const ORDER_OPTION = ['--order <field...>', 'order by fields; prefix - for descending'] as const
+
+/** The hidden `-o <field...>` that still sorts on commands without an output file (deprecated in 1.0). */
+export function deprecatedOrderOption(): Option {
+  return new Option('-o <field...>', 'deprecated: use --order (-o is the output file on every command from 1.1)').hideHelp()
+}
+
+const FILE_EXTENSION = /\.(csv|tsv|txt|xlsx|xls|json|ya?ml|xml|pdf|html?|zip|gz)$/i
+
+/** Whether a value given as a sort field looks like a file path (`out.csv`, `./x`, `/tmp/y`). */
+export function looksLikePath(value: string): boolean {
+  return value.includes('/') || value.includes('\\') || value.startsWith('~') || value.startsWith('.') || FILE_EXTENSION.test(value)
+}
+
+/**
+ * The sort fields of a command: --order plus the deprecated `-o` (noted), with a warning for a
+ * value that looks like a file path (the old `-o` ambiguity: `export -o out.csv` used to sort).
+ */
+export function orderFrom(note: (text: string) => void, options: { order?: string[]; o?: string[] }): string[] | undefined {
+  if (options.o?.length) note('warning: -o for the sort order is deprecated; use --order (from 1.1, -o means --out, the output file, on every command).')
+  const order = [...(options.order ?? []), ...(options.o ?? [])]
+  for (const value of order) {
+    if (looksLikePath(value.replace(/^-/, ''))) note(`warning: the sort field "${value}" looks like a file path; --order takes field names (prefix - for descending). To write a file use -o/--out (table export), or redirect the output.`)
+  }
+  return order.length ? order : undefined
 }
 
 /** The footer every list ends with: `(3 records; joined: pet; more may exist: …)`. */

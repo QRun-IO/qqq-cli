@@ -8,7 +8,7 @@ import { decodeJwtClaims } from '@qrun-io/qqq-ui-api-client'
 import { SavedViewError, buildFilter, buildViewJson, callOperation, deleteSavedView, exposedJoins, findSavedView, joinFieldNames, listSavedViews, printFilter, resolveField, savedViewProcesses, storeSavedView, variantBody, viewToQuery, type QueryFilter, type SavedView, type SavedViewProcesses } from '@qrun-io/qqq-core'
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch, currentToken, getLogin } from '../session.js'
-import { countFooter, defaultFields, positiveInt, readJson, type Json } from './shared.js'
+import { ORDER_OPTION, countFooter, defaultFields, deprecatedOrderOption, orderFrom, positiveInt, readJson, type Json } from './shared.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
 /** The signed-in user's id as saved views record owners (email, else username or subject). */
@@ -96,14 +96,16 @@ export function registerSavedView(program: Command, ctx: () => Context): void {
     .option('-w, --where <criteria...>', 'criteria, ANDed (or --or)')
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
     .option('--or', 'OR the --where criteria')
-    .option('-o, --order <field...>', 'sort; prefix - for descending')
+    .option(...ORDER_OPTION)
+    .addOption(deprecatedOrderOption())
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON instead')
     .option('-f, --fields <names>', 'comma-separated columns to show (default: the table\'s default columns)')
     .option('-l, --limit <n>', 'rows per page (the view\'s page size; as --limit on table query)')
     .addOption(new Option('--page-size <n>', 'same as --limit').hideHelp())
     .option('--replace', 'update your view of that name instead of refusing')
-    .action(async (table: string, options: { name: string; where?: string[]; group?: string[]; or?: boolean; order?: string[]; filterJson?: string; fields?: string; limit?: string; pageSize?: string; replace?: boolean }) => {
+    .action(async (table: string, options: { name: string; where?: string[]; group?: string[]; or?: boolean; order?: string[]; o?: string[]; filterJson?: string; fields?: string; limit?: string; pageSize?: string; replace?: boolean }) => {
       const c = ctx()
+      options.order = orderFrom((text) => c.note(text), options)
       const { meta, processes, fetchImpl } = await context(c, table)
       const filter = options.filterJson ? readJson(options.filterJson, '--filter-json') as QueryFilter
         : buildFilter({ where: options.where, group: options.group, or: options.or, order: options.order, knownFields: [...Object.keys((meta.fields ?? {}) as Json), ...joinFieldNames(exposedJoins(meta))] })

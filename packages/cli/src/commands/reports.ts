@@ -18,7 +18,7 @@ import {
 import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch } from '../session.js'
 import { currentUserId } from './saved-view.js'
-import { countFooter, intOption, valueText, type Json } from './shared.js'
+import { ORDER_OPTION, countFooter, deprecatedOrderOption, intOption, orderFrom, valueText, type Json } from './shared.js'
 
 /** A share scope's label (Read-Only, Read and Edit). */
 function scopeLabel(id: string): string {
@@ -72,11 +72,13 @@ export function registerReports(program: Command, ctx: () => Context): void {
     .description("The report's rows as its filter, sort and columns select them (paged by the server: --limit, --skip, --order replaces the sort). --api-path/--api-version preview through an application API, as API-versioned report setups do.")
     .option('-l, --limit <n>', 'rows', '25')
     .option('--skip <n>', 'rows to skip')
-    .option('-o, --order <field...>', 'sort instead of the report\'s; prefix - for descending')
+    .option('--order <field...>', 'sort instead of the report\'s; prefix - for descending')
+    .addOption(deprecatedOrderOption())
     .option('--api-path <path>', 'an application API path (e.g. /api/)')
     .option('--api-version <version>', 'with --api-path, the API version')
-    .action(async (name: string, options: { limit: string; skip?: string; order?: string[]; apiPath?: string; apiVersion?: string }) => {
+    .action(async (name: string, options: { limit: string; skip?: string; order?: string[]; o?: string[]; apiPath?: string; apiVersion?: string }) => {
       const c = ctx()
+      options.order = orderFrom((text) => c.note(text), options)
       const report = await guard(async () => findSavedReport(await savedReports(c), name))
       const meta = await c.tableMeta<Json>(report.tableName)
       const filter: QueryFilter = { ...(report.filter ?? { criteria: [], booleanOperator: 'AND' }), skip: intOption(options.skip, '--skip') ?? 0, limit: intOption(options.limit, '--limit', 1)! }
@@ -119,12 +121,14 @@ export function registerReports(program: Command, ctx: () => Context): void {
     .option('-w, --where <criteria...>', 'criteria, ANDed (or --or)')
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
     .option('--or', 'OR the --where criteria')
-    .option('-o, --order <field...>', 'sort; prefix - for descending')
+    .option(...ORDER_OPTION)
+    .addOption(deprecatedOrderOption())
     .option('--clear-filter', 'no filter (every record)')
     .option('--columns <names>', 'visible columns, in order (comma-separated)')
     .option('--label <text>', 'a new name')
-    .action(async (name: string, options: { where?: string[]; group?: string[]; or?: boolean; order?: string[]; clearFilter?: boolean; columns?: string; label?: string }) => {
+    .action(async (name: string, options: { where?: string[]; group?: string[]; or?: boolean; order?: string[]; o?: string[]; clearFilter?: boolean; columns?: string; label?: string }) => {
       const c = ctx()
+      options.order = orderFrom((text) => c.note(text), options)
       const report = await guard(async () => findSavedReport(await savedReports(c), name))
       const meta = await c.tableMeta<Json>(report.tableName)
       const known = Object.keys((meta.fields ?? {}) as Json)

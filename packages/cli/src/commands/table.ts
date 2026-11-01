@@ -10,11 +10,11 @@ import { UiApiError } from '@qrun-io/qqq-ui-api-client'
 import { promptForm } from '../prompt.js'
 import { authenticatedFetch } from '../session.js'
 import { UsageError, type Context } from '../context.js'
-import { copyToClipboard, countFooter, defaultFields, editText, useColor, intOption, parsePairs, positiveInt, readFileArg, readJson, valueText, writeDownload, requireTable, type Json } from './shared.js'
+import { ORDER_OPTION, copyToClipboard, countFooter, deprecatedOrderOption, orderFrom, defaultFields, editText, useColor, intOption, parsePairs, positiveInt, readFileArg, readJson, valueText, writeDownload, requireTable, type Json } from './shared.js'
 import { getRecord, showRecord } from './related.js'
 import { chooseVariant, VARIANT_OPTION } from './variants.js'
 
-interface QueryOptions { caseSensitive?: boolean; where?: string[]; group?: string[]; or?: boolean; order?: string[]; limit?: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean; view?: string; reveal?: boolean }
+interface QueryOptions { caseSensitive?: boolean; where?: string[]; group?: string[]; or?: boolean; order?: string[]; o?: string[]; limit?: string; skip?: string; all?: boolean; pageSize: string; fields?: string; filterJson?: string; printFilter?: boolean; count?: boolean; search?: string; variant?: string; join?: string[]; select?: boolean; view?: string; reveal?: boolean }
 
 /** The formats the export route writes. */
 const EXPORT_FORMATS = ['csv', 'xlsx', 'json', 'tsv']
@@ -187,7 +187,8 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses, e.g. "(a = 1 AND b = 2) OR c IS_BLANK"')
     .option('--or', 'OR the --where criteria instead of AND')
     .option('--case-sensitive', 'text matches (~, CONTAINS, STARTS_WITH, …, --search) match case; by default they ignore it (CASE_INSENSITIVE)')
-    .option('-o, --order <field...>', 'order by fields; prefix - for descending')
+    .option(...ORDER_OPTION)
+    .addOption(deprecatedOrderOption())
     .option('-l, --limit <n>', 'most records to return (default: the view\'s page size, else 25)')
     .option('--skip <n>', 'records to skip')
     .option('--all', 'fetch every page (with --page-size)')
@@ -204,6 +205,7 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option(...VARIANT_OPTION)
     .action(async (name: string, options: QueryOptions) => {
       const c = ctx()
+      options.order = orderFrom((text) => c.note(text), options)
       const meta = await tableMeta(c, name)
       requireTable(meta as unknown as Json, 'read')
       const limitOption = intOption(options.limit, '--limit', 1)
@@ -655,17 +657,18 @@ export function registerTable(program: Command, ctx: () => Context): void {
     .option('-g, --group <expression...>', 'a group with AND/OR and parentheses')
     .option('--or', 'OR the --where criteria')
     .option('--case-sensitive', 'text matches (~, CONTAINS, STARTS_WITH, …, --search) match case; by default they ignore it (CASE_INSENSITIVE)')
-    .option('-o, --order <field...>', 'order by fields; prefix - for descending')
+    .option(...ORDER_OPTION)
     .option('--filter-json <json|file|->', 'a QueryFilter as JSON')
     .option('--format <fmt>', 'csv, xlsx, json or tsv (default: from the --out extension, else csv)')
     .option('-f, --fields <names>', 'comma-separated fields to include, in column order (default: the server\'s)')
     .option('-l, --limit <n>', 'most records')
-    .option('--out <file>', 'output file, or - for stdout (default: <table>.<format> in the download directory; name-1.<format> when taken)')
+    .option('-o, --out <file>', 'output file, or - for stdout (default: <table>.<format> in the download directory; name-1.<format> when taken)')
     .option('--no-header', 'leave out the header row (csv, tsv, xlsx)')
     .option('-S, --search <text>', 'quick search over the text fields, ANDed with the filter')
     .option(...VARIANT_OPTION)
     .action(async (name: string, options: QueryOptions & { format?: string; out?: string; header: boolean }) => {
       const c = ctx()
+      options.order = orderFrom((text) => c.note(text), options)
       const meta = await tableMeta(c, name)
       requireTable(meta as unknown as Json, 'read')
       const fromOut = options.out && options.out !== '-' && /\.([a-z]+)$/i.exec(options.out)?.[1]?.toLowerCase()
