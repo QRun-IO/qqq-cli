@@ -9,7 +9,7 @@ import type { TableScreen } from '../src/screens/table'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { writeFilePreferences } from '@qrun-io/qqq-core'
+import { readTheme, writeFilePreferences } from '@qrun-io/qqq-core'
 import { command, isolate, press, startTui, waitFor, type Harness } from './helpers'
 
 let h: Harness | undefined
@@ -145,7 +145,11 @@ test('F9 is a stack: the theme picker returns to F9 at the theme entry with the 
   f = await waitFor(h, (x) => x.includes('Classic (cyan title'))
   await press(h, () => h!.setup.mockInput.typeText('Light'))
   await press(h, () => h!.setup.mockInput.pressEnter())
+  await waitFor(h, (x) => x.includes('Keep light for') && x.includes('This profile only (fake)'))
+  await press(h, () => h!.setup.mockInput.pressArrow('down'))
+  await press(h, () => h!.setup.mockInput.pressEnter())
   f = await waitFor(h, (x) => x.includes('Theme: light') && x.includes('Menu  (F9)'))
+  expect(readTheme('fake')).toBe('light')
   expect(h.store.settings.theme).toBe('light')
   const menu = h.store.overlays.at(-1) as unknown as { visible(): Array<{ id?: string; label: string }>; index: number }
   expect(menu.visible()[menu.index]!.label).toBe('Theme: light')

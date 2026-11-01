@@ -71,16 +71,20 @@ Keys (the function-key bar is the truth; F1 or `?` lists them; every action is a
 | F8 `d` | delete, asks | Ctrl+S | save a form or continue a process step |
 | F9 | menu: every command, searchable | `:` | command line, history and completion |
 | F10 | Quit, Reset to home, or Cancel (`:reset`) | Ctrl+C | quit now |
-| `a` | actions for the record or rows | `A` `D` `t` | audits, developer, tags (record) |
+| `a` | actions: bulk insert/edit/delete, processes, saved views | `A` `D` `t` `Z` | audits, developer, tags, share (record) |
+| `q` `S` `l` | quick search, column statistics, follow a link (grid) | Esc 1..0, Ctrl+1..0 | F1..F10 when the terminal takes them |
 
 Things to try: `:table query person`, Enter on a row, PgDn through records, Esc (same row); F6, add a
 condition, Tab to the grammar and type `AND (fi` then Tab; `:table create placeAddress` (country, state, city
 narrow); Space on two people, `b`, Bulk edit (Space switches a field on, Ctrl+S, review, submit); on the person
 grid `a` › Bulk insert from a file (a CSV with firstName,lastName,email: the mapping grid, review, result) and
 Bulk delete to remove those rows again; `:app SampleWidgetsDashboard`, Enter on a widget heading for its
-actions (export CSV, dropdowns); F9 Settings for themes,
-download folder, PIN and the screen lock; `:theme light`. See `packages/tui/README.md` for settings and for the
-keys your terminal or tmux may take (`qqq ui --check` finds them).
+actions (export CSV, dropdowns); F9 Settings for themes
+(per profile or for all), single-key shortcuts, download folder, PIN and the screen lock; `:theme light`,
+`:theme classic`, `:theme high-contrast` (the default). Sign-in follows the server: MOCK and FULLY_ANONYMOUS
+get a session, TABLE_BASED asks for a username and password, OAUTH2 and AUTH_0 sign in in the browser (OAUTH2
+can use a device code instead). See `packages/tui/README.md` for every key, the settings file and the keys
+your terminal or tmux may take (`qqq ui --check` finds them).
 
 The M0 spike (`qqq-tui-spike`, `packages/tui-spike`) stays in the repo for reference.
 

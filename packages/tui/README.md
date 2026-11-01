@@ -17,7 +17,16 @@ qqq ui --theme light | --ascii | --linear | --mouse | --check | --no-check
 bun run packages/tui/src/main.tsx --profile sample        # the same without the CLI
 ```
 
-`QQQ_UI_LINEAR=1` gives the one-region layout (no Apps pane), `QQQ_UI_ASCII=1` the ASCII glyphs.
+Options: `--profile|-p <name>`, `--server|-s <url>` (a profile named after the host is made), `--theme
+<name>`, `--ascii` (ASCII glyphs), `--linear` (one region, no Apps pane), `--mouse` (off by default),
+`--check` (the full terminal check, then exit), `--no-check` (skip the quick check at startup). Anything
+after the options is a route in the CLI grammar.
+
+Environment: `QQQ_UI_LINEAR=1`, `QQQ_UI_ASCII=1` (as the options); `QQQ_UI_SIGN_IN=browser|device` (skip the
+OAUTH2 choice); `QQQ_UI_NO_BROWSER=1` (show the sign-in address without opening a browser);
+`QQQ_PROFILE`, `QQQ_SERVER`, `QQQ_TOKEN` (a bearer token instead of the stored sign-in), `QQQ_CONFIG_DIR`,
+`QQQ_STATE_DIR`, `QQQ_CACHE_DIR`, `QQQ_KEYRING=file` (keep sign-ins in a file instead of the OS keychain),
+shared with the CLI. `QQQ_UI_NO_QUIT=1` is for the soak test only.
 
 ## Keys
 
@@ -37,6 +46,18 @@ bun run packages/tui/src/main.tsx --profile sample        # the same without the
 | Ctrl+C | quit at once (the terminal is restored) | `c` | copy a record |
 | `a` | actions here (the F9 Context entries) | `A`, `D` | audits, developer (record); `D` on a grid: table APIs |
 | `t` | tags of a record (collaboration extension) | Esc then 1..0, Ctrl+1..0 | F1..F10 when the terminal takes the F-keys |
+
+Keys on one screen:
+
+| Screen | Keys |
+|---|---|
+| Grid | `q` quick search, `S` column statistics, `l` follow the link in the cell, Ctrl+A select (page, whole result, first N), Space select row, `b` run on the selection, `a` bulk actions and processes |
+| Record | `l` open the row under the cursor, `Z` share (shareable tables), `t` tags, `A` audits, `D` developer, `c` copy |
+| Form | Tab and ↑↓ move, Enter or typing opens a picker, Ctrl+S save, Esc asks before dropping changes |
+| Process | Ctrl+S continue, F4 back (when the step allows), Esc cancel, `w` save the step's file, `n` `p` page the records |
+| Bulk wizard | Space switch a field on (bulk edit), Enter choose, `h` header row, `l` layout, `k` key fields, `P` saved profiles, `v` validate, Ctrl+S next, F4 back |
+| Widget | Enter on its heading: reload, dropdowns, export CSV, run, versions, setup editors |
+| Command line | ↑↓ history, Ctrl+R search the history, Tab complete, Enter run, Esc close |
 
 Single-key shortcuts follow the server preference `keyboard.singleKeyShortcuts` and can be switched in F9
 Settings; every F-key action is also in the F9 menu and on the `:` line.
@@ -79,7 +100,8 @@ help-authoring mode (F1 shows every help slot key).
 
 ## The `:` command line
 
-TUI commands: `home`, `back`, `quit`, `help`, `helpkeys`, `menu`, `goto`, `view`, `views`, `share`, `theme <name>`, `ascii on|off`,
+TUI commands: `home`, `back`, `quit`, `reset`, `refresh`, `help`, `helpkeys`, `menu`, `palette`, `goto`, `view`,
+`views`, `share`, `actions`, `audits`, `dev`, `tags`, `report run <name>`, `theme <name>`, `ascii on|off`,
 `linear on|off`, `shortcuts on|off`, `lock`, `pin`, `pin remove`, `idle <minutes>`, `filter [clear|<grammar>]`,
 `export <format>`, `jobs`, `profile [name]`, `server <url>`, `signout`, `connection`, `doctor`, `open <table>`,
 `app <name>`, `record <table> <key>`. `table query|get|create|update|delete` and `process run` open screens;
@@ -95,13 +117,30 @@ serves a generated 1000-table, 500-process, 3000-widget instance on port 8099 to
 
 ## Settings kept locally
 
-In `~/.config/qqq/config.json` (the kernel owns the file), section `ui`: `theme` (also per profile),
-`views["table:person"]` (columns, widths, fit, zebra, header rule, density), `views["record:…"]`
-(columns, label width), `views["app:…"]` (widget order), `files` (download and upload folders, ask or save
-silently), `lock` (screen-lock PIN as a salted hash, idle minutes), `doctor` (terminal check choices),
-`recents`. Command histories live in `~/.local/state/qqq/history-commands` and `history-filters`.
+Everything below is local to the machine and shared with the CLI; nothing is sent to the server.
 
-Themes: `high-contrast` (default), `classic`, `light`; tokens in `src/theme.ts`, no color elsewhere.
+- `~/.config/qqq/config.json` (`QQQ_CONFIG_DIR`), owned by the kernel:
+  - `profiles` (`server`, an optional `note`, and `ui.theme` for that profile only) and `defaultProfile`.
+    Sign-ins themselves are in the OS keychain (or the file keyring), one per profile.
+  - `ui.theme`: the theme for every profile without its own.
+  - `ui.views`: per screen. `table:<name>` columns (in order), widths, fit (content or fill), stripes,
+    header rule, density, sort, pinned columns; `record:<name>` one or two columns and the label width;
+    `app:<name>` widget order; `widget:<name>` dropdown choices of widgets that ask to keep them.
+  - `ui.files`: download and upload folders and whether a download asks or saves silently.
+  - `ui.lock`: the screen-lock PIN (a salted hash, never the PIN) and the idle minutes (0 = off).
+  - `ui.doctor`: the answers to the terminal check; `ui.recents`: recently viewed, per server.
+- `~/.local/state/qqq/` (`QQQ_STATE_DIR`): the `:` and filter histories (`history-commands`,
+  `history-filters`); lines that look like secrets are not kept.
+- `~/.cache/qqq/` (`QQQ_CACHE_DIR`): the metadata cache.
+
+Themes: `high-contrast` (the default: bright text on black, strong selection), `classic` (the blue
+function-key look), `light` (dark text on a light background). Choose with `:theme <name>`, F9 › Settings ›
+Theme (for this profile or for all), or `--theme`; the option wins over the profile, the profile over the
+global choice. `--ascii` replaces box drawing and symbols. Colours come only from the tokens in
+`src/theme.ts`.
+
+F9 › Settings also holds single-key shortcuts on/off (default: the server preference
+`keyboard.singleKeyShortcuts`), the download and upload folders, the PIN and idle lock, and the terminal check.
 
 ## Keys that your terminal may intercept
 
@@ -123,7 +162,8 @@ before any program sees it. `qqq ui --check` (and the quick check at startup) fi
   Sequence" `[5~` and `[6~`; "Scroll wheel sends arrow keys in alternate screen mode" affects the wheel only.
 - **Terminal.app.** F1 to F10 go to macOS unless "Use F1, F2, etc. keys as standard function keys" is on
   (System Settings › Keyboard), or hold fn.
-- Whatever the terminal does, Ctrl+F / Ctrl+B page and the F9 menu and `:` line reach every action.
+- Whatever the terminal does, Ctrl+F / Ctrl+B page and the F9 menu and `:` line reach every action; Esc then
+  a digit (or Ctrl+digit) stands for F1..F10.
 
 ## Tests
 
@@ -132,6 +172,7 @@ cd packages/tui && bun test          # or npm run test:tui at the root: the whol
 packages/tui/scripts/smoke.sh        # tmux against a running server (profile "sample"); captures kept
 packages/tui/scripts/smoke-widths.sh # fixed grid widths across pages (fake large-instance server)
 packages/tui/scripts/perf-large-table.sh  # PRF-001: 10,000 rows x 40 columns, timings against a 2 s budget
+packages/tui/scripts/soak.sh [server] [minutes]  # random keys for 10 min; fails on an exit or an error boundary
 ```
 
 ## Layout of the code
