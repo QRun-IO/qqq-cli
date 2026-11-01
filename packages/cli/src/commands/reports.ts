@@ -11,7 +11,7 @@
 
 import type { Command } from 'commander'
 import {
-  RENDER_SAVED_REPORT_PROCESS, ReportError, SAVED_REPORT_TABLE, SCHEDULED_REPORT_TABLE, SHARE_SCOPES, SharingError, addShare, blocksToText, buildFilter, buildPivot, editShare,
+  RENDER_SAVED_REPORT_PROCESS, ReportError, SAVED_REPORT_TABLE, SCHEDULED_REPORT_TABLE, SHARE_SCOPES, SharingError, addShare, blocksToText, buildFilter, buildPivot, changeShare,
   filterAndColumnsBlocks, filterDateTimesToUtc, findSavedReport, listReportSchedules, listSavedReports, listShares, pivotTableBlocks, printFilter, removeShare,
   reportFormat, savedReportFilterValues, shareScope, type FieldMeta, type QueryFilter, type SavedReport,
 } from '@qrun-io/qqq-core'
@@ -19,6 +19,11 @@ import { UsageError, type Context } from '../context.js'
 import { authenticatedFetch } from '../session.js'
 import { currentUserId } from './saved-view.js'
 import { countFooter, intOption, valueText, type Json } from './shared.js'
+
+/** A share scope's label (Read-Only, Read and Edit). */
+function scopeLabel(id: string): string {
+  return SHARE_SCOPES.find((s) => s.id === id)?.label ?? id
+}
 
 async function guard<T>(f: () => Promise<T>): Promise<T> {
   try {
@@ -189,8 +194,9 @@ export function registerReports(program: Command, ctx: () => Context): void {
     .description('Who the record is shared with, and how.')
     .action(async (table: string, pk: string) => {
       const c = ctx()
-      const shares = await guard(() => listShares(c.server, authenticatedFetch(c.target), table, pk))
-      c.print({ data: shares, rows: shares.map((s) => ({ share: s.shareId, with: s.audienceLabel, type: s.audienceType, scope: SHARE_SCOPES[s.scopeId] ?? s.scopeId })), columns: ['share', 'with', 'type', 'scope'], footer: countFooter(shares.length, 'share') })
+      const meta = await c.tableMeta<Json>(table)
+      const shares = await guard(() => listShares(c.server, authenticatedFetch(c.target), meta, pk))
+      c.print({ data: shares, rows: shares.map((s) => ({ share: s.shareId, with: s.audienceLabel, type: s.audienceType, scope: scopeLabel(s.scopeId) })), columns: ['share', 'with', 'type', 'scope'], footer: countFooter(shares.length, 'share') })
     })
 
   share.command('add <table> <primaryKey> <audience>')
@@ -203,8 +209,8 @@ export function registerReports(program: Command, ctx: () => Context): void {
       const [type, id] = audience.includes(':') ? audience.split(/:(.*)/s, 2) as [string, string] : [Object.keys(types)[0] ?? 'user', audience]
       if (Object.keys(types).length && !types[type]) throw new UsageError(`${table} shares with ${Object.keys(types).join(', ')}, not ${type}`)
       const scopeId = await guard(async () => shareScope(options.scope))
-      await guard(() => addShare(c.server, authenticatedFetch(c.target), table, pk, { audienceType: type, audienceId: id, scopeId }))
-      c.note(`Shared ${table} ${pk} with ${type} ${id} (${SHARE_SCOPES[scopeId]}).`)
+      await guard(() => addShare(c.server, authenticatedFetch(c.target), meta, pk, `${type}:${id}`, scopeId))
+      c.note(`Shared ${table} ${pk} with ${type} ${id} (${scopeLabel(scopeId)}).`)
     })
 
   share.command('scope <table> <primaryKey> <share> <scope>')
@@ -212,8 +218,8 @@ export function registerReports(program: Command, ctx: () => Context): void {
     .action(async (table: string, pk: string, shareId: string, scope: string) => {
       const c = ctx()
       const scopeId = await guard(async () => shareScope(scope))
-      await guard(() => editShare(c.server, authenticatedFetch(c.target), table, pk, Number(shareId), scopeId))
-      c.note(`Share ${shareId} of ${table} ${pk} is now ${SHARE_SCOPES[scopeId]}.`)
+      await guard(async () => changeShare(c.server, authenticatedFetch(c.target), await c.tableMeta<Json>(table), pk, Number(shareId), scopeId))
+      c.note(`Share ${shareId} of ${table} ${pk} is now ${scopeLabel(scopeId)}.`)
     })
 
   share.command('remove <table> <primaryKey> <share>')
@@ -224,7 +230,7 @@ export function registerReports(program: Command, ctx: () => Context): void {
         c.note('Not removed.')
         return
       }
-      await guard(() => removeShare(c.server, authenticatedFetch(c.target), table, pk, Number(shareId)))
+      await guard(async () => removeShare(c.server, authenticatedFetch(c.target), await c.tableMeta<Json>(table), pk, Number(shareId)))
       c.note(`Removed share ${shareId} of ${table} ${pk}.`)
     })
 

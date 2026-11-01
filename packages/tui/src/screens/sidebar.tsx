@@ -142,7 +142,10 @@ export class Sidebar implements SidebarLike {
       const idx = this.top + i
       const glyph = f.node.children?.length ? (f.expanded ? g.open : g.closed) + ' ' : '  '
       const marker = f.node.type === 'PROCESS' ? g.process + ' ' : f.node.type === 'REPORT' ? g.report + ' ' : ''
-      const text = pad(' '.repeat(f.depth) + glyph + marker + f.node.label, width - 3) + (f.node.name === here ? '◂' : ' ')
+      // a disabled entry (listed, but the user may not open it) is marked
+      const kind = f.node.type === 'TABLE' ? 'tables' : f.node.type === 'PROCESS' ? 'processes' : f.node.type === 'APP' ? 'apps' : f.node.type === 'REPORT' ? 'reports' : undefined
+      const denied = kind ? ((this.store.meta as Record<string, unknown> | undefined)?.[kind] as Record<string, { hasPermission?: boolean }> | undefined)?.[f.node.name]?.hasPermission === false : false
+      const text = pad(' '.repeat(f.depth) + glyph + marker + f.node.label + (denied ? ' (no access)' : ''), width - 3) + (f.node.name === here ? '◂' : ' ')
       const sel = idx === this.cursor
       return <text flexShrink={0} wrapMode="none" key={f.path} fg={sel && focused ? t.selFg : f.node.type === 'APP' ? t.fg : t.dim} bg={sel ? (focused ? t.selBg : t.selInactiveBg) : undefined}>{text}</text>
     })

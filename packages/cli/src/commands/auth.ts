@@ -9,7 +9,7 @@ import { browserSignIn, openInBrowser } from '../browser-login.js'
 import type { Context } from '../context.js'
 import { UsageError } from '../context.js'
 import { ask, askHidden } from '../prompt.js'
-import { PasswordSignInError, signInWithPassword } from '@qrun-io/qqq-core'
+import { PasswordSignInError, signInWithPasswordCookie } from '@qrun-io/qqq-core'
 import { CLIENT_CHANNEL, currentToken, getLogin, nativeConfig, removeLogin, saveLogin, secretStoreKind } from '../session.js'
 import type { Json } from './shared.js'
 
@@ -49,7 +49,7 @@ export function registerAuth(program: Command, ctx: () => Context): void {
         if (!password) throw new UsageError('No password: run on a terminal to be asked, or set QQQ_PASSWORD.')
         let sessionId: string
         try {
-          ({ sessionId } = await signInWithPassword(origin, username, password, CLIENT_CHANNEL))
+          ({ sessionId } = await signInWithPasswordCookie(origin, username, password, CLIENT_CHANNEL))
         } catch (error) {
           // one message for a wrong password or an unknown user; nothing is stored
           if (error instanceof PasswordSignInError) throw new UiApiError(401, { code: 'UNAUTHENTICATED', message: error.message })

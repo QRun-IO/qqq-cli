@@ -4,7 +4,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { searchPossibleValues, type FieldValues } from '@qrun-io/qqq-core'
+import type { FieldValues } from '@qrun-io/qqq-core'
 import { openProcess } from '../nav'
 import { ChoiceOverlay } from '../overlays/basic'
 import { saveFile } from '../overlays/files-helpers'
@@ -24,13 +24,12 @@ const DEFAULT_FORMATS = ['XLSX', 'CSV', 'JSON']
 async function formats(store: AppStore): Promise<Array<{ id: string; label: string }>> {
   try {
     const c = store.client!
-    const r = await c.data<{ options?: Array<{ id: unknown; label?: string }> }>('searchPossibleValues', { path: { possibleValueSourceName: 'reportFormat' }, json: { searchTerm: '' } })
+    const r = await c.data<{ options?: Array<{ id: unknown; label?: string }> }>('searchPossibleValues', { path: { possibleValueSourceName: 'reportFormat' }, json: { searchTerm: '', useCase: 'FORM' } })
     const list = (r.options ?? []).map((o) => ({ id: String(o.id), label: String(o.label ?? o.id) }))
     if (list.length) return list
   } catch {
     // fall back
   }
-  void searchPossibleValues
   return DEFAULT_FORMATS.map((f) => ({ id: f, label: f }))
 }
 

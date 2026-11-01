@@ -103,14 +103,19 @@ export function EditorLine(props: { editor: LineEditor; width: number; focused?:
 export class PromptOverlay implements Overlay {
   readonly id = overlayId('prompt')
   readonly editor: LineEditor
-  constructor(private store: AppStore, readonly title: string, readonly hint: string, private onSubmit: (value: string) => void, initial = '', options: { masked?: boolean; newline?: string } = {}) {
+  private onCancel?: () => void
+  constructor(private store: AppStore, readonly title: string, readonly hint: string, private onSubmit: (value: string) => void, initial = '', options: { masked?: boolean; newline?: string; onCancel?: () => void } = {}) {
     this.editor = new LineEditor(initial, options)
+    this.onCancel = options.onCancel
   }
   paste(text: string): void {
     this.editor.insert(text)
   }
   onKey(key: Key): void {
-    if (key.name === 'escape') this.store.closeOverlay(this)
+    if (key.name === 'escape') {
+      this.store.closeOverlay(this)
+      this.onCancel?.()
+    }
     else if (key.name === 'return') {
       this.store.closeOverlay(this)
       this.onSubmit(this.editor.value)

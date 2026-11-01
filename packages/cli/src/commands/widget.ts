@@ -64,7 +64,10 @@ export function registerWidget(program: Command, ctx: () => Context): void {
         c.print({ data: loaded.data ?? { skipped: loaded.skipped } })
         return
       }
-      process.stdout.write(blocksToText(loaded.blocks, { width: process.stdout.columns ?? 100, ascii: options.ascii }) + '\n')
+      const pm = ((loaded.data as Json | undefined)?.processMetaData ?? {}) as Json
+      const defaults = ((loaded.data as Json | undefined)?.defaultValues ?? {}) as Json
+      const hint = loaded.type === 'process' && pm.name ? `\nrun it: qqq process run ${String(pm.name)}${Object.entries(defaults).map(([k, v]) => ` -v ${k}=${String(v)}`).join('')} (or widget get ${name} --run)` : ''
+      process.stdout.write(blocksToText(loaded.blocks, { width: process.stdout.columns ?? 100, ascii: options.ascii }) + hint + '\n')
       if (loaded.error) process.exitCode = 1
     })
 

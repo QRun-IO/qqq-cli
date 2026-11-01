@@ -8,18 +8,18 @@
  * through its process (input fields, then a file from `GET /download`), or through the report
  * route when it has none; a saved report is a `savedReport` record (filter, columns, pivot) that
  * the `renderSavedReport` process renders; schedules are `scheduledReport` records; any shareable
- * record (saved reports, saved views) is shared through the `*SharedRecord` processes.
+ * record (saved reports, saved views) is shared through records/sharing.ts.
  */
 
 import { callOperation } from '../api/call.js'
 import type { QueryFilter } from '../filter/grammar.js'
+import { SharingError, type ShareScope } from '../records/sharing.js'
 
 type J = Record<string, unknown>
 
 export const SAVED_REPORT_TABLE = 'savedReport'
 export const SCHEDULED_REPORT_TABLE = 'scheduledReport'
 export const RENDER_SAVED_REPORT_PROCESS = 'renderSavedReport'
-export const SHARING_PROCESSES = { list: 'getSharedRecords', add: 'insertSharedRecord', edit: 'editSharedRecord', remove: 'deleteSharedRecord' } as const
 
 /** How a report runs: through its process (the usual way) or through the report route. */
 export function reportRunPlan(metaData: J, reportName: string): { label: string; processName?: string; hasPermission: boolean } | undefined {
@@ -135,44 +135,8 @@ export async function listReportSchedules(baseUrl: string, fetchImpl: typeof fet
   })
 }
 
-/** One share of a record (`getSharedRecords` resultList). */
-export interface RecordShare { shareId: number; audienceType: string; audienceId: string; audienceLabel: string; scopeId: string }
-
-export class SharingError extends Error {}
-
-async function runSharing(baseUrl: string, fetchImpl: typeof fetch, processName: string, values: J): Promise<J> {
-  const data = (await callOperation(baseUrl, 'initProcess', { path: { processName }, form: { values: JSON.stringify(values), stepTimeoutMillis: '60000' } }, fetchImpl)).data as J
-  if (data.type === 'ERROR') throw new SharingError(String(data.userFacingError ?? data.error ?? 'The sharing request failed'))
-  return (data.values ?? {}) as J
-}
-
-/** The shares of a record of a shareable table (saved reports, saved views). */
-export async function listShares(baseUrl: string, fetchImpl: typeof fetch, table: string, recordId: string): Promise<RecordShare[]> {
-  const values = await runSharing(baseUrl, fetchImpl, SHARING_PROCESSES.list, { tableName: table, recordId })
-  return ((values.resultList ?? []) as J[]).map((r) => {
-    const v = (r.values ?? r) as J
-    return { shareId: Number(v.shareId), audienceType: String(v.audienceType ?? ''), audienceId: String(v.audienceId ?? ''), audienceLabel: String(v.audienceLabel ?? v.audienceId ?? ''), scopeId: String(v.scopeId ?? '') }
-  })
-}
-
-/** Shares a record with an audience (a user, a group …) at a scope (READ_ONLY, READ_WRITE). Only the owner may. */
-export async function addShare(baseUrl: string, fetchImpl: typeof fetch, table: string, recordId: string, share: { audienceType: string; audienceId: string; scopeId: string }): Promise<void> {
-  await runSharing(baseUrl, fetchImpl, SHARING_PROCESSES.add, { tableName: table, recordId, ...share })
-}
-
-export async function editShare(baseUrl: string, fetchImpl: typeof fetch, table: string, recordId: string, shareId: number, scopeId: string): Promise<void> {
-  await runSharing(baseUrl, fetchImpl, SHARING_PROCESSES.edit, { tableName: table, recordId, shareId, scopeId })
-}
-
-export async function removeShare(baseUrl: string, fetchImpl: typeof fetch, table: string, recordId: string, shareId: number): Promise<void> {
-  await runSharing(baseUrl, fetchImpl, SHARING_PROCESSES.remove, { tableName: table, recordId, shareId })
-}
-
-/** The share scopes the server knows. */
-export const SHARE_SCOPES: Record<string, string> = { READ_ONLY: 'Read Only', READ_WRITE: 'Read and Edit' }
-
 /** A scope from what a person typed: READ_ONLY, read-only, read, READ_WRITE, edit, "Read and Edit". */
-export function shareScope(text: string): string {
+export function shareScope(text: string): ShareScope {
   const t = text.trim().toLowerCase().replace(/[\s_-]+/g, ' ')
   if (['read only', 'read', 'readonly', 'r'].includes(t)) return 'READ_ONLY'
   if (['read write', 'read and edit', 'edit', 'write', 'rw', 'readwrite'].includes(t)) return 'READ_WRITE'

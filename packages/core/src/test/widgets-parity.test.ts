@@ -64,7 +64,7 @@ test('composite renders every block type; a payload that is one leaf block rende
     { blockTypeName: 'ICON', values: { name: { name: 'check' } } },
     { blockTypeName: 'COMPOSITE', values: { blocks: [{ blockTypeName: 'TEXT', values: { text: 'nested' } }] } },
   ] })
-  for (const expected of ['(star) Hello (tip)', '[INFO] Heads up', '(mail): 4', 'vs last (good)', 'L  V', 'Done: ██████████░░░░░░░░░░ 50.0%', '----', 'Big: 1,234 ctx', 'Qty: [3]', '[ Go ]', 'Audio: /a.mp3', 'Logo: /i.png', '(check)', 'nested']) assert.ok(out.includes(expected), expected)
+  for (const expected of ['(star) Hello (tip)', '[INFO] Heads up', '(mail): 4', 'vs last (good)', 'L  V', 'Done: ██████████░░░░░░░░░░ 50.0%', '----', 'Big: 1,234 ctx', 'Qty: [3]', '[ Go ]', '[audio /a.mp3]', '[image Logo] /i.png', '[check]', 'nested']) assert.ok(out.includes(expected), expected)
   assert.equal(text({ type: 'block', blockTypeName: 'BIG_NUMBER', values: { heading: 'Solo', number: 7 } }), 'Solo: 7')
 })
 
@@ -74,10 +74,10 @@ test('editor and developer widgets render read-only: cronUI, dynamicForm, pivotT
   assert.equal(text({ type: 'dynamicForm', fieldList: [{ name: 'a', label: 'A' }], recordOfFieldValues: { values: { a: 1 }, displayValues: { a: 'One' } } }), 'A  One')
   assert.equal(text({ type: 'dynamicForm', fieldList: [], noFieldsMessage: 'Nothing to set' }), 'Nothing to set')
   assert.equal(text({ type: 'pivotTableSetup' }, { record: { pivotTableJson: JSON.stringify({ rows: [{ fieldName: 'state' }], columns: [], values: [{ fieldName: 'total', function: 'SUM' }] }) } }), 'Rows     state\nColumns  None\nValues   Sum of total')
-  assert.equal(text({ type: 'pivotTableSetup' }, { record: {} }), 'This report does not use a pivot table.')
+  assert.equal(text({ type: 'pivotTableSetup' }, { record: {} }), 'No pivot table: this report does not use one.')
   assert.equal(text({ type: 'filterAndColumnsSetup' }, { record: { queryFilterJson: JSON.stringify({ criteria: [{ fieldName: 'state', operator: 'EQUALS', values: ['IL'] }], booleanOperator: 'AND', orderBys: [{ fieldName: 'id', isAscending: false }] }), columnsJson: JSON.stringify({ columns: [{ name: 'id', isVisible: true }, { name: 'x', isVisible: false }] }) } }), 'Match all of:\n  state equals IL\nSorted by id descending\nColumns: id')
   assert.equal(text({ type: 'rowBuilder', records: [{ values: { a: 1 }, displayValues: { a: 'One' } }] }, { meta: { type: 'rowBuilder', defaultValues: { fields: [{ name: 'a', label: 'A' }] } } }), 'A\n---\nOne')
-  assert.match(text({ type: 'process', processMetaData: { name: 'greet', label: 'Greet' }, defaultValues: { x: 1 } }), /qqq process run greet -v x=1/)
+  assert.equal(text({ type: 'process', processMetaData: { name: 'greet', label: 'Greet' }, defaultValues: { x: 1 } }), 'Process: Greet (greet), with x=1')
 })
 
 type Route = [RegExp, (body: Record<string, unknown>) => unknown]

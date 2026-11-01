@@ -48,6 +48,10 @@ export function cell(record: { values?: Record<string, unknown>; displayValues?:
 
 /** A value as text for a field: DATE_TIME in the viewer's zone (kernel displayDateTime), else the display value. */
 export function fieldCell(record: { values?: Record<string, unknown>; displayValues?: Record<string, string> } | undefined, field: { name: string; type: string }): string {
+  if (field.type === 'PASSWORD') {
+    const raw = record?.values?.[field.name]
+    return raw === null || raw === undefined || raw === '' ? '' : '••••••'
+  }
   if (record && field.type === 'DATE_TIME') {
     const raw = record.values?.[field.name]
     if (raw !== null && raw !== undefined && raw !== '') return displayDateTime(raw, record.displayValues?.[field.name])

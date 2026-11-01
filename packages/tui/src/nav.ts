@@ -14,11 +14,33 @@ import { RecordScreen } from './screens/record'
 import { TableScreen } from './screens/table'
 import type { AppStore } from './store'
 
+/**
+ * Whether a table, process or app can be opened: unknown names (hidden from this user: not in
+ * the metadata) are refused; disabled ones (hasPermission false) are listed but explain the denial.
+ */
 function known(store: AppStore, kind: 'tables' | 'processes' | 'apps', name: string): boolean {
-  const map = store.meta?.[kind] as Record<string, unknown> | undefined
-  if (map?.[name]) return true
-  store.flash(`no ${kind === 'tables' ? 'table' : kind === 'processes' ? 'process' : 'app'} named "${name}"`, 'error')
+  const map = store.meta?.[kind] as Record<string, { hasPermission?: boolean; label?: string }> | undefined
+  const what = kind === 'tables' ? 'table' : kind === 'processes' ? 'process' : 'app'
+  const entry = map?.[name]
+  if (entry && entry.hasPermission === false) {
+    store.message(`You do not have permission to ${kind === 'processes' ? 'run' : 'view'} ${entry.label ?? name}.`, 'error', 'Permission denied')
+    return false
+  }
+  if (entry) return true
+  store.flash(`no ${what} named "${name}"`, 'error')
   return false
+}
+
+type TableOp = 'insert' | 'edit' | 'delete'
+const CAPABILITY: Record<TableOp, string> = { insert: 'TABLE_INSERT', edit: 'TABLE_UPDATE', delete: 'TABLE_DELETE' }
+const PERMISSION: Record<TableOp, 'insertPermission' | 'editPermission' | 'deletePermission'> = { insert: 'insertPermission', edit: 'editPermission', delete: 'deletePermission' }
+
+/** Whether the user may insert, edit or delete in a table: its permission flag and (when listed) its capabilities. */
+export function permits(meta: { insertPermission?: boolean; editPermission?: boolean; deletePermission?: boolean; capabilities?: string[] } | undefined, op: TableOp): boolean {
+  if (!meta) return true
+  if (meta[PERMISSION[op]] === false) return false
+  if (Array.isArray(meta.capabilities) && meta.capabilities.length && !meta.capabilities.includes(CAPABILITY[op])) return false
+  return true
 }
 
 export function openTable(store: AppStore, table: string, filter?: QueryFilter): void {
@@ -38,9 +60,9 @@ export function replaceWithRecord(store: AppStore, table: string, primaryKey: st
 
 export function openForm(store: AppStore, table: string, options: FormOptions & { initial?: FieldValues }): void {
   if (!known(store, 'tables', table)) return
-  const meta = store.meta?.tables?.[table] as { insertPermission?: boolean; editPermission?: boolean } | undefined
-  if (options.mode !== 'edit' && meta?.insertPermission === false) return store.flash('you may not create records in this table', 'error')
-  if (options.mode === 'edit' && meta?.editPermission === false) return store.flash('you may not edit records of this table', 'error')
+  const meta = store.meta?.tables?.[table] as Parameters<typeof permits>[0]
+  if (options.mode !== 'edit' && !permits(meta, 'insert')) return store.flash(options.mode === 'copy' ? 'copying needs permission to create records in this table' : 'you may not create records in this table', 'error')
+  if (options.mode === 'edit' && !permits(meta, 'edit')) return store.flash('you may not edit records of this table', 'error')
   store.push(new FormScreen(store, table, options))
 }
 

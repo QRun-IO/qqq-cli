@@ -39,13 +39,19 @@ function str(v: unknown): string {
   return v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)
 }
 
-/** Context a widget is rendered in: its metadata (label, footer, type) and the hosting record's values. */
-export interface WidgetRenderContext {
-  /** The widget's metadata (`GET /metaData` widgets entry): label, footerHTML, type, defaultValues, gridColumns. */
-  meta?: J
-  /** The record the widget sits on (record sections): cronUI, pivotTableSetup and filterAndColumnsSetup read it. */
+/**
+ * What some widgets read besides their payload: the widget metadata (label, footer, type,
+ * defaultValues naming record fields: cronUI), the record of a record-view section (its values,
+ * or `{ values, displayValues }`), and its table's field labels.
+ */
+export interface WidgetContext {
+  meta?: { type?: string | null; label?: unknown; footerHTML?: unknown; hasPermission?: unknown; defaultValues?: J }
   record?: J
+  fields?: Record<string, { label?: string }>
 }
+
+/** The same context (the CLI's name for it). */
+export type WidgetRenderContext = WidgetContext
 
 /** Formats a number as the web does (en-US separators); text stays as it is. */
 function num(v: unknown): string {
@@ -55,10 +61,11 @@ function num(v: unknown): string {
 
 /** The empty-state text the web shows for a display type with no data. */
 export const EMPTY_STATE: Record<string, string> = {
+  statistics: 'No value',
   table: 'No rows found', multiTable: 'No tables to show', chart: 'No chart data available', stepper: 'No steps to show', fieldValueList: 'No values to show',
   multiStatistics: 'No statistics available', usaMap: 'No locations to show', parentWidget: 'No child widgets to show', quickSightChart: 'No dashboard is available to embed.',
   rowBuilder: 'No rows', cronUI: 'No schedule set', process: 'No process is available.', dataBagViewer: 'No data bag was specified.', scriptViewer: 'No script was specified.',
-  pivotTableSetup: 'This report does not use a pivot table.', childRecordList: 'No records found',
+  pivotTableSetup: 'No pivot table: this report does not use one.', childRecordList: 'No records found',
 }
 
 const PIVOT_FUNCTIONS: Record<string, string> = { SUM: 'Sum', COUNT: 'Count', COUNT_NUMS: 'Count Numbers', AVERAGE: 'Average', MAX: 'Max', MIN: 'Min', PRODUCT: 'Product', STD_DEV: 'StdDev', STD_DEVP: 'StdDevp', VAR: 'Var', VARP: 'Varp' }
@@ -103,9 +110,14 @@ export function filterAndColumnsBlocks(record: J | undefined, payload: J = {}, f
 }
 
 /** Turns one widget payload into render blocks (with the widget's metadata and hosting record when known). */
-export function widgetToBlocks(data: unknown, context: WidgetRenderContext = {}): RenderBlock[] {
+export function widgetToBlocks(data: unknown, context: WidgetContext = {}): RenderBlock[] {
   const w = (data ?? {}) as J
-  const meta = context.meta ?? {}
+  const meta = (context.meta ?? {}) as J
+  const fieldLabel = (name: string) => String(context.fields?.[name]?.label ?? name)
+  // an alert that hides itself, or has nothing to say, renders nothing (web: no card at all)
+  if (String(w.type ?? meta.type ?? '') === 'alert' && (w.hideWidget === true || !(w.html || w.text || w.message || w.bulletList))) return []
+  // a payload that is one block (Material's block widget) renders that block
+  if (typeof w.blockTypeName === 'string' && w.blockTypeName !== 'COMPOSITE' && !('blocks' in w) && !w.type && !meta.type) return blockToBlocks(w)
   const blocks: RenderBlock[] = []
   const label = (w.label ?? meta.label) as string | undefined
   const title = (w.title ?? label) as string | undefined
@@ -119,10 +131,15 @@ export function widgetToBlocks(data: unknown, context: WidgetRenderContext = {})
     blocks.push({ kind: 'alert', level: 'info', text: htmlToText(w.dropdownNeedsSelectedText) })
     return blocks
   }
-  const type = String(meta.type ?? w.type ?? w.blockTypeName ?? '')
+  // an untyped payload with chart data is a bar chart (the web's default)
+  const type = String(meta.type ?? w.type ?? w.blockTypeName ?? (w.chartData ? 'barChart' : ''))
   const empty = (t = type) => blocks.push({ kind: 'text', text: EMPTY_STATE[t] ?? 'No data' })
   switch (type) {
     case 'statistics':
+      if (w.count === undefined || w.count === null) {
+        blocks.push({ kind: 'text', text: 'No value' })
+        break
+      }
       blocks.push({ kind: 'stat', value: w.isCurrency && typeof w.count === 'number' ? w.count.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : num(w.count), context: w.countContext ? String(w.countContext) : undefined, delta: w.percentageAmount !== undefined && w.percentageAmount !== null ? { amount: Number(w.percentageAmount), label: w.percentageLabel ? String(w.percentageLabel) : undefined, good: (Number(w.percentageAmount) >= 0) === (typeof w.increaseIsGood === 'boolean' ? w.increaseIsGood : true) } : undefined })
       break
     case 'multiStatistics': {
@@ -157,7 +174,7 @@ export function widgetToBlocks(data: unknown, context: WidgetRenderContext = {})
       blocks.push({ kind: 'text', text: typeof w.text === 'string' ? w.text : htmlToText(str(w.html)) })
       break
     case 'generic':
-      if (w.html) blocks.push({ kind: 'text', text: htmlToText(str(w.html)) })
+      if (w.html || w.text) blocks.push({ kind: 'text', text: typeof w.text === 'string' ? w.text : htmlToText(str(w.html)) })
       break
     case 'alert': {
       if (w.hideWidget === true || (!w.html && !w.message && !w.text)) break
@@ -172,8 +189,12 @@ export function widgetToBlocks(data: unknown, context: WidgetRenderContext = {})
     case 'fieldValueList': {
       const record = (w.record ?? {}) as J
       const fields = (w.fields ?? []) as J[]
-      const values = (record.displayValues ?? record.values ?? {}) as J
-      const pairs = fields.length ? fields.map((f) => ({ label: str(f.label ?? f.name), value: str(values[String(f.name)]) })) : Object.entries(values).map(([k, v]) => ({ label: k, value: str(v) }))
+      const values = { ...((record.values ?? {}) as J), ...((record.displayValues ?? {}) as J) }
+      const indent = (w.fieldIndentLevels ?? {}) as Record<string, number>
+      const icons = (w.fieldLabelPrefixIconNames ?? {}) as Record<string, string>
+      const pairs = fields.length
+        ? fields.map((f) => ({ label: `${'  '.repeat(Number(indent[String(f.name)] ?? 0))}${icons[String(f.name)] ? '• ' : ''}${str(f.label ?? f.name)}`, value: str(values[String(f.name)]) }))
+        : Object.entries(values).map(([k, v]) => ({ label: k, value: str(v) }))
       if (pairs.length) blocks.push({ kind: 'pairs', pairs })
       else empty()
       break
@@ -198,7 +219,7 @@ export function widgetToBlocks(data: unknown, context: WidgetRenderContext = {})
     case 'usaMap': {
       const markers = ((w.mapMarkerList ?? w.markers ?? []) as J[]).filter((m) => m && typeof m.latitude === 'number' && typeof m.longitude === 'number')
       if (!markers.length) empty()
-      else blocks.push({ kind: 'table', columns: ['name', 'latitude', 'longitude'], headers: ['Location', 'Latitude', 'Longitude'], rows: markers.map((m) => ({ name: str(m.name), latitude: str(m.latitude), longitude: str(m.longitude) })) })
+      else blocks.push({ kind: 'table', columns: ['name', 'latitude', 'longitude'], headers: ['Location', 'Latitude', 'Longitude'], rows: markers.map((m) => ({ name: str(m.name), latitude: str(m.latitude), longitude: str(m.longitude) })) }, { kind: 'text', text: `${markers.length} marker${markers.length === 1 ? '' : 's'}` })
       break
     }
     case 'childRecordList': {
@@ -218,7 +239,7 @@ export function widgetToBlocks(data: unknown, context: WidgetRenderContext = {})
         break
       }
       const defaults = (w.defaultValues ?? {}) as J
-      blocks.push({ kind: 'text', text: `Process ${str(pm.label ?? pm.name)}: qqq process run ${str(pm.name)}${Object.entries(defaults).map(([k, v]) => ` -v ${k}=${str(v)}`).join('')} (or widget get --run)` })
+      blocks.push({ kind: 'text', text: `Process: ${str(pm.label ?? pm.name)} (${str(pm.name)})${Object.keys(defaults).length ? `, with ${Object.entries(defaults).map(([k, v]) => `${k}=${str(v)}`).join(', ')}` : ''}` })
       break
     }
     case 'cronUI': {
@@ -231,7 +252,8 @@ export function widgetToBlocks(data: unknown, context: WidgetRenderContext = {})
         if (w.error) blocks.push({ kind: 'alert', level: 'error', text: str(w.error) })
         break
       }
-      const pairs = [...(expression ? [{ label: 'Cron Expression', value: str(expression) }] : []), ...(w.cronDescription ? [{ label: 'Description', value: str(w.cronDescription) }] : []), ...(zone ? [{ label: 'Time Zone', value: str(zone) }] : [])]
+      const zoneShown = ((context.record?.displayValues ?? {}) as J)[String(dv.timeZoneFieldName ?? 'cronTimeZoneId')] ?? zone
+      const pairs = [...(expression ? [{ label: context.fields?.[String(dv.cronExpressionFieldName)]?.label ?? 'Cron Expression', value: str(expression) }] : []), ...(w.cronDescription ? [{ label: 'Description', value: str(w.cronDescription) }] : []), ...(zone ? [{ label: context.fields?.[String(dv.timeZoneFieldName)]?.label ?? 'Time Zone', value: str(zoneShown) }] : [])]
       blocks.push({ kind: 'pairs', pairs })
       if (w.error) blocks.push({ kind: 'alert', level: 'error', text: str(w.error) })
       break
@@ -246,14 +268,14 @@ export function widgetToBlocks(data: unknown, context: WidgetRenderContext = {})
         if (w.noFieldsMessage) blocks.push({ kind: 'text', text: str(w.noFieldsMessage) })
         break
       }
-      blocks.push({ kind: 'pairs', pairs: fields.map((f) => ({ label: str(f.label ?? f.name), value: str(display[String(f.name)] ?? values[String(f.name)] ?? '') })) })
+      blocks.push({ kind: 'pairs', pairs: fields.map((f) => ({ label: `${str(f.label ?? f.name)}${f.isRequired ? ' *' : ''}`, value: str(display[String(f.name)] ?? values[String(f.name)] ?? '') })) })
       break
     }
     case 'pivotTableSetup':
-      blocks.push(...pivotTableBlocks(context.record))
+      blocks.push(...pivotTableBlocks(context.record, fieldLabel))
       break
     case 'filterAndColumnsSetup':
-      blocks.push(...filterAndColumnsBlocks(context.record, w))
+      blocks.push(...filterAndColumnsBlocks(context.record, w, fieldLabel))
       break
     case 'rowBuilder': {
       const dv = (meta.defaultValues ?? {}) as J
@@ -365,19 +387,19 @@ function blockToBlocks(b: J): RenderBlock[] {
     case 'INPUT_FIELD': {
       const f = (v.fieldMetaData ?? {}) as J
       // a seeded DATE_TIME is shown in the local zone, seconds kept, as the web's datetime-local control does
-      const seeded = v.value !== undefined && v.value !== null && v.value !== '' ? (f.type === 'DATE_TIME' ? displayDateTime(v.value) : str(v.value)) : undefined
+      const seeded = v.value !== undefined && v.value !== null && v.value !== '' ? (f.type === 'DATE_TIME' ? displayDateTime(v.value) : f.type === 'PASSWORD' ? '••••••' : f.type === 'BOOLEAN' ? (v.value === true || v.value === 'true' ? 'yes' : 'no') : str(v.value)) : undefined
       return [{ kind: 'text', text: `${str(f.label ?? f.name)}${f.isRequired ? ' *' : ''}: [${seeded ?? str(v.placeholder ?? (f.type ? String(f.type).toLowerCase() : 'input'))}]${v.submitOnEnter === true ? ' (Enter submits)' : ''}` }]
     }
     case 'BUTTON':
       return [{ kind: 'text', text: `[ ${str(v.label ?? 'Button')} ]` }]
     case 'AUDIO':
-      return v.path ? [{ kind: 'link', label: 'Audio', href: str(v.path) }] : []
+      return v.path ? [{ kind: 'text', text: `[audio ${str(v.path)}]` }] : []
     case 'IMAGE':
-      return v.path ? [{ kind: 'link', label: v.alt ? str(v.alt) : 'Image', href: str(v.path) }] : []
+      return [{ kind: 'text', text: `[image ${str(v.alt ?? v.path)}]${v.alt && v.path ? ` ${str(v.path)}` : ''}` }]
     case 'ICON':
-      return [{ kind: 'text', text: `(${str(typeof v.name === 'object' && v.name ? (v.name as J).name : v.name)})` }]
+      return [{ kind: 'text', text: `[${str(typeof v.name === 'object' && v.name ? (v.name as J).name : v.name)}]` }]
     default:
-      return [{ kind: 'raw', type: kind || 'block', data: b }]
+      return [{ kind: 'alert', level: 'warning', text: `Unsupported block type ${kind || '(none)'}` }]
   }
 }
 

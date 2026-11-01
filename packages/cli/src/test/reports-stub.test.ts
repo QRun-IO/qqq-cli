@@ -138,7 +138,7 @@ describe('reports against a stub', () => {
   })
 
   test('sharing: list, add read-only, change to read and edit, remove; only the owner may share', async () => {
-    assert.match((await qqq(['share', 'list', 'savedReport', '3', '-O', 'csv'])).stdout, /1,Bob,user,Read Only/)
+    assert.match((await qqq(['share', 'list', 'savedReport', '3', '-O', 'csv'])).stdout, /1,Bob,user,Read-Only/)
     const add = await qqq(['share', 'add', 'savedReport', '3', 'group:7', '--scope', 'read-only'])
     assert.equal(add.code, 0, add.stderr)
     const scope = await qqq(['share', 'scope', 'savedReport', '3', '2', 'read-write'])

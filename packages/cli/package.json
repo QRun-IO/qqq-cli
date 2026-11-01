@@ -31,6 +31,10 @@
       "types": "./dist/program.d.ts",
       "default": "./dist/program.js"
     },
+    "./browser-login": {
+      "types": "./dist/browser-login.d.ts",
+      "default": "./dist/browser-login.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
