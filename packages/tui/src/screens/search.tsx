@@ -12,7 +12,7 @@
  * quick search syntax. Without the quick search extension it searches names only.
  */
 
-import { History, QUICK_SEARCH_SYNTAX, displayDateTime, quickSearchFields, quickSearchFilter, type QueryRecord } from '@qrun-io/qqq-core'
+import { History, lastClockTime, QUICK_SEARCH_SYNTAX, displayDateTime, quickSearchFields, quickSearchFilter, type QueryRecord } from '@qrun-io/qqq-core'
 import type { Key } from '../keys'
 import { charOf, isPrintable } from '../keys'
 import { LineEditor } from '../line-editor'
@@ -314,7 +314,7 @@ export class SearchScreen implements Screen {
     this.top = Math.max(0, Math.min(this.top, Math.max(0, lines.length - body)))
     const shown = lines.slice(this.top, this.top + body)
     while (shown.length < body) shown.push({ text: '' })
-    const status = m.statusLine((iso) => displayDateTime(iso).replace(/^.* (\d\d:\d\d).*$/, '$1'))
+    const status = m.statusLine((iso) => { const shown = displayDateTime(iso); return lastClockTime(shown) ?? shown })
     const keys = this.focus === 'line' ? 'type · Enter/↓ results · h recent · ? syntax · Esc back' : '↑↓ move · ←→ Tab tables · Enter open · o grid · Space mark · a actions · f table · h recent · ? syntax'
     return (
       <Panel title={this.title()} width={width} height={height} focused={focused}>

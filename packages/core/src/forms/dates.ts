@@ -15,6 +15,7 @@
  */
 
 import { readConfig, writeConfig } from '../session/profiles.js'
+import { splitDateAndTime } from '../render/text.js'
 import { defaultTimeZone, isInstant, utcToLocalInput, zoneOffset, wallTimeToInstant } from './datetime.js'
 
 /** The order of a date's parts in the display format: ISO (the default), US, or day first. */
@@ -413,15 +414,15 @@ export function parseDateInput(input: string, options: DateParseOptions): DatePa
     if (w) return done(w)
   }
   // a date, optionally followed by a time (after T or a space)
-  const split = /^(\S+?)(?:[T ](.+))?$/i.exec(text)!
-  const datePart = parseDatePart(split[1]!, order, nowWall)
+  const split = splitDateAndTime(text) ?? { date: text, time: undefined }
+  const datePart = parseDatePart(split.date, order, nowWall)
   if (typeof datePart === 'string') return { ok: false, reason: datePart }
   if (datePart) {
-    if (split[2] === undefined) return done({ ...datePart, hour: 0, minute: 0, second: 0 })
+    if (split.time === undefined) return done({ ...datePart, hour: 0, minute: 0, second: 0 })
     if (kind === 'DATE') return { ok: false, reason: `a date has no time: type ${formatHint('DATE', { order, clock: '24h' })}` }
-    const time = parseTime(split[2].trim())
+    const time = parseTime(split.time.trim())
     if (typeof time === 'string') return { ok: false, reason: time }
-    if (!time) return { ok: false, reason: `"${split[2].trim()}" is not a time: type HH:mm, HH:mm:ss or 2:30 PM` }
+    if (!time) return { ok: false, reason: `"${split.time.trim()}" is not a time: type HH:mm, HH:mm:ss or 2:30 PM` }
     return done({ ...datePart, ...time })
   }
   // a time alone: today at that time

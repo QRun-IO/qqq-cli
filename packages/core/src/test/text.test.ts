@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { decodeEntities, findReferences, replaceReferences, stripTags, trimChar, trimEndChar, trimStartChar } from '../render/text.js'
+import { decodeEntities, findReferences, lastClockTime, splitDateAndTime, replaceReferences, stripTags, trimChar, trimEndChar, trimStartChar } from '../render/text.js'
 import { htmlToText } from '../widgets/render-model.js'
 import { uploadTemplates } from '../bulk/mapping.js'
 import { callTableApi } from '../records/developer.js'
@@ -14,6 +14,7 @@ import { getDependencies, type FieldMeta } from '../forms/fields.js'
 import { locateFilterError } from '../filter/complete.js'
 import { FilterSyntaxError, isEscapedAt, parseFilter, parseValue, printFilter, printValue, quoteValue } from '../filter/grammar.js'
 import { parseRootBindings } from '../env/doctor.js'
+import { parseDateInput } from '../forms/dates.js'
 
 const BIG = 100_000
 
@@ -129,4 +130,37 @@ test('filter values escape backslashes and quotes, and read back the same', () =
 
 test('decodeEntities reads the common named entities and numeric ones, and leaves unknown names', () => {
   assert.equal(decodeEntities('a &middot; b &mdash; c&hellip; &#183; &#xB7; &bogus; &amp;middot;'), 'a · b — c… · · &bogus; &middot;')
+})
+
+test('lastClockTime takes the last HH:mm after a space, as the old regex did', () => {
+  const old = (t: string): string => t.replace(/^.* (\d\d:\d\d).*$/, '$1')
+  for (const t of ['2026-03-05 14:30', '2026-03-05 14:30:59 CDT', 'a 01:02 b 03:04 c', ' 00:00', '14:30', '2026-03-05', '', 'x 1:30', 'x 12:3', 'a\n 10:10']) {
+    assert.equal(lastClockTime(t) ?? t, old(t), t)
+  }
+})
+
+test('lastClockTime is linear on long repeated input', () => {
+  const adversarial = ' 00:00'.repeat(BIG / 6)
+  assert.equal(fast(() => lastClockTime(adversarial)), '00:00')
+  assert.equal(fast(() => lastClockTime(' 00:0'.repeat(BIG / 5))), undefined)
+})
+
+test('splitDateAndTime matches the old regex on well-formed and odd input', () => {
+  const old = (t: string): [string, string | undefined] | undefined => {
+    const m = /^(\S+?)(?:[T ](.+))?$/i.exec(t)
+    return m ? [m[1]!, m[2]] : undefined
+  }
+  for (const t of ['2026-03-05', '2026-03-05 14:30', '2026-03-05T14:30:15', '2026-03-05t14:30', '3/5/26 2:30 PM', 'tomorrow', 'T', 't 5', 'a ', ' a', '', 'a b c', 'Tx', '2026-03-05T', 'a\nb', 'a b\nc', 'a\u2028 b']) {
+    const got = splitDateAndTime(t)
+    const want = old(t)
+    assert.deepEqual(got && [got.date, got.time], want, JSON.stringify(t))
+  }
+})
+
+test('splitDateAndTime and parseDateInput are linear on long input', () => {
+  assert.ok(fast(() => splitDateAndTime('!t!'.repeat(BIG / 3))))
+  assert.ok(fast(() => splitDateAndTime('! ' + '!t!'.repeat(BIG / 3))))
+  const r = fast(() => parseDateInput('! ' + '!t!'.repeat(BIG / 3), { kind: 'DATE_TIME' }))
+  assert.equal(r.ok, false)
+  assert.deepEqual(parseDateInput('2026-03-05 14:30', { kind: 'DATE_TIME', timeZone: 'UTC' }).ok, true)
 })

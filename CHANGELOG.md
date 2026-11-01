@@ -431,6 +431,8 @@ Fixes for the 19 CodeQL alerts raised on the release pull request:
   with linear scans: slash trimming in API paths, BLOB sizes, `${name}` interpolation and
   `${input.x}` dependencies, filter error positions, and `tmux list-keys` parsing.
 - The release helper escapes every sed metacharacter in the version it puts into its notes command.
+- Two more quadratic regular expressions are replaced with linear scans: the search screen's clock
+  time in its status line and the date parser's split of a date from its time.
 
 ### Known limitations
 

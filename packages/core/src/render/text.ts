@@ -104,3 +104,42 @@ export function decodeEntities(text: string): string {
     return ENTITIES[name] ?? whole
   })
 }
+
+const LINE_BREAK = /[\n\r\u2028\u2029]/
+
+/**
+ * The `HH:mm` of the last ` HH:mm` (a space, two digits, a colon, two digits) in a one-line text, or
+ * undefined; the same as the match of `/^.* (\d\d:\d\d).*$/`, in linear time. A text with a line
+ * break has no match (`.` does not cross one).
+ */
+export function lastClockTime(text: string): string | undefined {
+  if (LINE_BREAK.test(text)) return undefined
+  const isDigit = (i: number): boolean => text.charCodeAt(i) >= 48 && text.charCodeAt(i) <= 57
+  for (let at = text.length - 6; at >= 0; at--) {
+    if (text[at] === ' ' && isDigit(at + 1) && isDigit(at + 2) && text[at + 3] === ':' && isDigit(at + 4) && isDigit(at + 5)) return text.slice(at + 1, at + 6)
+  }
+  return undefined
+}
+
+/**
+ * Splits `date[T time]` at the first `T`, `t` or space after a non-empty run of non-space characters,
+ * when a non-empty time follows on the same line; the same as `/^(\S+?)(?:[T ](.+))?$/i`, in linear
+ * time. Returns undefined when the text does not have that shape (it starts with a space, is empty,
+ * or has a line break after the separator).
+ */
+export function splitDateAndTime(text: string): { date: string; time: string | undefined } | undefined {
+  const isSpace = (ch: string): boolean => /\s/.test(ch)
+  let end = 0
+  while (end < text.length && !isSpace(text[end]!)) end++
+  if (end === 0) return undefined
+  let lastBreak = -1
+  for (let i = text.length - 1; i >= 0 && lastBreak < 0; i--) if (LINE_BREAK.test(text[i]!)) lastBreak = i
+  // the date part is lazy: it stops at the first T/t that leaves a valid time, else at the space
+  for (let at = 1; at <= end; at++) {
+    const sep = text[at]
+    if (at < text.length && (sep === 'T' || sep === 't' || sep === ' ') && at + 1 < text.length && lastBreak < at + 1) {
+      return { date: text.slice(0, at), time: text.slice(at + 1) }
+    }
+  }
+  return end === text.length ? { date: text, time: undefined } : undefined
+}
