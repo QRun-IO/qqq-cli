@@ -23,6 +23,11 @@ export interface MenuEntry {
   disabled?: string
   /** Extra text (a count, a state). */
   detail?: string
+  /**
+   * A group inside the section (F9 level 2 shows a group of more than 5 entries as its first 5 and
+   * "more…"); without it Recent, Apps and Favorites entries of Go to are grouped by their label.
+   */
+  group?: string
   run?: () => void
 }
 
