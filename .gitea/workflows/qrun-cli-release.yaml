@@ -1,0 +1,17 @@
+name: Original CLI existing-tag packages
+on:
+  create:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release:
+    if: github.repository == 'QRun-IO/qqq-cli' && startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'create' || github.event_name == 'workflow_dispatch')
+    uses: self:KofTwentyTwo/platform-ci/.gitea/workflows/qqq-cli.yaml@qrun-release-v1
+    with:
+      runner: linux-small
+      capture: true
+  postpublish:
+    needs: [release]
+    if: needs.release.result == 'success'
+    uses: self:KofTwentyTwo/platform-ci/.gitea/workflows/qrun-cli-completion.yaml@qrun-release-v1
