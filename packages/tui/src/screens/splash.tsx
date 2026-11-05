@@ -41,7 +41,7 @@ export interface SplashSeg {
 
 export const SPLASH_TAGLINE = 'Terminal client for QQQ'
 
-/** `qqq 1.0.0 · UI API client 1.8.0` */
+/** `qqq 1.1.0 · UI API client 1.10.0` */
 export function versionLine(): string {
   return `qqq ${CLI_VERSION} · UI API client ${UI_API_VERSION}`
 }

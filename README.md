@@ -6,8 +6,7 @@ uses, so apps, tables, fields, processes, widgets and extensions all come from t
 one binary works against any QQQ application.
 
 This repository also holds the TypeScript libraries `qqq` is built on, for anyone writing their own CLI,
-TUI or native client. Current release: **1.0.0** ([release notes](docs/release-notes/1.0.0.md),
-[CHANGELOG](CHANGELOG.md)).
+TUI or native client. Current release: **1.1.0** ([CHANGELOG](CHANGELOG.md); 1.0.0: [release notes](docs/release-notes/1.0.0.md)).
 
 - [Install](#install)
 - [The CLI in 60 seconds](#the-cli-in-60-seconds)
@@ -29,7 +28,7 @@ musl for Alpine) and Windows (x64).
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh
-curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh -s -- --version 1.0.0 --dir /usr/local/bin
+curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh -s -- --version 1.1.0 --dir /usr/local/bin
 ```
 
 **Homebrew** (macOS and Linux, from [`QRun-IO/homebrew-tap`](https://github.com/QRun-IO/homebrew-tap);
@@ -248,7 +247,7 @@ and settings: [`packages/tui/README.md`](packages/tui/README.md).
 | npm packages | Node.js 20 or later. `@qrun-io/qqq-ui-api-client` needs only `fetch` and Web Crypto (no Node built-ins), so it runs on Bun and Deno too; `@qrun-io/qqq-core` and the CLI use Node built-ins (files, keyring). |
 
 Versioning: `qqq` and `@qrun-io/qqq-core` follow semver from 1.0.0. `@qrun-io/qqq-ui-api-client`
-follows the UI API version of the document it is generated from (1.8.0 here), and
+follows the UI API version of the document it is generated from (1.10.0 here), and
 `@qrun-io/qqq-ui-api-conformance` has its own version. All four are released together; see
 [CHANGELOG.md](CHANGELOG.md).
 
@@ -256,9 +255,9 @@ follows the UI API version of the document it is generated from (1.8.0 here), an
 
 | Package | Version | What it is |
 |---|---|---|
-| [`@qrun-io/qqq-cli`](packages/cli) | 1.0.0 | `qqq`, the CLI, and its program as a library (`runCli`) |
-| [`@qrun-io/qqq-core`](packages/core) | 1.0.0 | the client kernel: sessions and keyring, metadata cache, filter grammar, forms, processes, records, render model, output formats. No terminal code |
-| [`@qrun-io/qqq-ui-api-client`](packages/ui-api-client) | 1.8.0 | a typed TypeScript client generated from the merged UI API document (core plus 14 extensions), with OAuth2 device-flow and PKCE sign-in, token refresh and the realtime (SSE) stream |
+| [`@qrun-io/qqq-cli`](packages/cli) | 1.1.0 | `qqq`, the CLI, and its program as a library (`runCli`) |
+| [`@qrun-io/qqq-core`](packages/core) | 1.1.0 | the client kernel: sessions and keyring, metadata cache, filter grammar, forms, processes, records, render model, output formats. No terminal code |
+| [`@qrun-io/qqq-ui-api-client`](packages/ui-api-client) | 1.10.0 | a typed TypeScript client generated from the merged UI API document (core plus 14 extensions), with OAuth2 device-flow and PKCE sign-in, token refresh and the realtime (SSE) stream |
 | [`@qrun-io/qqq-ui-api-conformance`](packages/conformance) | 1.6.0 | a read-only conformance suite for any UI API server, and `qqq-dev-idp`, a local OIDC provider for testing native clients |
 | [`packages/tui`](packages/tui) | in the binaries | `qqq ui`, the full-screen terminal UI (OpenTUI on Bun), bundled into every `qqq` binary; not an npm package |
 

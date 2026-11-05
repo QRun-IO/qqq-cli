@@ -37,7 +37,7 @@ shared with the CLI. `QQQ_UI_NO_SPLASH=1` (as `--no-splash`). `QQQ_UI_NO_QUIT=1`
 ## Starting
 
 `qqq ui` opens on a **splash**: Query (the qrun.io mascot) blinking, his tail wagging while it works, the
-`qqq` wordmark, "Terminal client for QQQ", the version (`qqq 1.0.0 · UI API client 1.8.0`) and one status
+`qqq` wordmark, "Terminal client for QQQ", the version (`qqq 1.1.0 · UI API client 1.10.0`) and one status
 line that follows the boot: reading profiles, connecting to the server, signing in, loading metadata (with
 the table count). The large Query needs about 34 rows; smaller terminals (80×24) get the small Query beside
 the wordmark, very small ones the text alone; `--ascii` draws it all in plain characters. Any key stops the

@@ -18,7 +18,7 @@ declare const QQQ_BUILD_SHA: string | undefined
 declare const QQQ_BUILD_TARGET: string | undefined
 declare const QQQ_BUILD_UI: boolean | undefined
 
-export const CLI_VERSION = '1.0.0'
+export const CLI_VERSION = '1.1.0'
 
 /** The oldest UI API a server may serve for this CLI (operationIds, clientCapabilities and traceId since 1.6.0). */
 export const UI_API_MIN_VERSION = '1.6.0'

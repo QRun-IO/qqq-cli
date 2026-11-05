@@ -1,6 +1,6 @@
 # Try qqq against the sample server
 
-A hands-on walkthrough of qqq 1.0.0 (the CLI and `qqq ui`) from a source checkout, against a local QQQ
+A hands-on walkthrough of qqq 1.1.0 (the CLI and `qqq ui`) from a source checkout, against a local QQQ
 sample server. Each section says what exists and the command that runs it. To install a release instead,
 see [Install](README.md#install) in the README; every command below works the same with an installed `qqq`.
 
@@ -28,7 +28,7 @@ and the terminal UI in one file, no Node or Bun. It is the same build a user dow
 from-source launcher. Both use the same profiles and keychain items.
 
 ```sh
-qqq-bin --version                 # qqq 1.0.0 (darwin-arm64 binary with ui, <commit>, bun 1.4.4)
+qqq-bin --version                 # qqq 1.1.0 (darwin-arm64 binary with ui, <commit>, bun 1.4.4)
 qqq-bin doctor                    # first line: the build, runtime and platform; then server, sign-in, terminal
 qqq-bin --profile sample ui       # the terminal UI from the binary
 qqq-bin ui --check                # the terminal check, with the build line support asks for

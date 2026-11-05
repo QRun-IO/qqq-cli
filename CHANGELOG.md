@@ -5,14 +5,18 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
 
 ## [Unreleased]
 
-### Changed
+## [1.1.0] - 2026-11-05
 
-- TypeScript 5.8.3 to 6.0.3 and `@types/node` 22.15.3 to 26.6.6 across the workspace, `packages/tui` and `packages/tui-spike`. TypeScript 6 no longer loads every `@types/*` package implicitly, so `tsconfig.base.json` now lists `"types": ["node"]`; `@types/node` 26 no longer accepts an `undefined` assertion message, so one conformance test passes a real fallback message. TypeScript 7 is not adopted yet: `openapi-typescript` 7.13.0 (the client generator, peer `typescript ^5.x`) calls the TypeScript JS API (`ts.factory`), which the native 7 compiler does not provide. No behaviour change.
+`qqq` 1.1: the terminal UI's Shift bank and two-row F-key bar, F12 for the Assistant panel, Save as PDF
+from the printer picker, a boot splash and a profile picker on start, rendered assistant answers, and the
+client regenerated from UI API 1.10.0 with the current extension documents. Servers: UI API 1.6.0 up to
+2.0, unchanged; servers on 1.9.0 and later also read the case-insensitive criteria option `qqq` sends, and the
+table variant the CLI sends on inserts, updates and deletes (`qqq ui` does not send it on writes yet).
 
-### Fixed
+Versions: `@qrun-io/qqq-ui-api-client` 1.10.0, `@qrun-io/qqq-core` 1.1.0, `@qrun-io/qqq-cli` 1.1.0,
+`@qrun-io/qqq-ui-api-conformance` 1.6.0 (unchanged: its checks validate against the server's own
+document, so no contract changed).
 
-- The screen saver's Online tile said "nobody around" with two terminals signed in. It now counts signed-in sessions first (the session store's table: sessions active in the last 10 minutes and their users, your own included, "2 sessions · 1 user (you ×2)"), else you plus the people in collaboration presence; it never says nobody is around while you are signed in. The saver also keeps its presence lease on the screen under it (the extension has no idle state), so other clients see you still viewing it instead of gone. A server that stores no sessions and merges presence per user (mock auth) shows both terminals as "1 online · you".
-- Query in the screen saver looked like a different dog. All sizes are now generated from the drawing on https://www.qrun.io/query/ (`scripts/gen-query-art.mjs`) in its indigo, with a new medium size (25×13 cells, used where there is room) between the large (42×22) and the small (17×9).
 ### Added
 
 - **F12 shows and hides the Assistant panel** on every screen (Ctrl+G, `:ask` and a click on `12Ask` do
@@ -67,11 +71,27 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
 
 ### Changed
 
+- **`@qrun-io/qqq-ui-api-client` 1.10.0**, generated from qqq `develop` 7825261ab (UI API 1.10.0) and the
+  extension documents on each qbit's `develop` (printing: `main`); 222 operations, 156 from extensions
+  (`docs/extensions.md`, `openapi/extension-sources.json`). New since 1.8.0: `FilterCriteria.options`
+  (`CASE_INSENSITIVE`), `tableVariant` on insert, update and delete, `joins` on export, `isStepBack` on
+  step, url-encoded process bodies, a typed `statisticsGroupData`, native session login and logout
+  (`nativeSessionLogin`, `nativeSessionLogout`, `authenticationFlow`, `expectedNonce`,
+  `nativeLogoutData`); assistant 1.7.0 (`AssistantConfigResponseV1.message`); printing 2.3.0 (the
+  operator printer catalog, submit and request operations, and media profiles); collaboration 1.2.0 now
+  from `develop`, where per-session presence is merged.
+- `scripts/merge-spec.mjs` accepts an extension's older copy of a core schema (the same schema without
+  properties or enum values added since) and keeps the newer one, with a warning: data-analysis 1.5.0
+  still carries the pre-1.9.0 `FilterCriteria`.
+- The CLI's `--variant` note on writes now says only servers before UI API 1.9.0 ignore the variant.
+- TypeScript 5.8.3 to 6.0.3 and `@types/node` 22.15.3 to 26.6.6 across the workspace, `packages/tui` and `packages/tui-spike`. TypeScript 6 no longer loads every `@types/*` package implicitly, so `tsconfig.base.json` now lists `"types": ["node"]`; `@types/node` 26 no longer accepts an `undefined` assertion message, so one conformance test passes a real fallback message. TypeScript 7 is not adopted yet: `openapi-typescript` 7.13.0 (the client generator, peer `typescript ^5.x`) calls the TypeScript JS API (`ts.factory`), which the native 7 compiler does not provide. No behaviour change.
 - With several profiles and none named, `qqq ui` asks which to connect to instead of using the default
   profile (`--profile` or `QQQ_PROFILE` keeps the old behaviour).
 
 ### Fixed
 
+- The screen saver's Online tile said "nobody around" with two terminals signed in. It now counts signed-in sessions first (the session store's table: sessions active in the last 10 minutes and their users, your own included, "2 sessions · 1 user (you ×2)"), else you plus the people in collaboration presence; it never says nobody is around while you are signed in. The saver also keeps its presence lease on the screen under it (the extension has no idle state), so other clients see you still viewing it instead of gone. A server that stores no sessions and merges presence per user (mock auth) shows both terminals as "1 online · you".
+- Query in the screen saver looked like a different dog. All sizes are now generated from the drawing on https://www.qrun.io/query/ (`scripts/gen-query-art.mjs`) in its indigo, with a new medium size (25×13 cells, used where there is room) between the large (42×22) and the small (17×9).
 - **The assistant's answers render** instead of showing raw markdown, in the TUI panel and in
   `qqq assistant ask`: HTML entities decoded (`healthy&#58;` was shown as is), headings, wrapped
   paragraphs, lists, bold and code, and pipe tables laid out as a grid (CLI: sub-tables) instead of `| --- |`

@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---|---|
-| 1.0.x (`qqq` 1.0, `@qrun-io/qqq-core` 1.0, `@qrun-io/qqq-ui-api-client` 1.8, `@qrun-io/qqq-ui-api-conformance` 1.6) | yes |
-| 1.0.0 release candidates, 0.x | no; upgrade to the latest 1.0.x |
+| 1.1.x (`qqq` 1.1, `@qrun-io/qqq-core` 1.1, `@qrun-io/qqq-ui-api-client` 1.10, `@qrun-io/qqq-ui-api-conformance` 1.6) | yes |
+| 1.0.x, 1.0.0 release candidates, 0.x | no; upgrade to the latest 1.1.x |
 
 Fixes are released as a new patch version of the affected packages and binaries.
 
