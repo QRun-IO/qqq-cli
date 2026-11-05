@@ -59,7 +59,7 @@
   },
   "dependencies": {
     "@qrun-io/qqq-core": "1.0.0",
-    "@qrun-io/qqq-ui-api-client": "1.8.0",
+    "@qrun-io/qqq-ui-api-client": "1.10.0",
     "@qrun-io/qqq-ui-api-conformance": "1.6.0",
     "commander": "15.0.0"
   }

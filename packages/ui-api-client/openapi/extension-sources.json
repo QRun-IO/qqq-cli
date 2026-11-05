@@ -1,103 +1,103 @@
 {
-  "core": "http://localhost:8077/qqq/v1/openapi.json",
+  "core": "qqq/qqq-middleware-javalin/src/main/resources/openapi/v1/openapi.yaml (qqq origin/develop 7825261ab)",
   "extensions": [
     {
       "name": "esb",
       "version": "1.1.0",
-      "document": ".worktrees/qqq-develop/qqq-esb/src/main/resources/openapi/qqq-v1/esb.yaml",
-      "branch": "HEAD",
-      "commit": "6ac64fc66"
+      "document": "qqq/qqq-esb/src/main/resources/openapi/qqq-v1/esb.yaml",
+      "branch": "develop",
+      "commit": "7825261ab"
     },
     {
       "name": "health",
       "version": "1.1.0",
-      "document": ".worktrees/qqq-develop/qqq-middleware-javalin/src/main/resources/openapi/qqq-v1/health.yaml",
-      "branch": "HEAD",
-      "commit": "6ac64fc66"
+      "document": "qqq/qqq-middleware-javalin/src/main/resources/openapi/qqq-v1/health.yaml",
+      "branch": "develop",
+      "commit": "7825261ab"
     },
     {
       "name": "alerts",
       "version": "1.2.0",
       "document": "qbit-alerts/src/main/resources/openapi/qqq-v1/alerts.yaml",
       "branch": "develop",
-      "commit": "a3fc6ac"
+      "commit": "420cc69"
     },
     {
       "name": "assistant",
-      "version": "1.6.0",
+      "version": "1.7.0",
       "document": "qbit-assistant/qbit-assistant/src/main/resources/openapi/qqq-v1/assistant.yaml",
       "branch": "develop",
-      "commit": "bcf173f"
+      "commit": "67bdd32"
     },
     {
       "name": "collaboration",
       "version": "1.2.0",
-      "document": ".worktrees/qbit-collab-sessions/src/main/resources/openapi/qqq-v1/collaboration.yaml",
-      "branch": "feat/per-session-presence",
-      "commit": "0ae1e62"
+      "document": "qbit-collaboration/src/main/resources/openapi/qqq-v1/collaboration.yaml",
+      "branch": "develop",
+      "commit": "7d61f29"
     },
     {
       "name": "data-analysis",
       "version": "1.5.0",
       "document": "qbit-data-analysis/src/main/resources/openapi/qqq-v1/data-analysis.yaml",
       "branch": "develop",
-      "commit": "368d2c0"
+      "commit": "f2fd8b1"
     },
     {
       "name": "db-performance",
       "version": "1.0.0",
       "document": "qbit-db-performance/src/main/resources/openapi/qqq-v1/db-performance.yaml",
       "branch": "develop",
-      "commit": "4fd2c30"
+      "commit": "b70c234"
     },
     {
       "name": "edi",
       "version": "1.1.0",
       "document": "qbit-edi/src/main/resources/openapi/qqq-v1/edi.yaml",
       "branch": "develop",
-      "commit": "75a4e6b"
+      "commit": "683995c"
+    },
+    {
+      "name": "printing",
+      "version": "2.3.0",
+      "document": "qbit-printing/src/main/resources/openapi/qqq-v1/printing.yaml",
+      "branch": "main",
+      "commit": "0ab07fc"
     },
     {
       "name": "qa-capture",
       "version": "1.0.0",
       "document": "qbit-qa-capture/src/main/resources/openapi/qqq-v1/qa-capture.yaml",
       "branch": "develop",
-      "commit": "1aee6cb"
+      "commit": "8ca3fd7"
     },
     {
       "name": "quick-search",
       "version": "1.1.0",
       "document": "qbit-quick-search/src/main/resources/openapi/qqq-v1/quick-search.yaml",
       "branch": "develop",
-      "commit": "bd50e1f"
+      "commit": "e3aa05e"
     },
     {
       "name": "release-notes",
       "version": "1.0.0",
       "document": "qbit-release-notes/src/main/resources/openapi/qqq-v1/release-notes.yaml",
       "branch": "develop",
-      "commit": "8fed18e"
+      "commit": "8abbe6f"
     },
     {
       "name": "secured-data",
       "version": "1.1.0",
       "document": "qbit-secured-data/src/main/resources/openapi/qqq-v1/secured-data.yaml",
       "branch": "develop",
-      "commit": "7b302ed"
+      "commit": "5987cb5"
     },
     {
       "name": "sql-workbench",
       "version": "1.1.0",
       "document": "qbit-sql-workbench/src/main/resources/openapi/qqq-v1/sql-workbench.yaml",
       "branch": "develop",
-      "commit": "a182076"
-    },
-    {
-      "name": "printing",
-      "version": "2.1.0",
-      "document": "qbit-printing/src/main/resources/openapi/qqq-v1/printing.yaml",
-      "branch": "feat/print-anything",
-      "commit": "bda172a"
+      "commit": "1784a5b"
     }
   ]
 }

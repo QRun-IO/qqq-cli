@@ -14,7 +14,10 @@
  * A server's own GET /qqq/v1/openapi.json is already merged and can be used directly instead.
  *
  * Rules: paths and operations are unioned (a duplicate method on one path is an error); component
- * schemas are unioned (a name defined twice must be identical, e.g. BasicErrorResponseV1); the
+ * schemas are unioned (a name defined twice must be identical, e.g. BasicErrorResponseV1, or an
+ * extension's copy may be an older copy of the one already merged: the same schema without the
+ * properties and enum values added since, which a MINOR UI API version may add; the newer one is
+ * kept and a warning printed); the
  * core document's info, servers and securitySchemes are kept; tags are unioned; every extension's
  * name, version, path prefix and operationIds are recorded in info.x-qqq-extensions.
  *
@@ -73,6 +76,24 @@ function stable(value) {
   return value
 }
 
+/**
+ * Whether `older` is `newer` as it was before additive (MINOR) changes: every key of `older` is in
+ * `newer` with an older-or-equal value, `newer` may have extra entries only under `properties`, and
+ * an array in `older` (an enum, `required` excepted) may lack values `newer` has.
+ */
+function isOlderCopy(newer, older, key) {
+  if (Array.isArray(older) && Array.isArray(newer)) {
+    const have = new Set(newer.map((v) => JSON.stringify(stable(v))))
+    if (key === 'required') return older.length === newer.length && older.every((v) => have.has(JSON.stringify(stable(v))))
+    return older.every((v) => have.has(JSON.stringify(stable(v))))
+  }
+  if (older && newer && typeof older === 'object' && typeof newer === 'object' && !Array.isArray(older) && !Array.isArray(newer)) {
+    for (const k of Object.keys(older)) if (!(k in newer) || !isOlderCopy(newer[k], older[k], k)) return false
+    return key === 'properties' || Object.keys(newer).every((k) => k in older)
+  }
+  return JSON.stringify(stable(newer)) === JSON.stringify(stable(older))
+}
+
 const [coreSource, ...extensionSources] = inputs
 const merged = await load(coreSource)
 merged.paths ??= {}
@@ -107,6 +128,10 @@ for (const source of extensionSources) {
   for (const [schemaName, schema] of Object.entries(doc.components?.schemas ?? {})) {
     const existing = merged.components.schemas[schemaName]
     if (existing && JSON.stringify(stable(existing)) !== JSON.stringify(stable(schema))) {
+      if (isOlderCopy(existing, schema)) {
+        console.warn(`warning: ${name} carries an older copy of schema ${schemaName} (without later additions); keeping the newer one`)
+        continue
+      }
       throw new Error(`schema ${schemaName} differs between the core document and ${name}`)
     }
     merged.components.schemas[schemaName] = schema

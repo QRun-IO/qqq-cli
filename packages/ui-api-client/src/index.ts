@@ -14,4 +14,4 @@ export type { RealtimeMessage, RealtimeStreamOptions } from './realtime.js'
 export type { paths, components, operations } from './schema.js'
 
 /** The UI API version this client was generated from (info.version of the merged document). */
-export const UI_API_VERSION = '1.8.0'
+export const UI_API_VERSION = '1.10.0'

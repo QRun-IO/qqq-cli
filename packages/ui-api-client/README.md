@@ -108,7 +108,7 @@ for await (const message of openRealtimeStream({ baseUrl, token: () => tokens.ac
 ## Compatibility and versioning
 
 - The package version follows the UI API version of the document it was generated from
-  (`UI_API_VERSION`, 1.8.0 for this release). The client works with any server on UI API 1.6.0 up to 2.0:
+  (`UI_API_VERSION`, 1.10.0 for this release). The client works with any server on UI API 1.6.0 up to 2.0:
   operations newer than a server answer 404, and unknown enum values and extra fields are tolerated.
   `GET /qqq/v1/version` tells you the server's version, features and installed extensions.
 - A new UI API minor version means a new minor version of this package; a 2.0 UI API would be a new major.
