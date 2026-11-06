@@ -104,13 +104,28 @@ export class DpapiFileStore implements SecretStore {
   }
   private async ps(script: string, input: string): Promise<string> {
     const shell = process.env.QQQ_POWERSHELL ?? 'powershell'
-    const { stdout } = await run(shell, ['-NoProfile', '-NonInteractive', '-Command', script.replace('$INPUT', JSON.stringify(input))])
-    return stdout.trim()
+    const command = "$ErrorActionPreference = 'Stop'; [Console]::InputEncoding = [Text.UTF8Encoding]::new($false); "
+      + '[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); $qqqSecretInput = [Console]::In.ReadToEnd(); '
+      + '$qqqResult = & { ' + script.replace('$INPUT', '$qqqSecretInput') + ' }; '
+      + '[Console]::Write((ConvertTo-Json -InputObject $qqqResult -Compress))'
+    return new Promise<string>((resolve, reject) => {
+      const failed = () => reject(new Error('Windows credential protection failed; check PowerShell and your Windows profile'))
+      const child = execFile(shell, ['-NoProfile', '-NonInteractive', '-Command', command], { timeout: 15000 }, (error, stdout) => {
+        if (error) { failed(); return }
+        try {
+          const result: unknown = JSON.parse(stdout.trim())
+          if (typeof result !== 'string') { failed(); return }
+          resolve(result)
+        } catch { failed() }
+      })
+      child.stdin?.on('error', failed)
+      child.stdin?.end(input, 'utf8')
+    })
   }
   async get(account: string): Promise<string | undefined> {
     const blob = this.read()[account]
     if (!blob) return undefined
-    return this.ps('$s = ConvertTo-SecureString -String $INPUT; [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))', blob)
+    return this.ps('$s = ConvertTo-SecureString -String $INPUT; $p = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($s); try { [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($p) } finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($p); $s.Dispose() }', blob)
   }
   async set(account: string, secret: string): Promise<void> {
     const blob = await this.ps('ConvertTo-SecureString -String $INPUT -AsPlainText -Force | ConvertFrom-SecureString', secret)

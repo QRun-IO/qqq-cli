@@ -13,7 +13,7 @@ import { TuiClient } from '../src/client'
 import { RecordCollaboration } from '../src/collab'
 import type { RecordScreen } from '../src/screens/record'
 import { readViewSettings } from '@qrun-io/qqq-core'
-import { COLLABORATION, QUICK_SEARCH, collabState, fakeExtensions, resetCollab } from './fake-collab'
+import { COLLABORATION, QUICK_SEARCH, collabState, fakeExtensions, resetCollab, recordTagPolicy } from './fake-collab'
 import type { RecordViewSettingsOverlay } from '../src/overlays/record-view-settings'
 import { fakeFetch } from './fake-server'
 import { command, isolate, press, startTui, waitFor, type Harness } from './helpers'
@@ -240,3 +240,18 @@ test('record view without the collaboration extension: no strip, no panel, the c
   expect(f).not.toContain('Collaboration')
   expect((h.store.screen as RecordScreen).list.current?.key).toStartWith('f:')
 })
+
+for (const enabled of [false, true]) {
+  test(`tag editor respects server capability: enabled=${enabled}, permission denied`, async () => {
+    fakeExtensions.push(COLLABORATION)
+    recordTagPolicy.enabled = enabled
+    recordTagPolicy.allowed = false
+    h = await startTui(160, 40)
+    await command(h, 'table get person 1')
+    await waitFor(h, (x) => x.includes('Tags (t)'))
+    await key('t')
+    const text = enabled ? 'Your role cannot tag this record.' : 'Tags are not enabled for this table.'
+    await waitFor(h, (x) => x.includes(text))
+    expect(h.store.overlays.length).toBe(0)
+  })
+}

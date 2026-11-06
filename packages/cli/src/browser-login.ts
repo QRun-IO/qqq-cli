@@ -30,9 +30,9 @@ export interface BrowserSignInOptions {
 
 /** Opens a URL with the platform's opener; failures are ignored (the URL is printed anyway). */
 export function openInBrowser(url: string): void {
-  const [command, args] = process.platform === 'darwin' ? ['open', [url]] : process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]] : ['xdg-open', [url]]
+  const [command, args] = process.platform === 'darwin' ? ['open', [url]] : process.platform === 'win32' ? [process.env.QQQ_POWERSHELL || 'powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from('Start-Process -FilePath $env:QQQ_BROWSER_URL', 'utf16le').toString('base64')]] : ['xdg-open', [url]]
   try {
-    const child = spawn(command, args as string[], { stdio: 'ignore', detached: true })
+    const child = spawn(command, args as string[], { stdio: 'ignore', detached: true, windowsHide: true, env: { ...process.env, QQQ_BROWSER_URL: url } })
     child.on('error', () => undefined)
     child.unref()
   } catch {

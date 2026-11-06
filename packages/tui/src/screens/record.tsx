@@ -611,7 +611,15 @@ export class RecordScreen implements Screen {
     const collab = collaborationOf(this.store)
     if (!collab) return this.store.flash(this.store.extensions.missing('collaboration'), 'error')
     if (this.primaryKey === undefined) return
-    this.store.open(new TagOverlay(this.store, collab, this.tableName, this.primaryKey, (t) => { this.tags = t; this.build() }))
+    const tableName = this.tableName
+    const primaryKey = this.primaryKey
+    this.store.client!.call('getRecordFeatures', { path: { tableName, primaryKey: String(primaryKey) } }).then((result) => {
+      if (this.tableName !== tableName || this.primaryKey !== primaryKey) return
+      const features = result.data as { features?: string[]; capabilities?: Record<string, boolean> }
+      if (!features?.features?.includes('TAGS')) return this.store.flash('Tags are not enabled for this table.', 'error')
+      if (features.capabilities?.tag !== true) return this.store.flash('Your role cannot tag this record.', 'error')
+      this.store.open(new TagOverlay(this.store, collab, tableName, primaryKey, (t) => { this.tags = t; this.build() }))
+    }).catch((error) => this.store.flash(errorText(error), 'error'))
   }
 
   /** Counts, follow state and the panel details of the strip and the panel (collaboration extension). */
