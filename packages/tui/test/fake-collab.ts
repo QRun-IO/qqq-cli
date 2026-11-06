@@ -15,6 +15,7 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify(data),
 export const fakeExtensions: J[] = []
 
 export const COLLABORATION = { name: 'collaboration', version: '1.1.0', pathPrefix: '/qbit/collaboration', description: 'Record collaboration' }
+export const recordTagPolicy = { enabled: true, allowed: true }
 export const QUICK_SEARCH = { name: 'quick-search', version: '1.1.0', pathPrefix: '/qbit/quick-search', description: 'Quick search' }
 
 export interface CollabState {
@@ -37,11 +38,14 @@ export function resetCollab(): void {
   collabState.uploads = []
   collabState.shares = []
   collabState.tags = []
+  recordTagPolicy.enabled = true
+  recordTagPolicy.allowed = true
 }
 resetCollab()
 
 export async function collabRoute(path: string, method: string, body: unknown): Promise<Response | undefined> {
   const on = (name: string) => fakeExtensions.some((e) => e.name === name)
+  if (/^\/table\/person\/\d+\/features$/.test(path)) return json({ features: recordTagPolicy.enabled ? ['TAGS'] : [], capabilities: { tag: recordTagPolicy.allowed } })
   if (path === '/search' && method === 'POST' && on('quick-search')) {
     const term = String((body as J | undefined)?.searchTerm ?? '').toLowerCase()
     const hits = 'ada lovelace'.includes(term) ? [{ tableName: 'person', tableLabel: 'Person', recordId: '1', recordLabel: '1', highlights: [{ text: 'Ada Lovelace', fieldLabel: 'Name' }] }] : []
