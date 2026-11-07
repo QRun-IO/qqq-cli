@@ -4,6 +4,11 @@ From "the branch is green" to "1.0.0 is published and installable everywhere". I
 1.0.0 but holds for any release; replace the versions. Nothing in the repository tags, pushes or
 publishes by itself: `scripts/release.mjs` checks and prints, people run the commands.
 
+> **2026-11-07:** CircleCI and the qqq-orb are retired. Gitea CI (`.gitea/workflows/build.yaml`) verifies
+> only; the orb publish steps below (npm packages on a `v<client version>` tag, the platform lanes) have
+> no replacement yet. How packages, binaries and the Homebrew/Scoop updates are released is an open
+> decision; until then this runbook is the record of the old process.
+
 What ships:
 
 | Artifact | Version for 1.0 | Where | Made by |

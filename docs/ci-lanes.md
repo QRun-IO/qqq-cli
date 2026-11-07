@@ -2,30 +2,19 @@
 
 ## What runs today
 
-`.circleci/config.yml` is the qqq-orb setup stub on the `0.8` track (it picks up every 0.8.x release by
-itself); `.qqq-ci.yml` selects the orb's `cli` profile and, since qqq-orb **0.8.33**, turns on the
-platform lanes with `platforms: [macos-arm64, windows-x64]`. The profile generates three jobs:
+CircleCI and the qqq-orb were retired on 2026-11-07. CI is the shared Gitea workflow
+[`KofTwentyTwo/ci-workflows` `node.yaml`](https://git.kof22.com/KofTwentyTwo/ci-workflows), called from
+`.gitea/workflows/build.yaml` on every push, Linux only (`node:22-bookworm`):
 
-| Job | Executor | What it runs |
-|---|---|---|
-| `cli-macos-arm64` (`qqq-orb/cli_platform`) | macOS, Xcode 16.4, `m4pro.medium` | Node 20.20.2 (the `engines` floor) with nvm, `npm ci`, `npm run build && npm test && npm run lint` |
-| `cli-windows-x64` (`qqq-orb/cli_platform`) | Windows Server 2022, `windows.medium`, steps in Git Bash | the same, on Windows (keyring DPAPI path, Windows paths) |
-| `qqq-orb/cli_verify_publish` | Linux, `cimg/node:22.23` | `npm ci`; `npm run generate` then `git diff --exit-code` on `schema.ts` and `operations.ts`; build, test, lint; a Prism smoke (`GET /qqq/v1/version`, `/metaData/authentication`); on a tag `v<client version>` with `publish.release: true`, publishing (below) |
+1. `npm ci`
+2. `npm run generate`, then `git diff --exit-code` on `schema.ts` and `operations.ts` (generated-code drift)
+3. `npm run build`, `npm test`, `npm run lint`
 
-On branches and pull requests the three jobs run side by side. On a release tag `cli_verify_publish`
-**requires both platform lanes**, so nothing is published unless macOS and Windows are green. Publishing
-puts all four packages on GitHub Packages (client, core, conformance, CLI, in that order) with the dist-tag
-`latest` when all four versions are final and `rc` when any of them has a prerelease part. The CircleCI
-plan must include the `m4pro.medium` and `windows.medium` resource classes.
+Not in CI: publishing (packages, binaries, Homebrew/Scoop updates are release-machine steps in
+`docs/release-runbook.md` until a release workflow is decided), the macOS arm64 and Windows x64 lanes,
+the Prism smoke, the TUI (`npm run test:tui`, `typecheck:tui`, which need Bun) and the platform binaries.
 
-The orb's generator accepts this manifest: rendered with `src/scripts/generate_pipeline.py` from qqq-orb
-v0.8.33, a push to `main` gives `cli-macos-arm64`, `cli-windows-x64` and `cli_verify_publish` in
-`test_only`, and the tag `v1.8.0` gives the same in `publish_release` with `cli_verify_publish` requiring
-both lanes and bound to the `qqq-maven-registry-credentials` context.
-
-Still not in CI: the TUI (`npm run test:tui`, `typecheck:tui`, which need Bun), and building and smoking
-the platform binaries (`scripts/build-binaries.mjs --host`, `scripts/verify-binary.sh` / `.ps1`); the
-lanes run the Node packages only. Those stay release-machine steps in `docs/release-runbook.md`.
+Everything below describes the retired CircleCI setup and is kept for the record.
 
 ### History
 
