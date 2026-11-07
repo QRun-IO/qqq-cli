@@ -3,7 +3,7 @@ on:
   push:
 jobs:
   node:
-    uses: self:KofTwentyTwo/ci-workflows/.gitea/workflows/node.yaml@main
+    uses: self:KofTwentyTwo/ci-workflows/.gitea/workflows/node.yaml@v1
     with:
       node-version: '22'
       # The TUI (packages/tui) is not an npm workspace and needs Bun; build and test cover the four
