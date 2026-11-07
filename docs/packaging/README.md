@@ -36,10 +36,8 @@ checkpoint the sums here first, not there.
 ## Where the formula and manifest live
 
 - **`QRun-IO/homebrew-tap`** is laid out under `homebrew-tap/` here (the repository is created by copying
-  that directory). Its CI is the qqq-orb `homebrew-tap` profile (`.qqq-ci.yml`, with the same setup
-  `.circleci/config.yml` as `QRun-IO/homebrew-qctl`). That CI fetches and checksums every platform's
-  download, but it installs the formula and runs `brew test` with the **Linux x64 binary only**; the
-  macOS (and Linux arm64) binaries are not executed there. qctl stays in `QRun-IO/homebrew-qctl` until it
+  that directory). Its old CI (the qqq-orb `homebrew-tap` profile on CircleCI) was retired on
+  2026-11-07 and the seed no longer carries CI files; tap CI on Gitea is not decided yet. qctl stays in `QRun-IO/homebrew-qctl` until it
   moves over.
 - **`QRun-IO/scoop-bucket`** is created from
   [ScoopInstaller/BucketTemplate](https://github.com/ScoopInstaller/BucketTemplate), with `qqq.json` as

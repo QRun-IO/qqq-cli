@@ -23,9 +23,9 @@ Everything under `docs/`:
 | [release-notes/1.0.0.md](release-notes/1.0.0.md) | the GitHub release body for `cli-v1.0.0` (the release commands are in an HTML comment at the top) |
 | [release-notes/1.0.0-rc.1.md](release-notes/1.0.0-rc.1.md) | the GitHub release body for the release candidate `cli-v1.0.0-rc.1`, kept for history |
 | [packaging/README.md](packaging/README.md) | the install paths (curl installer, Homebrew, Scoop, npm), where the formula and manifest live, platform notes (Gatekeeper, SmartScreen, musl), and how the terminal UI is bundled |
-| [packaging/homebrew-tap/](packaging/homebrew-tap/README.md) | the complete `QRun-IO/homebrew-tap` repository, ready to copy: `Formula/qqq.rb`, README, LICENSE and its qqq-orb CI files |
+| [packaging/homebrew-tap/](packaging/homebrew-tap/README.md) | the complete `QRun-IO/homebrew-tap` repository, ready to copy: `Formula/qqq.rb`, README, LICENSE (its old qqq-orb CI files were removed with CircleCI) |
 | [packaging/qqq.json](packaging/qqq.json) | the Scoop manifest, copied to `bucket/qqq.json` in `QRun-IO/scoop-bucket` |
-| [ci-lanes.md](ci-lanes.md) | what CircleCI (the qqq-orb `cli` profile) runs: the Linux verify-and-publish job and the macOS arm64 and Windows x64 lanes, what is still outside CI, and the history of the orb changes |
+| [ci-lanes.md](ci-lanes.md) | what CI runs (the shared Gitea `node.yaml` workflow), what is outside CI, and the history of the retired CircleCI orb lanes |
 
 `scripts/update-packaging.mjs` fills the version and checksums of the formula and manifest from a
 release's `SHA256SUMS`.

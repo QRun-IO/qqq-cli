@@ -324,8 +324,8 @@ scripts/verify-binary.sh dist/qqq-darwin-arm64 --server http://localhost:8077   
 ```
 
 The CLI runs on Node 20 and later and uses no Bun-only API; Bun is needed only for the TUI and the
-binaries. CI is the qqq-orb `cli` profile (`.qqq-ci.yml`); a tag `v<client version>` publishes the
-packages to GitHub Packages ([`docs/ci-lanes.md`](docs/ci-lanes.md) says what it does and does not cover).
+binaries. CI is the shared Gitea `node.yaml` workflow (`.gitea/workflows/build.yaml`): build, test, lint and
+a generated-code drift check on every push; it publishes nothing ([`docs/ci-lanes.md`](docs/ci-lanes.md)).
 
 ## Contributing, security, license
 

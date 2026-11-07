@@ -1,8 +1,0 @@
-profile: cli
-orb_version: '0.8'
-default_branch: main
-publish:
-  release: true
-publish_context: qqq-maven-registry-credentials
-# Native target notes; separate binary entrypoints do not read this CI manifest.
-# platforms: [macos-arm64, windows-x64]

@@ -1,0 +1,16 @@
+name: build
+on:
+  push:
+jobs:
+  node:
+    uses: self:KofTwentyTwo/ci-workflows/.gitea/workflows/node.yaml@main
+    with:
+      node-version: '22'
+      # The TUI (packages/tui) is not an npm workspace and needs Bun; build and test cover the four
+      # Node workspaces only, as the old CI did.
+      commands: |
+        npm run generate
+        git diff --exit-code -- packages/ui-api-client/src/schema.ts packages/core/src/api/operations.ts
+        npm run build
+        npm test
+        npm run lint
