@@ -1,6 +1,6 @@
 {
   "name": "@qrun-io/qqq-core",
-  "version": "1.0.0",
+  "version": "1.0.1-rc.1",
   "description": "Client kernel for QQQ terminal clients: sessions, metadata, filter grammar, records, processes, jobs, render model and output formats. No terminal code.",
   "keywords": [
     "qqq",
@@ -42,7 +42,7 @@
     "node": ">=20"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://git.kof22.com/api/packages/QRun-IO/npm/"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -50,7 +50,7 @@
     "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@qrun-io/qqq-ui-api-client": "1.8.0",
+    "@qrun-io/qqq-ui-api-client": "1.8.1-rc.1",
     "jmespath": "0.16.0",
     "yaml": "2.9.1"
   },

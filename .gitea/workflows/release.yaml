@@ -1,0 +1,332 @@
+# Copyright 2026 QRun.IO, Inc.
+# Licensed under the Apache License, Version 2.0 (see LICENSE).
+#
+# Release on a v<CLI version> tag (docs/release-runbook.md):
+#   linux    scripts/release.mjs gate; Linux, darwin-x64 binaries (cross); draft Gitea release
+#   macos    native darwin-arm64 binary, built and smoke-tested on the macOS runner
+#   windows  native windows-x64 binary, built and smoke-tested on the Windows runner
+#   publish  SHA256SUMS; publish the release and check its downloads; the four npm packages to the
+#            QRun-IO Gitea npm registry; for a final version the Homebrew tap and the Scoop bucket
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: 22.23.4
+  BUN_VERSION: 1.4.4
+  BUN_LINUX_SHA256: e0446eb55995772eb9894bebae9a6be368d985a8b9271ee124486f9946eedd76     # bun-linux-x64-baseline.zip
+  BUN_DARWIN_SHA256: c240d7f0ccb90c263a849fcdb09b7ee62630d921348ed6aafda86b9d577bc510    # bun-darwin-aarch64.zip
+  BUN_WINDOWS_SHA256: 0f20ce6674d4f2dbcc8c5d59fdf99f7ba45f8c3b367e0f5781cbfa30a1c78d99   # bun-windows-x64-baseline.zip
+
+jobs:
+  linux:
+    runs-on: container-build
+    timeout-minutes: 60
+    container:
+      image: node:22.23.4-bookworm
+      volumes:
+        - /var/lib/gitea-job-workspace:${{ github.workspace }}
+    env:
+      HOME: /tmp
+      CI: 'true'
+    outputs:
+      release-id: ${{ steps.draft.outputs.id }}
+      version: ${{ steps.plan.outputs.version }}
+      sums: ${{ steps.draft.outputs.sums }}
+    steps:
+      - uses: builtin:checkout
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag
+        id: plan
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          version=$(node -p 'require("./packages/cli/package.json").version')
+          [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "$TAG is not a release tag"; exit 1; }
+          [[ $TAG == "v$version" ]] || { echo "Tag $TAG does not match packages/cli/package.json $version"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install Bun
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bun && cd /tmp/bun
+          curl -fsSLo bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v$BUN_VERSION/bun-linux-x64-baseline.zip"
+          echo "$BUN_LINUX_SHA256  bun.zip" | sha256sum -c -
+          python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(".")' bun.zip
+          chmod +x bun-linux-x64-baseline/bun && echo /tmp/bun/bun-linux-x64-baseline >> "$GITHUB_PATH"
+
+      - name: Release gate (scripts/release.mjs)
+        # npm ci, generate drift, build, readiness (final versions), test, lint, TUI tests and type check, pack dry runs
+        run: node scripts/release.mjs --skip-binaries
+
+      - name: Linux and darwin-x64 binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/build-binaries.mjs --no-build --targets linux-x64,linux-arm64,linux-x64-musl,linux-arm64-musl,darwin-x64
+          scripts/verify-binary.sh dist/qqq-linux-x64
+
+      - name: Draft Gitea release
+        id: draft
+        shell: bash
+        env:
+          TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
+          auth="Authorization: token $TOKEN"
+          if curl -fsS -o /dev/null -H "$auth" "$api/releases/tags/$TAG" 2>/dev/null; then
+            echo "A release for $TAG already exists; a version is released once"; exit 1
+          fi
+          if [[ -f docs/release-notes/$VERSION.md ]]; then notes=$(cat "docs/release-notes/$VERSION.md"); else
+            notes=$(awk -v v="[$VERSION]" '/^## / { if (found) exit; if (index($0, "## " v) == 1) { found = 1; next } } found { print }' CHANGELOG.md)
+          fi
+          [[ -n ${notes//[[:space:]]/} ]] || notes="qqq $VERSION"
+          body=$(NOTES="$notes" node -e 'process.stdout.write(JSON.stringify({ tag_name: process.env.TAG,
+            name: `qqq ${process.env.VERSION}`, body: process.env.NOTES, draft: true, prerelease: process.env.VERSION.includes("-") }))')
+          id=$(curl -fsS -X POST -H "$auth" -H 'Content-Type: application/json' -d "$body" "$api/releases" |
+            node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync(0, "utf8")).id))')
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "sums=$(cd dist && sha256sum qqq-* | tr '\n' ';')" >> "$GITHUB_OUTPUT"
+          for f in dist/qqq-*; do
+            curl -fsS -o /dev/null -X POST -H "$auth" -F "attachment=@$f" "$api/releases/$id/assets?name=$(basename "$f")"
+            echo "Attached $(basename "$f") to draft release $id"
+          done
+
+  macos:
+    needs: linux
+    runs-on: qqq-macos-arm64
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+    outputs:
+      sums: ${{ steps.attach.outputs.sums }}
+    steps:
+      - uses: builtin:checkout
+
+      - name: Install Node.js and Bun
+        shell: bash
+        run: |
+          set -euo pipefail
+          tools="$(mktemp -d)" && cd "$tools"
+          node_file="node-v$NODE_VERSION-darwin-arm64.tar.gz"
+          curl -fsSLO "https://nodejs.org/dist/v$NODE_VERSION/$node_file" && curl -fsSLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt"
+          grep " $node_file\$" SHASUMS256.txt | shasum -a 256 -c -
+          tar -xzf "$node_file"
+          curl -fsSLo bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v$BUN_VERSION/bun-darwin-aarch64.zip"
+          echo "$BUN_DARWIN_SHA256  bun.zip" | shasum -a 256 -c -
+          unzip -q bun.zip
+          echo "$tools/node-v$NODE_VERSION-darwin-arm64/bin" >> "$GITHUB_PATH"
+          echo "$tools/bun-darwin-aarch64" >> "$GITHUB_PATH"
+          echo "TOOLS_DIR=$tools" >> "$GITHUB_ENV"
+
+      - name: Build, test, darwin-arm64 binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version && bun --version
+          npm ci
+          npm run build
+          npm test
+          npm run lint
+          node scripts/build-binaries.mjs --no-build --host
+          scripts/verify-binary.sh dist/qqq-darwin-arm64
+
+      - name: Attach to the draft release
+        id: attach
+        shell: bash
+        env:
+          TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.linux.outputs.release-id }}
+        run: |
+          set -euo pipefail
+          curl -fsS -o /dev/null -X POST -H "Authorization: token $TOKEN" -F "attachment=@dist/qqq-darwin-arm64" \
+            "$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=qqq-darwin-arm64"
+          echo "Attached qqq-darwin-arm64"
+          echo "sums=$(cd dist && shasum -a 256 qqq-darwin-arm64 | tr '\n' ';')" >> "$GITHUB_OUTPUT"
+
+      - name: Remove the tools
+        if: always()
+        shell: bash
+        run: if [[ -n ${TOOLS_DIR:-} ]]; then rm -rf "$TOOLS_DIR"; fi
+
+  windows:
+    needs: linux
+    runs-on: qqq-windows-vm6218
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+    outputs:
+      sums: ${{ steps.attach.outputs.sums }}
+    steps:
+      - uses: builtin:checkout
+
+      - name: Install Node.js and Bun
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'
+          $tools = Join-Path ([IO.Path]::GetTempPath()) ("qqq-tools-" + [guid]::NewGuid())
+          New-Item -ItemType Directory -Path $tools | Out-Null
+          $nodeFile = "node-v$env:NODE_VERSION-win-x64.zip"
+          Invoke-WebRequest "https://nodejs.org/dist/v$env:NODE_VERSION/$nodeFile" -OutFile "$tools\$nodeFile"
+          Invoke-WebRequest "https://nodejs.org/dist/v$env:NODE_VERSION/SHASUMS256.txt" -OutFile "$tools\SHASUMS256.txt"
+          $want = ((Get-Content "$tools\SHASUMS256.txt") | Where-Object { $_ -match " $([regex]::Escape($nodeFile))$" }).Split(' ')[0]
+          if ((Get-FileHash "$tools\$nodeFile" -Algorithm SHA256).Hash -ne $want) { throw "$nodeFile checksum mismatch" }
+          Expand-Archive "$tools\$nodeFile" -DestinationPath $tools
+          Invoke-WebRequest "https://github.com/oven-sh/bun/releases/download/bun-v$env:BUN_VERSION/bun-windows-x64-baseline.zip" -OutFile "$tools\bun.zip"
+          if ((Get-FileHash "$tools\bun.zip" -Algorithm SHA256).Hash -ne $env:BUN_WINDOWS_SHA256) { throw "bun.zip checksum mismatch" }
+          Expand-Archive "$tools\bun.zip" -DestinationPath $tools
+          Add-Content $env:GITHUB_PATH "$tools\node-v$env:NODE_VERSION-win-x64"
+          Add-Content $env:GITHUB_PATH "$tools\bun-windows-x64-baseline"
+          Add-Content $env:GITHUB_ENV "TOOLS_DIR=$tools"
+
+      - name: Build, test, windows-x64 binary
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true
+          node --version; bun --version
+          npm ci
+          npm run build
+          npm test
+          npm run lint
+          node scripts/build-binaries.mjs --no-build --host
+          pwsh -NoProfile -File scripts/verify-binary.ps1 -Binary dist\qqq-windows-x64.exe
+
+      - name: Attach to the draft release
+        id: attach
+        shell: pwsh
+        env:
+          TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.linux.outputs.release-id }}
+        run: |
+          $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true
+          curl.exe -fsS -o NUL -X POST -H "Authorization: token $env:TOKEN" -F "attachment=@dist/qqq-windows-x64.exe" `
+            "$env:GITHUB_SERVER_URL/api/v1/repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID/assets?name=qqq-windows-x64.exe"
+          Write-Output "Attached qqq-windows-x64.exe"
+          $hash = (Get-FileHash dist\qqq-windows-x64.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          Add-Content $env:GITHUB_OUTPUT "sums=$hash  qqq-windows-x64.exe;"
+
+      - name: Remove the tools
+        if: always()
+        shell: pwsh
+        run: if ($env:TOOLS_DIR) { Remove-Item -Recurse -Force $env:TOOLS_DIR -ErrorAction SilentlyContinue }
+
+  publish:
+    needs: [linux, macos, windows]
+    runs-on: container-build
+    timeout-minutes: 30
+    container:
+      image: node:22.23.4-bookworm
+      volumes:
+        - /var/lib/gitea-job-workspace:${{ github.workspace }}
+    env:
+      HOME: /tmp
+      CI: 'true'
+      TOKEN: ${{ github.token }}
+      PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+      RELEASE_ID: ${{ needs.linux.outputs.release-id }}
+      VERSION: ${{ needs.linux.outputs.version }}
+    steps:
+      - uses: builtin:checkout
+
+      - name: SHA256SUMS
+        shell: bash
+        env:
+          SUMS: ${{ needs.linux.outputs.sums }}${{ needs.macos.outputs.sums }}${{ needs.windows.outputs.sums }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          mkdir -p /tmp/assets
+          tr ';' '\n' <<< "$SUMS" | sed '/^$/d' | sort -k2 > /tmp/assets/SHA256SUMS
+          cat /tmp/assets/SHA256SUMS
+          for want in qqq-linux-x64 qqq-linux-arm64 qqq-linux-x64-musl qqq-linux-arm64-musl qqq-darwin-x64 qqq-darwin-arm64 qqq-windows-x64.exe; do
+            grep -Eq "^[0-9a-f]{64}  $want\$" /tmp/assets/SHA256SUMS || { echo "No checksum for $want"; exit 1; }
+          done
+          curl -fsS -o /dev/null -X POST -H "Authorization: token $TOKEN" -F "attachment=@/tmp/assets/SHA256SUMS" \
+            "$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=SHA256SUMS"
+
+      - name: Publish the release and check the downloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          prerelease=false; [[ $VERSION == *-* ]] && prerelease=true
+          curl -fsS -o /dev/null -X PATCH -H "Authorization: token $TOKEN" -H 'Content-Type: application/json' \
+            -d "{\"draft\":false,\"prerelease\":$prerelease}" "$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID"
+          # What users download (the formula, the manifest, install.sh) must match SHA256SUMS.
+          cd /tmp/assets
+          while read -r _ file; do
+            curl -fsSL -o "$file" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/v$VERSION/$file"
+          done < SHA256SUMS
+          sha256sum --check --strict SHA256SUMS
+          echo "Released: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/v$VERSION"
+
+      - name: Publish the npm packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z ${PACKAGES_TOKEN:-} ]]; then echo "PACKAGES_TOKEN is empty"; exit 1; fi
+          npm ci
+          npm run build
+          registry="$GITHUB_SERVER_URL/api/packages/$GITHUB_REPOSITORY_OWNER/npm/"
+          export NPM_CONFIG_USERCONFIG=/tmp/publish.npmrc
+          printf '//%s:_authToken=${PACKAGES_TOKEN}\n@qrun-io:registry=%s\n' "${registry#*://}" "$registry" > "$NPM_CONFIG_USERCONFIG"
+          # In dependency order. A version already in the registry is left alone (versions are immutable),
+          # so a release republishes nothing that did not change; each package's own version picks its dist-tag.
+          for dir in packages/ui-api-client packages/core packages/conformance packages/cli; do
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$version" version --registry "$registry" > /dev/null 2>&1; then
+              echo "$name@$version is already published; skipped"; continue
+            fi
+            tag=latest; [[ $version == *-* ]] && tag=next
+            (cd "$dir" && npm publish --registry "$registry" --tag "$tag")
+            echo "Published $name@$version ($tag): $(npm view "$name@$version" version --registry "$registry")"
+          done
+
+      - name: Homebrew tap and Scoop bucket
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/update-packaging.mjs /tmp/assets/SHA256SUMS
+          api="$GITHUB_SERVER_URL/api/v1"
+          # Final versions only: the tap and the bucket follow the stable channel, like scripts/install.sh.
+          # Pushed when PACKAGES_TOKEN can write the repository; otherwise the filled file goes on the release.
+          can_write() {
+            curl -fsS -H "Authorization: token $PACKAGES_TOKEN" "$api/repos/$1" 2>/dev/null |
+              node -e 'try { process.stdout.write(String(JSON.parse(require("fs").readFileSync(0, "utf8")).permissions.push === true)) } catch { process.stdout.write("false") }' || echo false
+          }
+          push_file() {
+            local repo=$1 src=$2 dest=$3 dir header
+            dir=$(mktemp -d)
+            header="Authorization: Basic $(printf 'ci:%s' "$PACKAGES_TOKEN" | base64 -w0)"
+            git -c http.extraHeader="$header" clone -q --depth 1 "$GITHUB_SERVER_URL/$repo.git" "$dir"
+            cp "$src" "$dir/$dest"
+            git -C "$dir" add "$dest"
+            if git -C "$dir" diff --cached --quiet; then echo "$repo already has qqq $VERSION"; return 0; fi
+            git -C "$dir" -c user.name=CI -c user.email=ci@kof22.com commit -q -m "qqq $VERSION"
+            git -C "$dir" -c http.extraHeader="$header" push -q origin HEAD:main
+            echo "Pushed qqq $VERSION to $repo"
+          }
+          for spec in "QRun-IO/homebrew-tap docs/packaging/homebrew-tap/Formula/qqq.rb Formula/qqq.rb" \
+                      "QRun-IO/scoop-bucket docs/packaging/qqq.json bucket/qqq.json"; do
+            read -r repo src dest <<< "$spec"
+            if [[ $VERSION != *-* && $(can_write "$repo") == true ]]; then
+              push_file "$repo" "$src" "$dest"
+            else
+              curl -fsS -o /dev/null -X POST -H "Authorization: token $TOKEN" -F "attachment=@$src" \
+                "$api/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$(basename "$src")"
+              echo "$repo not updated (prerelease, or PACKAGES_TOKEN cannot write it): $(basename "$src") is attached to the release for a pull request"
+            fi
+          done

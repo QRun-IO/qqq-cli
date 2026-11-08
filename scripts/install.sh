@@ -2,13 +2,13 @@
 # Copyright 2026 QRun.IO, Inc.
 # Licensed under the Apache License, Version 2.0 (see LICENSE).
 #
-# Installs the qqq CLI single-file binary for this machine from the GitHub releases of
-# QRun-IO/qqq-cli, after checking it against the release's SHA256SUMS.
+# Installs the qqq CLI single-file binary for this machine from the Gitea releases of
+# QRun-IO/qqq-cli (git.kof22.com), after checking it against the release's SHA256SUMS.
 #
-#   curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh
+#   curl -fsSL https://git.kof22.com/QRun-IO/qqq-cli/raw/branch/main/scripts/install.sh | sh
 #   curl -fsSL .../install.sh | sh -s -- --version 1.0.0 --dir /usr/local/bin
 #
-# By default it installs the newest stable cli-v* release (the channel Homebrew and Scoop follow);
+# By default it installs the newest stable v* release (the channel Homebrew and Scoop follow);
 # --pre takes the newest release including prereleases. --help lists the options.
 
 set -eu
@@ -16,31 +16,31 @@ set -eu
 repo="QRun-IO/qqq-cli"
 version="${QQQ_VERSION:-}"
 dir="${QQQ_INSTALL_DIR:-$HOME/.local/bin}"
-base="${QQQ_DOWNLOAD_BASE:-https://github.com/$repo/releases/download}"
+base="${QQQ_DOWNLOAD_BASE:-https://git.kof22.com/$repo/releases/download}"
 musl=""
 pre=""
 dry_run=""
-releases_url="${QQQ_RELEASES_URL:-https://api.github.com/repos/$repo/releases?per_page=30}"
+releases_url="${QQQ_RELEASES_URL:-https://git.kof22.com/api/v1/repos/$repo/releases?limit=30}"
 
 usage() {
   cat <<'USAGE'
-Install qqq (the CLI and the terminal UI, one binary) from https://github.com/QRun-IO/qqq-cli/releases
+Install qqq (the CLI and the terminal UI, one binary) from https://git.kof22.com/QRun-IO/qqq-cli/releases
 
-  curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh
-  curl -fsSL https://raw.githubusercontent.com/QRun-IO/qqq-cli/main/scripts/install.sh | sh -s -- [options]
+  curl -fsSL https://git.kof22.com/QRun-IO/qqq-cli/raw/branch/main/scripts/install.sh | sh
+  curl -fsSL https://git.kof22.com/QRun-IO/qqq-cli/raw/branch/main/scripts/install.sh | sh -s -- [options]
 
 Options (or environment):
-  --version V   (QQQ_VERSION)      a release such as 1.0.0; default: the newest stable cli-v* release
+  --version V   (QQQ_VERSION)      a release such as 1.0.0; default: the newest stable v* release
   --pre         (QQQ_PRE=1)        with no --version, take the newest release including prereleases
   --dir D       (QQQ_INSTALL_DIR)  where qqq goes; default: ~/.local/bin
   --musl                           take the musl build on Linux (detected on Alpine and other musl hosts)
   --dry-run                        print the version and download URL, change nothing
   -h, --help                       this help
-  QQQ_DOWNLOAD_BASE                release download root (default https://github.com/QRun-IO/qqq-cli/releases/download),
+  QQQ_DOWNLOAD_BASE                release download root (default https://git.kof22.com/QRun-IO/qqq-cli/releases/download),
                                    for mirrors and testing
 
 Supported: macOS arm64 and x64, Linux x64 and arm64 (glibc and musl). On Windows use Scoop:
-  scoop bucket add qrun https://github.com/QRun-IO/scoop-bucket
+  scoop bucket add qrun https://git.kof22.com/QRun-IO/scoop-bucket
   scoop install qqq
 USAGE
 }
@@ -73,7 +73,7 @@ fi
 case "$(uname -s)" in
   Darwin) os=darwin ;;
   Linux) os=linux ;;
-  MINGW*|MSYS*|CYGWIN*) die "on Windows install with Scoop (scoop bucket add qrun https://github.com/QRun-IO/scoop-bucket; scoop install qqq) or download qqq-windows-x64.exe from https://github.com/$repo/releases" ;;
+  MINGW*|MSYS*|CYGWIN*) die "on Windows install with Scoop (scoop bucket add qrun https://git.kof22.com/QRun-IO/scoop-bucket; scoop install qqq) or download qqq-windows-x64.exe from https://git.kof22.com/$repo/releases" ;;
   *) die "unsupported operating system $(uname -s)" ;;
 esac
 case "$(uname -m)" in
@@ -91,26 +91,26 @@ fi
 
 [ -n "${QQQ_PRE:-}" ] && [ "${QQQ_PRE}" != 0 ] && pre=1
 if [ -z "$version" ]; then
-  # The releases API lists newest first; each release's "tag_name" comes before its "prerelease".
+  # The Gitea releases API lists newest first; each release's "tag_name" comes before its "prerelease".
   # Escaped quotes inside release notes never match these patterns.
   version="$(fetch_text "$releases_url" | tr ',' '\n' | awk -v pre="$pre" '
     /"tag_name": *"/ { tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); next }
     /"prerelease": *(true|false)/ {
-      if (tag ~ /^cli-v/ && (pre != "" || $0 ~ /false/)) { sub(/^cli-v/, "", tag); print tag; exit }
+      if (tag ~ /^v[0-9]/ && (pre != "" || $0 ~ /false/)) { sub(/^v/, "", tag); print tag; exit }
       tag = ""
     }')" || true
   if [ -z "$version" ]; then
-    if [ -n "$pre" ]; then die "could not find a cli-v* release of $repo; pass --version"; fi
-    die "could not find a stable cli-v* release of $repo; pass --version, or --pre for prereleases"
+    if [ -n "$pre" ]; then die "could not find a v* release of $repo; pass --version"; fi
+    die "could not find a stable v* release of $repo; pass --version, or --pre for prereleases"
   fi
 fi
 version="${version#v}"
 version="${version#cli-v}"
 
 file="qqq-$os-$arch$musl"
-url="$base/cli-v$version/$file"
+url="$base/v$version/$file"
 if [ -n "$dry_run" ]; then
-  say "qqq $version: $url (checked against $base/cli-v$version/SHA256SUMS), into $dir/qqq"
+  say "qqq $version: $url (checked against $base/v$version/SHA256SUMS), into $dir/qqq"
   exit 0
 fi
 tmp="$(mktemp -d 2>/dev/null || mktemp -d -t qqq)"
@@ -119,7 +119,7 @@ trap 'exit 130' INT TERM
 
 say "Downloading qqq $version ($file)"
 fetch "$url" "$tmp/$file" || die "download failed: $url"
-fetch "$base/cli-v$version/SHA256SUMS" "$tmp/SHA256SUMS" || die "download failed: $base/cli-v$version/SHA256SUMS"
+fetch "$base/v$version/SHA256SUMS" "$tmp/SHA256SUMS" || die "download failed: $base/v$version/SHA256SUMS"
 
 expected="$(awk -v f="$file" '$2 == f { print $1 }' "$tmp/SHA256SUMS")"
 [ -n "$expected" ] || die "SHA256SUMS has no entry for $file"

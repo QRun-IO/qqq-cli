@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
     "description": "Command-line client and terminal UI (qqq ui) for QQQ applications, in one binary",
-    "homepage": "https://github.com/QRun-IO/qqq-cli",
+    "homepage": "https://git.kof22.com/QRun-IO/qqq-cli",
     "license": "Apache-2.0",
     "notes": [
         "qqq ui (the terminal UI) needs Windows Terminal or another ConPTY terminal; the legacy console is not supported.",
@@ -9,7 +9,7 @@
     ],
     "architecture": {
         "64bit": {
-            "url": "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v1.0.0/qqq-windows-x64.exe",
+            "url": "https://git.kof22.com/QRun-IO/qqq-cli/releases/download/v1.0.0/qqq-windows-x64.exe",
             "hash": "cf418d7842a227cee412171878228004f9bc5098a272c64b89512d1e2d06a176"
         }
     },
@@ -20,13 +20,14 @@
         ]
     ],
     "checkver": {
-        "github": "https://github.com/QRun-IO/qqq-cli",
-        "regex": "cli-v([\\d.]+(?:-rc\\.\\d+)?)"
+        "url": "https://git.kof22.com/api/v1/repos/QRun-IO/qqq-cli/releases/latest",
+        "jsonpath": "$.tag_name",
+        "regex": "v([\\d.]+)"
     },
     "autoupdate": {
         "architecture": {
             "64bit": {
-                "url": "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v$version/qqq-windows-x64.exe",
+                "url": "https://git.kof22.com/QRun-IO/qqq-cli/releases/download/v$version/qqq-windows-x64.exe",
                 "hash": {
                     "url": "$baseurl/SHA256SUMS"
                 }

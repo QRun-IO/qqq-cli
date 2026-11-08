@@ -20,7 +20,7 @@ const sumsText = (omit = []) =>
   [...FILES, 'qqq-linux-x64-musl', 'qqq-windows-x64.exe'].filter((f) => !omit.includes(f)).map((f, i) => `${'abcdef0123456'[i].repeat(64)}  ${f}`).join('\n') + '\n'
 const formula = `class Qqq < Formula
   version "0.0.0"
-${FILES.map((f) => `  url "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v#{version}/${f}"\n  sha256 "${ZERO}"`).join('\n')}
+${FILES.map((f) => `  url "https://git.kof22.com/QRun-IO/qqq-cli/releases/download/v#{version}/${f}"\n  sha256 "${ZERO}"`).join('\n')}
 end
 `
 const manifest = JSON.stringify({ version: '0.0.0', architecture: { '64bit': { url: 'x', hash: ZERO } } }, null, 4) + '\n'
@@ -32,6 +32,7 @@ test('fills every sum from shasum output and never leaves zeros', () => {
   assert.match(out.formula, /version "1\.0\.0"/)
   assert.ok(out.formula.includes(`qqq-darwin-arm64"\n  sha256 "${h('a')}"`))
   assert.equal(JSON.parse(out.manifest).architecture['64bit'].hash, h('f'))
+  assert.equal(JSON.parse(out.manifest).architecture['64bit'].url, 'https://git.kof22.com/QRun-IO/qqq-cli/releases/download/v1.0.0/qqq-windows-x64.exe')
 })
 
 test('a missing target throws', () => {

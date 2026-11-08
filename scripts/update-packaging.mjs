@@ -7,8 +7,9 @@
 /**
  * Fills the version and sha256 values of the packaging files (docs/packaging/homebrew-tap/Formula/qqq.rb for Homebrew,
  * docs/packaging/qqq.json for Scoop) from packages/cli/package.json and a release's SHA256SUMS.
- * Run it on the binaries that were uploaded to the GitHub release, not on a local rebuild: the
- * commit is stamped into each binary, so every build has different checksums.
+ * The release workflow (.gitea/workflows/release.yaml) runs it on the SHA256SUMS of the binaries uploaded to
+ * the Gitea release, never on a local rebuild: the commit is stamped into each binary, so every build has
+ * different checksums.
  *
  * Refuses to write anything (exit 1, both files untouched) when a sum is missing, is not 64 lowercase hex digits,
  * is all zeros, or when a placeholder in the files is left unfilled.
@@ -20,6 +21,8 @@ import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const HEX64 = /^[0-9a-f]{64}$/
+/** Release downloads on Gitea: <RELEASES>/v<version>/<file> (the release tag is v<CLI version>). */
+export const RELEASES = 'https://git.kof22.com/QRun-IO/qqq-cli/releases/download'
 const root = resolve(import.meta.dirname, '..')
 const FORMULA_SUMS = /(url "[^"]*\/(qqq-[a-z0-9-]+)"\n\s*sha256 ")([0-9a-f]{64})"/g
 
@@ -58,7 +61,7 @@ export function updatePackaging({ version, sums, formula, manifest }) {
 
   const parsed = JSON.parse(manifest)
   parsed.version = version
-  parsed.architecture['64bit'].url = `https://github.com/QRun-IO/qqq-cli/releases/download/cli-v${version}/qqq-windows-x64.exe`
+  parsed.architecture['64bit'].url = `${RELEASES}/v${version}/qqq-windows-x64.exe`
   parsed.architecture['64bit'].hash = sumFor(sums, 'qqq-windows-x64.exe')
   return { formula: newFormula, manifest: JSON.stringify(parsed, null, 4) + '\n', formulaCount }
 }

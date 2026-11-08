@@ -1,6 +1,7 @@
 name: build
 on:
   push:
+    branches: ['**']
 jobs:
   node:
     uses: self:KofTwentyTwo/ci-workflows/.gitea/workflows/node.yaml@v1

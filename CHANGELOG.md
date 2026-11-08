@@ -86,6 +86,22 @@ All notable changes to the qqq CLI and its packages. Versions follow [semver](ht
   position reports. They are rewritten on the input stream into `ESC [13;2~` outside the startup
   cursor-query window.
 
+## [1.0.1-rc.1] - 2026-11-08
+
+Release candidate built and published by Gitea CI from the tag `v1.0.1-rc.1`, the first through the new
+release path: `@qrun-io/qqq-cli` 1.0.1-rc.1, `@qrun-io/qqq-core` 1.0.1-rc.1 and
+`@qrun-io/qqq-ui-api-client` 1.8.1-rc.1 (dist-tag `next`) with `@qrun-io/qqq-ui-api-conformance` 1.6.0 on
+the QRun-IO Gitea npm registry, and the binaries with `SHA256SUMS` on the Gitea release. It carries the
+changes listed under Unreleased above as of this tag.
+
+### Changed
+
+- **Releases move to Gitea.** A `v<CLI version>` tag runs `.gitea/workflows/release.yaml`: the
+  `scripts/release.mjs` gate, the Linux, macOS arm64 (native) and Windows x64 (native) binaries, the npm
+  packages on `https://git.kof22.com/api/packages/QRun-IO/npm/`, the Gitea release, and for final versions
+  the Homebrew tap and Scoop bucket. The `cli-v*` tags and GitHub releases are retired; `scripts/install.sh`,
+  the formula and the Scoop manifest download from `https://git.kof22.com/QRun-IO/qqq-cli/releases`.
+
 ## [1.0.0] - 2026-11-01
 
 `qqq` 1.0: the command-line client and the full-screen terminal UI (`qqq ui`), shipped together as one

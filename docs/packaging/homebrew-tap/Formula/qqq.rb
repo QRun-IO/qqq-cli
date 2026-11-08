@@ -2,31 +2,31 @@
 
 # qqq: the QQQ command-line client and terminal UI (qqq ui) in one binary.
 # Kept in qqq-cli at docs/packaging/homebrew-tap/Formula/qqq.rb; scripts/update-packaging.mjs fills
-# version and sha256 from the SHA256SUMS of a GitHub release, then the file is copied to the tap.
+# version and sha256 from the SHA256SUMS of a Gitea release; the release workflow then copies it to the tap.
 class Qqq < Formula
   desc "Command-line client and terminal UI for QQQ applications"
-  homepage "https://github.com/QRun-IO/qqq-cli"
+  homepage "https://git.kof22.com/QRun-IO/qqq-cli"
   version "1.0.0"
   license "Apache-2.0"
 
   on_macos do
     on_arm do
-      url "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v#{version}/qqq-darwin-arm64"
+      url "https://git.kof22.com/QRun-IO/qqq-cli/releases/download/v#{version}/qqq-darwin-arm64"
       sha256 "5017a32ac5031d9146d541381099a959e5c19bbf04c48f725045d89d6007b211"
     end
     on_intel do
-      url "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v#{version}/qqq-darwin-x64"
+      url "https://git.kof22.com/QRun-IO/qqq-cli/releases/download/v#{version}/qqq-darwin-x64"
       sha256 "eb9b1d43d24b639118d94b175c343080a39ae9ba64c24645c1792ff3b16a37f1"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v#{version}/qqq-linux-arm64"
+      url "https://git.kof22.com/QRun-IO/qqq-cli/releases/download/v#{version}/qqq-linux-arm64"
       sha256 "25f513bdda13bbe40cf536844eebc1e3a7e21cf7804024f25ebe7c42793d7ebc"
     end
     on_intel do
-      url "https://github.com/QRun-IO/qqq-cli/releases/download/cli-v#{version}/qqq-linux-x64"
+      url "https://git.kof22.com/QRun-IO/qqq-cli/releases/download/v#{version}/qqq-linux-x64"
       sha256 "804d06cb7c0012c2f185ae5d94c6bb8f9e2482a440bb3c165361f1a14c941e41"
     end
   end
